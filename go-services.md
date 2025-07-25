@@ -338,6 +338,16 @@ func (s *service) DoSomething(ctx context.Context) error {
 
 ## 6. Testing Patterns
 
+### Mock Handling Policy
+
+**IMPORTANT**: When working with mocks in any service:
+
+1. **Never generate fake mock classes manually** - always use counterfeiter
+2. **If you can't find existing mocks**, ask the user where they are located before proceeding
+3. **Only add counterfeiter comments to existing interfaces** that belong to the current service
+4. **Look for existing `*_suite_test.go` files** and `//go:generate` directives to understand the current mock generation setup
+5. **All mocks must be generated using counterfeiter** and placed in the appropriate `mocks/` directory
+
 ### Using Counterfeiter Mocks
 
 ```go

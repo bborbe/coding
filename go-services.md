@@ -312,9 +312,43 @@ func (s *service) DoSomething(ctx context.Context) error {
 
 ### Context Usage
 
-- Always use `context.Context` as the first parameter
-- Pass context through all function calls
+**Golden Rules:**
+- Always use `context.Context` as the first parameter in functions that can return an error
+- Pass context through all function calls - never create new context.Background() in the middle of a call chain
 - Use context for cancellation, timeouts, and values
+- **NEVER use `context.Background()` in business logic, error handling, or service methods**
+
+**✅ DO: Pass context from caller**
+```go
+func (s *service) ProcessData(ctx context.Context, data Data) error {
+    if err := s.validator.Validate(ctx, data); err != nil {
+        return errors.Wrap(ctx, err, "validation failed") // Use ctx from caller
+    }
+    
+    result, err := s.processor.Process(ctx, data) // Pass ctx through
+    if err != nil {
+        return errors.Wrap(ctx, err, "processing failed") // Use ctx from caller
+    }
+    
+    return s.storage.Save(ctx, result) // Pass ctx through
+}
+```
+
+**❌ DON'T: Create context.Background() in service methods**
+```go
+func (s *service) ProcessData(ctx context.Context, data Data) error {
+    if err := s.validator.Validate(ctx, data); err != nil {
+        // WRONG: Don't create new background context
+        return errors.Wrap(context.Background(), err, "validation failed")
+    }
+    return nil
+}
+```
+
+**✅ DO: Use context.Background() only in these cases:**
+- `main.go` entry points and top-level initialization
+- Test setup (when you need a root context for testing)
+- Background goroutines that should not be cancelled by request contexts
 
 ## 5. Naming Conventions
 
@@ -402,7 +436,88 @@ pkg/service.go (business logic)
 pkg/repository.go (data access)
 ```
 
-## 8. File Organization
+## 8. Execution Strategies and Core Types
+
+### Execution Strategies with github.com/bborbe/run
+
+The `github.com/bborbe/run` package provides several execution strategies for handling concurrent operations:
+
+- **Sequential**: Execute functions one after another (`Sequential`)
+- **Parallel with different error handling**:
+    - `CancelOnFirstFinish`: Cancel remaining on first completion
+    - `CancelOnFirstError`: Cancel remaining on first error
+    - `All`: Execute all and aggregate errors
+    - `Run`: Execute all and return error channel
+
+### Core Types
+
+- `Func`: Function type `func(context.Context) error` - the basic unit of execution
+- `Runnable`: Interface for objects that can be run with context
+
+```go
+import "github.com/bborbe/run"
+
+// Example of using execution strategies
+func (a *application) Run(ctx context.Context, sentryClient sentry.Client) error {
+    return run.All(
+        ctx,
+        a.createHttpServer(db, syncProducer),
+        a.createConsumer(sentryClient, db, syncProducer),
+    )
+}
+```
+
+## 9. Benjamin Borbe's Ecosystem Libraries
+
+### Core Libraries
+- `github.com/bborbe/run`: Runnable interface and execution strategies
+- `github.com/bborbe/errors`: Error handling utilities with context wrapping
+- `github.com/bborbe/service`: Service framework for CLI applications
+- `github.com/bborbe/collection`: Collection utilities including `Ptr()` function
+- `github.com/bborbe/time`: Time operations with dependency injection
+- `github.com/bborbe/sentry`: Sentry integration for error reporting
+
+### External Libraries
+- `github.com/robfig/cron/v3`: Core cron scheduling engine
+- `github.com/golang/glog`: Logging (see go-glog.md for level guidelines)
+
+### Testing Framework
+This ecosystem uses **Ginkgo v2** (BDD) with **Gomega** matchers:
+- Counterfeiter for mock generation via `//go:generate` directives
+- All major components have corresponding test files
+- Tests run in UTC timezone for consistency
+- Test suites are in `*_suite_test.go` files
+
+Example test suite structure:
+```go
+package pkg_test
+
+import (
+    "testing"
+    "time"
+
+    . "github.com/onsi/ginkgo/v2"
+    . "github.com/onsi/gomega"
+    "github.com/onsi/gomega/format"
+)
+
+//go:generate go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate
+func TestSuite(t *testing.T) {
+    time.Local = time.UTC
+    format.TruncatedDiff = false
+    RegisterFailHandler(Fail)
+    RunSpecs(t, "Test Suite")
+}
+```
+
+**Key Implementation Notes:**
+- All operations are context-aware for cancellation and timeouts
+- Error handling is a key design principle with multiple strategies
+- Code follows standard Go conventions with BSD license headers
+- Mock generation is automated via `//counterfeiter:generate` comments
+- Uses interface segregation with small, focused interfaces
+
+## 10. File Organization
 
 ```
 service-name/
@@ -419,7 +534,7 @@ service-name/
 └── go.sum
 ```
 
-## 9. Common Antipatterns to Avoid
+## 11. Common Antipatterns to Avoid
 
 ### DON'T: Create custom pointer helper functions
 ```go
@@ -456,6 +571,43 @@ if err != nil {
 // DO THIS instead
 if err != nil {
     return errors.Wrap(ctx, err, "operation failed")
+}
+```
+
+### DON'T: Use context.Background() instead of caller's context
+```go
+// DON'T DO THIS - creates new background context in business logic
+func (s *service) extractMetadata(document *Document) (*Metadata, error) {
+    if document.Content == nil {
+        // WRONG: Using context.Background() instead of caller's context
+        return nil, errors.Errorf(context.Background(), "document has no content")
+    }
+    return parseMetadata(document.Content), nil
+}
+
+func (s *service) ProcessDocument(ctx context.Context, document *Document) error {
+    metadata, err := s.extractMetadata(document) // Lost context chain!
+    if err != nil {
+        return err
+    }
+    // ... rest of processing
+}
+
+// DO THIS - pass context through the call chain
+func (s *service) extractMetadata(ctx context.Context, document *Document) (*Metadata, error) {
+    if document.Content == nil {
+        // CORRECT: Use context from caller
+        return nil, errors.Errorf(ctx, "document has no content")
+    }
+    return parseMetadata(document.Content), nil
+}
+
+func (s *service) ProcessDocument(ctx context.Context, document *Document) error {
+    metadata, err := s.extractMetadata(ctx, document) // Context preserved!
+    if err != nil {
+        return err
+    }
+    // ... rest of processing
 }
 ```
 

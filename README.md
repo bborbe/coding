@@ -11,7 +11,9 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 ### Core Go Development Guidelines
 
 - **[go-architecture-patterns.md](go-architecture-patterns.md)** - Comprehensive Go service architecture patterns using the Interface → Constructor → Struct → Method pattern, dependency injection, and ecosystem integration
-- **[go-testing-guide.md](go-testing-guide.md)** - Complete testing patterns with Ginkgo v2, Gomega, Counterfeiter mocks, and BDD-style testing approaches
+- **[go-testing-guide.md](go-testing-guide.md)** - Complete testing patterns with Ginkgo v2, Gomega, and BDD-style testing approaches
+- **[go-mocking-guide.md](go-mocking-guide.md)** - Comprehensive mocking patterns with Counterfeiter, mock discovery strategies, and what to mock vs what not to mock
+- **[go-library-guide.md](go-library-guide.md)** - Go library development and structuring guidelines
 - **[go-makefile-commands.md](go-makefile-commands.md)** - Standardized Makefile targets for builds, testing, code quality, and license management
 - **[go-doc-best-practices.md](go-doc-best-practices.md)** - Documentation standards and best practices for Go code
 - **[go-glog.md](go-glog.md)** - Logging patterns and glog usage guidelines
@@ -20,6 +22,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 
 - **[git-commit-workflow.md](git-commit-workflow.md)** - Mandatory commit process including pre-commit steps, changelog updates, and version tagging with semantic versioning
 - **[tdd-guide.md](tdd-guide.md)** - Test-driven development practices and patterns
+- **[http-handler-refactoring-guide.md](http-handler-refactoring-guide.md)** - HTTP handler refactoring patterns and best practices
 
 ### Frontend Development
 

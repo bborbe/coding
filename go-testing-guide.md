@@ -178,114 +178,19 @@ Context("Validate", func() {
 
 ## Mock Generation & Usage
 
-### Generating Mocks with Counterfeiter
+For comprehensive mocking patterns, mock discovery, and best practices, see **[go-mocking-guide.md](go-mocking-guide.md)**.
 
-Add `//counterfeiter:generate` comments to interface definitions:
-
-```go
-// In your interface file (e.g., user-service.go)
-//counterfeiter:generate -o ../mocks/user-service.go --fake-name UserService . UserService
-type UserService interface {
-    Create(ctx context.Context, user User) error
-    Get(ctx context.Context, id UserID) (*User, error)
-}
-```
-
-**Mock Generation Command:**
+**Quick Reference:**
 ```bash
+# Generate mocks
 go generate ./...
-# or specifically:
-go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
+# Mock setup in tests
+mockService := &mocks.UserService{}
+mockService.CreateReturns(nil)
 ```
 
-### Using Mocks in Tests
-
-```go
-var _ = Describe("UserHandler", func() {
-	var ctx context.Context
-	var err error
-	var userService *mocks.UserService
-	var userHandler UserHandler
-	var user User
-
-	BeforeEach(func() {
-		ctx = context.Background()
-		userService = &mocks.UserService{}
-		userHandler = NewUserHandler(userService)
-		user = User{ID: "123", Name: "John"}
-	})
-
-	Context("CreateUser", func() {
-		JustBeforeEach(func() {
-			err = userHandler.CreateUser(ctx, user)
-		})
-
-		Context("service succeeds", func() {
-			BeforeEach(func() {
-				userService.CreateReturns(nil)
-			})
-
-			It("returns no error", func() {
-				Expect(err).To(BeNil())
-			})
-
-			It("calls service with correct parameters", func() {
-				Expect(userService.CreateCallCount()).To(Equal(1))
-				actualCtx, actualUser := userService.CreateArgsForCall(0)
-				Expect(actualCtx).To(Equal(ctx))
-				Expect(actualUser).To(Equal(user))
-			})
-		})
-
-		Context("service fails", func() {
-			BeforeEach(func() {
-				userService.CreateReturns(errors.New("service error"))
-			})
-
-			It("returns error", func() {
-				Expect(err).NotTo(BeNil())
-				Expect(err.Error()).To(ContainSubstring("service error"))
-			})
-		})
-	})
-})
-```
-
-### Mock Verification Patterns
-
-**Call Count Verification:**
-```go
-Expect(mockService.MethodCallCount()).To(Equal(1))
-Expect(mockService.MethodCallCount()).To(BeZero())
-```
-
-**Argument Verification:**
-```go
-actualCtx, actualID := mockService.GetArgsForCall(0)
-Expect(actualCtx).To(Equal(ctx))
-Expect(actualID).To(Equal(expectedID))
-```
-
-**Return Value Setup:**
-```go
-mockService.GetReturns(&User{ID: "123"}, nil)
-mockService.GetReturnsOnCall(0, &User{ID: "first"}, nil)
-mockService.GetReturnsOnCall(1, &User{ID: "second"}, nil)
-```
-
-**Stub Functions for Complex Logic:**
-```go
-mockService.FindStub = func(ctx context.Context, fn func(User) bool) ([]User, error) {
-	users := []User{{ID: "1"}, {ID: "2"}}
-	var result []User
-	for _, user := range users {
-		if fn(user) {
-			result = append(result, user)
-		}
-	}
-	return result, nil
-}
-```
+**Key Principle**: Mock external dependencies at interface boundaries, use real implementations for internal utilities.
 
 ## Database Testing Patterns
 

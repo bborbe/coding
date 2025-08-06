@@ -374,46 +374,31 @@ func (s *service) ProcessData(ctx context.Context, data Data) error {
 
 ### Mock Handling Policy
 
-**IMPORTANT**: When working with mocks in any service:
+For comprehensive mocking patterns and best practices, see **[go-mocking-guide.md](go-mocking-guide.md)**.
 
-1. **Never generate fake mock classes manually** - always use counterfeiter
-2. **If you can't find existing mocks**, ask the user where they are located before proceeding
-3. **Only add counterfeiter comments to existing interfaces** that belong to the current service
-4. **Look for existing `*_suite_test.go` files** and `//go:generate` directives to understand the current mock generation setup
-5. **All mocks must be generated using counterfeiter** and placed in the appropriate `mocks/` directory
+**CRITICAL RULES:**
+- Never generate fake mock classes manually - always use counterfeiter
+- Ask user where existing mocks are located before creating new ones
+- Only add counterfeiter comments to current service interfaces
+- All mocks must be in `mocks/` directory and generated via Counterfeiter
 
-### Using Counterfeiter Mocks
-
-```go
-//go:generate counterfeiter -o ../mocks/user-service.go --fake-name UserService . UserService
-
-func TestSomething(t *testing.T) {
-    userService := &mocks.UserService{}
-    userService.GetReturns(&User{ID: "123"}, nil)
-    
-    // Test with mock
-}
-```
-
-### Test Structure
+### Test Structure Example
 
 ```go
 func TestUserService_Create_Success(t *testing.T) {
-    // Arrange
+    // Setup with mocks and real utilities
     currentDateTime := libtime.NewCurrentDateTime()
-    currentDateTime.SetNow(libtimetest.ParseDateTime("2023-12-25T00:00:00Z"))
+    db := &mocks.DB{}                        // Mock external dependency
     
-    db := &mocks.DB{}
-    validator := &mocks.UserValidator{}
+    service := NewUserService(
+        db, 
+        log.DefaultSamplerFactory.Sampler(), // Real utility
+        currentDateTime,                     // Real utility
+    )
     
-    service := NewUserService(db, log.DefaultSamplerFactory.Sampler(), currentDateTime, validator)
-    
-    // Act
+    // Test business logic
     err := service.Create(context.Background(), User{ID: "123"})
-    
-    // Assert
     assert.NoError(t, err)
-    assert.Equal(t, 1, validator.ValidateCallCount())
 }
 ```
 

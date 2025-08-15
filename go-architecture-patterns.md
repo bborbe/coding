@@ -350,6 +350,48 @@ func (s *service) ProcessData(ctx context.Context, data Data) error {
 - Test setup (when you need a root context for testing)
 - Background goroutines that should not be cancelled by request contexts
 
+### Infinite Loops with Context Cancellation
+
+**CRITICAL:** All infinite loops must check for context cancellation to prevent getting stuck when context is cancelled.
+
+**✅ DO: Always include context cancellation in infinite loops**
+```go
+func (s *service) RunWorker(ctx context.Context) error {
+    for {
+        select {
+        case <-ctx.Done():
+            return ctx.Err()
+        default:
+            // Your work here
+            if err := s.processNextItem(ctx); err != nil {
+                return errors.Wrap(ctx, err, "process item failed")
+            }
+            
+            // Optional: add delay between iterations
+            time.Sleep(100 * time.Millisecond)
+        }
+    }
+}
+```
+
+**❌ DON'T: Create infinite loops without context cancellation**
+```go
+func (s *service) RunWorker(ctx context.Context) error {
+    for {
+        // WRONG: Loop will never exit when context is cancelled
+        if err := s.processNextItem(ctx); err != nil {
+            return err
+        }
+    }
+}
+```
+
+**Key points:**
+- Always use `select` with `case <-ctx.Done():` in infinite loops
+- Return `ctx.Err()` when context is cancelled to preserve cancellation reason
+- Place the select statement at the beginning of the loop iteration
+- Consider adding delays between iterations to avoid busy waiting
+
 ## 5. Naming Conventions
 
 ### Interfaces

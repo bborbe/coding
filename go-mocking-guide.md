@@ -18,6 +18,14 @@ Mocking is essential for testing Go services that depend on external interfaces.
 - **[Ginkgo v2](https://onsi.github.io/ginkgo/)**: BDD testing framework
 - **[Gomega](https://onsi.github.io/gomega/)**: Assertion library
 
+### Critical Rules
+
+**⚠️ NEVER Generate Fake Classes by Hand**
+
+- **ALWAYS use Counterfeiter** for mock generation
+- **NEVER write mocks/fakes by hand** - no manual fake class creation
+- **ALWAYS ask the user before creating new mocks** - check if mocks can be generated with Counterfeiter first
+
 ### Key Principle: Mock Granularity
 
 **Mock at interface boundaries, not implementation details.** This keeps tests focused on your code's behavior while remaining maintainable and realistic.
@@ -43,8 +51,8 @@ Mocking is essential for testing Go services that depend on external interfaces.
 
 ```go
 // ✅ GOOD: Mock external dependency at interface boundary
-mockSyncProducer := &kafkaMocks.SyncProducer{}
-resourceSender := pkg.NewResourceSender(mockSyncProducer, realLogger)
+syncProducer := &kafkaMocks.SyncProducer{}
+resourceSender := pkg.NewResourceSender(syncProducer, realLogger)
 ```
 
 ### ❌ What NOT to Mock
@@ -66,12 +74,12 @@ resourceSender := pkg.NewResourceSender(mockSyncProducer, realLogger)
 
 ```go
 // ❌ BAD: Over-mocking simple utilities
-mockLogSamplerFactory := &logMocks.SamplerFactory{}
-mockJSONMarshaler := &mocks.JSONMarshaler{}
+logSamplerFactory := &logMocks.SamplerFactory{}
+jsonMarshaler := &mocks.JSONMarshaler{}
 
 // ✅ GOOD: Use real implementations for stable utilities
 resourceSender := pkg.NewResourceSender(
-    mockSyncProducer,           // Mock external dependency
+    syncProducer,               // Mock external dependency
     log.DefaultSamplerFactory,  // Real stable utility
 )
 ```
@@ -88,11 +96,23 @@ resourceSender := pkg.NewResourceSender(
 ```
 # Project structure for mocks
 ./mocks/                           # Local project mocks
+./lib/mocks/                       # Core library mocks (largest collection)
 ./vendor/.../mocks/                # Vendor library pre-existing mocks
 lib/kafka/mocks/sync-producer.go   # Kafka ecosystem mocks
 lib/sentry/mocks/sentry-client.go  # Sentry ecosystem mocks
 github.com/bborbe/log/mocks/       # Log utility mocks
 github.com/bborbe/[lib]/mocks/     # Other ecosystem library mocks
+```
+
+#### External Library Mock Packages
+```go
+// External library mocks used throughout the system
+httpmocks "github.com/bborbe/http/mocks"     // HTTP client mocks
+kafkamocks "github.com/bborbe/kafka/mocks"    // Kafka client mocks
+kvmocks "github.com/bborbe/kv/mocks"       // Key-value store mocks
+logmocks "github.com/bborbe/log/mocks"      // Logging mocks
+sentrymocks "github.com/bborbe/sentry/mocks"   // Sentry integration mocks
+strimzimocks "github.com/bborbe/strimzi/mocks"  // Strimzi Kafka mocks
 ```
 
 ### Systematic Mock Discovery
@@ -102,14 +122,21 @@ Before creating new mocks, use this discovery strategy:
 ```bash
 # 1. Check for existing mocks
 ls **/mocks/*.go
+find . -name "*mock*.go" -type f
 
 # 2. Find counterfeiter generation directives
 grep -r "counterfeiter:generate"
 
-# 3. Check vendor directories for pre-existing mocks
+# 3. Search for mock imports
+grep -r "mocks\." --include="*.go" .
+
+# 4. Find external library mocks
+grep -r "github.com/bborbe/.*/mocks" --include="*.go" .
+
+# 5. Check vendor directories for pre-existing mocks
 find vendor -name "mocks" -type d
 
-# 4. Look for existing test suite setup
+# 6. Look for existing test suite setup
 find . -name "*suite_test.go" -exec grep -l "go:generate" {} \;
 ```
 
@@ -128,6 +155,14 @@ import "lib/kafka/mocks"
 
 // Local project mocks (generated)
 import "your-project/mocks"
+import libmocks "your-project/lib/mocks"  // Core library mocks
+
+// External library mocks with aliases
+import (
+    kvmocks "github.com/bborbe/kv/mocks"
+    libkvmocks "github.com/bborbe/kv/mocks"  // Alternative alias
+    strimzimocks "github.com/bborbe/strimzi/mocks"
+)
 
 // Usage with mixed real/mock dependencies
 service := pkg.NewOrderProcessor(
@@ -135,6 +170,10 @@ service := pkg.NewOrderProcessor(
     log.DefaultSamplerFactory,     // Real utility from ecosystem
     libtime.NewCurrentDateTime(),  // Real time utility
 )
+
+// Database transaction mock usage
+tx := &kvmocks.Tx{}
+topicDeployer := &strimzimocks.TopicDeployer{}
 ```
 
 ## 4. Interface Design for Mocking
@@ -212,6 +251,22 @@ func (s *userService) GetUser(ctx context.Context, id string) (*User, error) {
 }
 ```
 
+### Special Cases - Do NOT Mock
+
+- **log.SamplerFactory**: Use `log.DefaultSamplerFactory` instead of mocking
+  - Simply use the default implementation rather than creating a mock
+
+```go
+// ❌ DON'T mock log.SamplerFactory
+logSamplerFactory := &logmocks.SamplerFactory{}
+
+// ✅ DO use real implementation
+service := pkg.NewService(
+    externalService,            // Mock external dependency
+    log.DefaultSamplerFactory,  // Real stable utility
+)
+```
+
 ## 5. Mock Generation Setup
 
 ### Project Structure
@@ -260,9 +315,32 @@ func TestService(t *testing.T) {
 # Generate all mocks for the project
 go generate ./...
 
+# Generate mocks for specific package
+cd path/to/package
+go generate
+
 # Or run counterfeiter directly
 go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
+# Or use make command (if available)
+make generate
 ```
+
+### Quick Reference Commands
+
+```go
+// Basic pattern:
+//counterfeiter:generate -o <output-path> --fake-name <MockName> <package> <InterfaceName>
+
+// Example:
+//counterfeiter:generate -o ../mocks/cdb-command-object-executor-tx.go --fake-name CDBCommandObjectExecutorTx . CommandObjectExecutorTx
+```
+
+Where:
+- `-o ../mocks/filename.go` - Output path (always in SERVICE/mocks)
+- `--fake-name` - Name of the generated mock struct  
+- `.` - Current package (or specify different package)
+- `InterfaceName` - The interface to mock
 
 ## 6. Mock Usage Patterns
 
@@ -285,8 +363,8 @@ var _ = Describe("UserService", func() {
     var (
         ctx             context.Context
         userService     service.UserService
-        mockDB          *mocks.DB
-        mockValidator   *mocks.UserValidator
+        db              *mocks.DB
+        validator       *mocks.UserValidator
         currentDateTime libtime.CurrentDateTime
     )
 
@@ -294,15 +372,28 @@ var _ = Describe("UserService", func() {
         ctx = context.Background()
         
         // Create mocks
-        mockDB = &mocks.DB{}
-        mockValidator = &mocks.UserValidator{}
+        db = &mocks.DB{}
+        validator = &mocks.UserValidator{}
         
         // Setup fixed time for tests
         currentDateTime = libtime.NewCurrentDateTime()
         currentDateTime.SetNow(libtimetest.ParseDateTime("2023-12-25T00:00:00Z"))
         
         // Create service with mocked dependencies
-        userService = service.NewUserService(mockDB, mockValidator, currentDateTime)
+        userService = service.NewUserService(db, validator, currentDateTime)
+    })
+    
+    // Alternative setup pattern for transaction tests
+    Context("transaction operations", func() {
+        var tx *kvmocks.Tx
+        
+        BeforeEach(func() {
+            tx = &kvmocks.Tx{}
+        })
+        
+        JustBeforeEach(func() {
+            result, err = commandExecutor.HandleCommand(ctx, tx, command)
+        })
     })
 
     Describe("GetUser", func() {
@@ -314,7 +405,7 @@ var _ = Describe("UserService", func() {
                     Name: "John Doe",
                     Email: "john@example.com",
                 }
-                mockDB.FindByIDReturns(expectedUser, nil)
+                db.FindByIDReturns(expectedUser, nil)
                 
                 // Act
                 result, err := userService.GetUser(ctx, "user123")
@@ -324,8 +415,8 @@ var _ = Describe("UserService", func() {
                 Expect(result).To(Equal(expectedUser))
                 
                 // Verify mock interactions
-                Expect(mockDB.FindByIDCallCount()).To(Equal(1))
-                actualCtx, actualID := mockDB.FindByIDArgsForCall(0)
+                Expect(db.FindByIDCallCount()).To(Equal(1))
+                actualCtx, actualID := db.FindByIDArgsForCall(0)
                 Expect(actualCtx).To(Equal(ctx))
                 Expect(actualID).To(Equal("user123"))
             })
@@ -339,17 +430,17 @@ var _ = Describe("UserService", func() {
 #### Simple Returns
 ```go
 // Return same values for all calls
-mockService.GetUserReturns(&User{ID: "123"}, nil)
+service.GetUserReturns(&User{ID: "123"}, nil)
 
 // Return different values for specific calls
-mockService.GetUserReturnsOnCall(0, &User{ID: "first"}, nil)
-mockService.GetUserReturnsOnCall(1, &User{ID: "second"}, nil)
+service.GetUserReturnsOnCall(0, &User{ID: "first"}, nil)
+service.GetUserReturnsOnCall(1, &User{ID: "second"}, nil)
 ```
 
 #### Stub Functions
 ```go
 // Complex behavior with custom logic
-mockService.FindUsersStub = func(ctx context.Context, filter func(User) bool) ([]User, error) {
+service.FindUsersStub = func(ctx context.Context, filter func(User) bool) ([]User, error) {
     users := []User{
         {ID: "1", Name: "Alice"},
         {ID: "2", Name: "Bob"},
@@ -371,28 +462,95 @@ mockService.FindUsersStub = func(ctx context.Context, filter func(User) bool) ([
 #### Call Count Verification
 ```go
 // Verify method was called
-Expect(mockService.GetUserCallCount()).To(Equal(1))
+Expect(service.GetUserCallCount()).To(Equal(1))
 
 // Verify method was never called
-Expect(mockService.DeleteUserCallCount()).To(BeZero())
+Expect(service.DeleteUserCallCount()).To(BeZero())
 
 // Verify multiple calls
-Expect(mockService.CreateUserCallCount()).To(Equal(3))
+Expect(service.CreateUserCallCount()).To(Equal(3))
 ```
 
 #### Argument Verification
 ```go
 // Verify arguments for single call
-actualCtx, actualID := mockService.GetUserArgsForCall(0)
+actualCtx, actualID := service.GetUserArgsForCall(0)
 Expect(actualCtx).To(Equal(ctx))
 Expect(actualID).To(Equal("expected-id"))
 
 // Verify arguments for multiple calls
-for i := 0; i < mockService.CreateUserCallCount(); i++ {
-    actualCtx, actualUser := mockService.CreateUserArgsForCall(i)
+for i := 0; i < service.CreateUserCallCount(); i++ {
+    actualCtx, actualUser := service.CreateUserArgsForCall(i)
     Expect(actualCtx).To(Equal(ctx))
     Expect(actualUser).ToNot(BeNil())
 }
+```
+
+### Real Examples from Production Codebase
+
+#### Example 1: Service with Multiple Mocks
+
+```go
+// Production-style test with common service patterns
+var userService *mocks.UserService
+var emailSender *mocks.EmailSender
+
+BeforeEach(func() {
+    userService = &mocks.UserService{}
+    emailSender = &mocks.EmailSender{}
+    
+    // Configure mock returns
+    userService.GetByIDReturns(&User{
+        ID:       "user123",
+        Name:     "John Doe",
+        Email:    "john@example.com",
+        Created:  libtest.ParseDateTime("2023-09-22T10:01:00Z"),
+        Modified: libtest.ParseDateTime("2023-09-22T10:01:00Z"),
+    }, nil)
+})
+
+It("sends notification after user update", func() {
+    Expect(emailSender.SendCallCount()).To(Equal(1))
+    actualEmail, actualSubject := emailSender.SendArgsForCall(0)
+    Expect(actualEmail).To(Equal("john@example.com"))
+    Expect(actualSubject).To(ContainSubstring("Account Updated"))
+})
+```
+
+#### Example 2: External Library Mock Usage
+
+```go
+// Using external library mocks with aliases
+import (
+    kvmocks "github.com/bborbe/kv/mocks"
+    strimzimocks "github.com/bborbe/strimzi/mocks"
+)
+
+BeforeEach(func() {
+    tx = &kvmocks.Tx{}
+    topicDeployer = &strimzimocks.TopicDeployer{}
+})
+
+#### Example 3: Multiple Mock Types with Aliases
+
+```go
+var _ = Describe("OrderService", func() {
+    var (
+        ctx         context.Context
+        payment     *mocks.PaymentService
+        inventory   *libmocks.InventoryStore
+        tx          *kvmocks.Tx
+        notifier    *strimzimocks.NotificationService
+    )
+    
+    BeforeEach(func() {
+        ctx = context.Background()
+        payment = &mocks.PaymentService{}
+        inventory = &libmocks.InventoryStore{}
+        tx = &kvmocks.Tx{}
+        notifier = &strimzimocks.NotificationService{}
+    })
+})
 ```
 
 ## 7. Advanced Mock Patterns
@@ -403,7 +561,7 @@ Context("when database fails", func() {
     It("returns wrapped error", func() {
         // Arrange
         dbError := errors.New(ctx, "database connection failed")
-        mockDB.FindByIDReturns(nil, dbError)
+        db.FindByIDReturns(nil, dbError)
         
         // Act
         result, err := userService.GetUser(ctx, "user123")
@@ -422,9 +580,9 @@ Context("when database fails", func() {
 Context("when called multiple times", func() {
     It("handles different responses", func() {
         // Arrange - setup different responses for each call
-        mockDB.FindByIDReturnsOnCall(0, &User{ID: "1"}, nil)
-        mockDB.FindByIDReturnsOnCall(1, nil, errors.New(ctx, "not found"))
-        mockDB.FindByIDReturnsOnCall(2, &User{ID: "3"}, nil)
+        db.FindByIDReturnsOnCall(0, &User{ID: "1"}, nil)
+        db.FindByIDReturnsOnCall(1, nil, errors.New(ctx, "not found"))
+        db.FindByIDReturnsOnCall(2, &User{ID: "3"}, nil)
         
         // Act & Assert - first call succeeds
         user1, err1 := userService.GetUser(ctx, "1")
@@ -452,8 +610,8 @@ var _ = Describe("OrderService Integration", func() {
         ctx              context.Context
         orderService     service.OrderService
         realDB           *bolt.DB  // Real database for persistence
-        mockPayment      *mocks.PaymentAPI
-        mockNotifier     *mocks.NotificationService
+        payment          *mocks.PaymentAPI
+        notifier         *mocks.NotificationService
         currentDateTime  libtime.CurrentDateTime
     )
 
@@ -466,8 +624,8 @@ var _ = Describe("OrderService Integration", func() {
         Expect(err).ToNot(HaveOccurred())
         
         // Setup mocks for external services
-        mockPayment = &mocks.PaymentAPI{}
-        mockNotifier = &mocks.NotificationService{}
+        payment = &mocks.PaymentAPI{}
+        notifier = &mocks.NotificationService{}
         
         currentDateTime = libtime.NewCurrentDateTime()
         currentDateTime.SetNow(libtimetest.ParseDateTime("2023-12-25T00:00:00Z"))
@@ -475,8 +633,8 @@ var _ = Describe("OrderService Integration", func() {
         // Create service with mixed dependencies
         orderService = service.NewOrderService(
             realDB,               // Real database
-            mockPayment,          // Mock payment service
-            mockNotifier,         // Mock notifier
+            payment,              // Mock payment service
+            notifier,             // Mock notifier
             currentDateTime,
         )
     })
@@ -488,7 +646,7 @@ var _ = Describe("OrderService Integration", func() {
     Context("when processing order", func() {
         It("integrates real and mock components", func() {
             // Arrange
-            mockPayment.ProcessPaymentReturns(&PaymentResult{
+            payment.ProcessPaymentReturns(&PaymentResult{
                 TransactionID: "tx123",
                 Status:       "success",
             }, nil)
@@ -507,14 +665,14 @@ var _ = Describe("OrderService Integration", func() {
             Expect(result.TransactionID).To(Equal("tx123"))
             
             // Verify mock interactions
-            Expect(mockPayment.ProcessPaymentCallCount()).To(Equal(1))
-            actualCtx, actualRequest := mockPayment.ProcessPaymentArgsForCall(0)
+            Expect(payment.ProcessPaymentCallCount()).To(Equal(1))
+            actualCtx, actualRequest := payment.ProcessPaymentArgsForCall(0)
             Expect(actualCtx).To(Equal(ctx))
             Expect(actualRequest.Amount).To(Equal(100.50))
             
             // Verify notifications were sent
-            Expect(mockNotifier.NotifyCallCount()).To(Equal(1))
-            notifyCtx, message := mockNotifier.NotifyArgsForCall(0)
+            Expect(notifier.NotifyCallCount()).To(Equal(1))
+            notifyCtx, message := notifier.NotifyArgsForCall(0)
             Expect(notifyCtx).To(Equal(ctx))
             Expect(message).To(ContainSubstring("order123"))
             
@@ -538,13 +696,20 @@ var _ = Describe("OrderService Integration", func() {
 - **Only add counterfeiter comments to current service interfaces**
 - **Look for existing `*_suite_test.go` files** to understand mock setup
 - **All mocks must be in `mocks/` directory** and generated via Counterfeiter
+- **Always ask the user before creating new mocks** - check if mocks can be generated with Counterfeiter first
 
-### 2. Mock Lifecycle
+### 2. Mock Naming Conventions
+
+- Use descriptive variable names: `actualTradeCreator`, `strategySender`, `dataSender`
+- Use consistent import aliases: `libmocks`, `kvmocks`, `strimzimocks`
+- Follow existing patterns in the codebase for alias naming
+
+### 3. Mock Lifecycle
 
 ```go
 BeforeEach(func() {
     // Create fresh mocks for each test
-    mockService = &mocks.UserService{}
+    service = &mocks.UserService{}
     
     // Reset any shared state
     ctx = context.Background()
@@ -556,13 +721,13 @@ AfterEach(func() {
 })
 ```
 
-### 3. Mock Verification Strategy
+### 4. Mock Verification Strategy
 
 ```go
 // GOOD: Verify both behavior and interactions
 It("processes user correctly", func() {
     // Arrange
-    mockValidator.ValidateReturns(nil)
+    validator.ValidateReturns(nil)
     
     // Act
     err := userService.ProcessUser(ctx, user)
@@ -571,14 +736,14 @@ It("processes user correctly", func() {
     Expect(err).ToNot(HaveOccurred())
     
     // Verify interactions
-    Expect(mockValidator.ValidateCallCount()).To(Equal(1))
-    actualCtx, actualUser := mockValidator.ValidateArgsForCall(0)
+    Expect(validator.ValidateCallCount()).To(Equal(1))
+    actualCtx, actualUser := validator.ValidateArgsForCall(0)
     Expect(actualCtx).To(Equal(ctx))
     Expect(actualUser).To(Equal(user))
 })
 ```
 
-### 4. Time Handling in Mocks
+### 5. Time Handling in Mocks
 
 ```go
 BeforeEach(func() {
@@ -587,7 +752,7 @@ BeforeEach(func() {
     currentDateTime.SetNow(libtimetest.ParseDateTime("2023-12-25T00:00:00Z"))
     
     // Create service with fixed time
-    userService = service.NewUserService(mockDB, currentDateTime)
+    userService = service.NewUserService(db, currentDateTime)
 })
 ```
 
@@ -618,14 +783,14 @@ type UserService interface {
 }
 
 // In tests:
-mockService := &mocks.UserService{}
+service := &mocks.UserService{}
 ```
 
 ### DON'T: Skip Mock Verification
 ```go
 // DON'T DO THIS - no verification
 It("calls service", func() {
-    mockService.ProcessReturns(nil)
+    service.ProcessReturns(nil)
     
     err := handler.Handle(ctx, request)
     
@@ -637,13 +802,13 @@ It("calls service", func() {
 ```go
 // DO THIS - verify mock interactions
 It("calls service with correct parameters", func() {
-    mockService.ProcessReturns(nil)
+    service.ProcessReturns(nil)
     
     err := handler.Handle(ctx, request)
     
     Expect(err).ToNot(HaveOccurred())
-    Expect(mockService.ProcessCallCount()).To(Equal(1))
-    actualCtx, actualRequest := mockService.ProcessArgsForCall(0)
+    Expect(service.ProcessCallCount()).To(Equal(1))
+    actualCtx, actualRequest := service.ProcessArgsForCall(0)
     Expect(actualCtx).To(Equal(ctx))
     Expect(actualRequest).To(Equal(request))
 })
@@ -652,17 +817,17 @@ It("calls service with correct parameters", func() {
 ### DON'T: Use Shared Mock State
 ```go
 // DON'T DO THIS - shared mock state
-var sharedMock = &mocks.UserService{}
+var sharedService = &mocks.UserService{}
 
 var _ = Describe("UserHandler", func() {
     It("test 1", func() {
-        sharedMock.GetUserReturns(user1, nil)
+        sharedService.GetUserReturns(user1, nil)
         // Test logic
     })
     
     It("test 2", func() {
         // Previous test's setup affects this test!
-        sharedMock.GetUserReturns(user2, nil)
+        sharedService.GetUserReturns(user2, nil)
         // Test logic
     })
 })
@@ -671,20 +836,20 @@ var _ = Describe("UserHandler", func() {
 ```go
 // DO THIS - fresh mocks per test
 var _ = Describe("UserHandler", func() {
-    var mockService *mocks.UserService
+    var userService *mocks.UserService
     
     BeforeEach(func() {
-        mockService = &mocks.UserService{}
-        handler = NewUserHandler(mockService)
+        userService = &mocks.UserService{}
+        handler = NewUserHandler(userService)
     })
     
     It("test 1", func() {
-        mockService.GetUserReturns(user1, nil)
+        userService.GetUserReturns(user1, nil)
         // Clean test with fresh mock
     })
     
     It("test 2", func() {
-        mockService.GetUserReturns(user2, nil)
+        userService.GetUserReturns(user2, nil)
         // Clean test with fresh mock
     })
 })
@@ -693,11 +858,11 @@ var _ = Describe("UserHandler", func() {
 ### DON'T: Over-Mock Internal Dependencies
 ```go
 // DON'T DO THIS - mocking internal utilities
-mockTime := &mocks.TimeProvider{}
-mockLogger := &mocks.Logger{}
-mockConfig := &mocks.Config{}
+timeProvider := &mocks.TimeProvider{}
+logger := &mocks.Logger{}
+config := &mocks.Config{}
 
-service := NewUserService(mockDB, mockTime, mockLogger, mockConfig)
+service := NewUserService(db, timeProvider, logger, config)
 ```
 
 ```go
@@ -706,7 +871,7 @@ realTime := libtime.NewCurrentDateTime()
 realLogger := log.NewLogger()
 realConfig := config.New()
 
-service := NewUserService(mockExternalAPI, realTime, realLogger, realConfig)
+service := NewUserService(externalAPI, realTime, realLogger, realConfig)
 ```
 
 ## 10. Integration with Makefile Commands
@@ -731,7 +896,33 @@ precommit: generate test
 - `make test` runs after generation to ensure consistency
 - `make precommit` includes mock generation verification
 
-## 11. Directory Structure Best Practices
+## 11. Troubleshooting
+
+### Common Issues
+
+**Mock not found:**
+- Check if interface has `//counterfeiter:generate` directive
+- Run `go generate` in the package directory
+- Verify import path is correct
+
+**Mock methods not working:**
+- Ensure mock is properly initialized: `mock = &mocks.MockType{}`
+- Check method name casing (Go exported methods)
+- Verify Counterfeiter generated the mock correctly
+
+**Call count mismatches:**
+- Check if mock is being called through the right interface
+- Verify no other code paths are calling the mock
+- Use `JustBeforeEach` to isolate the call under test
+
+### Generation Issues
+
+**Mock not generating:**
+- Ensure Counterfeiter is installed: `go install github.com/maxbrunsfeld/counterfeiter/v6@latest`
+- Check go.mod includes Counterfeiter dependency
+- Verify directive syntax matches examples above
+
+## 12. Directory Structure Best Practices
 
 ```
 project/
@@ -746,7 +937,7 @@ project/
 │   │   ├── handler.go
 │   │   └── handler_test.go
 │   └── suite_test.go           # Test suite with generate directive
-├── mocks/                       # All generated mocks
+├── mocks/                       # Service-specific generated mocks
 │   ├── user-service.go
 │   ├── payment-api.go
 │   └── notification-service.go

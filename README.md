@@ -11,6 +11,8 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 ### Core Go Development Guidelines
 
 - **[go-architecture-patterns.md](go-architecture-patterns.md)** - Comprehensive Go service architecture patterns using the Interface → Constructor → Struct → Method pattern, dependency injection, and ecosystem integration
+- **[go-service-implementation-patterns.md](go-service-implementation-patterns.md)** - Practical decision frameworks for service architecture, type design patterns, and implementation best practices
+- **[functional-composition-pattern.md](functional-composition-pattern.md)** - Functional composition patterns for implementing any Go interface using composable function types and list types
 - **[go-testing-guide.md](go-testing-guide.md)** - Complete testing patterns with Ginkgo v2, Gomega, and BDD-style testing approaches
 - **[go-mocking-guide.md](go-mocking-guide.md)** - Comprehensive mocking patterns with Counterfeiter, mock discovery strategies, and what to mock vs what not to mock
 - **[go-library-guide.md](go-library-guide.md)** - Go library development and structuring guidelines

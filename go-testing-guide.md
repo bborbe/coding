@@ -137,6 +137,18 @@ var _ = Describe("Product", func() {
 - **`Context`**: Groups related test scenarios
 - **`It`**: Individual test assertions
 
+### Test Timeouts
+
+Each Ginkgo `It` block can have its own timeout using `SpecTimeout`:
+
+```go
+It("does something within 2s", func(ctx context.Context) {
+    // test code
+}, SpecTimeout(2*time.Second))
+```
+
+If the test body takes longer than the specified timeout, Ginkgo automatically aborts the spec.
+
 ### Nested Contexts
 Use nested `Context` blocks to organize test scenarios:
 

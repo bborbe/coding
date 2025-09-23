@@ -16,6 +16,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 - **[go-testing-guide.md](go-testing-guide.md)** - Complete testing patterns with Ginkgo v2, Gomega, and BDD-style testing approaches
 - **[go-mocking-guide.md](go-mocking-guide.md)** - Comprehensive mocking patterns with Counterfeiter, mock discovery strategies, and what to mock vs what not to mock
 - **[go-library-guide.md](go-library-guide.md)** - Go library development and structuring guidelines
+- **[go-validation-framework-guide.md](go-validation-framework-guide.md)** - Input validation patterns, error handling, and validation framework design
 - **[go-makefile-commands.md](go-makefile-commands.md)** - Standardized Makefile targets for builds, testing, code quality, and license management
 - **[go-doc-best-practices.md](go-doc-best-practices.md)** - Documentation standards and best practices for Go code
 - **[go-glog.md](go-glog.md)** - Logging patterns and glog usage guidelines

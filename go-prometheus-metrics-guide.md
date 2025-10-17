@@ -7,11 +7,13 @@ This comprehensive guide covers Prometheus metrics implementation patterns and b
 1. [Framework Overview](#framework-overview)
 2. [Metrics Architecture Patterns](#metrics-architecture-patterns)
 3. [Push Gateway Implementation](#push-gateway-implementation)
+   - [Custom Registry Pattern for Job Isolation](#custom-registry-pattern-for-job-isolation)
 4. [Metric Types & Design](#metric-types--design)
 5. [Interface Patterns](#interface-patterns)
 6. [Naming & Labeling Best Practices](#naming--labeling-best-practices)
 7. [Handler Integration](#handler-integration)
 8. [Testing Strategies](#testing-strategies)
+   - [Testing Custom Registry Pattern](#testing-custom-registry-pattern)
 9. [Alerting Patterns](#alerting-patterns)
 10. [Performance Considerations](#performance-considerations)
 11. [Best Practices & Anti-patterns](#best-practices--anti-patterns)
@@ -250,7 +252,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -421,7 +422,7 @@ func (a *CommandJob) Run(ctx context.Context) error {
 	// Push metrics on completion (success or failure)
 	defer func() {
 		if err := pusher.Push(ctx); err != nil {
-			glog.Warningf("prometheus push with job(%s) failed: %v", jobName, errors.Wrapf(ctx, err, "push metrics for job %s", jobName))
+			glog.Warningf("prometheus push with job(%s) failed: %v", jobName, err)
 			return
 		}
 		glog.V(2).Infof("prometheus push with job(%s) completed", jobName)
@@ -1085,6 +1086,201 @@ var _ = Describe("Metrics Pusher", func() {
 			Expect(err).To(BeNil())
 			Expect(len(receivedData)).To(BeNumerically(">", 0))
 			Expect(string(receivedData)).To(ContainSubstring("test_metric_total"))
+		})
+	})
+})
+```
+
+### Testing Custom Registry Pattern
+
+```go
+var _ = Describe("Custom Registry Metrics", func() {
+	var ctx context.Context
+	var registry *prometheus.Registry
+	var jobMetrics *JobMetrics
+	var currentDateTime libtime.CurrentDateTime
+
+	BeforeEach(func() {
+		ctx = context.Background()
+		registry = prometheus.NewRegistry()
+		currentDateTime = libtime.NewCurrentDateTime()
+		jobMetrics = NewJobMetrics(registry, currentDateTime)
+	})
+
+	Context("JobMetrics with custom registry", func() {
+		Context("RecordItemProcessed", func() {
+			BeforeEach(func() {
+				jobMetrics.RecordItemProcessed(ctx, "success")
+				jobMetrics.RecordItemProcessed(ctx, "success")
+				jobMetrics.RecordItemProcessed(ctx, "error")
+			})
+
+			It("records correct metric values", func() {
+				metricFamilies, err := registry.Gather()
+				Expect(err).To(BeNil())
+
+				// Find items processed metric
+				var itemsMetric *dto.MetricFamily
+				for _, mf := range metricFamilies {
+					if mf.GetName() == "job_processing_items_total" {
+						itemsMetric = mf
+						break
+					}
+				}
+
+				Expect(itemsMetric).NotTo(BeNil())
+				Expect(itemsMetric.GetType()).To(Equal(dto.MetricType_COUNTER))
+
+				// Verify metric values by status
+				metrics := itemsMetric.GetMetric()
+				Expect(len(metrics)).To(Equal(2)) // success and error
+
+				for _, metric := range metrics {
+					labels := metric.GetLabel()
+					for _, label := range labels {
+						if label.GetName() == "status" {
+							switch label.GetValue() {
+							case "success":
+								Expect(metric.GetCounter().GetValue()).To(Equal(2.0))
+							case "error":
+								Expect(metric.GetCounter().GetValue()).To(Equal(1.0))
+							}
+						}
+					}
+				}
+			})
+		})
+
+		Context("RecordOperationDuration", func() {
+			BeforeEach(func() {
+				jobMetrics.RecordOperationDuration(ctx, "process-orders", 100*time.Millisecond)
+				jobMetrics.RecordOperationDuration(ctx, "process-orders", 200*time.Millisecond)
+				jobMetrics.RecordOperationDuration(ctx, "validate-data", 50*time.Millisecond)
+			})
+
+			It("records histogram values", func() {
+				metricFamilies, err := registry.Gather()
+				Expect(err).To(BeNil())
+
+				// Find duration metric
+				var durationMetric *dto.MetricFamily
+				for _, mf := range metricFamilies {
+					if mf.GetName() == "job_processing_duration_seconds" {
+						durationMetric = mf
+						break
+					}
+				}
+
+				Expect(durationMetric).NotTo(BeNil())
+				Expect(durationMetric.GetType()).To(Equal(dto.MetricType_HISTOGRAM))
+
+				// Verify we have metrics for both operations
+				metrics := durationMetric.GetMetric()
+				Expect(len(metrics)).To(Equal(2)) // process-orders and validate-data
+
+				// Verify sample counts
+				for _, metric := range metrics {
+					labels := metric.GetLabel()
+					for _, label := range labels {
+						if label.GetName() == "operation" {
+							switch label.GetValue() {
+							case "process-orders":
+								Expect(metric.GetHistogram().GetSampleCount()).To(Equal(uint64(2)))
+							case "validate-data":
+								Expect(metric.GetHistogram().GetSampleCount()).To(Equal(uint64(1)))
+							}
+						}
+					}
+				}
+			})
+		})
+
+		Context("RecordJobRun", func() {
+			var fixedTime time.Time
+
+			BeforeEach(func() {
+				fixedTime = time.Date(2023, 12, 25, 10, 30, 0, 0, time.UTC)
+				currentDateTime = libtimetest.NewCurrentDateTime()
+				currentDateTime.SetNow(fixedTime)
+				jobMetrics = NewJobMetrics(registry, currentDateTime)
+
+				jobMetrics.RecordJobRun(ctx)
+			})
+
+			It("records timestamp gauge", func() {
+				metricFamilies, err := registry.Gather()
+				Expect(err).To(BeNil())
+
+				// Find timestamp metric
+				var timestampMetric *dto.MetricFamily
+				for _, mf := range metricFamilies {
+					if mf.GetName() == "job_last_run_timestamp_seconds" {
+						timestampMetric = mf
+						break
+					}
+				}
+
+				Expect(timestampMetric).NotTo(BeNil())
+				Expect(timestampMetric.GetType()).To(Equal(dto.MetricType_GAUGE))
+
+				// Verify timestamp value
+				metrics := timestampMetric.GetMetric()
+				Expect(len(metrics)).To(Equal(1))
+				Expect(metrics[0].GetGauge().GetValue()).To(Equal(float64(fixedTime.Unix())))
+			})
+		})
+	})
+
+	Context("Registry isolation", func() {
+		var registry2 *prometheus.Registry
+		var jobMetrics2 *JobMetrics
+
+		BeforeEach(func() {
+			// Create two separate registries
+			registry2 = prometheus.NewRegistry()
+			jobMetrics2 = NewJobMetrics(registry2, currentDateTime)
+
+			// Record different values in each
+			jobMetrics.RecordItemProcessed(ctx, "success")
+			jobMetrics2.RecordItemProcessed(ctx, "error")
+		})
+
+		It("keeps metrics isolated between registries", func() {
+			// Check first registry
+			metricFamilies1, err := registry.Gather()
+			Expect(err).To(BeNil())
+
+			var itemsMetric1 *dto.MetricFamily
+			for _, mf := range metricFamilies1 {
+				if mf.GetName() == "job_processing_items_total" {
+					itemsMetric1 = mf
+					break
+				}
+			}
+
+			Expect(itemsMetric1).NotTo(BeNil())
+			metrics1 := itemsMetric1.GetMetric()
+			Expect(len(metrics1)).To(Equal(1)) // Only "success" status
+
+			// Check second registry
+			metricFamilies2, err := registry2.Gather()
+			Expect(err).To(BeNil())
+
+			var itemsMetric2 *dto.MetricFamily
+			for _, mf := range metricFamilies2 {
+				if mf.GetName() == "job_processing_items_total" {
+					itemsMetric2 = mf
+					break
+				}
+			}
+
+			Expect(itemsMetric2).NotTo(BeNil())
+			metrics2 := itemsMetric2.GetMetric()
+			Expect(len(metrics2)).To(Equal(1)) // Only "error" status
+
+			// Verify they have different label values
+			Expect(metrics1[0].GetLabel()[0].GetValue()).To(Equal("success"))
+			Expect(metrics2[0].GetLabel()[0].GetValue()).To(Equal("error"))
 		})
 	})
 })

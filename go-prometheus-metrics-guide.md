@@ -207,6 +207,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 )
 
+//counterfeiter:generate -o ../mocks/pusher.go --fake-name Pusher . Pusher
 type Pusher interface {
 	Push(ctx context.Context) error
 }
@@ -226,6 +227,276 @@ func (p *pusher) Push(ctx context.Context) error {
 	return p.pusher.PushContext(ctx)
 }
 ```
+
+### Custom Registry Pattern for Job Isolation
+
+**When to Use Custom Registry vs DefaultGatherer:**
+
+Use **Custom Registry** when:
+- Running batch jobs/cronjobs that should have isolated metrics
+- You want to avoid collecting all default Go runtime metrics
+- Multiple jobs run in the same process and need separate metric namespaces
+- You need precise control over which metrics are pushed to the gateway
+
+Use **DefaultGatherer** when:
+- Running long-lived services that expose `/metrics` endpoint
+- You want to include Go runtime metrics (memory, goroutines, etc.)
+- Simple push gateway usage without metric isolation requirements
+
+**Custom Registry Implementation:**
+
+```go
+package metrics
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
+)
+
+//counterfeiter:generate -o ../mocks/pusher.go --fake-name Pusher . Pusher
+// Pusher interface supports both default and custom registries
+type Pusher interface {
+	Push(ctx context.Context) error
+	Collector(registry *prometheus.Registry) Pusher
+}
+
+type pusher struct {
+	pusher *push.Pusher
+}
+
+// NewPusher creates a pusher with DefaultGatherer
+func NewPusher(gatewayURL, jobName string) Pusher {
+	return &pusher{
+		pusher: push.New(gatewayURL, jobName).
+			Gatherer(prometheus.DefaultGatherer),
+	}
+}
+
+// Collector configures the pusher to use a custom registry
+func (p *pusher) Collector(registry *prometheus.Registry) Pusher {
+	p.pusher = p.pusher.Gatherer(registry)
+	return p
+}
+
+func (p *pusher) Push(ctx context.Context) error {
+	return p.pusher.PushContext(ctx)
+}
+
+// BuildName creates dynamic job names for multi-dimensional job identification
+func BuildName(parts ...string) string {
+	return strings.Join(parts, "_")
+}
+```
+
+**Registry-Specific Metrics Registration:**
+
+```go
+package metrics
+
+import (
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	libtime "github.com/bborbe/time"
+)
+
+// JobMetrics encapsulates metrics for a specific job with custom registry
+type JobMetrics struct {
+	registry        *prometheus.Registry
+	currentDateTime libtime.CurrentDateTime
+
+	itemsProcessed     *prometheus.CounterVec
+	processingDuration *prometheus.HistogramVec
+	lastRunTimestamp   prometheus.Gauge
+}
+
+// NewJobMetrics creates metrics registered to a custom registry
+func NewJobMetrics(registry *prometheus.Registry, currentDateTime libtime.CurrentDateTime) *JobMetrics {
+	m := &JobMetrics{
+		registry:        registry,
+		currentDateTime: currentDateTime,
+
+		itemsProcessed: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "job",
+			Subsystem: "processing",
+			Name:      "items_total",
+			Help:      "Total number of items processed",
+		}, []string{"status"}),
+
+		processingDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "job",
+			Subsystem: "processing",
+			Name:      "duration_seconds",
+			Help:      "Processing duration in seconds",
+			Buckets:   []float64{0.1, 0.5, 1, 2, 5, 10, 30, 60},
+		}, []string{"operation"}),
+
+		lastRunTimestamp: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "job",
+			Name:      "last_run_timestamp_seconds",
+			Help:      "Timestamp of last job run",
+		}),
+	}
+
+	// Register all metrics to the custom registry
+	registry.MustRegister(
+		m.itemsProcessed,
+		m.processingDuration,
+		m.lastRunTimestamp,
+	)
+
+	return m
+}
+
+func (m *JobMetrics) RecordItemProcessed(ctx context.Context, status string) {
+	m.itemsProcessed.With(prometheus.Labels{
+		"status": status,
+	}).Inc()
+}
+
+func (m *JobMetrics) RecordOperationDuration(ctx context.Context, operation string, duration time.Duration) {
+	m.processingDuration.With(prometheus.Labels{
+		"operation": operation,
+	}).Observe(duration.Seconds())
+}
+
+func (m *JobMetrics) RecordJobRun(ctx context.Context) {
+	m.lastRunTimestamp.Set(float64(m.currentDateTime.Now().Unix()))
+}
+```
+
+**Complete Job Implementation with Custom Registry:**
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"github.com/bborbe/errors"
+	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
+	libtime "github.com/bborbe/time"
+)
+
+type CommandJob struct {
+	serviceName      string
+	schemaID         string
+	commandOperation string
+	currentDateTime  libtime.CurrentDateTime
+	metrics          *JobMetrics
+}
+
+func NewCommandJob(serviceName, schemaID, commandOperation string, currentDateTime libtime.CurrentDateTime) *CommandJob {
+	return &CommandJob{
+		serviceName:      serviceName,
+		schemaID:         schemaID,
+		commandOperation: commandOperation,
+		currentDateTime:  currentDateTime,
+	}
+}
+
+func (a *CommandJob) Run(ctx context.Context) error {
+	// Create isolated registry for this job
+	registry := prometheus.NewRegistry()
+
+	// Create metrics with custom registry
+	a.metrics = NewJobMetrics(registry, a.currentDateTime)
+
+	// Build dynamic job name from job dimensions
+	jobName := metrics.BuildName(a.serviceName, a.schemaID, a.commandOperation)
+
+	// Create pusher with custom registry
+	pusher := metrics.NewPusher(
+		"http://pushgateway.monitoring:9090",
+		jobName,
+	).Collector(registry)
+
+	// Push metrics on completion (success or failure)
+	defer func() {
+		if err := pusher.Push(ctx); err != nil {
+			glog.Warningf("prometheus push with job(%s) failed: %v", jobName, errors.Wrapf(ctx, err, "push metrics for job %s", jobName))
+			return
+		}
+		glog.V(2).Infof("prometheus push with job(%s) completed", jobName)
+	}()
+
+	// Record job execution
+	a.metrics.RecordJobRun(ctx)
+
+	// Execute job logic
+	if err := a.executeCommand(ctx); err != nil {
+		a.metrics.RecordItemProcessed(ctx, "error")
+		return errors.Wrapf(ctx, err, "execute command %s for schema %s", a.commandOperation, a.schemaID)
+	}
+
+	a.metrics.RecordItemProcessed(ctx, "success")
+	return nil
+}
+
+func (a *CommandJob) executeCommand(ctx context.Context) error {
+	start := time.Now()
+	defer func() {
+		a.metrics.RecordOperationDuration(ctx, a.commandOperation, time.Since(start))
+	}()
+
+	// Your command logic here
+	glog.V(2).Infof("executing command: %s for schema: %s", a.commandOperation, a.schemaID)
+
+	// Simulate work
+	time.Sleep(100 * time.Millisecond)
+
+	return nil
+}
+
+func main() {
+	// Create dependencies
+	currentDateTime := libtime.NewCurrentDateTime()
+
+	job := NewCommandJob("trading", "order-schema-v1", "process-orders", currentDateTime)
+
+	ctx := context.Background()
+	if err := job.Run(ctx); err != nil {
+		log.Fatalf("job failed: %v", err)
+	}
+
+	log.Println("job completed successfully")
+}
+```
+
+**Dynamic Job Naming Patterns:**
+
+```go
+// Pattern 1: Service + Operation
+jobName := metrics.BuildName(serviceName, operation)
+// Example: "user-service_create-user"
+
+// Pattern 2: Service + Schema + Operation (multi-tenant)
+jobName := metrics.BuildName(serviceName, schemaID, operation)
+// Example: "trading_order-schema-v1_process-orders"
+
+// Pattern 3: Environment + Service + Operation
+jobName := metrics.BuildName(environment, serviceName, operation)
+// Example: "production_trading_process-orders"
+
+// Pattern 4: Full dimensional naming
+jobName := metrics.BuildName(environment, region, serviceName, schemaID, operation)
+// Example: "production_us-east-1_trading_order-schema-v1_process-orders"
+```
+
+**Key Benefits of Custom Registry Pattern:**
+
+1. **Metric Isolation**: Each job has its own metric namespace
+2. **Clean Pushes**: Only job-specific metrics are pushed (no Go runtime metrics)
+3. **Multi-Job Support**: Multiple jobs can run in same process without metric conflicts
+4. **Precise Control**: Explicit control over which metrics are collected and pushed
+5. **Dynamic Naming**: Job names can include operational dimensions for better organization
 
 ### Job/Cronjob Usage Pattern
 

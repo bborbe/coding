@@ -12,11 +12,12 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 
 - **[go-architecture-patterns.md](go-architecture-patterns.md)** - Comprehensive Go service architecture patterns using the Interface → Constructor → Struct → Method pattern, dependency injection, and ecosystem integration
 - **[go-service-implementation-patterns.md](go-service-implementation-patterns.md)** - Practical decision frameworks for service architecture, type design patterns, and implementation best practices
-- **[functional-composition-pattern.md](functional-composition-pattern.md)** - Functional composition patterns for implementing any Go interface using composable function types and list types
+- **[go-functional-composition-pattern.md](go-functional-composition-pattern.md)** - Functional composition patterns for implementing any Go interface using composable function types and list types
 - **[go-testing-guide.md](go-testing-guide.md)** - Complete testing patterns with Ginkgo v2, Gomega, and BDD-style testing approaches
 - **[go-mocking-guide.md](go-mocking-guide.md)** - Comprehensive mocking patterns with Counterfeiter, mock discovery strategies, and what to mock vs what not to mock
 - **[go-library-guide.md](go-library-guide.md)** - Go library development and structuring guidelines
 - **[go-validation-framework-guide.md](go-validation-framework-guide.md)** - Input validation patterns, error handling, and validation framework design
+- **[go-prometheus-metrics-guide.md](go-prometheus-metrics-guide.md)** - Prometheus metrics implementation patterns and best practices
 - **[go-makefile-commands.md](go-makefile-commands.md)** - Standardized Makefile targets for builds, testing, code quality, and license management
 - **[go-doc-best-practices.md](go-doc-best-practices.md)** - Documentation standards and best practices for Go code
 - **[go-glog.md](go-glog.md)** - Logging patterns and glog usage guidelines
@@ -25,7 +26,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 
 - **[git-commit-workflow.md](git-commit-workflow.md)** - Mandatory commit process including pre-commit steps, changelog updates, and version tagging with semantic versioning
 - **[tdd-guide.md](tdd-guide.md)** - Test-driven development practices and patterns
-- **[http-handler-refactoring-guide.md](http-handler-refactoring-guide.md)** - HTTP handler refactoring patterns and best practices
+- **[go-http-handler-refactoring-guide.md](go-http-handler-refactoring-guide.md)** - HTTP handler refactoring patterns and best practices
 
 ### Frontend Development
 

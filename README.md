@@ -19,6 +19,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 - **[go-validation-framework-guide.md](go-validation-framework-guide.md)** - Input validation patterns, error handling, and validation framework design
 - **[go-prometheus-metrics-guide.md](go-prometheus-metrics-guide.md)** - Prometheus metrics implementation patterns and best practices
 - **[go-makefile-commands.md](go-makefile-commands.md)** - Standardized Makefile targets for builds, testing, code quality, and license management
+- **[go-licensing-guide.md](go-licensing-guide.md)** - Complete guide to licensing practices including LICENSE files, README sections, source headers, copyright years, and the addlicense tool
 - **[go-doc-best-practices.md](go-doc-best-practices.md)** - Documentation standards and best practices for Go code
 - **[go-glog.md](go-glog.md)** - Logging patterns and glog usage guidelines
 

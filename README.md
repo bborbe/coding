@@ -13,7 +13,8 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 - **[go-architecture-patterns.md](go-architecture-patterns.md)** - Comprehensive Go service architecture patterns using the Interface → Constructor → Struct → Method pattern, dependency injection, and ecosystem integration
 - **[go-service-implementation-patterns.md](go-service-implementation-patterns.md)** - Practical decision frameworks for service architecture, type design patterns, and implementation best practices
 - **[go-functional-composition-pattern.md](go-functional-composition-pattern.md)** - Functional composition patterns for implementing any Go interface using composable function types and list types
-- **[go-testing-guide.md](go-testing-guide.md)** - Complete testing patterns with Ginkgo v2, Gomega, and BDD-style testing approaches
+- **[go-enum-type-pattern.md](go-enum-type-pattern.md)** - Canonical string-based enum pattern with type-safe constants, validation, and collection operations
+- **[go-testing-guide.md](go-testing-guide.md)** - Complete testing patterns with Ginkgo v2, Gomega, test suite setup for standard and main packages, and optional label-based test organization
 - **[go-mocking-guide.md](go-mocking-guide.md)** - Comprehensive mocking patterns with Counterfeiter, mock discovery strategies, and what to mock vs what not to mock
 - **[go-library-guide.md](go-library-guide.md)** - Go library development and structuring guidelines
 - **[go-validation-framework-guide.md](go-validation-framework-guide.md)** - Input validation patterns, error handling, and validation framework design

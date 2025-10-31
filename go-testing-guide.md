@@ -51,10 +51,17 @@ This comprehensive guide covers Go testing patterns and practices for building r
 
 ## Test Suite Setup
 
-Every Go package with tests requires a `*_suite_test.go` file:
+Every Go package with tests requires a `*_suite_test.go` file. There are two patterns depending on whether the package is `main` or a regular package.
+
+### Standard Package Test Suite
+
+**Every non-main package** must have this test suite structure:
 
 ```go
-// pkg_suite_test.go
+// Copyright (c) 2025 Benjamin Borbe All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package pkg_test
 
 import (
@@ -68,18 +75,67 @@ import (
 
 //go:generate go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate
 func TestSuite(t *testing.T) {
-	time.Local = time.UTC                  // Enforce UTC timezone
-	format.TruncatedDiff = false          // Show full diffs in failures
-	RegisterFailHandler(Fail)             // Connect Ginkgo to Gomega
-	RunSpecs(t, "Package Test Suite")     // Run the test suite
+	time.Local = time.UTC
+	format.TruncatedDiff = false
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Test Suite")
 }
 ```
 
-### Key Suite Configuration
-- **UTC Timezone**: `time.Local = time.UTC` ensures consistent time handling
+**Key requirements:**
+- **Copyright Header**: BSD-style license header with current year
+- **External Test Package**: Use `package_test` suffix (e.g., `pkg_test`, `user_test`)
+- **UTC Timezone**: `time.Local = time.UTC` ensures consistent time handling across all tests
 - **Full Diffs**: `format.TruncatedDiff = false` shows complete comparison failures
-- **Mock Generation**: `//go:generate` directive runs counterfeiter
-- **Descriptive Suite Name**: Include package/component name
+- **Mock Generation**: `//go:generate` directive enables `go generate ./...` to create mocks
+- **Simple Suite Name**: Use descriptive name like "Test Suite", "Package Test Suite", etc.
+
+### Main Package Test Suite (Special Case)
+
+**Main packages** use a different pattern focused on compilation verification:
+
+```go
+// Copyright (c) 2023 Benjamin Borbe All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main_test
+
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gexec"
+)
+
+var _ = Describe("Main", func() {
+	It("Compiles", func() {
+		var err error
+		_, err = gexec.Build(".", "-mod=mod")
+		Expect(err).NotTo(HaveOccurred())
+	})
+})
+
+func TestSuite(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Main Suite")
+}
+```
+
+**Key differences for main packages:**
+- **Copyright Header**: BSD-style license header (may use older year)
+- **External Test Package**: Use `main_test` package name
+- **No Time/Format Setup**: Omit `time.Local` and `format.TruncatedDiff` configuration
+- **No Mock Generation**: Omit `//go:generate` directive (main packages don't have interfaces)
+- **Compilation Test**: Include `Compiles` test using `gexec.Build` to verify buildability
+- **Simplified Suite**: Minimal test suite focused on build verification
+
+### Critical Notes
+- **Main package is the ONLY exception** to the standard test suite pattern
+- All other packages (including internal, pkg, cmd subpackages) use the standard pattern
+- The compilation test ensures the main package builds correctly as part of test execution
+- Main packages typically have minimal logic; business logic belongs in testable packages
 
 ## Basic Test Structure
 
@@ -594,6 +650,87 @@ var _ = Describe("OrderProcessor Integration", func() {
 	})
 })
 ```
+
+### Label-Based Test Organization (Optional)
+
+Ginkgo v2 supports labels for categorizing tests, enabling selective test execution. While not widely used in the ecosystem (less than 1% of tests), labels can be useful for separating unit and integration tests.
+
+#### Applying Labels to Tests
+
+```go
+var _ = Describe("UserService", func() {
+	// Unit test with label
+	Context("Validate", Label("unit"), func() {
+		It("returns error for invalid email", func() {
+			err := service.Validate(ctx, "not-an-email")
+			Expect(err).NotTo(BeNil())
+		})
+	})
+
+	// Integration test with label and real database
+	Context("Create", Label("integration"), func() {
+		var db libboltkv.DB
+
+		BeforeEach(func() {
+			db, _ = libboltkv.OpenTemp(ctx)
+		})
+
+		AfterEach(func() {
+			_ = db.Close()
+			_ = db.Remove()
+		})
+
+		It("creates user in database", func() {
+			user := domain.User{
+				ID:    "user-123",
+				Email: "john@example.com",
+			}
+			err := service.Create(ctx, user)
+			Expect(err).To(BeNil())
+
+			retrieved, err := service.Get(ctx, user.ID)
+			Expect(err).To(BeNil())
+			Expect(retrieved.Email).To(Equal(user.Email))
+		})
+	})
+})
+```
+
+#### Running Tests by Label
+
+```bash
+# Run all tests (default)
+ginkgo run ./...
+
+# Run only unit tests
+ginkgo run --label-filter="unit" ./...
+
+# Run only integration tests
+ginkgo run --label-filter="integration" ./...
+
+# Run tests excluding integration
+ginkgo run --label-filter="!integration" ./...
+
+# Combine label filters
+ginkgo run --label-filter="unit && !slow" ./...
+```
+
+#### Standard Label Conventions
+
+| Label | Purpose | Typical Speed |
+|-------|---------|---------------|
+| `unit` | Tests single components with mocks | Fast (milliseconds) |
+| `integration` | Tests multiple components together (internal only) | Medium (seconds) |
+| `e2e` | Tests with external dependencies (databases, APIs, etc.) | Slow (seconds to minutes) |
+| `slow` | Long-running tests (large datasets, timeouts, etc.) | Very slow (minutes) |
+
+**Key points:**
+- Labels are optional - most tests in the ecosystem don't use them
+- Consistent labeling enables fast feedback loops in CI/CD
+- Use `Label("integration")` for tests with real databases or file I/O
+- Use `Label("unit")` for fast tests with mocks only
+- Multiple labels can be applied: `Label("integration", "slow")`
+- Standard test files remain `*_test.go` (no separate `*_integration_test.go` files)
 
 ## Test Organization & Naming
 

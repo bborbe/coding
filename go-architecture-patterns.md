@@ -211,35 +211,33 @@ func (a *application) createHttpServer(db bolt.DB, syncProducer producer.SyncPro
 }
 ```
 
-## 3. factory.go Pattern
+## 3. Factory Pattern
 
-Factory functions handle complex object creation with multiple dependencies:
+Factory functions handle complex object creation and dependency composition. Factories contain **zero business logic** - only constructor calls to wire dependencies together.
 
 ```go
 func CreateMessageHandler(
     sentryClient sentry.Client,
     syncProducer producer.SyncProducer,
-    schemaRegistry cdb.SchemaRegistry,
-    schemaID cdb.SchemaID,
 ) consumer.MessageHandler {
     return consumer.SendErrorsToSentry(
         consumer.NewMetricsMessageHandler(
-            cdb.NewConverterEventObjectMessageHandler(
-                CreateConverter(schemaRegistry, schemaID),
-                CreateEventSender(syncProducer),
-                log.DefaultSamplerFactory,
-            ),
+            CreateUserMessageHandler(syncProducer),
             consumer.NewMessageHandlerMetrics(),
         ),
         sentryClient,
         log.DefaultSamplerFactory,
     )
 }
-
-func CreateConverter(schemaRegistry cdb.SchemaRegistry, schemaID cdb.SchemaID) cdb.Converter {
-    return cdb.NewConverter(schemaRegistry, schemaID)
-}
 ```
+
+**Key points:**
+- All factory functions in single file: `pkg/factory/factory.go` or `lib/{name}/factory.go`
+- Use `Create*` prefix for factories, `New*` for constructors
+- No loops, conditionals, or business logic - only composition
+- Move complex inline logic to separate implementation files
+
+**See [go-factory-pattern.md](go-factory-pattern.md) for comprehensive factory pattern guidance.**
 
 ## 4. Common Patterns
 

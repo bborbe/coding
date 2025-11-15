@@ -90,6 +90,8 @@ func CreateForwardAllInvoicesHandler(ctx context.Context, forwarder pkg.InvoiceF
 }
 ```
 
+**See [go-factory-pattern.md](go-factory-pattern.md) for comprehensive factory pattern guidance.**
+
 ## Before/After Example
 
 ### Before: Inline Handler in main.go

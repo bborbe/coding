@@ -29,6 +29,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 ### Architecture & Design Patterns
 
 - **[go-architecture-patterns.md](go-architecture-patterns.md)** - Core service architecture using Interface → Constructor → Struct → Method pattern with dependency injection and ecosystem integration
+- **[go-factory-pattern.md](go-factory-pattern.md)** - Factory function patterns for dependency composition with zero business logic, file organization, and naming conventions
 - **[go-service-implementation-patterns.md](go-service-implementation-patterns.md)** - Decision frameworks for service architecture, type design patterns, and implementation best practices
 - **[go-functional-composition-pattern.md](go-functional-composition-pattern.md)** - Functional composition patterns for implementing interfaces using composable function and list types
 - **[go-functional-options-pattern.md](go-functional-options-pattern.md)** - Functional options pattern for flexible constructor configuration and optional parameters
@@ -125,6 +126,7 @@ This repository is specifically structured to help AI agents:
 - Start with [go-architecture-patterns.md](go-architecture-patterns.md) for overall structure
 - Check [go-service-implementation-patterns.md](go-service-implementation-patterns.md) for design decisions
 - Use specific pattern guides as needed:
+  - [go-factory-pattern.md](go-factory-pattern.md) for factory organization and dependency composition
   - [go-functional-options-pattern.md](go-functional-options-pattern.md) for flexible constructors
   - [go-enum-type-pattern.md](go-enum-type-pattern.md) for type-safe enumerations
   - [go-filter-pattern.md](go-filter-pattern.md) for collection operations

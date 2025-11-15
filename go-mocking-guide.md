@@ -1,6 +1,6 @@
 # Go Mocking Guide
 
-Comprehensive guide for mock generation, usage, and best practices in Go using Counterfeiter. This guide consolidates mocking patterns from across the development ecosystem.
+Comprehensive guide for **mock generation, usage, and best practices** in Go using Counterfeiter. For understanding **when to use mocks vs real implementations** in different test types, see [go-test-types-guide.md](go-test-types-guide.md). For **test structure and syntax**, see [go-testing-guide.md](go-testing-guide.md).
 
 ## 1. Overview
 

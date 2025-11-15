@@ -1,6 +1,8 @@
 # Go Testing Guide
 
-This comprehensive guide covers Go testing patterns and practices for building robust, maintainable Go applications. The testing framework is built on **Ginkgo v2** (BDD) with **Gomega** matchers, focusing on readable, maintainable, and comprehensive tests.
+This comprehensive guide covers **how to write tests** using the Go testing framework. For understanding **what type of test to write** and **when**, see [go-test-types-guide.md](go-test-types-guide.md). For **mocking strategies**, see [go-mocking-guide.md](go-mocking-guide.md).
+
+The testing framework is built on **Ginkgo v2** (BDD) with **Gomega** matchers, focusing on readable, maintainable, and comprehensive tests.
 
 ## Table of Contents
 
@@ -247,6 +249,8 @@ Context("Validate", func() {
 ## Mock Generation & Usage
 
 For comprehensive mocking patterns, mock discovery, and best practices, see **[go-mocking-guide.md](go-mocking-guide.md)**.
+
+For understanding when to use mocks vs real implementations, see **[go-test-types-guide.md](go-test-types-guide.md)**.
 
 **Quick Reference:**
 ```bash

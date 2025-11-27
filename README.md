@@ -75,6 +75,9 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 
 ## Documentation Standards
 
+- **[documentation-guide.md](documentation-guide.md)** - Comprehensive guide for documentation structure (README, docs/, PRDs, ADRs) with AI context principles
+- **[prd-guide.md](prd-guide.md)** - Product Requirements Document templates, best practices, and when to create PRDs
+- **[adr-guide.md](adr-guide.md)** - Architecture Decision Records guide with templates, organization patterns, and status management
 - **[markdown-todo-guide.md](markdown-todo-guide.md)** - Markdown formatting standards and todo management patterns
 
 ---

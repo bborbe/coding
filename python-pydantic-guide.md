@@ -458,7 +458,7 @@ def get_user_api(user_id: int):
     return UserDTO(**entity.__dict__)  # Convert at boundary
 ```
 
-**Note:** For dependency injection patterns with these services, see [python-ioc.md](python-ioc.md)
+**Note:** For dependency injection patterns with these services, see [python-ioc-guide.md](python-ioc-guide.md)
 
 ### ❌ Ignoring Validation Errors
 
@@ -544,7 +544,7 @@ for item in validated_items:
 
 ## Related Concepts
 
-- **Dependency Injection** - For injecting validated dependencies, see [python-ioc.md](python-ioc.md)
+- **Dependency Injection** - For injecting validated dependencies, see [python-ioc-guide.md](python-ioc-guide.md)
 - **FastAPI** (automatic Pydantic integration)
 - **SQLModel** (Pydantic + SQLAlchemy)
 - **Dataclasses** (simpler alternative for internal data)

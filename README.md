@@ -70,8 +70,10 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 
 ## Python Development Guidelines
 
-- **[python-ioc.md](python-ioc.md)** - Dependency injection patterns with constructor injection, testing with mocks, and when to use DI vs manual wiring
-- **[python-pydantic.md](python-pydantic.md)** - Data validation with Pydantic for API boundaries, configuration management, and external data validation
+- **[python-ioc-guide.md](python-ioc-guide.md)** - Dependency injection patterns with constructor injection, testing with mocks, and when to use DI vs manual wiring
+- **[python-pydantic-guide.md](python-pydantic-guide.md)** - Data validation with Pydantic for API boundaries, configuration management, and external data validation
+- **[python-logging-guide.md](python-logging-guide.md)** - Logging patterns with structured formats, log levels, safe secret handling, and production integration
+- **[python-cli-arguments-guide.md](python-cli-arguments-guide.md)** - CLI argument parsing and environment variable handling with Pydantic BaseSettings, argparse, and typer
 
 ---
 

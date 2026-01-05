@@ -105,7 +105,7 @@ class OrderProcessor:
 - Easy to test (inject mocks)
 - No hidden coupling
 
-**Note:** For API boundary validation of injected data, see [python-pydantic.md](python-pydantic.md)
+**Note:** For API boundary validation of injected data, see [python-pydantic-guide.md](python-pydantic-guide.md)
 
 ### ❌ Bad: Tight Coupling
 
@@ -405,7 +405,7 @@ class OrderService:
 - **Clean Architecture** (dependency rule)
 - **Hexagonal Architecture** (ports & adapters)
 - **Protocol/ABC** (Python's interface mechanisms)
-- **Pydantic** - For validating dependencies at system boundaries, see [python-pydantic.md](python-pydantic.md)
+- **Pydantic** - For validating dependencies at system boundaries, see [python-pydantic-guide.md](python-pydantic-guide.md)
 
 ## Mental Model
 

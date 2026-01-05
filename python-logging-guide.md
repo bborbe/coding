@@ -1,198 +1,208 @@
 # Python Logging Guide
 
-This guide defines logging patterns for Python applications to ensure consistent, debuggable, and production-ready logging.
-
-## Overview
-
-Python's `logging` module provides structured logging with configurable levels, formats, and output destinations. Proper logging is essential for debugging, monitoring, and auditing production systems.
+Logging patterns for Python applications to ensure consistent, debuggable, and production-ready logging.
 
 ## Quick Reference
 
-**Canonical configuration (applications only):**
-```python
-import logging
+| Question | Answer |
+|----------|--------|
+| When to configure logging | Application entry point only (`main.py`) |
+| Library logging configuration | Never - libraries ONLY get logger with `__name__` |
+| Exception logging | Use `logger.exception()` in except blocks |
+| Message formatting | F-strings for INFO+, `%s` for expensive DEBUG |
+| Where to log exceptions | Once at system boundaries (handlers, runners) |
+| Secret handling | Log length/presence, never actual values |
 
-# Configure once at startup (main.py)
+**Canonical pattern:**
+```python
+# main.py - Configure once at startup
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s',
     level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# Get module-level logger (at import time)
+# any_module.py - Get logger at import time
 logger = logging.getLogger(__name__)
 ```
 
-**Do:**
-- ✅ Use `logger.exception()` for exception logging
-- ✅ Use f-strings for INFO/WARNING/ERROR
-- ✅ Use `%s` formatting for expensive DEBUG operations
-- ✅ Log once at system boundaries (API handlers, job runners)
-- ✅ Use `extra={}` for structured context
+## Log Level Reference
 
-**Don't:**
-- ❌ Never call `basicConfig()` in libraries
-- ❌ Never log secrets (log length/presence instead)
-- ❌ Never use `print()` for debugging
-- ❌ Never log the same exception at multiple layers
-- ❌ Never combine `basicConfig()` + manual handlers
+| Level | Use When | Example |
+|-------|----------|---------|
+| DEBUG | Development diagnostics, verbose details | `logger.debug(f"SQL query: {query}")` |
+| INFO | Production status, milestones, state changes | `logger.info("Server started on port 8080")` |
+| WARNING | Unexpected but recoverable, deprecated usage | `logger.warning("Cache miss, falling back to DB")` |
+| ERROR | Failure that needs attention, request failed | `logger.error("Payment gateway timeout")` |
+| CRITICAL | System failure, data loss, requires immediate action | `logger.critical("Out of memory")` |
 
-## When to Use Logging
+## Configuration Rules
 
-### ✅ Use Logging For:
+### Configure Logging Once at Application Entry Point
 
-- **Application state changes** - Startup, shutdown, configuration
-- **Error conditions** - Exceptions, validation failures, external service errors
-- **Important business events** - Order created, user registered, payment processed
-- **Debug information** - Request/response details, intermediate values
-- **Performance metrics** - Slow queries, API latency, processing time
-- **Audit trails** - User actions, data modifications, access control
+**Constraint:** Application code MUST call `logging.basicConfig()` exactly once at startup in `main.py`. Library code MUST NOT call `basicConfig()` or configure handlers.
 
-### ❌ Don't Use Logging For:
+**Rationale:** Multiple configurations cause conflicts, overwrites, and duplicate log entries across modules.
 
-- **Sensitive data** - Passwords, tokens, credit cards, API keys (log length/presence only)
-- **High-frequency events** - Every loop iteration, every message processed (use sampling)
-- **Binary data** - Images, files (log metadata instead)
-- **Debugging with print()** - Use `logging.debug()` instead
-
-## Core Pattern: Basic Configuration
-
-### Application Startup Configuration
-
+**Examples:**
 ```python
-import logging
-
-# Configure logging at application entry point (main.py)
-logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s',
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-
-# Module-level logger (define at import time, not in functions)
-logger = logging.getLogger(__name__)
-
-def main():
-    logger.info("Application started")
-    # ... rest of application
-```
-
-**Key points:**
-- Call `basicConfig()` **once** at application startup (in `main()`)
-- **Never** call `basicConfig()` in libraries or reusable modules
-- Include **format structure**: timestamp, level, logger name, line number
-- Include **semantic context**: user_id, order_id, request_id (in message)
-- Use ISO-like date format (`%Y-%m-%d %H:%M:%S`)
-- Get module-specific logger with `__name__` at module import time
-
-### Library vs Application Logging
-
-**Applications** (executables, services, scripts):
-```python
+# [GOOD] Application entry point
 # main.py
 import logging
 
-# ✅ Applications configure logging
 logging.basicConfig(
-    format='%(asctime)s %(levelname)s %(message)s',
-    level=logging.INFO
+    format='%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 logger = logging.getLogger(__name__)
-```
+logger.info("Application started")
 
-**Libraries** (reusable packages, modules):
-```python
+# [GOOD] Library module
 # mylib/service.py
 import logging
 
-# ✅ Libraries get logger but NEVER configure
-logger = logging.getLogger(__name__)
-
-# ❌ Libraries NEVER call basicConfig() or add handlers
-# ❌ Libraries NEVER set global log levels
+logger = logging.getLogger(__name__)  # Get logger only
 
 class UserService:
     def process(self):
-        logger.info("Processing user")  # Good - just log
+        logger.info("Processing user")
+
+# [BAD] Library configuring logging
+# mylib/service.py
+logging.basicConfig(level=logging.INFO)  # Never do this in libraries
+
+# [BAD] Multiple configurations
+# orders/handler.py
+logging.basicConfig(level=logging.DEBUG)  # Conflicts with main config
 ```
 
-**Why libraries must not configure:**
-- Application controls all logging configuration
-- Libraries would overwrite application settings
-- Causes conflicts in multi-library applications
+### Never Combine basicConfig with Manual Handlers
 
-### Log Levels
+**Constraint:** Code MUST use either `basicConfig()` OR manual handler setup, never both.
 
+**Rationale:** Combining both creates duplicate handlers that log every message twice.
+
+**Examples:**
 ```python
+# [BAD] Mixing configuration methods
+logging.basicConfig(level=logging.INFO)  # Creates default handler
+logging.root.addHandler(my_handler)  # Adds second handler - duplicates!
+
+# [GOOD] basicConfig only (simple apps)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
+
+# [GOOD] Manual handlers only (advanced apps)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+logging.root.addHandler(handler)
+logging.root.setLevel(logging.INFO)
+```
+
+### Use Module-Level Loggers at Import Time
+
+**Constraint:** Code MUST define loggers at module level using `logger = logging.getLogger(__name__)`, not inside functions.
+
+**Rationale:** Module-level loggers enable hierarchical naming, per-module configuration, and easier log filtering.
+
+**Examples:**
+```python
+# [GOOD] Module-level logger
+# users/service.py
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Creates 'users.service' logger
 
-# DEBUG - Detailed diagnostic information
-logger.debug(f"Processing user_id={user_id}, batch_size={len(items)}")
+class UserService:
+    def create_user(self, username: str):
+        logger.info(f"Creating user: username={username}")
 
-# INFO - General informational messages
-logger.info("Database migration completed successfully")
+# [BAD] Logger inside function
+class UserService:
+    def create_user(self, username: str):
+        logger = logging.getLogger(__name__)  # Recreated every call
+        logger.info(f"Creating user: username={username}")
 
-# WARNING - Something unexpected but recoverable
-logger.warning(f"API rate limit approaching: {current_rate}/{max_rate}")
-
-# ERROR - Error condition that doesn't stop the application
-logger.error(f"Failed to send email to {email}: {error}")
-
-# CRITICAL - Serious error, application may not continue
-logger.critical("Database connection pool exhausted, shutting down")
-```
-
-**Level Guidelines:**
-- **DEBUG**: Development-only details, verbose output
-- **INFO**: Production-ready status updates, milestones
-- **WARNING**: Unexpected but handled conditions
-- **ERROR**: Failures that need attention but allow continuation
-- **CRITICAL**: Failures requiring immediate action or shutdown
-
-## Common Mistakes (Read This First!)
-
-### ❌ Using print() Instead of Logging
-
-```python
-# ❌ DON'T: Use print for debugging
-print(f"User {user_id} logged in")
-
-# ✅ DO: Use logging
-logger.info(f"User login: user_id={user_id}")
-```
-
-**Why logging is better:**
-- Configurable levels (turn off debug in production)
-- Timestamps and context automatically included
-- Can route to files, services, aggregation systems
-- Searchable, filterable, parseable
-
-### ❌ Configuring in Libraries or Multiple Places
-
-```python
-# ❌ DON'T: Configure logging in libraries
-# mylib/service.py
-logging.basicConfig(level=logging.INFO)  # Bad - library must not configure
-
-# ❌ DON'T: Configure in every module
-# orders/handler.py
-logging.basicConfig(level=logging.DEBUG)  # Bad - conflicts with main config
-
-# ✅ DO: Configure once in main.py only
+# [GOOD] Per-module level configuration
 # main.py
 logging.basicConfig(level=logging.INFO)
-
-# mylib/service.py
-logger = logging.getLogger(__name__)  # Good - just get logger
+logging.getLogger('users.service').setLevel(logging.DEBUG)
+logging.getLogger('database').setLevel(logging.WARNING)
 ```
 
-### ❌ Logging the Same Exception at Multiple Layers
+### Include Structured Format with Context
 
+**Constraint:** `basicConfig()` format MUST include timestamp, level, logger name, and line number in pattern `%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s`.
+
+**Rationale:** Structured format enables debugging by showing when, where, and what severity for every log entry.
+
+**Examples:**
 ```python
-# ❌ DON'T: Log exception at every layer (log spam)
+# [GOOD] Complete structured format
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+logger = logging.getLogger(__name__)
+logger.info(f"Processing order: order_id={order_id}, total={total}")
+# Output: 2026-01-05 14:23:15 INFO     [orders.service:45] Processing order: order_id=12345, total=99.99
+
+# [BAD] Missing context
+logging.basicConfig(format='%(message)s')  # No timestamp, level, location
+
+# [BAD] Non-ISO date format
+logging.basicConfig(datefmt='%m/%d/%y')  # Use %Y-%m-%d %H:%M:%S
+```
+
+## Exception Logging Rules
+
+### Use logger.exception() for Exception Logging
+
+**Constraint:** Code MUST use `logger.exception()` inside except blocks to automatically include stack traces.
+
+**Rationale:** `logger.exception()` automatically captures and formats the full stack trace without manual `exc_info=True`.
+
+**Examples:**
+```python
+# [GOOD] logger.exception() in except block
+try:
+    result = risky_operation()
+except ValueError:
+    logger.exception("Validation failed")  # Auto-includes stack trace
+    raise
+
+# [GOOD] Alternative with exc_info=True
+try:
+    result = risky_operation()
+except Exception as e:
+    logger.error(f"Operation failed: {e}", exc_info=True)
+    raise
+
+# [BAD] Missing stack trace
+try:
+    result = risky_operation()
+except Exception as e:
+    logger.error(f"Failed: {e}")  # No stack trace for debugging
+
+# [GOOD] Stack trace outside exception context
+logger.warning("Deprecated code path", stack_info=True)
+```
+
+### Log Exceptions Once at System Boundaries
+
+**Constraint:** Code MUST log exceptions at system boundaries (API handlers, job runners, main loops) and MUST NOT log the same exception at multiple layers.
+
+**Rationale:** Logging at every layer creates duplicate log entries for the same error, making debugging harder.
+
+**Examples:**
+```python
+# [BAD] Logging at every layer
 def service_method():
     try:
         db.execute(query)
@@ -207,192 +217,77 @@ def handler():
         logger.error(f"Handler error: {e}", exc_info=True)  # AND here - duplicate!
         raise
 
-# ✅ DO: Log once at the boundary
+# [GOOD] Log once at boundary
 def service_method():
-    # Just let exception propagate
-    db.execute(query)
+    db.execute(query)  # Let exception propagate
 
 def handler():
     try:
         service_method()
     except Exception:
-        # Log once at system boundary
-        logger.exception("Failed to process request")
+        logger.exception("Failed to process request")  # Log once
         return error_response()
 ```
 
-**Rule:** Log exceptions once at system boundaries (API handlers, job runners, main loops), not at every layer.
+## Message Formatting Rules
 
-### ❌ Logging Secrets
+### Use F-Strings for INFO and Above
 
+**Constraint:** Code MUST use f-strings for INFO/WARNING/ERROR/CRITICAL level messages.
+
+**Rationale:** F-strings provide clarity and have no performance impact at these levels since they're always evaluated.
+
+**Examples:**
 ```python
-# ❌ DON'T: Log passwords, tokens, keys
-logger.info(f"User login: username={username}, password={password}")
-logger.debug(f"API request: Authorization: Bearer {api_token}")
+# [GOOD] F-strings for INFO and above
+logger.info(f"User {username} logged in")
+logger.warning(f"Rate limit: {current}/{max}")
+logger.error(f"Failed to connect: {connection_error}")
 
-# ✅ DO: Log safe information only
-logger.info(f"User login: username={username}")
-logger.debug(f"API request authenticated: token_length={len(api_token)}")
+# [BAD] Comma syntax without placeholders
+logger.warning("Failed to connect", connection_error)  # Only logs first arg
+
+# [GOOD] Comma syntax with % placeholders (works but less clear)
+logger.warning("Failed to connect: %s", connection_error)
 ```
 
-**Why it's bad:**
-- Logs may be stored insecurely, sent to third parties
-- Credentials leak in log aggregation systems
-- Compliance/security violations
+### Use Lazy Evaluation for Expensive DEBUG Operations
 
-### ❌ Wrong Logging Syntax
+**Constraint:** Code MUST use `%s` formatting (not f-strings) for DEBUG messages with expensive operations.
 
+**Rationale:** `%s` formatting only evaluates arguments if DEBUG level is enabled, avoiding unnecessary computation.
+
+**Examples:**
 ```python
-# ❌ DON'T: Comma without % placeholder (silently ignored!)
-logger.warning("Failed to connect", connection_error)  # Only logs "Failed to connect"
+# [BAD] F-string with expensive DEBUG operation
+logger.debug(f"Details: {expensive_serialization(large_object)}")
+# Always evaluates, even when DEBUG disabled
 
-# ✅ DO: Use f-strings for INFO/WARNING/ERROR
-logger.warning(f"Failed to connect: {connection_error}")
+# [GOOD] Lazy evaluation with %s
+logger.debug("Details: %s", expensive_serialization(large_object))
+# Only evaluates if DEBUG enabled
 
-# ✅ DO: Use % formatting with lazy evaluation for DEBUG
-logger.debug("Connection details: %s", expensive_function())  # Only evaluates if DEBUG enabled
+# [GOOD] Explicit guard for expensive operations
+if logger.isEnabledFor(logging.DEBUG):
+    logger.debug(f"Details: {expensive_serialization(large_object)}")
 ```
 
-**Clarification on comma syntax:**
-- `logger.warning("msg", var)` **only works** with `%s` placeholders: `logger.warning("msg %s", var)`
-- Without `%s`, the second argument is silently ignored
-- For INFO and above, use f-strings (clearer, no performance impact)
-- For DEBUG with expensive operations, use `%s` for lazy evaluation
+### Include Semantic Context in Messages
 
-### ❌ Combining basicConfig() and Manual Handlers
+**Constraint:** Log messages MUST include business identifiers using key=value format (e.g., `order_id={order_id}`).
 
+**Rationale:** Structured key=value format enables log parsing, filtering, and correlation across requests.
+
+**Examples:**
 ```python
-# ❌ DON'T: Mix basicConfig with manual handler setup
-logging.basicConfig(level=logging.INFO)  # Sets up default handler
-logging.root.addHandler(my_handler)  # Adds another - now you have TWO handlers!
+# [GOOD] Structured context with identifiers
+logger.info(f"Processing order: order_id={order_id}, user_id={user_id}")
+logger.info(f"Order completed: order_id={order_id}, total={total}, items={len(items)}")
 
-# ✅ DO: Choose one approach
-# Option 1: basicConfig only (simple apps)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(message)s'
-)
+# [BAD] Unstructured message
+logger.info(f"Processing order {order_id} for user {user_id}")  # Harder to parse
 
-# Option 2: Manual handlers only (advanced apps)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
-logging.root.addHandler(handler)
-logging.root.setLevel(logging.INFO)
-```
-
-**Note:** Examples in this guide are mutually exclusive, not cumulative. Don't combine different configuration patterns.
-
-### ❌ None Handling
-
-```python
-password = os.getenv("PASSWORD")  # May return None
-
-# ❌ DON'T: Assume value exists
-logger.info(f"Password length: {len(password)}")  # Crashes if password is None
-
-# ✅ DO: Handle None safely
-logger.info(f"Password length: {len(password) if password else 0}")
-logger.info(f"Password configured: {password is not None}")
-```
-
-### ❌ Logging in Tight Loops
-
-```python
-# ❌ DON'T: Log every iteration (production hazard)
-for item in large_list:  # 10,000 items
-    logger.info(f"Processing {item}")  # 10,000 log entries!
-    process(item)
-
-# ✅ DO: Log summary or sample
-logger.info(f"Processing {len(large_list)} items")
-for item in large_list:
-    process(item)
-logger.info(f"Completed processing {len(large_list)} items")
-
-# ✅ DO: Sample high-frequency events (see Performance section)
-```
-
-### ❌ Duplicate Logs Due to Propagation
-
-```python
-# ❌ DON'T: Add handlers to child loggers without managing propagation
-child_logger = logging.getLogger('myapp.service')
-child_logger.addHandler(my_handler)  # Logs go here AND propagate to root!
-
-# ✅ DO: Disable propagation if adding child handlers
-child_logger = logging.getLogger('myapp.service')
-child_logger.addHandler(my_handler)
-child_logger.propagate = False  # Prevent duplicate logs
-
-# ✅ BETTER: Only add handlers to root logger
-logging.root.addHandler(my_handler)
-```
-
-## Good Patterns
-
-### ✅ Good: Structured Format with Context
-
-```python
-logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s',
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-
-logger = logging.getLogger(__name__)
-
-def process_order(order_id: str):
-    logger.info(f"Processing order: order_id={order_id}")
-    # ...
-    logger.info(f"Order processed successfully: order_id={order_id}, total={total}")
-```
-
-**Why it's good:**
-- **Format structure**: Timestamp, level, logger name, line number
-- **Semantic context**: order_id, total (business data)
-- Uses f-strings for clarity
-- Structured key=value format for parsing
-
-### ✅ Good: Exception Logging with logger.exception()
-
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-# ✅ BEST: Use logger.exception() in except blocks
-try:
-    result = risky_operation()
-except ValueError:
-    logger.exception("Validation failed")  # Automatically includes stack trace
-    raise
-
-# ✅ ALTERNATIVE: Use exc_info=True with other levels
-try:
-    result = risky_operation()
-except Exception as e:
-    logger.error(f"Operation failed: {e}", exc_info=True)
-    raise
-```
-
-**Key points:**
-- `logger.exception()` is shorthand for `logger.error(..., exc_info=True)`
-- Use `exception()` inside `except` blocks for automatic stack traces
-- Log before re-raising to preserve context
-- For non-exception stack traces, use `stack_info=True`:
-
-```python
-logger.warning("Deprecated code path", stack_info=True)
-```
-
-### ✅ Good: Structured Context with extra={}
-
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-# Add structured context to log records
+# [GOOD] Using extra={} for structured context
 logger.info(
     "Order processed",
     extra={
@@ -404,107 +299,130 @@ logger.info(
 )
 ```
 
-**Use with custom formatter:**
+## Security Rules
+
+### Never Log Secret Values
+
+**Constraint:** Code MUST NOT log passwords, tokens, API keys, or other secrets. Code MUST log length or presence instead.
+
+**Rationale:** Logs may be stored insecurely or sent to third-party aggregation systems, exposing credentials.
+
+**Examples:**
 ```python
-class StructuredFormatter(logging.Formatter):
-    def format(self, record):
-        # Access extra fields
-        order_id = getattr(record, 'order_id', None)
-        return f"{record.levelname}: {record.getMessage()} [order={order_id}]"
-```
+# [BAD] Logging secrets
+logger.info(f"User login: username={username}, password={password}")
+logger.debug(f"API request: Authorization: Bearer {api_token}")
 
-**Especially useful for JSON logging** where extra fields become top-level JSON keys.
+# [GOOD] Log safe information only
+logger.info(f"User login: username={username}")
+logger.debug(f"API request authenticated: token_length={len(api_token)}")
+logger.info(f"Password configured: {password is not None}")
 
-### ✅ Good: LoggerAdapter for Contextual Data
-
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-class OrderAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
-        # Inject context into every log message
-        return f"[order_id={self.extra['order_id']}] {msg}", kwargs
-
-def process_order(order_id: str):
-    # Create adapter with context
-    order_logger = OrderAdapter(logger, {"order_id": order_id})
-
-    order_logger.info("Processing order")
-    # Logs: [order_id=12345] Processing order
-
-    order_logger.info("Order validated")
-    # Logs: [order_id=12345] Order validated
-```
-
-**Use when:** Multiple log calls need the same context (user_id, request_id, order_id).
-
-### ✅ Good: Safe Logging of Secrets
-
-```python
-password = "secret123"
-api_key = os.getenv("API_KEY")
-
-# ✅ Log length/presence, not actual values
-logger.info(f"User authenticated: username={username}, password_length={len(password)}")
-logger.info(f"API key configured: key_present={api_key is not None}")
-
-# ✅ Mask sensitive data
+# [GOOD] Mask sensitive data
 logger.info(f"Credit card: {card_number[:4]}****{card_number[-4:]}")
 ```
 
-**Why it's good:**
-- Never logs actual secrets
-- Provides debugging info (length, presence)
-- Masks sensitive data when necessary
+### Handle None Values Safely
 
-## Module-Level Loggers
+**Constraint:** Code MUST check for None before operations like `len()` on potentially missing values.
 
-### Recommended Pattern
+**Rationale:** Logging crashes on None values defeat the purpose of diagnostic logging.
 
+**Examples:**
 ```python
-# users/service.py
-import logging
+password = os.getenv("PASSWORD")  # May return None
 
-# Get logger at module import time (not inside functions)
-logger = logging.getLogger(__name__)  # Creates 'users.service' logger
+# [BAD] Unsafe None handling
+logger.info(f"Password length: {len(password)}")  # Crashes if None
 
-class UserService:
-    def create_user(self, username: str):
-        logger.info(f"Creating user: username={username}")
-        # ...
-        logger.info(f"User created: user_id={user.id}")
+# [GOOD] Safe None handling
+logger.info(f"Password length: {len(password) if password else 0}")
+logger.info(f"Password configured: {password is not None}")
 ```
 
-**Why use `__name__`:**
-- Creates hierarchical logger names (`users.service`, `orders.handler`)
-- Allows per-module log level configuration
-- Easier to filter logs by component
-- Convention for library code
+## Log Level Usage Rules
 
-### Configuring Module-Specific Levels
+### Use Appropriate Log Levels
 
+**Constraint:** Code MUST use DEBUG for diagnostics, INFO for status, WARNING for unexpected-but-recoverable, ERROR for failures, CRITICAL for system failures.
+
+**Rationale:** Consistent levels enable proper filtering and alerting in production.
+
+**Examples:**
 ```python
-# main.py
-import logging
+# [GOOD] Appropriate level usage
+logger.debug(f"Processing user_id={user_id}, batch_size={len(items)}")
+logger.info("Database migration completed successfully")
+logger.warning(f"API rate limit approaching: {current_rate}/{max_rate}")
+logger.error(f"Failed to send email to {email}: {error}")
+logger.critical("Database connection pool exhausted, shutting down")
 
-# Root logger at INFO
-logging.basicConfig(level=logging.INFO)
+# [BAD] Wrong levels
+logger.info("SQL query: SELECT * FROM users WHERE id=?")  # Use DEBUG
+logger.error("Cache miss, falling back to DB")  # Use WARNING
+```
 
-# Set specific modules to DEBUG
-logging.getLogger('users.service').setLevel(logging.DEBUG)
-logging.getLogger('database').setLevel(logging.WARNING)
+## Performance Rules
+
+### Avoid Logging in Tight Loops
+
+**Constraint:** Code MUST NOT log on every iteration of large loops. Code MUST log summary or use sampling instead.
+
+**Rationale:** High-frequency logging creates storage/performance issues and makes logs unsearchable.
+
+**Examples:**
+```python
+# [BAD] Logging every iteration
+for item in large_list:  # 10,000 items
+    logger.info(f"Processing {item}")  # 10,000 log entries
+    process(item)
+
+# [GOOD] Log summary
+logger.info(f"Processing {len(large_list)} items")
+for item in large_list:
+    process(item)
+logger.info(f"Completed processing {len(large_list)} items")
+
+# [GOOD] Sample high-frequency events
+sample_rate = 0.01  # 1%
+for item in large_list:
+    if random.random() < sample_rate:
+        logger.debug(f"Processing {item}")
+    process(item)
+```
+
+### Disable Propagation When Adding Child Handlers
+
+**Constraint:** Code that adds handlers to child loggers MUST set `propagate = False` to prevent duplicate logs.
+
+**Rationale:** Child loggers propagate to root by default, causing messages to be logged twice when both have handlers.
+
+**Examples:**
+```python
+# [BAD] Child handler without disabling propagation
+child_logger = logging.getLogger('myapp.service')
+child_logger.addHandler(my_handler)  # Logs go here AND to root
+
+# [GOOD] Disable propagation
+child_logger = logging.getLogger('myapp.service')
+child_logger.addHandler(my_handler)
+child_logger.propagate = False  # Prevent duplicate logs
+
+# [BETTER] Only add handlers to root logger
+logging.root.addHandler(my_handler)
 ```
 
 ## Production Patterns
 
-### Structured Logging (JSON)
+### Structured Logging with JSON Format
 
-For production systems with log aggregation (CloudWatch, Datadog, etc.):
+**Constraint:** Production systems with log aggregation SHOULD use JSON formatters to output machine-parseable logs.
 
+**Rationale:** JSON format enables automated parsing, filtering, and analysis in log aggregation systems.
+
+**Examples:**
 ```python
-import logging
+# [GOOD] JSON formatter for production
 import json
 from datetime import datetime
 
@@ -534,24 +452,22 @@ class JsonFormatter(logging.Formatter):
 
         return json.dumps(log_data)
 
-# Configure with manual handlers (don't use basicConfig)
+# Configure with manual handlers (not basicConfig)
 handler = logging.StreamHandler()
 handler.setFormatter(JsonFormatter())
 logging.root.addHandler(handler)
 logging.root.setLevel(logging.INFO)
 ```
 
-**Use when:**
-- Logs consumed by aggregation systems
-- Need machine-parseable output
-- Running in containers/cloud environments
+### Use Correlation IDs for Distributed Systems
 
-### Correlation IDs for Distributed Systems
+**Constraint:** Distributed systems MUST include request/correlation IDs in all log messages using ContextVars.
 
-Track requests across services using ContextVars:
+**Rationale:** Correlation IDs enable tracing requests across service boundaries and async operations.
 
+**Examples:**
 ```python
-import logging
+# [GOOD] Correlation ID with ContextVars
 import uuid
 from contextvars import ContextVar
 
@@ -574,42 +490,43 @@ def handle_request(request):
     # All logs in this context include request_id
 ```
 
-**Note on async/concurrency:**
-- Logging module is thread-safe
-- Use `ContextVar` for async frameworks (FastAPI, aiohttp)
-- `threading.local()` for synchronous multi-threading
-- ContextVars automatically isolate context per async task
+### Use LoggerAdapter for Repeated Context
 
-## Integration Patterns
+**Constraint:** Code that logs multiple messages with the same context (user_id, order_id, request_id) SHOULD use LoggerAdapter.
 
-### Error Tracking Service Integration
+**Rationale:** LoggerAdapter automatically injects context into every message, reducing repetition and errors.
 
+**Examples:**
 ```python
-import logging
-import sentry_sdk
-from sentry_sdk.integrations.logging import LoggingIntegration
+# [GOOD] LoggerAdapter for repeated context
+class OrderAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        return f"[order_id={self.extra['order_id']}] {msg}", kwargs
 
-# Send ERROR and above to error tracking service
-sentry_logging = LoggingIntegration(
-    level=logging.INFO,       # Capture info and above as breadcrumbs
-    event_level=logging.ERROR # Send errors and above as events
-)
+def process_order(order_id: str):
+    order_logger = OrderAdapter(logger, {"order_id": order_id})
 
-sentry_sdk.init(
-    dsn="https://...",
-    integrations=[sentry_logging],
-)
+    order_logger.info("Processing order")
+    # Logs: [order_id=12345] Processing order
 
-logger = logging.getLogger(__name__)
+    order_logger.info("Order validated")
+    # Logs: [order_id=12345] Order validated
 
-# Automatically captured by error tracking
-logger.exception("Payment processing failed")
+# [BAD] Repeating context manually
+def process_order(order_id: str):
+    logger.info(f"[order_id={order_id}] Processing order")
+    logger.info(f"[order_id={order_id}] Order validated")  # Repetitive
 ```
 
-### Multi-Handler Configuration
+### Multi-Handler Configuration for Different Outputs
 
+**Constraint:** Applications requiring multiple outputs (console, file, error tracking) MUST use manual handler configuration, not `basicConfig()`.
+
+**Rationale:** `basicConfig()` only supports single handler/format, while manual setup enables per-destination configuration.
+
+**Examples:**
 ```python
-import logging
+# [GOOD] Multiple handlers with different configs
 from logging.handlers import RotatingFileHandler
 
 # Console handler (INFO and above)
@@ -628,112 +545,70 @@ file_handler.setFormatter(logging.Formatter(
     '%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s'
 ))
 
-# Configure root logger (don't use basicConfig when using custom handlers)
+# Configure root logger
 logging.root.setLevel(logging.DEBUG)
 logging.root.addHandler(console_handler)
 logging.root.addHandler(file_handler)
+
+# [BAD] Trying to use basicConfig for multiple handlers
+logging.basicConfig(level=logging.INFO)  # Only creates one handler
 ```
 
-## Performance Considerations
+## Common Antipatterns
 
-### F-Strings vs Lazy Evaluation
+### Never Use print() for Logging
 
-**Rule:**
-- Use **f-strings** for INFO/WARNING/ERROR/CRITICAL (always evaluated, clarity matters)
-- Use **`%s` formatting** for DEBUG with expensive operations (lazy evaluation)
+**Constraint:** Code MUST use logging module, never `print()` for debugging or status output.
 
+**Rationale:** `print()` lacks levels, timestamps, context, and cannot be configured or redirected.
+
+**Examples:**
 ```python
-import logging
+# [BAD] Using print()
+print(f"User {user_id} logged in")
 
-logger = logging.getLogger(__name__)
-
-# ✅ F-strings for INFO and above (no performance impact)
-logger.info(f"User {username} logged in")
-logger.warning(f"Rate limit: {current}/{max}")
-
-# ❌ DON'T: F-string with expensive DEBUG operation
-logger.debug(f"Details: {expensive_serialization(large_object)}")
-# Always evaluates, even when DEBUG disabled!
-
-# ✅ DO: Use %s formatting for expensive DEBUG operations
-logger.debug("Details: %s", expensive_serialization(large_object))
-# Only evaluates if DEBUG level is enabled
-
-# ✅ DO: Guard expensive operations explicitly
-if logger.isEnabledFor(logging.DEBUG):
-    logger.debug(f"Details: {expensive_serialization(large_object)}")
+# [GOOD] Using logging
+logger.info(f"User login: user_id={user_id}")
 ```
 
-### Sampling High-Frequency Events
+### Avoid Logging During Interpreter Shutdown
 
+**Constraint:** Code that logs in cleanup/shutdown handlers MUST wrap logging in try/except to handle handler unavailability.
+
+**Rationale:** Logging handlers may be destroyed before cleanup code runs, causing exceptions during shutdown.
+
+**Examples:**
 ```python
-import logging
-import random
-
-logger = logging.getLogger(__name__)
-sample_rate = 0.01  # Log 1% of events
-
-def process_message(message):
-    if random.random() < sample_rate:
-        logger.debug(f"Processing message: {message}")
-    # ... process all messages
-```
-
-**Use when:** Processing thousands of items/second and full logging would overwhelm storage.
-
-## Edge Cases and Gotchas
-
-### Logging During Interpreter Shutdown
-
-```python
-import logging
+# [GOOD] Safe shutdown logging
 import atexit
 
-logger = logging.getLogger(__name__)
-
-# ⚠️ Logging may fail during shutdown (handlers may be None)
 def cleanup():
     try:
         logger.info("Cleanup started")
         # ... cleanup code
         logger.info("Cleanup completed")
     except Exception:
-        # Logging may not work here if interpreter is shutting down
-        pass
+        pass  # Logging may fail during shutdown
 
 atexit.register(cleanup)
 ```
 
-**Mitigation:** Use try/except around shutdown logging, or flush logs before cleanup.
+### Ensure UTF-8 Encoding for File Handlers
 
-### Unicode and Non-ASCII Characters
+**Constraint:** File handlers MUST specify `encoding='utf-8'` when logging non-ASCII characters.
 
+**Rationale:** Default encoding may vary by platform, causing Unicode errors with international characters.
+
+**Examples:**
 ```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-# ✅ Python 3 handles Unicode natively
-user_name = "José García"
-logger.info(f"User registered: {user_name}")
-
-# ✅ Ensure file handlers use UTF-8
+# [GOOD] UTF-8 file handler
 file_handler = logging.FileHandler('app.log', encoding='utf-8')
+
+user_name = "José García"
+logger.info(f"User registered: {user_name}")  # Works correctly
 ```
 
-**Note:** Python 3 handles Unicode strings natively. Only specify encoding for file handlers.
-
 ## Decision Framework
-
-### When to Use Each Level
-
-| Level | Use When | Example |
-|-------|----------|---------|
-| DEBUG | Development diagnostics, verbose details | `logger.debug(f"SQL query: {query}")` |
-| INFO | Production status, milestones, state changes | `logger.info("Server started on port 8080")` |
-| WARNING | Unexpected but recoverable, deprecated usage | `logger.warning("Cache miss, falling back to DB")` |
-| ERROR | Failure that needs attention, request failed | `logger.error("Payment gateway timeout")` |
-| CRITICAL | System failure, data loss, requires immediate action | `logger.critical("Out of memory")` |
 
 ### basicConfig vs Custom Configuration
 
@@ -760,25 +635,6 @@ file_handler = logging.FileHandler('app.log', encoding='utf-8')
 - Single-file applications
 - Quick prototypes
 
-## Related Concepts
+## Related Documentation
 
-- **Structured logging** - JSON format for machine parsing
-- **Log aggregation** - CloudWatch, Datadog, Splunk
-- **Observability** - Metrics, traces, logs (three pillars)
-- **CLI arguments** - For runtime log level control, see [python-cli-arguments-guide.md](python-cli-arguments-guide.md)
-
-## Summary
-
-- **Configure once** at application startup with `basicConfig()` (never in libraries)
-- **Use `logger.exception()`** for exception logging in except blocks
-- **Use structured format** with timestamp, level, location
-- **Use `extra={}`** for structured context in log records
-- **Never log secrets** - log length/presence instead
-- **Use f-strings for INFO+**, `%s` for expensive DEBUG operations
-- **Handle None safely** when logging variable-length data
-- **Use module loggers** (`__name__`) at import time for better organization
-- **Log once at boundaries** (API handlers, job runners), not every layer
-- **Include context** in messages (IDs, values, error details)
-- **Never combine** `basicConfig()` and manual handler setup
-- **Watch for log duplication** due to propagation with child handlers
-- **Integrate with monitoring** - Error tracking for exceptions, JSON for aggregation
+- CLI arguments for runtime log level control: [python-cli-arguments-guide.md](python-cli-arguments-guide.md)

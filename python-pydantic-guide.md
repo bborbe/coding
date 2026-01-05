@@ -12,7 +12,7 @@ Data validation library for Python enforcing type safety and constraints at syst
 | **Key pattern** | Validate once at boundary → use plain types (`dataclass`) internally |
 | **Boundary** | API endpoint, config loading, external service response, file ingestion |
 
-## Pydantic v1 vs v2
+## Version Reference
 
 | Feature | Pydantic v1 | Pydantic v2 |
 |---------|-------------|-------------|
@@ -31,8 +31,6 @@ pip install pydantic pydantic-settings
 # v1 (legacy)
 pip install "pydantic<2"
 ```
-
----
 
 ## Boundary Validation Rules
 
@@ -341,6 +339,8 @@ for i in range(10000):
 
 **Rationale:** API changed between versions; using wrong methods causes `AttributeError`.
 
+**Examples:**
+
 ```python
 # [GOOD] - v2 serialization
 user.model_dump()
@@ -355,9 +355,11 @@ user.dict(exclude_unset=True)
 
 ### Extra Fields Handling
 
-**Constraint:** API models receiving external input SHOULD use `extra="forbid"` to reject unknown fields.
+**Constraint:** API models receiving external input MUST use `extra="forbid"` to reject unknown fields.
 
 **Rationale:** Prevents silent acceptance of typos or malicious extra fields.
+
+**Examples:**
 
 ```python
 # [GOOD] - Reject unknown fields
@@ -367,9 +369,14 @@ class CreateUserRequest(BaseModel):
     email: str
 
 # Request with typo "emial" will fail instead of being silently ignored
-```
 
----
+# [BAD] - Allow unknown fields (default)
+class CreateUserRequest(BaseModel):
+    name: str
+    email: str
+
+# {"name": "Alice", "emial": "typo@example.com"} silently ignores typo
+```
 
 ## Error Handling Rules
 
@@ -378,6 +385,8 @@ class CreateUserRequest(BaseModel):
 **Constraint:** `ValidationError` MUST be caught and converted to structured API responses; silent failures are forbidden.
 
 **Rationale:** Silent failures hide bugs; structured errors enable client-side handling.
+
+**Examples:**
 
 ```python
 # [GOOD] - Explicit error handling
@@ -394,8 +403,6 @@ except ValidationError:
     user = None  # Bug hidden, None propagates
 ```
 
----
-
 ## Type Coercion Rules
 
 ### Strict Types for Critical Fields
@@ -403,6 +410,8 @@ except ValidationError:
 **Constraint:** Fields where coercion could cause bugs MUST use `Strict*` types.
 
 **Rationale:** Default coercion can produce unexpected results (e.g., `"1"` → `True` for bool).
+
+**Examples:**
 
 ```python
 # [GOOD] - Strict types prevent coercion surprises
@@ -427,6 +436,8 @@ Config(enabled=1)      # Becomes True
 
 **Rationale:** Naive datetimes cause subtle bugs in distributed systems.
 
+**Examples:**
+
 ```python
 # [GOOD] - Enforce timezone awareness
 class Event(BaseModel):
@@ -438,9 +449,11 @@ class Event(BaseModel):
         if v.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware")
         return v
-```
 
----
+# [BAD] - Accept naive datetime
+class Event(BaseModel):
+    timestamp: datetime  # No validation, accepts naive datetime
+```
 
 ## Configuration Rules
 
@@ -449,6 +462,8 @@ class Event(BaseModel):
 **Constraint:** In Pydantic v2, `BaseSettings` MUST be imported from `pydantic_settings`, not `pydantic`.
 
 **Rationale:** Settings functionality was moved to separate package in v2.
+
+**Examples:**
 
 ```python
 # [GOOD] - v2 settings
@@ -466,8 +481,6 @@ class AppConfig(BaseSettings):
         env_file = ".env"
 ```
 
----
-
 ## Performance Rules
 
 ### Loop Validation Prohibition
@@ -475,6 +488,8 @@ class AppConfig(BaseSettings):
 **Constraint:** Pydantic validation MUST NOT occur inside tight loops.
 
 **Rationale:** Validation overhead multiplied by iteration count causes significant latency.
+
+**Examples:**
 
 ```python
 # [GOOD] - Validate once, iterate validated data
@@ -488,11 +503,11 @@ for item in large_list:
     process(validated)
 ```
 
----
-
 ## Integration Patterns
 
 ### FastAPI Request Validation
+
+**Examples:**
 
 ```python
 from fastapi import FastAPI
@@ -520,6 +535,8 @@ def create_user(request: CreateUserRequest):
 
 ### ORM Model Conversion
 
+**Examples:**
+
 ```python
 # [GOOD] - v2 ORM conversion
 class OrderResponse(BaseModel):
@@ -534,6 +551,8 @@ class OrderResponse(BaseModel):
 ```
 
 ### Enum Serialization
+
+**Examples:**
 
 ```python
 from enum import Enum
@@ -550,28 +569,8 @@ class Order(BaseModel):
 order.model_dump()  # {'status': 'active'} - string, not enum
 ```
 
----
-
 ## Related Guides
 
 - [python-ioc-guide.md](python-ioc-guide.md) - Dependency injection patterns
 - [python-cli-arguments-guide.md](python-cli-arguments-guide.md) - Configuration management with `BaseSettings`
 - [python-logging-guide.md](python-logging-guide.md) - Logging validation errors
-
----
-
-## Summary
-
-| Rule | Constraint |
-|------|------------|
-| Boundary validation | Pydantic MUST ONLY be used at system boundaries |
-| Single validation | Data MUST be validated exactly once |
-| Internal types | Internal models MUST use `dataclass`, not `BaseModel` |
-| Optional fields | Omittable fields MUST have default value |
-| Field constraints | Use `Field()` parameters, not custom validators |
-| v2 validators | `@field_validator` MUST have `@classmethod` |
-| Business logic | MUST NOT be in Pydantic validators |
-| Frozen models | Read-only DTOs MUST use `frozen=True` |
-| Error handling | `ValidationError` MUST be caught and converted |
-| Strict types | Critical fields SHOULD use `Strict*` types |
-| Loop validation | MUST NOT validate inside tight loops |

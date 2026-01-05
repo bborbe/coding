@@ -7,6 +7,7 @@ A Product Requirements Document (PRD) defines what needs to be built and why, BE
 ## Purpose
 
 PRDs provide:
+
 - **Business context** - Why this feature exists and what problem it solves
 - **Requirements** - What the feature must do (functional and non-functional)
 - **Scope definition** - What's included and explicitly what's NOT included
@@ -26,6 +27,7 @@ Create a PRD when:
 - The feature has **complex requirements** or edge cases
 
 **Don't create PRDs for:**
+
 - Simple bug fixes
 - Trivial features (<1 day)
 - Internal refactoring with no external impact
@@ -40,6 +42,7 @@ Create a PRD when:
 **Private repositories:** `feature-name.md` (lowercase with hyphens)
 
 **Examples:**
+
 - `order-cancellation.md`
 - `user-authentication.md`
 - `payment-refunds.md`
@@ -48,11 +51,13 @@ Create a PRD when:
 **Public repositories:** `YYYY-MM-DD-feature-name.md` (date prefix for chronological ordering)
 
 **Examples:**
+
 - `2025-12-05-json-error-handler.md`
 - `2025-12-06-request-id-middleware.md`
 - `2026-01-10-async-context-refactor.md`
 
 **Why date prefix for public repos:**
+
 - Chronological ordering (GitHub sorts alphabetically)
 - No coordination overhead (multiple contributors can create PRDs simultaneously)
 - Timeline clarity (immediately shows when decision was proposed)
@@ -60,6 +65,7 @@ Create a PRD when:
 - Matches industry patterns (Go proposals, Kubernetes KEPs, Python PEPs)
 
 **Naming Guidelines:**
+
 - Use lowercase with hyphens (kebab-case)
 - Describe what the feature does or what needs to be fixed
 - No prefixes like "PRD-" or "BUG-" (folder context makes this clear)
@@ -107,22 +113,26 @@ superseded_by: ""
 ## Goals and Non-Goals
 
 ### Goals
+
 - Goal 1: [What we want to achieve]
 - Goal 2: [Specific, measurable outcome]
 - Goal 3: [Business or technical objective]
 
 ### Non-Goals
+
 - [Explicitly state what we're NOT doing]
 - [Helps prevent scope creep]
 
 ## Requirements
 
 ### Functional Requirements
+
 1. **Requirement 1**: [Specific behavior the system must have]
 2. **Requirement 2**: [Another specific behavior]
 3. **Requirement 3**: [Another specific behavior]
 
 ### Non-Functional Requirements
+
 - **Performance**: [Response time, throughput requirements]
 - **Scalability**: [Load expectations]
 - **Reliability**: [Uptime, error rate expectations]
@@ -134,7 +144,8 @@ superseded_by: ""
 **I want** [action]
 **So that** [benefit]
 
-**Acceptance Criteria**:
+**Acceptance Criteria:**
+
 - [ ] Criteria 1
 - [ ] Criteria 2
 - [ ] Criteria 3
@@ -142,11 +153,13 @@ superseded_by: ""
 ## API Impact
 
 ### New Endpoints
-```
+
+```http
 POST /api/v1/orders/:id/cancel
 ```
 
-**Request**:
+**Request:**
+
 ```json
 {
   "reason": "customer_request",
@@ -154,7 +167,8 @@ POST /api/v1/orders/:id/cancel
 }
 ```
 
-**Response**:
+**Response:**
+
 ```json
 {
   "order_id": "ord_123",
@@ -164,24 +178,29 @@ POST /api/v1/orders/:id/cancel
 ```
 
 ### Modified Endpoints
+
 [List any existing endpoints that will change]
 
 ### Kafka Topics
+
 - **Produces**: `orders.cancelled` - Event when order is cancelled
 - **Consumes**: [Any new topics this feature consumes]
 
 ## Technical Design
 
 ### Architecture
+
 [High-level technical approach - components affected, data flow]
 
 ### Data Model Changes
+
 ```sql
 ALTER TABLE orders ADD COLUMN cancelled_at TIMESTAMP;
 ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255);
 ```
 
 ### Key Design Decisions
+
 1. **Decision 1**: [What and why]
 2. **Decision 2**: [What and why]
 
@@ -190,11 +209,13 @@ ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255);
 ## Edge Cases & Error Handling
 
 ### Edge Cases
+
 1. **Already cancelled order**: Return 409 Conflict
 2. **Order already shipped**: Return 400 Bad Request with clear message
 3. **Concurrent cancellation**: Use optimistic locking to prevent
 
 ### Error Responses
+
 - 400: Invalid request (order in wrong state)
 - 404: Order not found
 - 409: Order already cancelled
@@ -202,17 +223,20 @@ ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255);
 ## Implementation Plan
 
 ### Phase 1: Core Functionality (Week 1)
+
 - [ ] Add database columns
 - [ ] Implement cancellation logic
 - [ ] Add API endpoint
 - [ ] Write unit tests
 
 ### Phase 2: Integration (Week 2)
+
 - [ ] Integrate with payment refund service
 - [ ] Publish Kafka events
 - [ ] Add monitoring and alerts
 
 ### Phase 3: Rollout (Week 3)
+
 - [ ] Deploy to dev
 - [ ] Deploy to staging with feature flag
 - [ ] Monitor for 3 days
@@ -221,18 +245,22 @@ ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255);
 ## Monitoring & Rollout
 
 ### Metrics
+
 - `orders_cancelled_total` - Counter of cancelled orders
 - `order_cancellation_duration_seconds` - Cancellation processing time
 - `order_cancellation_errors_total` - Cancellation failures
 
 ### Alerts
+
 - High cancellation error rate (>5%)
 - Slow cancellation processing (p99 >2s)
 
 ### Feature Flag
+
 - `enable_order_cancellation` - Boolean flag to enable/disable
 
 ### Rollback Plan
+
 1. Disable feature flag immediately
 2. If needed, rollback deployment
 3. Fix issues and redeploy
@@ -240,10 +268,12 @@ ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255);
 ## Dependencies
 
 ### Upstream Services
+
 - Payment Service: Must support refund API
 - Inventory Service: Must support restocking
 
 ### Downstream Services
+
 - Notification Service: Will receive cancellation events
 - Analytics Service: Will track cancellation metrics
 
@@ -256,6 +286,7 @@ ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255);
 ## Updates Log
 
 **2024-11-27**: Initial PRD created
+
 **2024-11-28**: Added refund integration details after discussion
 ```
 
@@ -289,12 +320,14 @@ We're launching B2B features next quarter that require authenticated access. Wit
 ## Goals and Non-Goals
 
 ### Goals
+
 - Secure API endpoints with JWT authentication
 - Support login/logout workflows
 - Enable user-specific features
 - Maintain <200ms authentication overhead
 
 ### Non-Goals
+
 - Social login (OAuth) - future PRD
 - Two-factor authentication - future PRD
 - Password reset flow - separate PRD
@@ -303,6 +336,7 @@ We're launching B2B features next quarter that require authenticated access. Wit
 ## Requirements
 
 ### Functional Requirements
+
 1. **User Login**: Accept email/password, return JWT token on success
 2. **Token Validation**: Middleware validates JWT on protected endpoints
 3. **User Logout**: Invalidate tokens (add to blacklist)
@@ -310,6 +344,7 @@ We're launching B2B features next quarter that require authenticated access. Wit
 5. **Password Hashing**: Use bcrypt with salt for password storage
 
 ### Non-Functional Requirements
+
 - **Performance**: Token validation <50ms p99
 - **Scalability**: Support 10,000 concurrent authenticated users
 - **Reliability**: 99.9% uptime for auth service
@@ -318,22 +353,26 @@ We're launching B2B features next quarter that require authenticated access. Wit
 ## User Stories
 
 ### Story 1: User Login
+
 **As a** registered user
 **I want** to log in with email and password
 **So that** I can access my account
 
-**Acceptance Criteria**:
+**Acceptance Criteria:**
+
 - [ ] Valid credentials return JWT token
 - [ ] Invalid credentials return 401 with error message
 - [ ] Passwords are hashed with bcrypt
 - [ ] Failed login attempts are rate-limited
 
 ### Story 2: Access Protected Resource
+
 **As an** authenticated user
 **I want** to access protected endpoints using my token
 **So that** I can retrieve my personal data
 
-**Acceptance Criteria**:
+**Acceptance Criteria:**
+
 - [ ] Valid token grants access
 - [ ] Expired token returns 401
 - [ ] Invalid token returns 401
@@ -344,6 +383,7 @@ We're launching B2B features next quarter that require authenticated access. Wit
 ### New Endpoints
 
 **POST /api/v1/auth/login**
+
 ```json
 // Request
 {
@@ -366,6 +406,7 @@ We're launching B2B features next quarter that require authenticated access. Wit
 ```
 
 **POST /api/v1/auth/logout**
+
 ```json
 // Request
 Headers: Authorization: Bearer <token>
@@ -377,6 +418,7 @@ Headers: Authorization: Bearer <token>
 ```
 
 **POST /api/v1/auth/refresh**
+
 ```json
 // Request
 {
@@ -391,12 +433,14 @@ Headers: Authorization: Bearer <token>
 ```
 
 ### Modified Endpoints
+
 - All `/api/v1/orders/*` endpoints now require authentication
 - All `/api/v1/users/*` endpoints now require authentication
 
 ## Technical Design
 
 ### Architecture
+
 ```text
 Client → Login Endpoint → Auth Service → Database
                               ↓
@@ -408,6 +452,7 @@ Client → Protected Endpoint → Validate Middleware → Service
 ```
 
 ### Data Model Changes
+
 ```sql
 -- New table for token blacklist
 CREATE TABLE token_blacklist (
@@ -424,6 +469,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ```
 
 ### Key Design Decisions
+
 1. **JWT over sessions**: Stateless tokens reduce database load
 2. **Token blacklist**: Track logged-out tokens until expiration
 3. **bcrypt for passwords**: Industry standard with configurable cost factor
@@ -432,6 +478,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ## Edge Cases & Error Handling
 
 ### Edge Cases
+
 1. **Expired token during request**: Return 401, client should refresh
 2. **Token in blacklist**: Return 401 with "token_revoked" error
 3. **Concurrent logins**: Allow multiple active tokens per user
@@ -439,6 +486,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 5. **Very old refresh token**: Require full re-login
 
 ### Error Responses
+
 - 400: Malformed request (missing email/password)
 - 401: Invalid credentials or token
 - 429: Rate limit exceeded (max 5 failed attempts per minute)
@@ -447,6 +495,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ## Implementation Plan
 
 ### Phase 1: Core Auth (Week 1)
+
 - [ ] Create auth service interface
 - [ ] Implement JWT utility functions
 - [ ] Add bcrypt password hashing
@@ -454,6 +503,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 - [ ] Write unit tests for auth service
 
 ### Phase 2: API Endpoints (Week 2)
+
 - [ ] Implement login endpoint
 - [ ] Implement logout endpoint
 - [ ] Implement refresh endpoint
@@ -461,12 +511,14 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 - [ ] Write integration tests
 
 ### Phase 3: Integration (Week 3)
+
 - [ ] Protect existing endpoints with middleware
 - [ ] Add rate limiting
 - [ ] Update API documentation
 - [ ] Add monitoring metrics
 
 ### Phase 4: Rollout (Week 4)
+
 - [ ] Deploy to dev environment
 - [ ] Deploy to staging with feature flag
 - [ ] Load testing (10,000 concurrent users)
@@ -476,21 +528,25 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ## Monitoring & Rollout
 
 ### Metrics
+
 - `auth_login_attempts_total` - Counter (labels: success/failure)
 - `auth_token_validation_duration_seconds` - Histogram
 - `auth_token_blacklist_size` - Gauge
 - `auth_active_tokens_total` - Gauge
 
 ### Alerts
+
 - High login failure rate (>10% failures)
 - Slow token validation (p99 >100ms)
 - Token blacklist growing >10,000 entries
 
 ### Feature Flag
+
 - `enable_authentication` - Boolean to enable/disable auth enforcement
 - Start with flag OFF, test thoroughly before enabling
 
 ### Rollback Plan
+
 1. Disable `enable_authentication` flag
 2. Revert middleware changes if needed
 3. Monitor for 24 hours before re-enabling
@@ -498,12 +554,15 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ## Dependencies
 
 ### Upstream Services
+
 - User Database: Must have users table with email field
 
 ### Downstream Services
+
 - All API services: Must handle 401 responses gracefully
 
 ### External Libraries
+
 - `github.com/golang-jwt/jwt/v5` - JWT implementation
 - `golang.org/x/crypto/bcrypt` - Password hashing
 
@@ -517,8 +576,11 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ## Updates Log
 
 **2024-10-15**: Initial PRD created
+
 **2024-10-20**: Added token refresh endpoint based on team feedback
+
 **2024-11-01**: Clarified rate limiting requirements
+
 **2024-11-20**: Marked as implemented, production deployment complete
 ```
 
@@ -541,6 +603,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ### Content Quality
 
 **Critical sections:**
+
 1. **Summary** - Clear 2-3 sentence description
 2. **Background & Motivation** - Why this feature matters
 3. **Goals and Non-Goals** - Scope boundaries
@@ -548,6 +611,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 5. **User Stories** - How users will interact with feature
 
 **What to include:**
+
 - Business justification
 - Acceptance criteria (testable)
 - Edge cases and error handling
@@ -556,6 +620,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 - Success metrics
 
 **What to avoid:**
+
 - Implementation details (that's for code)
 - Assuming reader knows business context
 - Vague requirements ("should be fast")
@@ -565,6 +630,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ### Maintenance
 
 **Update PRD during implementation:**
+
 - Mark status as "In Progress" when starting
 - Update when requirements change during development
 - Add discoveries to "Open Questions"
@@ -573,6 +639,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 - **STOP editing after implementation** - PRD becomes immutable historical reference
 
 **Don't delete old PRDs:**
+
 - They provide historical context
 - AI assistants benefit from seeing past features
 - Mark as "Rejected" if decided not to implement
@@ -581,6 +648,7 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 ## Status Management
 
 **Available statuses:**
+
 - **Draft** 📝 - Being written internally
 - **Proposed** - Ready for review (PR open)
 - **In Review** - Actively collecting feedback
@@ -593,16 +661,19 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 - **Deprecated** - Feature removed or obsolete
 
 **Common usage (90% of PRDs):**
-```
+
+```text
 Draft → In Progress → Implemented
 ```
 
 **With formal process (10% of PRDs, like open source projects):**
-```
+
+```text
 Draft → Proposed → In Review → Approved → In Progress → Implemented
 ```
 
 **End-of-life statuses (use when PRD becomes irrelevant):**
+
 - Superseded, Rejected, Withdrawn, Deprecated
 
 ## Warning Banners
@@ -610,30 +681,35 @@ Draft → Proposed → In Review → Approved → In Progress → Implemented
 Warning banners are **only used for PRDs that are no longer relevant**:
 
 **Superseded** (replaced by newer PRD):
+
 ```markdown
 > ⚠️ SUPERSEDED
 > This PRD has been replaced. See [2026-01-15-feature-v2.md](link)
 ```
 
 **Rejected** (decided not to implement):
+
 ```markdown
 > ⚠️ REJECTED
 > This feature was not implemented. See rejection rationale below.
 ```
 
 **Deprecated** (feature was removed):
+
 ```markdown
 > ⚠️ DEPRECATED
 > This feature has been removed from the library.
 ```
 
 **Withdrawn** (pulled back by author):
+
 ```markdown
 > ⚠️ WITHDRAWN
 > This proposal was withdrawn and is no longer being pursued.
 ```
 
-**No banner needed** for:
+**No banner needed for:**
+
 - Draft, Proposed, In Review, Approved, In Progress (work in progress)
 - **Implemented** (feature exists, PRD documents design)
 
@@ -642,11 +718,16 @@ Warning banners are **only used for PRDs that are no longer relevant**:
 ## Updates Log
 
 Track significant changes with date and description:
+
 ```markdown
 ## Updates Log
+
 **2024-11-27**: Initial PRD created
+
 **2024-11-28**: Added refund integration after payment team discussion
+
 **2024-12-01**: Reduced scope - removing partial cancellations (future PRD)
+
 **2024-12-15**: Marked as implemented, deployed to production
 ```
 
@@ -663,12 +744,14 @@ The PRD becomes a **historical snapshot** of the original design decision. This 
 **PRDs answer:** "Why did we build it THIS way at THAT time?"
 
 If you keep updating the PRD after implementation:
+
 - ❌ Historical context is lost
 - ❌ Can't see original trade-offs and constraints
 - ❌ Can't understand why certain decisions were made
 - ❌ Knowledge disappears when maintainers leave ("Bus Factor")
 
 If PRDs are immutable:
+
 - ✅ Original reasoning preserved forever
 - ✅ Can trace feature evolution through multiple PRDs
 - ✅ Future maintainers understand past constraints
@@ -679,11 +762,13 @@ If PRDs are immutable:
 **If the feature changes after implementation:**
 
 **Option 1: Update Living Documentation**
+
 - Update README.md, API docs, Wiki pages
 - Living documentation = always current, reflects actual behavior
 - PRD = historical snapshot of original design
 
 **Option 2: Write New PRD (for major redesigns)**
+
 - Create new PRD with new date: `YYYY-MM-DD-feature-v2.md`
 - Reference original PRD: "Supersedes 2025-01-15-feature.md"
 - New PRD documents new design decisions and trade-offs
@@ -691,7 +776,7 @@ If PRDs are immutable:
 
 ### Example Evolution
 
-```
+```text
 2025-01-15-jwt-authentication.md     (Status: Implemented)
   ↓ (6 months later, major redesign needed)
 2025-07-20-oauth2-migration.md       (Status: Implemented, supersedes JWT PRD)
@@ -702,6 +787,7 @@ Complete history of authentication evolution
 ### What to Do After Implementation
 
 1. **Mark as implemented:**
+
    ```yaml
    **Status**: Implemented
    **Created**: 2025-12-05
@@ -709,8 +795,10 @@ Complete history of authentication evolution
    ```
 
 2. **Add final Updates Log entry:**
+
    ```markdown
    ## Updates Log
+
    **2025-12-05**: Implementation complete
    - All phases completed
    - Tests passing (95% coverage)
@@ -719,6 +807,7 @@ Complete history of authentication evolution
    ```
 
 3. **STOP editing the PRD:**
+
    - Do NOT update when feature evolves
    - Do NOT add new sections or requirements
    - Do NOT modify technical specifications
@@ -727,29 +816,35 @@ Complete history of authentication evolution
 ## Common Mistakes to Avoid
 
 **1. Too much technical detail:**
+
 - PRD defines WHAT and WHY, not HOW
 - Implementation details belong in code/ADRs
 - Focus on requirements and acceptance criteria
 
 **2. Missing non-goals:**
+
 - Explicitly state what's out of scope
 - Prevents scope creep during implementation
 - Helps AI understand boundaries
 
 **3. Vague requirements:**
+
 - "Fast" → "Response time <200ms p99"
 - "Reliable" → "99.9% uptime, <0.1% error rate"
 - "Scalable" → "Handle 10,000 concurrent users"
 
 **4. No user stories:**
+
 - Requirements without user context are hard to validate
 - User stories provide real-world validation
 
 **5. Ignoring edge cases:**
+
 - Edge cases often discovered during implementation
 - Document them in PRD to prevent bugs
 
 **6. Missing dependencies:**
+
 - Document what services/APIs you depend on
 - Note what depends on YOUR feature
 - Helps identify integration risks early
@@ -757,21 +852,25 @@ Complete history of authentication evolution
 ## PRD vs ADR
 
 **When to use PRD:**
+
 - Defining a new feature
 - Documenting user requirements
 - Planning implementation phases
 
 **When to use ADR:**
+
 - Making architectural decisions
 - Choosing between technical alternatives
 - Documenting technology choices
 
 **Use both:**
+
 - PRD describes the feature
 - ADR documents major technical decisions within that feature
 - Link them together
 
 **Example:**
+
 - PRD: "User Authentication System" (what we're building)
 - ADR: "Use JWT over Sessions" (how we're building it)
 

@@ -1,14 +1,8 @@
 # Python Dependency Injection Patterns
 
-This guide defines dependency injection (DI) patterns for Python services to ensure testability, loose coupling, and maintainability.
+Dependency injection (DI) patterns for Python services ensuring testability, loose coupling, and maintainability.
 
-## Overview
-
-**Inversion of Control (IoC)** is a design principle where control of object creation is transferred from application code to external components.
-
-**Dependency Injection (DI)** is the primary technique for implementing IoC by providing dependencies from outside instead of creating them internally.
-
-## At a Glance
+## Quick Reference
 
 | Scenario | Use DI? | Pattern |
 |----------|---------|---------|
@@ -18,9 +12,19 @@ This guide defines dependency injection (DI) patterns for Python services to ens
 | Async service | Yes | Async constructor injection |
 | Short-lived dependency | Maybe | Function/method injection |
 
-## Shared Example Types
+## When to Apply DI
 
-These types are used throughout this guide:
+| Need | Use DI? |
+|------|---------|
+| Multiple implementations | Yes |
+| Mock/fake dependencies for tests | Yes |
+| External effects (database, API, file I/O) | Yes |
+| Clean/hexagonal architecture | Yes |
+| Reusable components | Yes |
+| Small scripts, one-off utilities | No |
+| Trivial dependencies with no config | No |
+
+## Shared Example Types
 
 ```python
 from dataclasses import dataclass
@@ -47,66 +51,33 @@ class UserValidator(Protocol):
     def validate(self, user: User) -> None: ...
 ```
 
-## When to Use Dependency Injection
+## Rules
 
-### Use DI When:
-- Building services or libraries with multiple implementations
-- Testability is critical (need to inject mocks/fakes)
-- Dependencies have external effects (database, API calls, file I/O)
-- Following clean architecture or hexagonal architecture patterns
-- Building reusable components
+### Use Protocol for Dependency Interfaces
 
-### Skip DI When:
-- Writing small scripts or one-off utilities
-- Dependency is trivial (e.g., `datetime.now()` wrapper with no config)
-- Over-engineering simple code
+**Constraint:** MUST use `Protocol` for defining dependency interfaces unless shared implementation is required.
 
-## Protocol vs ABC
+**Rationale:** Protocol enables structural typing and works seamlessly with mocks without inheritance overhead.
 
-Python offers two mechanisms for defining interfaces:
-
-### Protocol (Preferred for DI)
-
+**Examples:**
 ```python
+# [GOOD]
 from typing import Protocol
 
 class UserRepository(Protocol):
     def save(self, user: User) -> None: ...
     def find_by_id(self, user_id: int) -> User | None: ...
-```
 
-**Use Protocol when:**
-- Consumer-side typing (define what you need)
-- Structural/duck typing (any class with matching methods works)
-- No shared implementation needed
-- Testing with mocks (Protocol works with `Mock(spec=...)`)
-
-### ABC (Abstract Base Class)
-
-```python
+# [BAD] - Using ABC when no shared implementation needed
 from abc import ABC, abstractmethod
 
 class UserRepository(ABC):
     @abstractmethod
     def save(self, user: User) -> None:
         pass
-
-    @abstractmethod
-    def find_by_id(self, user_id: int) -> User | None:
-        pass
-
-    def exists(self, user_id: int) -> bool:
-        """Shared implementation for all subclasses"""
-        return self.find_by_id(user_id) is not None
 ```
 
-**Use ABC when:**
-- Need shared default implementations
-- Runtime enforcement (TypeError if abstract method not implemented)
-- Framework/library design with explicit inheritance
-- Want to prevent direct instantiation
-
-### Decision
+**Protocol vs ABC Decision:**
 
 | Need | Use |
 |------|-----|
@@ -116,21 +87,15 @@ class UserRepository(ABC):
 | Runtime enforcement of interface | ABC |
 | Testing with mocks | Protocol (or ABC) |
 
-**Default choice:** Use `Protocol` for dependency injection interfaces.
+### Use Constructor Injection as Default Pattern
 
-## Core Pattern: Constructor Injection
+**Constraint:** MUST inject dependencies through `__init__` constructor for class-based services.
 
-Constructor injection is the **preferred** DI pattern in Python.
+**Rationale:** Constructor injection makes dependencies explicit, ensures immutability after construction, and simplifies testing.
 
-### Interface → Constructor → Implementation
-
+**Examples:**
 ```python
-from typing import Protocol
-
-class UserRepository(Protocol):
-    def save(self, user: User) -> None: ...
-    def find_by_id(self, user_id: int) -> User | None: ...
-
+# [GOOD]
 class UserService:
     def __init__(
         self,
@@ -147,40 +112,62 @@ class UserService:
         self._repo.save(user)
         self._logger.info(f"Created user {user.id}")
 
-# Concrete implementation
-class SqlUserRepository:
-    def __init__(self, db: Database):
-        self._db = db
-
-    def save(self, user: User) -> None:
-        self._db.execute("INSERT INTO users ...")
-
-    def find_by_id(self, user_id: int) -> User | None:
-        return self._db.query("SELECT * FROM users WHERE id = ?", user_id)
+# [BAD] - Creating dependencies internally
+class UserService:
+    def __init__(self):
+        self._repo = SqlUserRepository()  # Tight coupling
+        self._logger = ConsoleLogger()
+        self._validator = UserValidator()
 ```
 
-**Key Points:**
-- Use `Protocol` for structural typing (duck typing with type hints)
-- Accept dependencies in `__init__` only
-- Store dependencies as private fields (`self._repo`)
-- Return nothing from `__init__` (constructors never return values)
-- Use type hints for all parameters
+### Store Dependencies as Private Fields
 
-## Function-Level Dependency Injection
+**Constraint:** MUST store injected dependencies as private fields with underscore prefix (`self._repo`).
 
-For scripts, data pipelines, and non-OOP codebases, use function parameters:
+**Rationale:** Prevents external mutation and clearly indicates internal implementation details.
 
-### Basic Function Injection
-
+**Examples:**
 ```python
-from typing import Protocol
+# [GOOD]
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self._repo = repo  # Private field
 
-class OrderRepository(Protocol):
-    def save(self, order: Order) -> None: ...
+# [BAD]
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self.repo = repo  # Public field allows external mutation
+```
 
-class NotificationService(Protocol):
-    def send(self, customer_id: int, message: str) -> None: ...
+### Never Return Values from Constructors
 
+**Constraint:** MUST NOT return values from `__init__` methods.
+
+**Rationale:** Python constructors implicitly return `None`; explicit returns indicate misunderstanding.
+
+**Examples:**
+```python
+# [GOOD]
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self._repo = repo
+
+# [BAD]
+class UserService:
+    def __init__(self, repo: UserRepository) -> UserService:
+        self._repo = repo
+        return self  # Invalid in Python
+```
+
+### Use Function Injection for Scripts and Pipelines
+
+**Constraint:** MUST use function parameter injection for stateless operations, scripts, CLI tools, and data pipelines.
+
+**Rationale:** Function injection avoids unnecessary class overhead for stateless operations while maintaining testability.
+
+**Examples:**
+```python
+# [GOOD]
 def process_order(
     order: Order,
     repo: OrderRepository,
@@ -189,132 +176,89 @@ def process_order(
     """Process order with injected dependencies"""
     repo.save(order)
     notifications.send(order.customer_id, f"Order {order.id} confirmed")
+
+# [BAD] - Using class for stateless operation
+class OrderProcessor:
+    def __init__(self, repo: OrderRepository, notifications: NotificationService):
+        self._repo = repo
+        self._notifications = notifications
+
+    def process(self, order: Order) -> None:
+        self._repo.save(order)
+        self._notifications.send(order.customer_id, f"Order {order.id} confirmed")
 ```
 
-**When to use:**
-- Scripts and CLI tools
-- Data pipelines
-- Functional programming style
-- Stateless operations
+### Define Async Protocols for Async Dependencies
 
-### Testing Function Injection
+**Constraint:** MUST use `async def` in Protocol definitions when dependency methods are async.
 
+**Rationale:** Type checker enforces await usage and prevents sync/async mismatches.
+
+**Examples:**
 ```python
-from unittest.mock import Mock
-
-def test_process_order_saves_and_notifies():
-    mock_repo = Mock(spec=OrderRepository)
-    mock_notifications = Mock(spec=NotificationService)
-
-    order = Order(id=1, customer_id=42, total=99.99, items=["item1"])
-
-    process_order(order, mock_repo, mock_notifications)
-
-    mock_repo.save.assert_called_once_with(order)
-    mock_notifications.send.assert_called_once_with(42, "Order 1 confirmed")
-```
-
-### Partial Application for Convenience
-
-```python
-from functools import partial
-
-# Wire dependencies once
-repo = SqlOrderRepository(db)
-notifications = EmailNotificationService(smtp)
-
-# Create partially applied function
-process = partial(process_order, repo=repo, notifications=notifications)
-
-# Use without repeating dependencies
-process(order1)
-process(order2)
-```
-
-## Async Dependency Injection
-
-Modern Python (3.10+) heavily uses `async/await`. DI patterns apply equally:
-
-### Async Protocol Definition
-
-```python
-from typing import Protocol
-
+# [GOOD]
 class AsyncUserRepository(Protocol):
     async def save(self, user: User) -> None: ...
     async def find_by_id(self, user_id: int) -> User | None: ...
 
-class AsyncNotificationService(Protocol):
-    async def send(self, user_id: int, message: str) -> None: ...
-```
-
-### Async Service with Constructor Injection
-
-```python
 class AsyncUserService:
-    def __init__(
-        self,
-        repo: AsyncUserRepository,
-        notifications: AsyncNotificationService,
-        logger: Logger,
-    ):
+    def __init__(self, repo: AsyncUserRepository):
         self._repo = repo
-        self._notifications = notifications
-        self._logger = logger
 
     async def create_user(self, user: User) -> None:
         await self._repo.save(user)
-        await self._notifications.send(user.id, "Welcome!")
-        self._logger.info(f"Created user {user.id}")
+
+# [BAD] - Sync protocol for async methods
+class AsyncUserRepository(Protocol):
+    def save(self, user: User) -> None: ...  # Missing async
+
+class AsyncUserService:
+    async def create_user(self, user: User) -> None:
+        await self._repo.save(user)  # Type checker won't catch error
 ```
 
-### Async Function Injection
+### Use AsyncMock for Testing Async Dependencies
 
+**Constraint:** MUST use `AsyncMock` for async dependency methods, not `Mock`.
+
+**Rationale:** `Mock` does not support `await` syntax; `AsyncMock` properly handles async method verification.
+
+**Examples:**
 ```python
-async def process_order_async(
-    order: Order,
-    repo: AsyncOrderRepository,
-    notifications: AsyncNotificationService,
-) -> None:
-    await repo.save(order)
-    await notifications.send(order.customer_id, f"Order {order.id} confirmed")
-```
-
-### Testing Async Dependencies
-
-```python
+# [GOOD]
 import pytest
 from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio
 async def test_create_user_async():
     mock_repo = AsyncMock(spec=AsyncUserRepository)
-    mock_notifications = AsyncMock(spec=AsyncNotificationService)
-    mock_logger = Mock(spec=Logger)
-
-    service = AsyncUserService(mock_repo, mock_notifications, mock_logger)
+    service = AsyncUserService(mock_repo)
     user = User(id=1, name="Alice", email="alice@example.com")
 
     await service.create_user(user)
 
     mock_repo.save.assert_awaited_once_with(user)
-    mock_notifications.send.assert_awaited_once_with(1, "Welcome!")
+
+# [BAD] - Using Mock for async methods
+from unittest.mock import Mock
+
+async def test_create_user_async():
+    mock_repo = Mock(spec=AsyncUserRepository)  # Won't support await
+    service = AsyncUserService(mock_repo)
+    await service.create_user(user)  # Runtime error
 ```
 
-## Lifecycle Management
+### Manage Resource Lifecycle with Context Managers
 
-Manage resource lifecycle (connections, sessions) without containers:
+**Constraint:** MUST use context managers (`with` statements) for resources requiring lifecycle management (connections, sessions, files).
 
-### Context Managers
+**Rationale:** Context managers ensure cleanup happens even when exceptions occur, preventing resource leaks.
 
+**Examples:**
 ```python
+# [GOOD]
 from contextlib import contextmanager
 from typing import Generator
-
-class DatabaseConnection:
-    def connect(self) -> None: ...
-    def disconnect(self) -> None: ...
-    def execute(self, query: str) -> None: ...
 
 @contextmanager
 def database_session(connection: DatabaseConnection) -> Generator[DatabaseConnection, None, None]:
@@ -329,16 +273,28 @@ def database_session(connection: DatabaseConnection) -> Generator[DatabaseConnec
     finally:
         connection.disconnect()
 
-# Usage
 def process_users(users: list[User], db: DatabaseConnection) -> None:
     with database_session(db) as session:
         for user in users:
             session.execute(f"INSERT INTO users ...")
+
+# [BAD] - Manual cleanup without try/finally
+def process_users(users: list[User], db: DatabaseConnection) -> None:
+    db.connect()
+    for user in users:
+        db.execute(f"INSERT INTO users ...")
+    db.disconnect()  # Skipped if exception occurs
 ```
 
-### Async Context Managers
+### Use Async Context Managers for Async Resources
 
+**Constraint:** MUST use `@asynccontextmanager` and `async with` for async resources.
+
+**Rationale:** Async context managers properly handle async cleanup without blocking the event loop.
+
+**Examples:**
 ```python
+# [GOOD]
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -356,63 +312,30 @@ async def async_database_session(
     finally:
         await connection.disconnect()
 
-# Usage
 async def process_users_async(users: list[User], db: AsyncDatabaseConnection) -> None:
     async with async_database_session(db) as session:
         for user in users:
             await session.execute(f"INSERT INTO users ...")
+
+# [BAD] - Using sync context manager for async resource
+@contextmanager
+def async_database_session(connection: AsyncDatabaseConnection):
+    connection.connect()  # Should be await connection.connect()
+    try:
+        yield connection
+    finally:
+        connection.disconnect()  # Should be await connection.disconnect()
 ```
 
-### Class-Based Context Manager
+### Inject Configuration Objects, Not Primitives
 
+**Constraint:** MUST inject configuration as single dataclass/Pydantic object when more than 3 configuration parameters exist.
+
+**Rationale:** Configuration objects prevent constructor signature changes and provide validation/defaults centrally.
+
+**Examples:**
 ```python
-class ManagedUserRepository:
-    def __init__(self, db: DatabaseConnection):
-        self._db = db
-
-    def __enter__(self) -> "ManagedUserRepository":
-        self._db.connect()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._db.disconnect()
-
-    def save(self, user: User) -> None:
-        self._db.execute(f"INSERT INTO users ...")
-
-# Usage with DI
-def create_user_with_managed_repo(
-    user: User,
-    repo_factory: Callable[[], ManagedUserRepository],
-) -> None:
-    with repo_factory() as repo:
-        repo.save(user)
-```
-
-## Configuration as a Dependency
-
-Inject configuration objects instead of primitives:
-
-### ❌ Bad: Injecting Primitives
-
-```python
-class EmailService:
-    def __init__(
-        self,
-        smtp_host: str,
-        smtp_port: int,
-        smtp_user: str,
-        smtp_password: str,
-        timeout: float,
-        max_retries: int,
-    ):
-        # Too many primitives = unclear interface
-        pass
-```
-
-### ✅ Good: Injecting Configuration Object
-
-```python
+# [GOOD]
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -428,64 +351,29 @@ class EmailService:
     def __init__(self, config: EmailConfig):
         self._config = config
 
-    def send(self, to: str, subject: str, body: str) -> None:
-        # Use self._config.smtp_host, etc.
-        pass
-```
-
-**Benefits:**
-- Single parameter instead of many
-- Config changes don't break constructor signature
-- Config object can have validation
-- Easier to test (inject different configs)
-
-### Integrating with Pydantic Settings
-
-```python
-from pydantic import BaseSettings
-
-class EmailConfig(BaseSettings):
-    smtp_host: str
-    smtp_port: int = 587
-    smtp_user: str
-    smtp_password: str
-    timeout: float = 30.0
-    max_retries: int = 3
-
-    class Config:
-        env_prefix = "EMAIL_"
-
-# Auto-loads from EMAIL_SMTP_HOST, EMAIL_SMTP_PORT, etc.
-config = EmailConfig()
-email_service = EmailService(config)
-```
-
-**See:** [python-pydantic-guide.md](python-pydantic-guide.md) for Pydantic configuration patterns
-
-## Dependency Bundles with Dataclass
-
-Group related dependencies to reduce constructor parameters:
-
-### ❌ Problem: Too Many Parameters
-
-```python
-class OrderProcessor:
+# [BAD] - Too many primitive parameters
+class EmailService:
     def __init__(
         self,
-        order_repo: OrderRepository,
-        user_repo: UserRepository,
-        inventory: InventoryService,
-        payments: PaymentGateway,
-        notifications: NotificationService,
-        analytics: AnalyticsService,
+        smtp_host: str,
+        smtp_port: int,
+        smtp_user: str,
+        smtp_password: str,
+        timeout: float,
+        max_retries: int,
     ):
-        # 6+ dependencies = code smell
-        pass
+        pass  # Adding new config param breaks all call sites
 ```
 
-### ✅ Solution: Dependency Bundle
+### Bundle Related Dependencies with Dataclass
 
+**Constraint:** MUST group dependencies into frozen dataclass when constructor has 5+ parameters.
+
+**Rationale:** Dependency bundles reduce constructor complexity and group logically related dependencies.
+
+**Examples:**
 ```python
+# [GOOD]
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -504,102 +392,57 @@ class OrderProcessor:
     def process_order(self, order: Order) -> None:
         self._deps.payments.charge(order.total)
         self._deps.inventory.reserve(order.items)
-        self._deps.notifications.send_confirmation(order.customer_id)
+
+# [BAD] - Too many constructor parameters
+class OrderProcessor:
+    def __init__(
+        self,
+        order_repo: OrderRepository,
+        user_repo: UserRepository,
+        inventory: InventoryService,
+        payments: PaymentGateway,
+        notifications: NotificationService,
+        analytics: AnalyticsService,
+    ):
+        pass  # 6+ parameters = code smell
 ```
 
-**When to use:**
-- 5+ dependencies in constructor
-- Dependencies are logically grouped
-- Same dependencies used across multiple services
+### Never Use Service Locator Pattern
 
-**When to avoid:**
-- Few dependencies (2-4)
-- Dependencies are unrelated
-- Creates god object
+**Constraint:** MUST NOT pull dependencies from container inside constructor.
 
-## Good vs Bad Patterns
+**Rationale:** Service locator hides dependencies from type signature and causes runtime errors if dependency missing.
 
-### ✅ Good: Constructor Injection
-
+**Examples:**
 ```python
+# [GOOD]
 class OrderProcessor:
     def __init__(
         self,
         payment_gateway: PaymentGateway,
         inventory: InventoryService,
-        notifications: NotificationService,
     ):
         self._payment_gateway = payment_gateway
         self._inventory = inventory
-        self._notifications = notifications
 
-    def process_order(self, order: Order) -> None:
-        self._payment_gateway.charge(order.total)
-        self._inventory.reserve(order.items)
-        self._notifications.send_confirmation(order.customer_id)
-```
-
-**Why it's good:**
-- All dependencies are explicit
-- Immutable after construction
-- Easy to test (inject mocks)
-- No hidden coupling
-
-**Note:** For API boundary validation of injected data, see [python-pydantic-guide.md](python-pydantic-guide.md)
-
-### ❌ Bad: Tight Coupling
-
-```python
-class OrderProcessor:
-    def __init__(self):
-        # Creating dependencies internally = tight coupling
-        self._payment_gateway = StripePaymentGateway()
-        self._inventory = SqlInventoryService()
-        self._notifications = EmailNotificationService()
-```
-
-**Why it's bad:**
-- Hard to test (can't inject mocks)
-- Hard to swap implementations
-- Hidden dependencies
-- Violates Single Responsibility Principle
-
-### ❌ Bad: Service Locator Anti-Pattern
-
-```python
+# [BAD] - Service locator anti-pattern
 class OrderProcessor:
     def __init__(self, container: Container):
-        # Pulling dependencies from container = hidden coupling
+        # Dependencies hidden from signature
         self._payment_gateway = container.get(PaymentGateway)
         self._inventory = container.get(InventoryService)
+        # Runtime error if dependency not registered
 ```
 
-**Why it's bad:**
-- Dependencies are hidden (not in function signature)
-- Harder to test
-- Implicit coupling to container
-- Runtime errors if dependency missing
+### Avoid Setter Injection Except for Optional Dependencies
 
-### ❌ Bad: Setter Injection
+**Constraint:** MUST NOT use setter injection for required dependencies; ONLY use for truly optional dependencies.
 
+**Rationale:** Setter injection allows object to exist in incomplete state with missing required dependencies.
+
+**Examples:**
 ```python
-class OrderProcessor:
-    def set_payment_gateway(self, gateway: PaymentGateway) -> None:
-        self._payment_gateway = gateway
-
-    def process_order(self, order: Order) -> None:
-        # What if payment_gateway was never set?
-        self._payment_gateway.charge(order.total)
-```
-
-**Why it's bad:**
-- Dependencies may be missing at runtime
-- Mutable state
-- Less explicit than constructor injection
-
-**Exception**: Setter injection is acceptable for truly optional dependencies with sensible defaults:
-
-```python
+# [GOOD] - Required dependency via constructor
 class OrderProcessor:
     def __init__(self, payment_gateway: PaymentGateway):
         self._payment_gateway = payment_gateway
@@ -613,182 +456,122 @@ class OrderProcessor:
         self._payment_gateway.charge(order.total)
         if self._analytics:
             self._analytics.track("order_processed", order.id)
-```
 
-### ❌ Bad: Injecting Concrete Implementations
-
-```python
-# ❌ DON'T: Accept concrete class
+# [BAD] - Required dependency via setter
 class OrderProcessor:
-    def __init__(self, repo: SqlOrderRepository):
-        self._repo = repo
+    def set_payment_gateway(self, gateway: PaymentGateway) -> None:
+        self._payment_gateway = gateway
 
-# ✅ DO: Accept interface (Protocol)
+    def process_order(self, order: Order) -> None:
+        self._payment_gateway.charge(order.total)  # May not exist
+```
+
+### Inject Protocol Types, Not Concrete Implementations
+
+**Constraint:** MUST accept Protocol/ABC types in constructors, NOT concrete implementation classes.
+
+**Rationale:** Injecting concrete types couples service to specific implementation and violates Dependency Inversion Principle.
+
+**Examples:**
+```python
+# [GOOD]
 class OrderProcessor:
-    def __init__(self, repo: OrderRepository):  # Protocol, not concrete
-        self._repo = repo
-```
-
-**Why it's bad:**
-- Violates Dependency Inversion Principle
-- Coupled to specific implementation
-- Harder to test (must use real SqlOrderRepository or subclass)
-
-### ❌ Bad: Default Argument Instantiation
-
-```python
-# ❌ DON'T: Default creates new instance
-class UserService:
-    def __init__(self, repo: UserRepository = SqlUserRepository()):
+    def __init__(self, repo: OrderRepository):  # Protocol
         self._repo = repo
 
-# Same instance shared across all UserService instances!
-# Default arguments are evaluated once at function definition time
+# [BAD]
+class OrderProcessor:
+    def __init__(self, repo: SqlOrderRepository):  # Concrete class
+        self._repo = repo  # Coupled to SQL implementation
 ```
 
-**Why it's bad:**
-- Default argument evaluated once at import time
-- All instances share the same repository object
-- Subtle, hard-to-debug bugs
-- State leaks between tests
+### Never Use Default Argument Instantiation
 
-**Fix:**
+**Constraint:** MUST NOT instantiate dependencies in default argument values.
 
+**Rationale:** Default arguments are evaluated once at import time, causing all instances to share the same dependency object.
+
+**Examples:**
 ```python
-# ✅ DO: Use None and create inside
+# [GOOD] - Use None and factory function
 class UserService:
     def __init__(self, repo: UserRepository | None = None):
         self._repo = repo or SqlUserRepository()
 
-# ✅ BETTER: Factory function
+# BETTER - Factory function
 def create_user_service(repo: UserRepository | None = None) -> UserService:
     return UserService(repo or SqlUserRepository())
+
+# [BAD] - Default creates shared instance
+class UserService:
+    def __init__(self, repo: UserRepository = SqlUserRepository()):
+        self._repo = repo  # Same instance for all UserService objects
 ```
 
-### ❌ Bad: Global Singleton
+### Avoid Global Singleton Dependencies
 
+**Constraint:** MUST NOT use module-level singleton instances as dependencies.
+
+**Rationale:** Global singletons create hidden dependencies, prevent testing with mocks, and cause state leaks between tests.
+
+**Examples:**
 ```python
-# ❌ DON'T: Module-level singleton
+# [GOOD] - Inject dependency
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self._repo = repo
+
+def create_user_service() -> UserService:
+    repo = SqlUserRepository(create_database())
+    return UserService(repo)
+
+# [BAD] - Module-level singleton
 _repo = SqlUserRepository(create_database())
 
 class UserService:
     def __init__(self):
-        self._repo = _repo  # Uses global
-
-# Hard to test, hidden dependency, shared mutable state
+        self._repo = _repo  # Hidden dependency on global
 ```
 
-**Why it's bad:**
-- Hidden dependency on global state
-- Can't inject different implementations
-- State shared across tests
-- Import order matters
+### Use Mock(spec=Protocol) for Testing
 
-**Fix:**
+**Constraint:** MUST use `Mock(spec=ProtocolName)` when creating mocks for dependency protocols.
 
+**Rationale:** `spec` parameter ensures mock only allows methods defined in Protocol, catching errors at test time.
+
+**Examples:**
 ```python
-# ✅ DO: Inject dependency
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self._repo = repo
-
-# Factory creates the singleton if needed
-def create_user_service() -> UserService:
-    repo = SqlUserRepository(create_database())
-    return UserService(repo)
-```
-
-## Dependency Injection Types
-
-### 1. Constructor Injection (Preferred)
-
-```python
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self._repo = repo
-```
-
-**Pros:**
-- Explicit dependencies
-- Immutable after creation
-- Best for testing
-- Clear what object needs to function
-
-### 2. Method Injection
-
-```python
-class UserService:
-    def create_user(self, user: User, repo: UserRepository) -> None:
-        repo.save(user)
-```
-
-**Use case:**
-- Short-lived dependencies
-- Different implementations per method call
-- Dependency varies per operation
-
-**Cons:**
-- Method signatures become cluttered
-- Harder to enforce consistency
-
-### 3. Property/Setter Injection (Avoid)
-
-```python
-class UserService:
-    @property
-    def repo(self) -> UserRepository:
-        return self._repo
-
-    @repo.setter
-    def repo(self, value: UserRepository) -> None:
-        self._repo = value
-```
-
-**Use case:**
-- Optional dependencies only
-- Framework requirements (rare)
-
-**Cons:**
-- Dependencies may be missing
-- Mutable state
-- Less explicit
-
-## Testing with Dependency Injection
-
-### Unit Testing with Mocks
-
-```python
-import pytest
+# [GOOD]
 from unittest.mock import Mock
 
 def test_create_user_saves_to_repository():
-    # Arrange: Create mocks
-    mock_repo = Mock(spec=UserRepository)
+    mock_repo = Mock(spec=UserRepository)  # Only UserRepository methods allowed
     mock_logger = Mock(spec=Logger)
-    mock_validator = Mock(spec=UserValidator)
-
-    service = UserService(
-        repo=mock_repo,
-        logger=mock_logger,
-        validator=mock_validator,
-    )
+    service = UserService(repo=mock_repo, logger=mock_logger)
 
     user = User(id=1, name="Alice", email="alice@example.com")
-
-    # Act
     service.create_user(user)
 
-    # Assert
-    mock_validator.validate.assert_called_once_with(user)
     mock_repo.save.assert_called_once_with(user)
-    mock_logger.info.assert_called_once()
+
+# [BAD]
+def test_create_user_saves_to_repository():
+    mock_repo = Mock()  # No spec = any method call allowed
+    service = UserService(repo=mock_repo, logger=Mock())
+
+    service.create_user(user)
+    mock_repo.saev.assert_called_once()  # Typo not caught
 ```
 
-**Note on Mock with Protocol:** `Mock(spec=UserRepository)` works because Protocol defines the expected interface. The mock will only allow calls to methods defined in the Protocol.
+### Use In-Memory Fakes for Integration Testing
 
-### Integration Testing with Fakes
+**Constraint:** ONLY use in-memory/in-process fakes for integration tests, NOT mocks.
 
+**Rationale:** Fakes provide real behavior without external dependencies, testing integration between components.
+
+**Examples:**
 ```python
+# [GOOD]
 class InMemoryUserRepository:
     def __init__(self):
         self._users: dict[int, User] = {}
@@ -800,30 +583,112 @@ class InMemoryUserRepository:
         return self._users.get(user_id)
 
 def test_create_user_integration():
-    # Use in-memory fake instead of real database
-    fake_repo = InMemoryUserRepository()
-    real_logger = ConsoleLogger()
-    real_validator = UserValidator()
-
-    service = UserService(
-        repo=fake_repo,
-        logger=real_logger,
-        validator=real_validator,
-    )
+    fake_repo = InMemoryUserRepository()  # Real implementation
+    service = UserService(repo=fake_repo, logger=ConsoleLogger())
 
     user = User(id=1, name="Alice", email="alice@example.com")
     service.create_user(user)
 
-    # Verify user was saved
     saved_user = fake_repo.find_by_id(1)
     assert saved_user.name == "Alice"
+
+# [BAD] - Using mocks in integration test
+def test_create_user_integration():
+    mock_repo = Mock(spec=UserRepository)  # Mock = unit test, not integration
+    service = UserService(repo=mock_repo, logger=ConsoleLogger())
 ```
 
-## IoC Containers (Optional)
+### Avoid Circular Dependencies
 
-For large applications, an IoC container can manage dependency wiring.
+**Constraint:** MUST NOT create circular constructor dependencies between services.
 
-### Simple Manual Wiring (Recommended for Most Cases)
+**Rationale:** Circular dependencies prevent either service from being constructed.
+
+**Examples:**
+```python
+# [BAD] - Circular dependency
+class UserService:
+    def __init__(self, order_service: OrderService):
+        self._order_service = order_service
+
+class OrderService:
+    def __init__(self, user_service: UserService):
+        self._user_service = user_service  # Can't construct either
+
+# [GOOD] - Introduce third service
+class UserOrderCoordinator:
+    def __init__(self, user_service: UserService, order_service: OrderService):
+        self._user_service = user_service
+        self._order_service = order_service
+
+# [GOOD] - Event-based communication
+class UserService:
+    def __init__(self, event_bus: EventBus):
+        self._event_bus = event_bus
+
+    def create_user(self, user: User) -> None:
+        # Save user
+        self._event_bus.publish("user_created", user)
+
+class OrderService:
+    def __init__(self, event_bus: EventBus):
+        event_bus.subscribe("user_created", self._on_user_created)
+```
+
+### Never Inject Framework Objects into Services
+
+**Constraint:** MUST NOT inject web framework request/session objects into service constructors.
+
+**Rationale:** Framework coupling prevents service reuse outside request context and complicates testing.
+
+**Examples:**
+```python
+# [GOOD] - Extract data, inject repository
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self._repo = repo
+
+def create_user_endpoint(request: Request, session: Session):
+    service = UserService(SqlUserRepository(session))
+    user_data = request.json()
+    user = User(**user_data)
+    service.create_user(user)
+
+# [BAD] - Framework-coupled service
+class UserService:
+    def __init__(self, request: Request, session: Session):
+        self._request = request  # Coupled to web framework
+        self._session = session
+
+    def create_user(self) -> None:
+        user_data = self._request.json()  # Can't use outside request context
+```
+
+## DI Pattern Decision Framework
+
+### Constructor vs Method vs Function Injection
+
+| Pattern | Use When |
+|---------|----------|
+| Constructor injection | Class needs dependency for all methods |
+| Method injection | Dependency varies per call |
+| Function injection | Stateless operations, scripts, pipelines |
+
+### DI Container vs Manual Wiring
+
+| Approach | Use When |
+|----------|----------|
+| Manual wiring | <10 services, simple graph, clarity preferred |
+| DI container | >10 services, complex trees, lifecycle management |
+
+### Sync vs Async
+
+| Pattern | Use When |
+|---------|----------|
+| Sync DI | Traditional web apps, CLI tools, scripts |
+| Async DI | FastAPI, aiohttp, data streaming, high-concurrency |
+
+## Manual Wiring (Recommended for Most Cases)
 
 ```python
 # factory.py
@@ -835,7 +700,7 @@ def create_user_service() -> UserService:
     return UserService(repo, logger, validator)
 ```
 
-### Using dependency-injector Library
+## IoC Container Example (Optional)
 
 ```python
 from dependency_injector import containers, providers
@@ -863,143 +728,14 @@ container.config.db.url.from_env("DATABASE_URL")
 service = container.user_service()
 ```
 
-**When to use containers:**
+**Use containers when:**
 - Many dependencies (>10 services)
 - Complex dependency graphs
 - Need lifecycle management (singleton, transient, scoped)
 
-**When to avoid:**
-- Simple applications (manual wiring is clearer)
-- Small dependency trees
+## Related Documentation
 
-## Decision Framework
-
-### Constructor Injection vs Method Injection vs Function Injection
-
-| Pattern | Use When |
-|---------|----------|
-| Constructor injection | Class needs dependency for all methods |
-| Method injection | Dependency varies per call |
-| Function injection | Stateless operations, scripts, pipelines |
-
-### DI Container vs Manual Wiring
-
-| Approach | Use When |
-|----------|----------|
-| Manual wiring | <10 services, simple graph, clarity preferred |
-| DI container | >10 services, complex trees, lifecycle management |
-
-### Sync vs Async
-
-| Pattern | Use When |
-|---------|----------|
-| Sync DI | Traditional web apps, CLI tools, scripts |
-| Async DI | FastAPI, aiohttp, data streaming, high-concurrency |
-
-## Common Mistakes
-
-### ❌ Over-Injection
-
-```python
-class UserService:
-    def __init__(
-        self,
-        repo: UserRepository,
-        logger: Logger,
-        validator: UserValidator,
-        email_service: EmailService,
-        sms_service: SmsService,
-        analytics: AnalyticsService,
-        # ... 10 more dependencies
-    ):
-        pass
-```
-
-**Problem**: Too many dependencies = Single Responsibility Principle violation
-
-**Fix**: Split into smaller services or use dependency bundles
-
-### ❌ God Object Dependencies
-
-```python
-class UserService:
-    def __init__(self, app_context: ApplicationContext):
-        # ApplicationContext has 50+ services
-        pass
-```
-
-**Problem**: Hidden dependencies, unclear requirements
-
-**Fix**: Inject only what you need explicitly
-
-### ❌ Circular Dependencies
-
-```python
-class UserService:
-    def __init__(self, order_service: OrderService):
-        self._order_service = order_service
-
-class OrderService:
-    def __init__(self, user_service: UserService):
-        self._user_service = user_service
-```
-
-**Problem**: Can't construct either service
-
-**Fix**: Introduce third service, event-based communication, or lazy injection
-
-### ❌ Framework-Coupled Constructors
-
-```python
-# ❌ DON'T: Inject framework objects into services
-class UserService:
-    def __init__(self, request: Request, session: Session):
-        self._request = request
-        self._session = session
-
-# ✅ DO: Extract what you need, inject as parameters
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self._repo = repo
-
-def create_user_endpoint(request: Request, session: Session):
-    service = UserService(SqlUserRepository(session))
-    user_data = request.json()
-    # ...
-```
-
-**Why it's bad:**
-- Service coupled to web framework
-- Can't reuse service outside request context
-- Harder to test
-
-## Related Concepts
-
-- **SOLID Principles** (especially Dependency Inversion Principle)
-- **Clean Architecture** (dependency rule)
-- **Hexagonal Architecture** (ports & adapters)
-- **Protocol/ABC** (Python's interface mechanisms)
-- **Pydantic** - For validating dependencies at system boundaries, see [python-pydantic-guide.md](python-pydantic-guide.md)
-- **CLI Configuration** - For injecting config from CLI/env, see [python-cli-arguments-guide.md](python-cli-arguments-guide.md)
-
-## Mental Model
-
-> **IoC:** "I don't control object creation"
-> **DI:** "You give me what I need"
-
-Dependencies flow **inward** from framework/infrastructure to business logic.
-
-## Summary
-
-- **Prefer constructor injection** for class-based services
-- **Use function injection** for scripts, pipelines, stateless operations
-- **Use Protocol** for interface definitions (not ABC, unless shared behavior needed)
-- **Use type hints** for all dependencies
-- **Handle async properly** with async protocols and AsyncMock
-- **Manage lifecycle** with context managers, not global singletons
-- **Inject config objects** instead of many primitives
-- **Use dependency bundles** when constructor has 5+ parameters
-- **Avoid** service locator, setter injection, default argument instantiation
-- **Avoid** global singletons and framework-coupled constructors
-- **Test with mocks** or fakes injected via constructor/function
-- **Manual wiring** for simple apps, containers for complex ones
+- [python-architecture-patterns.md](python-architecture-patterns.md) - Service architecture overview, main.py composition root, factory pattern
+- [python-pydantic-guide.md](python-pydantic-guide.md) - Validating dependencies at system boundaries
+- [python-cli-arguments-guide.md](python-cli-arguments-guide.md) - Injecting config from CLI/env
+- [go-architecture-patterns.md](go-architecture-patterns.md) - Equivalent patterns in Go

@@ -14,6 +14,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
   - [Architecture & Design Patterns](#architecture--design-patterns)
   - [Testing & Quality](#testing--quality)
   - [Infrastructure & Tools](#infrastructure--tools)
+  - [HTTP & APIs](#http--apis)
   - [Documentation & Code Quality](#documentation--code-quality)
 - [Development Workflows](#development-workflows)
 - [Frontend Development](#frontend-development)
@@ -21,6 +22,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 - [Key Ecosystem Libraries](#key-ecosystem-libraries)
 - [For AI Agents](#for-ai-agents)
 - [Usage](#usage)
+- [License](#license)
 
 ---
 
@@ -36,6 +38,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 - **[go-enum-type-pattern.md](go-enum-type-pattern.md)** - String-based enum pattern with type-safe constants, validation, and collection operations
 - **[go-filter-pattern.md](go-filter-pattern.md)** - Filter pattern for collection operations and data filtering with composable predicates
 - **[go-parse-pattern.md](go-parse-pattern.md)** - Parse pattern for custom type conversion, unmarshaling, and string-to-type transformation
+- **[go-context-cancellation-in-loops.md](go-context-cancellation-in-loops.md)** - Context cancellation pattern for long-running loops with non-blocking select checks
 
 ### Testing & Quality
 
@@ -53,16 +56,20 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 - **[go-licensing-guide.md](go-licensing-guide.md)** - Licensing practices including LICENSE files, README sections, source headers, and addlicense tool
 - **[go-glog.md](go-glog.md)** - Structured logging with glog, log levels, and contextual logging practices
 
+### HTTP & APIs
+
+- **[go-http-handler-refactoring-guide.md](go-http-handler-refactoring-guide.md)** - HTTP handler organization, refactoring patterns, and architectural guidelines
+- **[go-json-error-handler-guide.md](go-json-error-handler-guide.md)** - Standardized JSON error responses for HTTP APIs with error codes, status mapping, and structured details
+
 ### Documentation & Code Quality
 
 - **[go-doc-best-practices.md](go-doc-best-practices.md)** - GoDoc standards, documentation comments, and API documentation best practices
-- **[go-http-handler-refactoring-guide.md](go-http-handler-refactoring-guide.md)** - HTTP handler organization, refactoring patterns, and architectural guidelines
 
 ---
 
 ## Development Workflows
 
-- **[git-commit-workflow.md](git-commit-workflow.md)** - Mandatory commit process with pre-commit checks, changelog updates, and semantic versioning
+- **[git-commit-guide.md](git-commit-guide.md)** - Git commit workflow and reference covering mandatory processes (make precommit, CHANGELOG), message format, repository configuration, and troubleshooting
 
 ---
 
@@ -100,6 +107,11 @@ These guidelines emphasize integration with Benjamin Borbe's ecosystem libraries
   - **When:** All error handling that needs context propagation
   - **Pattern:** `errors.Wrap(ctx, err, "description")`
   - **Replaces:** Standard `fmt.Errorf()` for better error chains
+
+- **`github.com/bborbe/http`** - HTTP utilities with JSON error handling
+  - **When:** Building HTTP APIs that need structured error responses
+  - **Pattern:** `libhttp.NewJSONErrorHandler(handler)` with `WrapWithCode/WrapWithDetails`
+  - **See:** [go-json-error-handler-guide.md](go-json-error-handler-guide.md)
 
 - **Ginkgo v2 + Gomega** - BDD-style testing framework with expressive assertions
   - **When:** All test files (replaces standard `testing` package patterns)
@@ -142,7 +154,7 @@ This repository is specifically structured to help AI agents:
 
 **When setting up projects:**
 - Reference [go-makefile-commands.md](go-makefile-commands.md) for standardized targets
-- Follow [git-commit-workflow.md](git-commit-workflow.md) for commit process (mandatory)
+- Follow [git-commit-guide.md](git-commit-guide.md) for commit process (mandatory)
 - Apply [go-licensing-guide.md](go-licensing-guide.md) for licensing setup
 
 **When working with frontend:**
@@ -162,3 +174,9 @@ AI agents should reference these guidelines when:
 - Creating or updating documentation
 
 Each guideline document includes complete code examples, key requirements, and common mistakes to avoid, ensuring AI agents can produce high-quality, consistent code that integrates seamlessly with existing development practices.
+
+---
+
+## License
+
+BSD-style license. See [LICENSE](LICENSE) file for details.

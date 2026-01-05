@@ -33,27 +33,58 @@ Create a PRD when:
 
 ## Storage and Naming
 
-**Location:** `docs/prd/`
+**Location:** `tasks/` or `docs/prd/` (project-specific)
 
-**Naming:** `YYYY-NNN-feature-name.md`
+### Naming Conventions
+
+**Private repositories:** `feature-name.md` (lowercase with hyphens)
 
 **Examples:**
-- `2024-001-order-cancellation.md`
-- `2024-002-user-authentication.md`
-- `2025-001-payment-refunds.md`
+- `order-cancellation.md`
+- `user-authentication.md`
+- `payment-refunds.md`
+- `fix-authentication-timeout.md`
 
-**Numbering:**
-- Year prefix for chronological organization
-- Sequential number within year (001, 002, ...)
-- Never reuse numbers
-- Descriptive feature name in kebab-case
+**Public repositories:** `YYYY-MM-DD-feature-name.md` (date prefix for chronological ordering)
+
+**Examples:**
+- `2025-12-05-json-error-handler.md`
+- `2025-12-06-request-id-middleware.md`
+- `2026-01-10-async-context-refactor.md`
+
+**Why date prefix for public repos:**
+- Chronological ordering (GitHub sorts alphabetically)
+- No coordination overhead (multiple contributors can create PRDs simultaneously)
+- Timeline clarity (immediately shows when decision was proposed)
+- Avoids naming collisions
+- Matches industry patterns (Go proposals, Kubernetes KEPs, Python PEPs)
+
+**Naming Guidelines:**
+- Use lowercase with hyphens (kebab-case)
+- Describe what the feature does or what needs to be fixed
+- No prefixes like "PRD-" or "BUG-" (folder context makes this clear)
+- Action-oriented for tasks (e.g., "fix-auth-bug" not "auth-bug")
+- Keep names concise but descriptive
+- **Never change filename** - status lives in frontmatter, not filename (keeps links stable)
 
 ## PRD Template
 
 ```markdown
+---
+id: YYYY-MM-DD-feature-name
+title: Feature Name
+status: Draft
+created: 2024-11-27
+authors: ["@username"]
+tags: [prd]
+related_issues: []
+implemented_pr: ""
+superseded_by: ""
+---
+
 # PRD: [Feature Name]
 
-**Status**: Draft | In Progress | Implemented | Deprecated
+**Status**: Draft
 **Author**: [Your Name]
 **Created**: 2024-11-27
 **Updated**: 2024-11-27
@@ -535,25 +566,81 @@ ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
 
 **Update PRD during implementation:**
 - Mark status as "In Progress" when starting
-- Update when requirements change
+- Update when requirements change during development
 - Add discoveries to "Open Questions"
 - Document decisions in "Updates Log"
 - Mark "Implemented" when complete
+- **STOP editing after implementation** - PRD becomes immutable historical reference
 
 **Don't delete old PRDs:**
 - They provide historical context
 - AI assistants benefit from seeing past features
-- Mark as "Deprecated" if no longer relevant
+- Mark as "Rejected" if decided not to implement
+- Mark as "Deprecated" if feature was removed or superseded
 
 ## Status Management
 
-**Status values:**
-- **Draft**: Under discussion, not approved
-- **In Progress**: Approved, implementation started
-- **Implemented**: Feature complete and deployed
-- **Deprecated**: Feature removed or superseded
+**Available statuses:**
+- **Draft** 📝 - Being written internally
+- **Proposed** - Ready for review (PR open)
+- **In Review** - Actively collecting feedback
+- **Approved** - Decision made, not yet implemented
+- **In Progress** 🚧 - Implementation started
+- **Implemented** ✅ - Code merged, PRD now immutable
+- **Superseded** - Replaced by newer PRD
+- **Rejected** ❌ - Decided not to implement (keep for history)
+- **Withdrawn** - Pulled back by author
+- **Deprecated** - Feature removed or obsolete
 
-**Updates Log:**
+**Common usage (90% of PRDs):**
+```
+Draft → In Progress → Implemented
+```
+
+**With formal process (10% of PRDs, like open source projects):**
+```
+Draft → Proposed → In Review → Approved → In Progress → Implemented
+```
+
+**End-of-life statuses (use when PRD becomes irrelevant):**
+- Superseded, Rejected, Withdrawn, Deprecated
+
+## Warning Banners
+
+Warning banners are **only used for PRDs that are no longer relevant**:
+
+**Superseded** (replaced by newer PRD):
+```markdown
+> ⚠️ SUPERSEDED
+> This PRD has been replaced. See [2026-01-15-feature-v2.md](link)
+```
+
+**Rejected** (decided not to implement):
+```markdown
+> ⚠️ REJECTED
+> This feature was not implemented. See rejection rationale below.
+```
+
+**Deprecated** (feature was removed):
+```markdown
+> ⚠️ DEPRECATED
+> This feature has been removed from the library.
+```
+
+**Withdrawn** (pulled back by author):
+```markdown
+> ⚠️ WITHDRAWN
+> This proposal was withdrawn and is no longer being pursued.
+```
+
+**No banner needed** for:
+- Draft, Proposed, In Review, Approved, In Progress (work in progress)
+- **Implemented** (feature exists, PRD documents design)
+
+**Rationale**: An Implemented PRD from days/weeks ago is not "irrelevant" - it documents current design decisions. Only add warning banners when the PRD no longer applies to the codebase.
+
+## Updates Log
+
 Track significant changes with date and description:
 ```markdown
 ## Updates Log
@@ -562,6 +649,80 @@ Track significant changes with date and description:
 **2024-12-01**: Reduced scope - removing partial cancellations (future PRD)
 **2024-12-15**: Marked as implemented, deployed to production
 ```
+
+## PRD Immutability
+
+### Critical Principle: PRDs Become Immutable After Implementation
+
+**Once Status: Implemented, STOP editing the PRD.**
+
+The PRD becomes a **historical snapshot** of the original design decision. This is intentional and valuable.
+
+### Why Immutability Matters
+
+**PRDs answer:** "Why did we build it THIS way at THAT time?"
+
+If you keep updating the PRD after implementation:
+- ❌ Historical context is lost
+- ❌ Can't see original trade-offs and constraints
+- ❌ Can't understand why certain decisions were made
+- ❌ Knowledge disappears when maintainers leave ("Bus Factor")
+
+If PRDs are immutable:
+- ✅ Original reasoning preserved forever
+- ✅ Can trace feature evolution through multiple PRDs
+- ✅ Future maintainers understand past constraints
+- ✅ Prevents re-litigating old decisions
+
+### Where Future Changes Go
+
+**If the feature changes after implementation:**
+
+**Option 1: Update Living Documentation**
+- Update README.md, API docs, Wiki pages
+- Living documentation = always current, reflects actual behavior
+- PRD = historical snapshot of original design
+
+**Option 2: Write New PRD (for major redesigns)**
+- Create new PRD with new date: `YYYY-MM-DD-feature-v2.md`
+- Reference original PRD: "Supersedes 2025-01-15-feature.md"
+- New PRD documents new design decisions and trade-offs
+- Both PRDs preserved = complete evolution history
+
+### Example Evolution
+
+```
+2025-01-15-jwt-authentication.md     (Status: Implemented)
+  ↓ (6 months later, major redesign needed)
+2025-07-20-oauth2-migration.md       (Status: Implemented, supersedes JWT PRD)
+  ↓ (both preserved)
+Complete history of authentication evolution
+```
+
+### What to Do After Implementation
+
+1. **Mark as implemented:**
+   ```yaml
+   **Status**: Implemented
+   **Created**: 2025-12-05
+   **Implemented**: 2025-12-05
+   ```
+
+2. **Add final Updates Log entry:**
+   ```markdown
+   ## Updates Log
+   **2025-12-05**: Implementation complete
+   - All phases completed
+   - Tests passing (95% coverage)
+   - Documented in README.md
+   - Deployed to production
+   ```
+
+3. **STOP editing the PRD:**
+   - Do NOT update when feature evolves
+   - Do NOT add new sections or requirements
+   - Do NOT modify technical specifications
+   - PRD is now a permanent historical record
 
 ## Common Mistakes to Avoid
 
@@ -618,12 +779,3 @@ Track significant changes with date and description:
 
 - For ADR documentation: See [adr-guide.md](adr-guide.md)
 - For overall documentation structure: See [documentation-guide.md](documentation-guide.md)
-- For PRD workflow with AI: See `~/.claude/docs/prd-workflow-guide.md` (global guide)
-
-## Workflow Integration
-
-This guide focuses on **what a PRD should contain**. For the **workflow of creating and implementing PRDs with AI assistants**, see the companion guide at `~/.claude/docs/prd-workflow-guide.md` which covers:
-- Using `/create-prd` command
-- AI-assisted requirement gathering
-- Task breakdown and implementation flow
-- Progress tracking and testing protocols

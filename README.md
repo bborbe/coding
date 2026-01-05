@@ -16,6 +16,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
   - [Infrastructure & Tools](#infrastructure--tools)
   - [HTTP & APIs](#http--apis)
   - [Documentation & Code Quality](#documentation--code-quality)
+- [Python Development Guidelines](#python-development-guidelines)
 - [Development Workflows](#development-workflows)
 - [Frontend Development](#frontend-development)
 - [Documentation Standards](#documentation-standards)
@@ -64,6 +65,13 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 ### Documentation & Code Quality
 
 - **[go-doc-best-practices.md](go-doc-best-practices.md)** - GoDoc standards, documentation comments, and API documentation best practices
+
+---
+
+## Python Development Guidelines
+
+- **[python-ioc.md](python-ioc.md)** - Dependency injection patterns with constructor injection, testing with mocks, and when to use DI vs manual wiring
+- **[python-pydantic.md](python-pydantic.md)** - Data validation with Pydantic for API boundaries, configuration management, and external data validation
 
 ---
 

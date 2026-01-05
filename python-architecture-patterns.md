@@ -60,7 +60,6 @@ import os
 import sys
 import logging
 import signal
-from concurrent.futures import ThreadPoolExecutor
 
 def main(argv):
     # 1. Configure logging
@@ -300,7 +299,6 @@ class UserService:
         self._repo = repo
 
     def create_user(self, user: User) -> None:
-        self._repo = repo
         self._repo.save(user)
 ```
 

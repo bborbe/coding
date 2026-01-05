@@ -42,6 +42,31 @@ port = int(os.getenv('PORT', '8080'))  # Default from env
 # CLI --port overrides env value
 ```
 
+## Configuration Precedence
+
+Configuration sources are applied in this order (later sources override earlier):
+
+```
+1. Code defaults     →  port: int = 8080
+2. .env file         →  PORT=9000  (loaded by Pydantic/python-dotenv)
+3. Environment vars  →  export PORT=3000
+4. CLI arguments     →  --port 4000
+```
+
+**Example flow:**
+```python
+# 1. Code default: port = 8080
+# 2. .env file contains: PORT=9000 → port = 9000
+# 3. Shell: export PORT=3000 → port = 3000
+# 4. CLI: --port 4000 → port = 4000 (final value)
+```
+
+**Key points:**
+- Environment variables override `.env` file (deployment flexibility)
+- CLI arguments have highest priority (developer/operator override)
+- Pydantic BaseSettings follows this order automatically
+- Always document which sources your app supports
+
 ## Recommended Approaches
 
 ### Option 1: Pydantic BaseSettings (Recommended for Applications)
@@ -58,10 +83,10 @@ class AppConfig(BaseSettings):
     port: int = Field(8080, env="PORT")
     debug: bool = Field(False, env="DEBUG")
     workers: int = Field(4, env="WORKERS", ge=1, le=32)
-    kafka_brokers: list[str] = Field(..., env="KAFKA_BROKERS")
+    service_hosts: list[str] = Field(..., env="SERVICE_HOSTS")
 
-    @validator("kafka_brokers", pre=True)
-    def parse_brokers(cls, v):
+    @validator("service_hosts", pre=True)
+    def parse_hosts(cls, v):
         if isinstance(v, str):
             return v.split(",")
         return v
@@ -74,7 +99,7 @@ def main():
     config = AppConfig()  # Validates and loads from env/.env
 
     print(f"Starting server on port {config.port}")
-    print(f"Connecting to Kafka: {config.kafka_brokers}")
+    print(f"Connecting to services: {config.service_hosts}")
     # ... rest of application
 ```
 
@@ -97,7 +122,7 @@ import os
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Process orders from Kafka queue',
+        description='Process orders from message queue',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
@@ -109,9 +134,9 @@ def parse_args():
         help='Server port'
     )
     parser.add_argument(
-        '--kafka-brokers',
-        default=os.getenv('KAFKA_BROKERS', 'localhost:9092'),
-        help='Comma-separated Kafka broker list'
+        '--service-hosts',
+        default=os.getenv('SERVICE_HOSTS', 'localhost:8080'),
+        help='Comma-separated service host list'
     )
     parser.add_argument(
         '--debug',
@@ -129,8 +154,8 @@ def parse_args():
     args = parser.parse_args()
 
     # Post-process complex types
-    if isinstance(args.kafka_brokers, str):
-        args.kafka_brokers = args.kafka_brokers.split(',')
+    if isinstance(args.service_hosts, str):
+        args.service_hosts = args.service_hosts.split(',')
 
     return args
 
@@ -138,7 +163,7 @@ def main():
     args = parse_args()
 
     print(f"Port: {args.port}")
-    print(f"Brokers: {args.kafka_brokers}")
+    print(f"Service hosts: {args.service_hosts}")
     print(f"Debug: {args.debug}")
 
     # ... rest of application
@@ -170,9 +195,9 @@ def serve(
         int(os.getenv('PORT', '8080')),
         help="Server port"
     ),
-    kafka_brokers: str = typer.Option(
-        os.getenv('KAFKA_BROKERS', 'localhost:9092'),
-        help="Comma-separated Kafka brokers"
+    service_hosts: str = typer.Option(
+        os.getenv('SERVICE_HOSTS', 'localhost:8080'),
+        help="Comma-separated service hosts"
     ),
     debug: bool = typer.Option(
         False,
@@ -186,10 +211,10 @@ def serve(
     ),
 ):
     """Start the application server"""
-    brokers = kafka_brokers.split(',')
+    hosts = service_hosts.split(',')
 
     typer.echo(f"Starting server on port {port}")
-    typer.echo(f"Kafka brokers: {brokers}")
+    typer.echo(f"Service hosts: {hosts}")
 
     # ... rest of application
 
@@ -215,12 +240,12 @@ import sys
 def main(argv):
     opts, args = getopt.getopt(argv, 'hp:', [
         'port=',
-        'kafka-brokers=',
+        'service-hosts=',
         'debug',
     ])
 
     port = 8080
-    brokers = None
+    hosts = None
     debug = False
 
     for opt, arg in opts:
@@ -229,8 +254,8 @@ def main(argv):
             sys.exit()
         elif opt in ('-p', '--port'):
             port = int(arg)
-        elif opt in ('--kafka-brokers'):
-            brokers = arg.split(',')
+        elif opt in ('--service-hosts'):
+            hosts = arg.split(',')
         elif opt in ('--debug'):
             debug = True
 
@@ -252,14 +277,14 @@ def main(argv):
 import os
 
 # ❌ DON'T: Type annotation doesn't match reality
-brokers: list[str] = os.getenv('KAFKA_BROKERS')
+hosts: list[str] = os.getenv('SERVICE_HOSTS')
 # Returns str | None, not list[str]!
 
 # ✅ DO: Correct type handling
-brokers: list[str] | None = None
-kafka_brokers_env = os.getenv('KAFKA_BROKERS')
-if kafka_brokers_env:
-    brokers = kafka_brokers_env.split(',')
+hosts: list[str] | None = None
+service_hosts_env = os.getenv('SERVICE_HOSTS')
+if service_hosts_env:
+    hosts = service_hosts_env.split(',')
 ```
 
 ### ❌ Bad: No Validation
@@ -321,6 +346,57 @@ if password is None:
 print(f"Password length: {len(password)}")
 ```
 
+### ❌ Bad: Reading Env at Import Time
+
+```python
+# config.py
+
+# ❌ DON'T: Read env vars at module import time
+DATABASE_URL = os.getenv('DATABASE_URL')  # Evaluated when module is imported
+API_KEY = os.getenv('API_KEY')
+
+# Problem: Tests can't override these values after import
+# Problem: Values are "frozen" at import time
+# Problem: Circular import issues in complex apps
+```
+
+```python
+# ✅ DO: Read env vars in functions or use lazy loading
+
+# Option 1: Function that reads on demand
+def get_database_url() -> str:
+    return os.getenv('DATABASE_URL', 'sqlite:///default.db')
+
+# Option 2: Class with lazy initialization
+class Config:
+    _instance: 'Config | None' = None
+
+    def __init__(self):
+        self.database_url = os.getenv('DATABASE_URL')
+        self.api_key = os.getenv('API_KEY')
+
+    @classmethod
+    def get(cls) -> 'Config':
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+# Option 3: Pydantic BaseSettings (recommended)
+class Settings(BaseSettings):
+    database_url: str
+    api_key: str
+
+# Instantiate in main(), not at module level
+def main():
+    settings = Settings()
+```
+
+**Why import-time reading is bad:**
+- Tests can't monkeypatch values after import
+- Configuration is "frozen" at import time
+- Hard to debug when values don't change
+- Prevents configuration from different sources
+
 ## Common Patterns
 
 ### Pattern 1: Environment with CLI Override
@@ -364,7 +440,7 @@ def env_bool(key: str, default: bool = False) -> bool:
 
 # Usage
 debug = env_bool('DEBUG', default=False)
-trading_allowed = env_bool('TRADING_ALLOWED', default=False)
+feature_enabled = env_bool('FEATURE_ENABLED', default=False)
 ```
 
 ### Pattern 3: List from Environment
@@ -380,8 +456,8 @@ def env_list(key: str, separator: str = ',', default: list[str] | None = None) -
     return [item.strip() for item in value.split(separator) if item.strip()]
 
 # Usage
-brokers = env_list('KAFKA_BROKERS', default=['localhost:9092'])
-# KAFKA_BROKERS="broker1:9092,broker2:9092" → ['broker1:9092', 'broker2:9092']
+hosts = env_list('SERVICE_HOSTS', default=['localhost:8080'])
+# SERVICE_HOSTS="host1:8080,host2:8080" → ['host1:8080', 'host2:8080']
 ```
 
 ### Pattern 4: Required vs Optional
@@ -443,6 +519,84 @@ def main():
     print(f"Port: {config.port}")
 ```
 
+### Pattern 6: Enum-Based Configuration
+
+```python
+from enum import Enum
+from pydantic import BaseSettings, validator
+
+class Environment(str, Enum):
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
+
+class LogLevel(str, Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+class Config(BaseSettings):
+    environment: Environment = Environment.DEVELOPMENT
+    log_level: LogLevel = LogLevel.INFO
+
+    @validator("environment", pre=True)
+    def parse_environment(cls, v):
+        if isinstance(v, str):
+            return v.lower()
+        return v
+
+# Usage
+config = Config()  # ENV=production LOG_LEVEL=DEBUG
+
+if config.environment == Environment.PRODUCTION:
+    # Production-specific behavior
+    pass
+```
+
+**Advantages:**
+- Type-safe, IDE autocompletion
+- Prevents invalid values
+- Self-documenting allowed values
+- Clear comparison logic
+
+### Pattern 7: Path Handling with pathlib
+
+```python
+from pathlib import Path
+from pydantic import BaseSettings, validator
+
+class Config(BaseSettings):
+    data_dir: Path = Path("./data")
+    log_file: Path = Path("./logs/app.log")
+    config_file: Path | None = None
+
+    @validator("data_dir", "log_file", pre=True)
+    def parse_path(cls, v):
+        if isinstance(v, str):
+            return Path(v).expanduser().resolve()
+        return v
+
+    @validator("data_dir")
+    def ensure_dir_exists(cls, v):
+        v.mkdir(parents=True, exist_ok=True)
+        return v
+
+# Usage
+config = Config()
+# DATA_DIR=~/mydata → /home/user/mydata (expanded and resolved)
+
+# pathlib operations
+for file in config.data_dir.glob("*.json"):
+    print(file.name)
+```
+
+**Key points:**
+- Use `pathlib.Path` instead of `str` for filesystem paths
+- Call `.expanduser()` to handle `~` home directory
+- Call `.resolve()` to get absolute paths
+- Create directories with `.mkdir(parents=True, exist_ok=True)`
+
 ## Configuration Validation
 
 ### Startup Validation
@@ -485,7 +639,7 @@ from pydantic import BaseSettings
 class Config(BaseSettings):
     port: int = 8080
     debug: bool = False
-    kafka_brokers: list[str]
+    service_hosts: list[str]
     api_key: str
 
 def main():
@@ -497,7 +651,7 @@ def main():
 
     # Log configuration (safely)
     logging.info(f"Port: {config.port}")
-    logging.info(f"Kafka brokers: {config.kafka_brokers}")
+    logging.info(f"Service hosts: {config.service_hosts}")
     logging.info(f"API key configured: {config.api_key is not None}")
     logging.info(f"Debug mode: {config.debug}")
 ```
@@ -575,6 +729,103 @@ def test_required_argument_missing():
 
     with pytest.raises(SystemExit):
         parser.parse_args([])  # Missing required args
+```
+
+## Edge Cases and Gotchas
+
+### Empty String vs Unset
+
+```python
+import os
+
+# These are DIFFERENT:
+# - VAR="" → os.getenv('VAR') returns ""
+# - VAR not set → os.getenv('VAR') returns None
+
+value = os.getenv('VAR')
+
+# ❌ DON'T: Treat empty string as unset
+if not value:  # True for both "" and None
+    value = 'default'
+
+# ✅ DO: Distinguish between empty and unset
+if value is None:
+    value = 'default'  # Only when truly unset
+
+# ✅ DO: Use explicit default if empty should also use default
+value = os.getenv('VAR') or 'default'  # Treats "" as unset
+```
+
+### Whitespace in Environment Variables
+
+```python
+import os
+
+# Shell: export NAME="  Alice  "
+name = os.getenv('NAME')  # Returns "  Alice  " (with spaces)
+
+# ✅ DO: Strip whitespace for string values
+name = os.getenv('NAME', '').strip()
+
+# ✅ DO: Strip items in lists
+def env_list(key: str) -> list[str]:
+    value = os.getenv(key, '')
+    return [item.strip() for item in value.split(',') if item.strip()]
+```
+
+### Boolean Value Ambiguity
+
+```python
+# These are all used in the wild:
+# DEBUG=true, DEBUG=True, DEBUG=TRUE
+# DEBUG=1, DEBUG=yes, DEBUG=on
+# DEBUG=false, DEBUG=0, DEBUG=no, DEBUG=off
+
+def env_bool(key: str, default: bool = False) -> bool:
+    """Parse boolean with common variations"""
+    value = os.getenv(key, '').lower().strip()
+    if value in ('true', '1', 'yes', 'on'):
+        return True
+    if value in ('false', '0', 'no', 'off', ''):
+        return default
+    raise ValueError(f"Invalid boolean for {key}: '{value}'")
+
+# ✅ Pydantic handles this automatically with proper typing
+class Config(BaseSettings):
+    debug: bool = False  # Parses "true", "1", "yes", etc.
+```
+
+### Integer Parsing Edge Cases
+
+```python
+import os
+
+# ❌ DON'T: Crash on invalid input
+port = int(os.getenv('PORT'))  # Crashes if "abc" or None
+
+# ✅ DO: Validate with clear errors
+def env_int(key: str, default: int | None = None) -> int:
+    value = os.getenv(key)
+    if value is None:
+        if default is None:
+            raise ValueError(f"{key} must be set")
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        raise ValueError(f"{key} must be integer, got: '{value}'")
+```
+
+### Case Sensitivity
+
+```python
+# Environment variables are case-sensitive on Unix, case-insensitive on Windows
+
+# ❌ DON'T: Assume case behavior
+os.getenv('database_url')  # May not match DATABASE_URL on Unix
+
+# ✅ DO: Use consistent casing (UPPER_SNAKE_CASE is convention)
+os.getenv('DATABASE_URL')
 ```
 
 ## Related Concepts

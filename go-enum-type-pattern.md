@@ -1,6 +1,6 @@
 # Go Enum Type Pattern
 
-This guide documents the canonical string-based enum pattern used throughout Benjamin Borbe's Go projects, particularly prevalent in the trading system (50+ implementations in `lib/core` alone).
+This guide documents the canonical string-based enum pattern used throughout Benjamin Borbe's Go projects - a widely used pattern (50+ implementations across projects).
 
 ## When to Use This Pattern
 

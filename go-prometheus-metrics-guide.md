@@ -460,7 +460,7 @@ func main() {
 	// Create dependencies
 	currentDateTime := libtime.NewCurrentDateTime()
 
-	job := NewCommandJob("trading", "order-schema-v1", "process-orders", currentDateTime)
+	job := NewCommandJob("order-service", "order-schema-v1", "process-orders", currentDateTime)
 
 	ctx := context.Background()
 	if err := job.Run(ctx); err != nil {
@@ -480,15 +480,15 @@ jobName := metrics.BuildName(serviceName, operation)
 
 // Pattern 2: Service + Schema + Operation (multi-tenant)
 jobName := metrics.BuildName(serviceName, schemaID, operation)
-// Example: "trading_order-schema-v1_process-orders"
+// Example: "order-service_order-schema-v1_process-orders"
 
 // Pattern 3: Environment + Service + Operation
 jobName := metrics.BuildName(environment, serviceName, operation)
-// Example: "production_trading_process-orders"
+// Example: "production_order-service_process-orders"
 
 // Pattern 4: Full dimensional naming
 jobName := metrics.BuildName(environment, region, serviceName, schemaID, operation)
-// Example: "production_us-east-1_trading_order-schema-v1_process-orders"
+// Example: "production_us-east-1_order-service_order-schema-v1_process-orders"
 ```
 
 **Key Benefits of Custom Registry Pattern:**

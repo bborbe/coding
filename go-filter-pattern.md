@@ -186,32 +186,31 @@ func CreateFilterFromConfig(config Config) Filter {
 - Document empty behavior: "empty = all" or "empty = none"
 - Match parameter names to env var semantics
 
-## Complete Example: Signal Finder Type Filter
+## Complete Example: Order Status Filter
 
-Real-world example from trading system:
+Real-world example with type-based filtering:
 
 ```go
-// Filter that includes only strategies with allowed signal finder types.
-// If allowedTypes is empty, all strategies pass through (no filtering).
-func NewStrategyFilterSignalFinderType(
-    allowedTypes core.SignalFinderTypes,
-) core.StrategyFilterTx {
+// Filter that includes only orders with allowed statuses.
+// If allowedStatuses is empty, all orders pass through (no filtering).
+func NewOrderFilterByStatus(
+    allowedStatuses OrderStatuses,
+) OrderFilter {
     // Early return: no filtering needed
-    if len(allowedTypes) == 0 {
-        return core.StrategyFilterTxNone()
+    if len(allowedStatuses) == 0 {
+        return OrderFilterNone()
     }
 
     // Preprocess: convert to set once
-    allowedTypeSet := allowedTypes.Set()
+    allowedStatusSet := allowedStatuses.Set()
 
     // Return functional filter
-    return core.StrategyFilterTxFunc(func(
+    return OrderFilterFunc(func(
         ctx context.Context,
-        tx libkv.Tx,
-        strategy core.Strategy,
+        order Order,
     ) (bool, error) {
         // Efficient O(1) lookup per call
-        return !allowedTypeSet.Contains(strategy.SignalFinderType), nil
+        return allowedStatusSet.Contains(order.Status), nil
     })
 }
 ```

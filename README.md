@@ -70,6 +70,7 @@ This repository serves as a comprehensive reference for AI agents (like Claude C
 
 ## Python Development Guidelines
 
+- **[python-project-structure.md](python-project-structure.md)** - Standard project layout with src/ structure, pyproject.toml configuration, test organization, and build system setup
 - **[python-architecture-patterns.md](python-architecture-patterns.md)** - Core service architecture with constructor injection, main.py composition root, and file organization
 - **[python-factory-pattern.md](python-factory-pattern.md)** - Factory function patterns for dependency composition with zero business logic, file organization, and naming conventions
 - **[python-ioc-guide.md](python-ioc-guide.md)** - Detailed dependency injection patterns with Protocol vs ABC, async patterns, testing with mocks, and when to use DI

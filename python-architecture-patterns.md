@@ -203,7 +203,7 @@ order_fetcher = OrderFetcher(
     api_client=RestApiClient(api_url),
     sender=OrderSender(
         queue_client=KafkaClient(brokers),
-        topic=f"{branch}-orders",
+        topic=f"{environment}-orders",
     ),
 )
 ```
@@ -248,7 +248,84 @@ if __name__ == '__main__':
     asyncio.run(main())
 ```
 
-## 6. File Organization
+## 6. Python Version Consistency
+
+**Constraint:** `requires-python`, `target-version`, and `python_version` MUST specify the same Python version in `pyproject.toml`.
+
+**Rationale:** Mismatched versions cause type checking/linting to use different Python semantics than runtime, leading to false positives or missed errors.
+
+**Check locations in pyproject.toml:**
+```toml
+[project]
+requires-python = ">=3.12"           # Runtime requirement
+
+[tool.ruff]
+target-version = "py312"             # Linting/formatting target
+
+[tool.mypy]
+python_version = "3.12"              # Type checking target
+```
+
+**Example:**
+```toml
+# [GOOD] - All versions match
+[project]
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+
+# [BAD] - Mismatched versions
+[project]
+requires-python = ">=3.10"
+
+[tool.ruff]
+target-version = "py312"             # Inconsistent!
+
+[tool.mypy]
+python_version = "3.11"              # Inconsistent!
+```
+
+**Reference:** alertmanager-mcp project demonstrates correct version consistency.
+
+## 7. Type Casting for External API Responses
+
+**Constraint:** External API responses MUST use `typing.cast()` when strict mypy is enabled.
+
+**Rationale:** HTTP clients and external libraries return `Any`, breaking strict type checking. Explicit casting documents expected structure and enables type safety throughout the codebase.
+
+**Examples:**
+```python
+# [GOOD] - Explicit casting for external API
+from typing import cast, Any
+import requests
+
+class AlertmanagerClient:
+    def get_alerts(self) -> list[dict[str, Any]]:
+        response = self._request("GET", "/api/v2/alerts")
+        return cast(list[dict[str, Any]], response)
+
+    def _request(self, method: str, path: str) -> Any:
+        return requests.request(method, self._base_url + path).json()
+
+# [BAD] - Returns Any, breaks strict mypy
+class AlertmanagerClient:
+    def get_alerts(self):  # Implicit return type: Any
+        return self._request("GET", "/api/v2/alerts")
+```
+
+**When to cast:**
+- HTTP API responses (`requests.get().json()`)
+- External library returns with `Any` type
+- Database query results without ORM
+- JSON parsing results (`json.loads()`)
+
+**Reference:** alertmanager-mcp client.py demonstrates casting for API responses.
+
+## 8. File Organization
 
 ```
 service-name/
@@ -261,13 +338,14 @@ service-name/
 │   ├── factory.py       # Factory functions (if complex wiring)
 │   └── types.py         # Domain types, dataclasses
 ├── tests/
+│   ├── conftest.py      # Shared fixtures with full type hints
 │   ├── test_service.py
 │   └── test_handler.py
 ├── requirements.txt
 └── Dockerfile
 ```
 
-## 7. Common Antipatterns
+## 9. Common Antipatterns
 
 ### DON'T: Create dependencies inside constructor
 
@@ -339,7 +417,50 @@ class UserService:
         self._db = database
 ```
 
-## 8. Testing
+## 10. Testing
+
+### Shared Test Fixtures with Type Hints
+
+**Constraint:** Shared pytest fixtures in `tests/conftest.py` MUST have full type hints for strict mypy compliance.
+
+**Rationale:** Fixtures without type hints break strict type checking in test files. Type hints enable IDE support and catch fixture usage errors.
+
+**Examples:**
+```python
+# tests/conftest.py
+
+# [GOOD] - Full type hints on fixtures
+from typing import Any
+import pytest
+from pytest_mock import MockerFixture
+
+@pytest.fixture
+def mock_alertmanager_env(mocker: MockerFixture) -> Any:
+    """Mock Alertmanager environment variables with defaults."""
+    def mock_getenv(key: str, default: str | None = None) -> str | None:
+        env_vars = {
+            "ALERTMANAGER_URL": "http://fake-alertmanager",
+            "ALERTMANAGER_TIMEOUT": "30",
+        }
+        return env_vars.get(key, default)
+    return mocker.patch("os.getenv", side_effect=mock_getenv)
+
+@pytest.fixture
+def sample_user() -> User:
+    """Create a sample user for testing."""
+    return User(id=1, name="Alice", email="alice@example.com")
+
+# [BAD] - No type hints
+@pytest.fixture
+def mock_env(mocker):  # Missing types
+    return mocker.patch("os.getenv")
+
+@pytest.fixture
+def sample_user():  # Missing return type
+    return User(id=1, name="Alice")
+```
+
+**Reference:** alertmanager-mcp tests/conftest.py demonstrates properly typed fixtures.
 
 ### Unit Test with Mocks
 
@@ -384,6 +505,7 @@ def test_user_service_integration():
 
 ## Related Documentation
 
+- [python-project-structure.md](python-project-structure.md) - Project layout, pyproject.toml, src/ layout, test organization
 - [python-factory-pattern.md](python-factory-pattern.md) - Detailed factory patterns, antipatterns, file organization
 - [python-ioc-guide.md](python-ioc-guide.md) - Detailed DI patterns, Protocol vs ABC, async patterns
 - [python-logging-guide.md](python-logging-guide.md) - Logging configuration and best practices

@@ -78,6 +78,132 @@ logging.basicConfig(level=logging.INFO)  # Never do this in libraries
 logging.basicConfig(level=logging.DEBUG)  # Conflicts with main config
 ```
 
+### Extract Logging Configuration to Dedicated Module
+
+**Constraint:** Applications with complex logging needs (multiple handlers, conditional configuration) SHOULD extract logging setup to dedicated `logging_setup.py` module.
+
+**Rationale:** Keeps __main__.py focused on application flow; makes logging configuration reusable and testable.
+
+**Examples:**
+
+```python
+# [GOOD] - Extracted logging setup
+# src/package/logging_setup.py
+"""Logging configuration."""
+
+import logging
+import sys
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
+
+def configure_logging(
+    level: str = "INFO",
+    log_file: str | None = None,
+) -> None:
+    """Configure application logging.
+
+    Args:
+        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_file: Optional file path for log output
+    """
+    log_level = getattr(logging, level.upper(), logging.INFO)
+
+    # Base format
+    log_format = "%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
+
+    handlers: list[logging.Handler] = []
+
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(logging.Formatter(log_format, date_format))
+    handlers.append(console_handler)
+
+    # Optional file handler
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=10_000_000,  # 10MB
+            backupCount=5,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(logging.Formatter(log_format, date_format))
+        handlers.append(file_handler)
+
+    # Configure root logger
+    logging.basicConfig(
+        level=log_level,
+        format=log_format,
+        datefmt=date_format,
+        handlers=handlers,
+        force=True,  # Override any existing configuration
+    )
+
+
+# src/package/__main__.py
+"""Entry point."""
+
+import logging
+from package.logging_setup import configure_logging
+
+logger = logging.getLogger(__name__)
+
+
+def main() -> None:
+    """Main entry point."""
+    args = parse_args()
+
+    # Configure logging once
+    configure_logging(
+        level=args.log_level,
+        log_file=args.log_file if args.command == "backup" else None,
+    )
+
+    logger.info("Application started")
+    # ... rest of application
+
+
+# [BAD] - Inline logging setup in __main__.py
+def main() -> None:
+    args = parse_args()
+
+    # Complex logging setup cluttering main()
+    log_format = "%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s"
+    handlers = []
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(logging.Formatter(log_format))
+    handlers.append(console)
+
+    if args.log_file:
+        file_handler = RotatingFileHandler(args.log_file, maxBytes=10_000_000)
+        file_handler.setFormatter(logging.Formatter(log_format))
+        handlers.append(file_handler)
+
+    logging.basicConfig(level=args.log_level, handlers=handlers)
+    # ... application logic
+```
+
+**Benefits:**
+- Separates configuration from application logic
+- Reusable across entry points (CLI, tests, services)
+- Testable in isolation
+- Easier to maintain and modify
+
+**When to extract:**
+- Multiple handlers (console + file)
+- Conditional handler configuration
+- Custom formatters per handler
+- Complex log level logic
+
+**Reference:** iphone-image-backup project (`src/iphone_backup/logging_setup.py`) demonstrates extracted logging configuration.
+
 ### Never Combine basicConfig with Manual Handlers
 
 **Constraint:** Code MUST use either `basicConfig()` OR manual handler setup, never both.
@@ -518,6 +644,50 @@ def process_order(order_id: str):
     logger.info(f"[order_id={order_id}] Order validated")  # Repetitive
 ```
 
+### Log Singleton Initialization in Factory Functions
+
+**Constraint:** Factory functions creating singletons MUST log initialization at DEBUG level.
+
+**Rationale:** Singleton initialization is a key diagnostic event for understanding application startup and dependency creation order. DEBUG level provides visibility during development without cluttering production logs.
+
+**Examples:**
+```python
+# [GOOD] - Log singleton initialization
+import logging
+
+logger = logging.getLogger(__name__)
+
+_client: AlertmanagerClient | None = None
+
+def get_client() -> AlertmanagerClient:
+    """Get or create the Alertmanager client singleton."""
+    global _client
+    if _client is None:
+        logger.debug("Initializing Alertmanager client")
+        _client = AlertmanagerClient(get_config())
+    return _client
+
+# [BAD] - Silent initialization
+def get_client() -> AlertmanagerClient:
+    global _client
+    if _client is None:
+        _client = AlertmanagerClient(get_config())  # No visibility
+    return _client
+```
+
+**When to log:**
+- Singleton creation (first initialization)
+- Database connection pool creation
+- External client initialization (API, cache, queue)
+- Configuration loading
+
+**Why DEBUG level:**
+- Not needed in production unless debugging startup issues
+- Can be enabled via LOG_LEVEL=DEBUG when diagnosing problems
+- Avoids noise in normal operation
+
+**Reference:** alertmanager-mcp factory.py demonstrates factory logging pattern.
+
 ### Multi-Handler Configuration for Different Outputs
 
 **Constraint:** Applications requiring multiple outputs (console, file, error tracking) MUST use manual handler configuration, not `basicConfig()`.
@@ -637,4 +807,5 @@ logger.info(f"User registered: {user_name}")  # Works correctly
 
 ## Related Documentation
 
+- Project structure for logging_setup.py organization: [python-project-structure.md](python-project-structure.md)
 - CLI arguments for runtime log level control: [python-cli-arguments-guide.md](python-cli-arguments-guide.md)

@@ -286,6 +286,53 @@ def process_users(users: list[User], db: DatabaseConnection) -> None:
     db.disconnect()  # Skipped if exception occurs
 ```
 
+### Use ExitStack for Context Manager Delegation
+
+**Constraint:** MUST use `ExitStack` when wrapping external context managers, NOT direct `__enter__`/`__exit__` calls.
+
+**Rationale:** Direct `__enter__`/`__exit__` calls bypass proper exception handling and resource cleanup. ExitStack properly manages the context protocol.
+
+**Examples:**
+```python
+# [GOOD] - Use ExitStack for delegation
+from contextlib import ExitStack
+from external_lib import Client
+
+class APIClient:
+    def __init__(self, api_key: str):
+        self._api_key = api_key
+        self._stack: ExitStack | None = None
+        self._client: Client | None = None
+
+    def __enter__(self) -> "APIClient":
+        self._stack = ExitStack()
+        self._client = self._stack.enter_context(
+            Client(self._api_key)
+        )
+        return self
+
+    def __exit__(self, *args) -> None:
+        if self._stack:
+            self._stack.__exit__(*args)
+
+# [BAD] - Direct __enter__/__exit__ calls (anti-pattern)
+class APIClient:
+    def __init__(self, api_key: str):
+        self._api_key = api_key
+        self._client: Client | None = None
+
+    def __enter__(self) -> "APIClient":
+        self._client = Client(self._api_key)
+        self._client.__enter__()  # Anti-pattern: bypasses exception handling
+        return self
+
+    def __exit__(self, *args) -> None:
+        if self._client:
+            self._client.__exit__(*args)  # May not handle exceptions correctly
+```
+
+**Reference:** netcup-dns project (`src/netcup_dns/client.py`) demonstrates proper ExitStack usage.
+
 ### Use Async Context Managers for Async Resources
 
 **Constraint:** MUST use `@asynccontextmanager` and `async with` for async resources.

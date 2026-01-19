@@ -602,7 +602,7 @@ for file in config.data_dir.glob("*.json"):
 ### Startup Validation
 
 ```python
-from pydantic import BaseSettings, Field, validator
+from pydantic import BaseSettings, Field, ValidationError, validator
 import sys
 
 class Config(BaseSettings):
@@ -622,8 +622,10 @@ class Config(BaseSettings):
 def main():
     try:
         config = Config()
-    except Exception as e:
-        print(f"Configuration error: {e}")
+    except ValidationError as e:
+        print("Configuration error:")
+        for error in e.errors():
+            print(f"  {error['loc']}: {error['msg']}")
         sys.exit(1)
 
     print("Configuration valid")
@@ -655,6 +657,323 @@ def main():
     logging.info(f"API key configured: {config.api_key is not None}")
     logging.info(f"Debug mode: {config.debug}")
 ```
+
+## Exception Handling in CLI Applications
+
+### Use Specific Exception Handlers Before Broad Catch-All
+
+**Constraint:** MUST handle specific exception types before generic `except Exception`, and include `KeyboardInterrupt` handler.
+
+**Rationale:** Specific handlers provide better error messages and appropriate exit codes. Broad catch-all should only handle truly unexpected errors.
+
+**Examples:**
+```python
+# [GOOD] - Specific exception types with appropriate error messages
+import sys
+import yaml
+from pydantic import ValidationError
+
+def main():
+    args = parse_args()
+
+    # Load configuration with specific error handling
+    try:
+        config = Config()
+    except ValidationError as e:
+        logger.error("Configuration error:")
+        for error in e.errors():
+            logger.error(f"  {error['loc']}: {error['msg']}")
+        sys.exit(1)
+
+    # Execute command with specific error handling
+    try:
+        if args.command == "process":
+            process_files(args.file_path)
+    except FileNotFoundError as e:
+        logger.error(f"File not found: {e}")
+        sys.exit(1)
+    except yaml.YAMLError as e:
+        logger.error(f"YAML parsing error: {e}")
+        sys.exit(1)
+    except RuntimeError as e:
+        logger.error(f"Runtime error: {e}")
+        sys.exit(1)
+    except (OSError, IOError) as e:
+        logger.error(f"I/O error: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user")
+        sys.exit(130)  # Standard UNIX exit code for SIGINT
+    except Exception:
+        logger.exception("Unexpected error occurred")
+        sys.exit(1)
+
+# [BAD] - Only broad catch-all
+def main():
+    try:
+        config = Config()
+        process_files(args.file_path)
+    except Exception as e:
+        print(f"Error: {e}")  # No context about what failed
+        sys.exit(1)
+```
+
+### Exit Code Conventions
+
+- `0` - Success
+- `1` - General error (configuration, runtime, unexpected)
+- `2` - Command-line usage error (argparse handles this)
+- `130` - Interrupted by Ctrl+C (128 + SIGINT signal number)
+
+**Reference:** netcup-dns project (`src/netcup_dns/__main__.py`) demonstrates comprehensive exception handling for CLI tools.
+
+## CLI Command Module Organization
+
+### Command Module Pattern for Subcommands
+
+**Constraint:** CLI applications with subcommands MUST organize each command as a separate module with a single public function.
+
+**Rationale:** Keeps commands isolated, testable, and maintainable; clear separation of concerns.
+
+**Structure:**
+```
+src/
+  package/
+    __main__.py           # CLI routing and setup
+    commands/
+      __init__.py
+      backup.py           # def backup_photos(...)
+      info.py             # def show_device_info(...)
+      list_devices.py     # def list_connected_devices(...)
+```
+
+**Implementation:**
+
+```python
+# src/package/__main__.py
+"""Entry point for the application."""
+
+import argparse
+import logging
+import sys
+
+from pydantic import ValidationError
+
+from package.commands.backup import backup_photos
+from package.commands.info import show_device_info
+from package.commands.list_devices import list_connected_devices
+from package.config import Config
+from package.logging_setup import configure_logging
+
+logger = logging.getLogger(__name__)
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Application description",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Logging level",
+    )
+
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        help="Configuration file path",
+    )
+
+    # Subcommands
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # backup subcommand
+    backup_parser = subparsers.add_parser("backup", help="Backup data")
+    backup_parser.add_argument("-d", "--backup-dir", help="Backup directory")
+
+    # info subcommand
+    subparsers.add_parser("info", help="Show information")
+
+    # list-devices subcommand
+    subparsers.add_parser("list-devices", help="List connected devices")
+
+    return parser.parse_args()
+
+
+def main() -> None:
+    """Main entry point."""
+    args = parse_args()
+
+    # Load configuration with error handling
+    try:
+        config = Config(config_file=args.config)
+    except ValidationError as e:
+        configure_logging("ERROR")
+        logger.error("Configuration error:")
+        for error in e.errors():
+            field = ".".join(str(x) for x in error["loc"])
+            logger.error(f"  {field}: {error['msg']}")
+        sys.exit(1)
+
+    # Configure logging
+    configure_logging(args.log_level)
+
+    # Route to command modules
+    try:
+        if args.command == "backup":
+            backup_photos(args.backup_dir, config.config_file)
+        elif args.command == "info":
+            show_device_info(config.config_file)
+        elif args.command == "list-devices":
+            list_connected_devices(config.config_file)
+    except FileNotFoundError as e:
+        logger.error(f"File not found: {e}")
+        sys.exit(1)
+    except RuntimeError as e:
+        logger.error(f"Runtime error: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user")
+        sys.exit(130)
+    except Exception:
+        logger.exception("Unexpected error occurred")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+```python
+# src/package/commands/backup.py
+"""Backup command implementation."""
+
+import logging
+
+from package.backup import BackupService
+
+logger = logging.getLogger(__name__)
+
+
+def backup_photos(backup_dir: str | None, config_file: str) -> None:
+    """Backup all photos.
+
+    Args:
+        backup_dir: Backup directory path (None to use config default)
+        config_file: Configuration file path
+    """
+    logger.info("Starting backup")
+
+    backup = BackupService(backup_dir, config_file)
+    success = backup.run()
+
+    if not success:
+        raise RuntimeError("Backup failed")
+```
+
+**Key patterns:**
+- Each command = one module with one public function
+- Command functions take simple arguments (not `argparse.Namespace`)
+- `__main__.py` handles routing, logging setup, and exception boundaries
+- Command modules focus on business logic delegation only
+- Exception handling at routing layer, not in command modules
+
+### __main__.py Module Pattern
+
+**Constraint:** CLI applications MUST use `src/package/__main__.py` as entry point to enable `python -m package` execution.
+
+**Rationale:** Standard Python pattern for executable modules; supports both `python -m` and console script execution; keeps main() testable.
+
+**Examples:**
+
+```python
+# [GOOD] - __main__.py as entry point
+# src/package/__main__.py
+"""Entry point for package."""
+
+import sys
+
+def main() -> None:
+    """Main entry point."""
+    # ... implementation
+
+if __name__ == "__main__":
+    main()
+```
+
+**Usage:**
+```bash
+# Method 1: python -m
+python -m package backup --backup-dir /tmp
+
+# Method 2: console script (configured in pyproject.toml)
+package-cli backup --backup-dir /tmp
+```
+
+**pyproject.toml configuration:**
+```toml
+[project.scripts]
+package-cli = "package.__main__:main"
+```
+
+**Benefits:**
+- Enables `python -m package` execution
+- Consistent with Python module execution conventions
+- main() function is importable for testing
+- Works with both installed and development mode
+
+### Command Routing Pattern
+
+**Constraint:** Command routing MUST use if/elif chain or dict dispatch, NOT dynamic imports.
+
+**Rationale:** Explicit routing is easier to debug, type-check, and navigate.
+
+**Examples:**
+
+```python
+# [GOOD] - Explicit routing with if/elif
+def main() -> None:
+    args = parse_args()
+    config = load_config(args.config)
+
+    if args.command == "backup":
+        backup_photos(args.backup_dir, config)
+    elif args.command == "restore":
+        restore_photos(args.restore_dir, config)
+    elif args.command == "list":
+        list_photos(config)
+
+# [GOOD] - Dict dispatch for many commands
+COMMANDS = {
+    "backup": backup_photos,
+    "restore": restore_photos,
+    "list": list_photos,
+    "verify": verify_photos,
+}
+
+def main() -> None:
+    args = parse_args()
+    config = load_config(args.config)
+
+    command_fn = COMMANDS.get(args.command)
+    if command_fn is None:
+        raise ValueError(f"Unknown command: {args.command}")
+
+    command_fn(args, config)
+
+# [BAD] - Dynamic import (hard to type-check and debug)
+def main() -> None:
+    args = parse_args()
+    module = __import__(f"package.commands.{args.command}")
+    command_fn = getattr(module, f"run_{args.command}")
+    command_fn(args)
+```
+
+**Reference:** iphone-image-backup project (`src/iphone_backup/__main__.py`) demonstrates complete command module pattern with subcommands.
 
 ## Decision Framework
 
@@ -830,6 +1149,7 @@ os.getenv('DATABASE_URL')
 
 ## Related Concepts
 
+- **Project structure** - See [python-project-structure.md](python-project-structure.md) for __main__.py and command module organization
 - **Pydantic BaseSettings** - See [python-pydantic-guide.md](python-pydantic-guide.md) for validation details
 - **Logging configuration** - See [python-logging-guide.md](python-logging-guide.md) for runtime log control
 - **Dependency injection** - See [python-ioc-guide.md](python-ioc-guide.md) for passing config to services

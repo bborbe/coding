@@ -347,6 +347,13 @@ dev = [
     "mypy>=1.13.0",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/my_service"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
@@ -360,6 +367,8 @@ select = [
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
     "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific rules
 ]
 
 [tool.mypy]
@@ -368,7 +377,21 @@ strict = true
 warn_return_any = true
 warn_unused_ignores = true
 disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 ```
+
+**Key configurations:**
+- `asyncio_mode = "auto"` - Automatically detect and run async tests (required for pytest-asyncio)
+- `asyncio_default_fixture_loop_scope = "function"` - Create new event loop per test function
+- `testpaths` - Directory containing tests
+- `python_*` - Test discovery patterns
 
 ## 7. Error Handling and Troubleshooting
 

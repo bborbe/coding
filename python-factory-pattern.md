@@ -14,7 +14,101 @@ Factory functions compose objects by wiring dependencies together. They contain 
 - Have inline function implementations with logic
 - Mix object creation with execution
 
-## 2. File Organization
+## 2. When to Extract Factory Pattern
+
+**Signals to extract factory function or module:**
+
+### Module-Level Global State
+
+```python
+# [BAD] - Global state scattered in application code
+# server.py
+_client: AlertmanagerClient | None = None
+
+def handle_request():
+    global _client
+    if _client is None:
+        _client = AlertmanagerClient(get_config())
+    return _client.get_alerts()
+
+# [GOOD] - Extracted to factory.py
+# factory.py
+_client: AlertmanagerClient | None = None
+
+def get_client() -> AlertmanagerClient:
+    """Get or create the Alertmanager client singleton."""
+    global _client
+    if _client is None:
+        logger.debug("Initializing Alertmanager client")
+        _client = AlertmanagerClient(get_config())
+    return _client
+
+# server.py
+from .factory import get_client
+
+def handle_request():
+    return get_client().get_alerts()
+```
+
+### Repeated Initialization Checks
+
+```python
+# [BAD] - Repeated initialization logic
+# Multiple modules checking if initialized
+if not database:
+    database = Database(config)
+
+if not api_client:
+    api_client = ApiClient(config)
+
+# [GOOD] - Centralized in factory
+def get_database() -> Database:
+    global _database
+    if _database is None:
+        _database = Database(get_config())
+    return _database
+```
+
+### Complex Dependency Wiring
+
+```python
+# [BAD] - Complex wiring in main.py (>10 lines of composition)
+# main.py
+def main():
+    # ... 20+ lines of dependency wiring ...
+
+# [GOOD] - Extract to factory functions
+# factory.py
+def create_user_service(database: Database) -> UserService:
+    return UserService(
+        repo=SqlUserRepository(database),
+        logger=ConsoleLogger(),
+        validator=UserValidator(),
+    )
+
+# main.py
+def main():
+    service = create_user_service(database)
+```
+
+### When NOT to Extract
+
+**Don't extract for:**
+- Simple 1-2 line object creation
+- Objects with no dependencies
+- Code that only creates object once in main.py
+
+```python
+# [GOOD] - No factory needed for simple cases
+# main.py
+def main():
+    logger = ConsoleLogger()  # Simple, no extraction needed
+    config = Config.from_env()
+```
+
+**Reference:** alertmanager-mcp migrated global `_client` state from server.py to factory.py, demonstrating when extraction improves code organization.
+
+## 3. File Organization
 
 **Services/Applications:**
 ```
@@ -27,7 +121,7 @@ pkg/factory.py    # All factory functions in ONE file
 - Factories: `create_*` prefix (e.g., `create_user_service`)
 - Constructors: Class `__init__` (e.g., `UserService(...)`)
 
-## 3. Good Factory Examples
+## 4. Good Factory Examples
 
 ### Simple Composition
 
@@ -98,7 +192,7 @@ def create_command_handler(
     )
 ```
 
-## 4. Bad Factory Patterns
+## 5. Bad Factory Patterns
 
 ### DON'T: Inline Business Logic
 
@@ -204,7 +298,7 @@ def create_cached_repository(database: Database, cache: Cache) -> UserRepository
     )
 ```
 
-## 5. Usage in main.py
+## 6. Usage in main.py
 
 Factories wire the application together:
 
@@ -229,7 +323,7 @@ def main():
     server.run()
 ```
 
-## 6. Factory vs Inline Wiring
+## 7. Factory vs Inline Wiring
 
 **Use factory functions when:**
 - Same composition used in multiple places
@@ -251,7 +345,7 @@ def main():
     )
 ```
 
-## 7. Common Antipatterns
+## 8. Common Antipatterns
 
 ### DON'T: Split Factories Across Files
 

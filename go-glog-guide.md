@@ -1,5 +1,7 @@
 # Go glog Logging Levels
 
+> **New projects should use `log/slog`** (stdlib, Go 1.21+) with `cobra` for CLI flag parsing. slog avoids glog's global `flag` pollution and integrates cleanly with structured logging. This guide is for **existing projects that already use glog extensively** — do not introduce glog into new codebases.
+
 Google's [glog](https://github.com/golang/glog) provides more granular logging levels than standard Go logging. This guide explains when to use each level for consistent logging across Go services.
 
 ## Error - Always an Error / Requires System Operator Action

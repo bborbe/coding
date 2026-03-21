@@ -312,6 +312,10 @@ func TestService(t *testing.T) {
 - Ginkgo v2 test runner setup
 - Generates all mocks when `go generate` is run
 
+**WARNING:** NEVER use `//go:generate counterfeiter ...` (calls globally installed binary which may be built with wrong Go version). Always use:
+- `//counterfeiter:generate` on the interface (source file)
+- `//go:generate go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate` in suite_test.go
+
 ### Mock Generation Command
 
 ```bash

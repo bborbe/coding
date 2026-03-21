@@ -137,6 +137,24 @@ func TestSuite(t *testing.T) {
 - **Main package is the ONLY exception** to the standard test suite pattern
 - All other packages (including internal, pkg, cmd subpackages) use the standard pattern
 - The compilation test ensures the main package builds correctly as part of test execution
+- **Every binary project MUST have `main_test.go`** — missing it means build failures are not caught by `make test`
+
+### Stdlib Preferences
+
+Use `slices.Contains` instead of manual loops for slice membership checks — the `slicescontains` linter enforces this:
+```go
+// BAD — linter will reject
+func contains(s []string, v string) bool {
+    for _, item := range s {
+        if item == v { return true }
+    }
+    return false
+}
+
+// GOOD
+import "slices"
+slices.Contains(s, v)
+```
 - Main packages typically have minimal logic; business logic belongs in testable packages
 
 ## Basic Test Structure

@@ -80,7 +80,9 @@ func TestSuite(t *testing.T) {
 	time.Local = time.UTC
 	format.TruncatedDiff = false
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Test Suite")
+	suiteConfig, reporterConfig := GinkgoConfiguration()
+	suiteConfig.Timeout = 60 * time.Second
+	RunSpecs(t, "Test Suite", suiteConfig, reporterConfig)
 }
 ```
 
@@ -105,6 +107,7 @@ package main_test
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -121,7 +124,9 @@ var _ = Describe("Main", func() {
 
 func TestSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Main Suite")
+	suiteConfig, reporterConfig := GinkgoConfiguration()
+	suiteConfig.Timeout = 60 * time.Second
+	RunSpecs(t, "Main Suite", suiteConfig, reporterConfig)
 }
 ```
 
@@ -215,6 +220,25 @@ var _ = Describe("Product", func() {
 
 ### Test Timeouts
 
+#### Suite-Level Timeout (Recommended Default)
+
+Set a default timeout for the entire suite to prevent stuck tests from running indefinitely:
+
+```go
+func TestSuite(t *testing.T) {
+	time.Local = time.UTC
+	format.TruncatedDiff = false
+	RegisterFailHandler(Fail)
+	suiteConfig, reporterConfig := GinkgoConfiguration()
+	suiteConfig.Timeout = 60 * time.Second
+	RunSpecs(t, "Test Suite", suiteConfig, reporterConfig)
+}
+```
+
+**Every suite file should include `suiteConfig.Timeout`** as a safety net against hanging tests.
+
+#### Per-Spec Timeout
+
 Each Ginkgo `It` block can have its own timeout using `SpecTimeout`:
 
 ```go
@@ -224,6 +248,26 @@ It("does something within 2s", func(ctx context.Context) {
 ```
 
 If the test body takes longer than the specified timeout, Ginkgo automatically aborts the spec.
+
+#### Per-Node Timeout
+
+Use `NodeTimeout` on `Describe`/`Context`/`It` nodes to limit individual nodes:
+
+```go
+Describe("slow subsystem", func() {
+    It("completes within 5s", func(ctx SpecContext) {
+        // use ctx for cancellation-aware operations
+        Eventually(ctx, func() bool { return ready }).Should(BeTrue())
+    }, NodeTimeout(5*time.Second))
+}, NodeTimeout(30*time.Second))
+```
+
+#### CLI Flag
+
+Override the suite timeout from the command line:
+```bash
+ginkgo --timeout=120s ./...
+```
 
 ### Nested Contexts
 Use nested `Context` blocks to organize test scenarios:

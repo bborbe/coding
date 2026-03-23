@@ -51,6 +51,29 @@ The testing framework is built on **Ginkgo v2** (BDD) with **Gomega** matchers, 
 - **Mock-First Approach**: Use mocks for external dependencies
 - **UTC Timezone**: Consistent time handling across all tests
 
+### Critical Rules
+- **Never use stdlib `testing` table-driven tests** (`[]struct` loops with `t.Run`). Always use Ginkgo `DescribeTable`/`Entry` for table-driven tests. If a `*_suite_test.go` with Ginkgo imports exists in the package, all tests must use Ginkgo.
+- **Never use `testing.T` directly** in packages that have a Ginkgo test suite. Use `Describe`/`Context`/`It`/`DescribeTable`/`Entry` blocks instead.
+
+```go
+// ❌ WRONG — stdlib table-driven test
+func TestFoo(t *testing.T) {
+    tests := []struct{ input, want string }{ ... }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) { ... })
+    }
+}
+
+// ✅ CORRECT — Ginkgo DescribeTable
+var _ = DescribeTable("foo",
+    func(input, expected string) {
+        Expect(foo(input)).To(Equal(expected))
+    },
+    Entry("case A", "in1", "out1"),
+    Entry("case B", "in2", "out2"),
+)
+```
+
 ## Test Suite Setup
 
 Every Go package with tests requires a `*_suite_test.go` file. There are two patterns depending on whether the package is `main` or a regular package.

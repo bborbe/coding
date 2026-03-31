@@ -24,6 +24,7 @@ Go test quality checklist:
 - Zero manual mock implementations (Counterfeiter only)
 - No standard `time` package usage (use `github.com/bborbe/time`)
 - Counterfeiter directives target `../mocks/` directory
+- Counterfeiter directives only mock interfaces from the same package (`. InterfaceName`), never from vendor/ or other packages
 - Mock variable names have no "mock" prefix
 - Counterfeiter `--fake-name` has no "Fake" prefix
 
@@ -86,6 +87,13 @@ Pattern detection with Grep:
 - Variable names: `mock[A-Z]`, `mockFetcher`, `mockService`
 - Counterfeiter directives: `--fake-name Fake[A-Z]`
 - Wrong directory: `-o ./pkgfakes/`, `-o ./fakes/`
+
+**External Package Mock Violations** (Critical Anti-Pattern):
+- Counterfeiter generating from vendor: `counterfeiter.*vendor/` or `counterfeiter.*\.\.\/vendor/`
+- Counterfeiter generating from any non-local package (source path is NOT `.`)
+- Both `//counterfeiter:generate` and `//go:generate counterfeiter` forms must be checked
+- Only `. InterfaceName` (current package) is allowed as source
+- If an interface comes from an external lib, import its existing mocks instead of regenerating
 
 Guideline references:
 - `go-testing-guide.md` - Comprehensive testing patterns and conventions
@@ -370,6 +378,37 @@ func TestSuite(t *testing.T) {
 // ✅ Mocks in project root mocks/ directory
 // ✅ No "Fake" prefix (just "UserService")
 ```
+
+**6b. Counterfeiter Generating from Vendor or External Packages** (Critical):
+```go
+// BAD: Generating mock from vendor directory
+//counterfeiter:generate --fake-name EventSender -o ../mocks/event_sender.go ../vendor/bitbucket.seibert.tools/oc/lib-cdb EventSender
+// ❌ Source is ../vendor/... — never generate from vendor
+
+// BAD: go:generate form also generates from vendor
+//go:generate go run -mod=vendor github.com/maxbrunsfeld/counterfeiter/v6 --fake-name CommandSender -o ../mocks/command_sender.go ../vendor/bitbucket.seibert.tools/oc/lib-cdb CommandSender
+// ❌ Source is ../vendor/... — never generate from vendor
+
+// BAD: Any non-local package source
+//counterfeiter:generate --fake-name Foo -o ../mocks/foo.go some/other/package Foo
+// ❌ Source is not "." — only same-package interfaces allowed
+```
+
+**Refactoring**:
+```go
+// GOOD: Only generate mocks for interfaces defined in the SAME package
+//counterfeiter:generate --fake-name EventSender -o ../mocks/event_sender.go . EventSender
+// ✅ Source is "." (current package)
+
+// If the interface comes from an external lib (e.g. lib-cdb),
+// import the lib's existing mocks instead:
+import "bitbucket.seibert.tools/oc/lib-cdb/mocks"
+// ✅ Use mocks.EventSender from the lib that owns the interface
+```
+
+**Detection**: Grep for counterfeiter directives where the source path is NOT `.`:
+- `//counterfeiter:generate` where args before the interface name contain `/` or `..`
+- `//go:generate.*counterfeiter` where the second-to-last arg is not `.`
 
 **7. Mock Variable Naming with "mock" Prefix**:
 ```go
@@ -770,6 +809,7 @@ Priority: Fix immediately - impacts test reliability and maintainability
 Priority: Address in current sprint
 - Missing suite setup (time.Local, format.TruncatedDiff)
 - Wrong Counterfeiter configuration (directory, naming)
+- Counterfeiter generating from vendor/ or external packages (must only mock same-package interfaces)
 - Mock variable naming with "mock" prefix
 
 ### Moderate (<count> violations)

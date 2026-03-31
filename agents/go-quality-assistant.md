@@ -110,6 +110,12 @@ Code review categories:
 - Interface names (single-method interfaces end in `-er`)
 - Receiver names (short, consistent, 1-2 letters)
 
+**File Organization**:
+- One primary type per file (interface + constructor + struct + methods)
+- File name must describe what the type IS, not a generic label (e.g. `payload-store.go` not `store.go`, `banana-store.go` stores bananas)
+- Metrics wrapper for type X goes in `x-metrics.go` next to `x.go`
+- Detection: files with multiple unrelated exported types, or generic names like `store.go`, `service.go`, `types.go` containing domain-specific types
+
 **Concurrency Safety**:
 - Mutex lock/unlock pairs with defer
 - Channel usage (buffering, closing, select patterns)

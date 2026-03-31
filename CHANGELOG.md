@@ -8,6 +8,17 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.1.0
+- Add finder agents for self-contained check-guides
+- Add templates, remove personal paths from agents
+- Add vscode and intellij skills, archive old commands
+- Add go-write-test, improve-guide, go-version commands with agents
+- Remove personal paths from shared plugin docs
+- Add 6 metrics patterns to prometheus guide
+- Split go-quality-assistant into focused agents aligned with docs
+- Add vendor counterfeiter detection to go-test-quality-assistant
+- Add file organization rules to go-quality-assistant
+
 ## v0.0.3
 - Make plugin self-contained: add all agents referenced by commands
 - Add coding: prefix to agent references in commands

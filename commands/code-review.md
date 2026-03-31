@@ -109,130 +109,32 @@ Run agents concurrently using multiple Task tool calls in a single message for m
 
 ### Step 5: Consolidated Report
 
-Merge all findings into a unified report with priority-ranked sections:
+Merge all agent findings into a unified report. Each agent owns its domain — do NOT duplicate their rules here.
+
+Organize by severity:
 
 #### Must Fix (Critical)
-- Security vulnerabilities (hardcoded credentials, SQL injection, etc.)
-- Context violations (context.Background() in business logic)
-- `fmt.Errorf` usage — must use `errors.Wrapf(ctx, err, ...)` or `errors.Errorf(ctx, ...)` from `github.com/bborbe/errors`
-- Bare `return err` without wrapping — must use `errors.Wrapf(ctx, err, "description")`
-- Concurrency bugs (infinite loops without ctx.Done(), race conditions)
-- Raw `go func()` or `go methodName()` in production code — must use `github.com/bborbe/run` for proper context cancellation and error propagation:
-  - Parallel tasks: `run.CancelOnFirstFinish`, `run.CancelOnFirstError`, `run.All`, `run.Sequential`
-  - Bounded concurrency: `run.NewConcurrentRunner(maxConcurrent)` instead of manual semaphore + goroutine pool
-  - Background fire-and-forget: `run.NewBackgroundRunner(ctx)` with parallel skip instead of raw `go func()`
-  - Signal handling: `run.ContextWithSig(ctx)` instead of manual `signal.Notify` + context cancel boilerplate
-- Raw channel producer/consumer patterns — must use `github.com/bborbe/collection` (`ChannelFnMap`, `ChannelFnList`, `ChannelFnCount`) instead of manual `make(chan T)` + goroutine loops
-- Data correctness issues
-- Transaction-inside-transaction deadlocks:
-  - Command executors receive `tx libkv.Tx` but don't pass to dependencies
-  - Dependencies open own transactions (`db.View()`, `db.Update()`) instead of accepting `tx` parameter
-  - Check if functions called from tx context open new transactions (grep for `db.View\|db.Update` in functions that should accept tx)
-  - Verify command executor uses `needsTx: true` when dependencies need transaction access
-- Circular package imports (any cycle in the pkg/* import graph)
-- Wrong dependency direction (pkg/ importing any pkg/* subpackage — shared base must not depend on subpackages)
-- Business logic in factory functions (loops, switch statements, complex conditionals)
-- SRP violations: God objects, functions mixing 3+ concerns (validation + persistence + logging)
-- Outdated Go versions (2+ minor versions behind)
-- Missing test suite files (packages with tests but no *_suite_test.go)
-- Manual mock implementations (must use Counterfeiter)
-- Direct time package usage in tests (causes flaky tests)
-- `time.Now()` in production code — must inject `libtime.CurrentDateTimeGetter` (from `github.com/bborbe/time`) for testability via `SetNow()`. See `go-time-injection.md`
-- `time.Time` in struct fields — must use `libtime.DateTime`, `libtime.Date`, or `libtime.UnixTime` (from `github.com/bborbe/time`). See `go-time-injection.md`
+Agent-reported critical issues (security, context violations, concurrency bugs, data correctness, transaction deadlocks, circular imports, time.Now()/time.Time usage).
 
 #### Should Fix (Important)
-- Error handling issues (missing wrapping, wrong patterns)
-- Architectural violations (constructor patterns, interface usage)
-- SRP violations: Business logic mixed with I/O, multiple database operations in single method
-- Factory methods outside pkg/factory/ package
-- Inline handlers in main.go (should be in pkg/handler/)
-- Handler files in pkg/ instead of pkg/handler/ (e.g., pkg/handler_upload.go → pkg/handler/upload.go)
-- Raw `http.Handler`/`ServeHTTP` implementations instead of `libhttp.WithError` or `libhttp.WithErrorTx`
-- Missing factory methods for handlers
-- Incorrect handler wrapping patterns
-- Wrong file layout ordering: constructor (`NewFoo`) below struct definition (must be above: Interface → Constructor → Struct → Methods)
-- Missing tests for critical components (command executors, message handlers, HTTP handlers)
-- Missing mocks/ directories for services/libraries
-- Missing documentation for exported items
-- README missing critical sections (installation, examples, API docs)
-- Performance bottlenecks
-- Go version inconsistencies across project files
-- Go version 1 minor version behind latest stable
-- Missing critical Makefile targets (test, check, precommit)
-- tools.go missing required development dependencies
-- Deprecated tools in tools.go (e.g., golang.org/x/lint/golint)
-- Missing GitHub workflows (ci.yml, claude-code-review.yml, claude.yml)
-- Missing license headers on source files
-- LICENSE file outdated or missing
-- README missing license section
-- Shell script errors and warnings from shellcheck
-- Wrong test package naming (internal instead of external *_test packages)
-- Missing test suite setup (time.Local, format.TruncatedDiff, suiteConfig.Timeout)
-- Wrong Counterfeiter configuration:
-  - **Check interface location FIRST**: lib/ interfaces → lib/mocks/ | service pkg/ interfaces → {service}/mocks/
-  - **Never generate mocks from vendor/**: if an interface comes from a lib (e.g. `lib-cdb`), import the existing mocks from `lib/{name}/mocks/` instead of regenerating with counterfeiter from `../vendor/`. Search source repos (`$OCTOPUS_BASE/lib/`) for existing `mocks/` directories before generating new fakes
-  - Verify fake name has no "Fake"/"Mock" prefix (use `--fake-name UserService` NOT `--fake-name FakeUserService`)
-  - Check output path matches interface location (lib interface in lib/mocks, service interface in service/mocks)
-  - Counterfeiter directives must be placed directly above the interface they mock, not grouped at file top
-- Mock variable naming with "mock" prefix in tests
+Agent-reported important issues (error handling, architecture, factory/handler patterns, test gaps, tooling, licensing).
 
 #### Nice to Have (Optional)
-- Style improvements
-- Minor documentation enhancements
-- README style and formatting improvements
-- Code organization suggestions
-- SRP violations: Large structs (>10 methods), long functions (>40 lines), naming suggesting multiple responsibilities
-- Optional optimizations
-- Go patch version updates
-- Additional Makefile targets for convenience (e.g., make ensure)
-- Tool version updates in tools.go
-- License year range updates (single year → year range for old files)
-- LICENSE file year updates to current year
-- Handler naming convention improvements (kebab-case file names)
-- Factory naming convention refinements
-- Shell script style improvements (shellcheck info/style level)
-- Missing //go:generate directives in test suite files
-- Missing copyright headers in test files
+Agent-reported minor issues (style, documentation, naming conventions, version updates).
 
-### Step 6: Next Steps Recommendation
+### Step 6: Next Steps
 
-**For Go projects only**: If the `go-test-coverage-assistant` agent reported missing tests in the consolidated report, add a "Next Steps" section suggesting the appropriate `/go-write-test` command.
-
-**Detection criteria**:
-- Check if "Missing tests for critical components" appears in the "Should Fix (Important)" section
-- Check if specific files or components were listed as lacking test coverage
-
-**If missing tests detected**, add this section to the report:
-
-```markdown
-## Next Steps
-
-### Missing Tests Detected
-Test coverage gaps were identified in the codebase.
-
-Quick fixes:
-- `/go-write-test basic` - Add minimal tests for git-modified files (fastest)
-- `/go-write-test standard` - Add comprehensive tests with error cases
-- `/go-write-test integration pkg/[package]` - Add integration tests for specific package
-
-Run `/go-write-test basic` to quickly add tests for your recent changes.
+If `go-test-coverage-assistant` reported missing tests, suggest:
+```
+/coding:go-write-test basic    — minimal tests for modified files
+/coding:go-write-test standard — comprehensive with error cases
 ```
 
-**If no missing tests detected**, skip this section entirely.
+### Step 7: Manual Review (Short Mode / Non-Go)
 
-**Customization**:
-- If specific packages were identified (e.g., pkg/user, pkg/order), mention them in the suggestion
-- If many files need tests, emphasize `/go-write-test basic` for quick batch coverage
-- If few critical functions need tests, emphasize `/go-write-test standard pkg/[package]` for comprehensive coverage
-
-### Step 7: Manual Review (All Projects)
-
-For non-Go projects or additional analysis, focus on:
-
-1. **Code Quality**: Check for readability, maintainability, and adherence to best practices
-2. **Security**: Look for potential vulnerabilities or security issues
-3. **Performance**: Identify potential performance bottlenecks
-4. **Testing**: Assess test coverage and quality
-5. **Documentation**: Check if code is properly documented
-
-Provide specific, actionable feedback with line-by-line comments where appropriate.
+For projects without agent coverage, review manually:
+1. Code quality and readability
+2. Security vulnerabilities
+3. Performance bottlenecks
+4. Test coverage
+5. Documentation completeness

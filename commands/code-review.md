@@ -71,10 +71,13 @@ Based on detected mode, invoke agents **in parallel**:
 **Standard Mode** (default - core architectural compliance):
 
 *For Go projects:*
-1. **go-quality-assistant**: Idiomatic Go patterns, architecture, error handling, context cancellation in loops
-2. **go-factory-pattern-assistant**: Factory pattern compliance, zero-business-logic rule (review mode only - no updates)
-3. **go-http-handler-assistant**: HTTP handler organization, inline handler detection, architectural patterns (review mode only - no updates)
-4. **go-test-coverage-assistant**: Test coverage gaps, missing tests for critical components (review mode only - no updates)
+1. **go-quality-assistant**: Naming, architecture, file layout, logging, concurrency, transaction safety
+2. **go-context-assistant**: context.Background() violations, missing ctx.Done() in loops
+3. **go-error-assistant**: fmt.Errorf, bare return err, missing error wrapping
+4. **go-time-assistant**: time.Time in structs, time.Now() in production
+5. **go-factory-pattern-assistant**: Factory pattern compliance, zero-business-logic rule (review mode only)
+6. **go-http-handler-assistant**: HTTP handler organization, inline handler detection (review mode only)
+7. **go-test-coverage-assistant**: Test coverage gaps, missing tests (review mode only)
 
 *For Python projects:*
 1. **python-quality-assistant**: Idiomatic Python patterns, type hints, error handling, logging, async safety
@@ -84,17 +87,14 @@ Based on detected mode, invoke agents **in parallel**:
 
 **Full Mode**:
 
-*Go projects:*
+*Go projects (all Standard mode agents plus):*
 1. **godoc-assistant**: Documentation completeness and GoDoc format
-2. **go-quality-assistant**: Idiomatic Go patterns, architecture, error handling
-3. **go-test-quality-assistant**: Test file quality, Ginkgo/Gomega patterns, mock usage, test suite setup (review mode only - no updates)
-4. **go-security-specialist**: Security vulnerabilities, OWASP compliance, dependency scanning
-5. **srp-checker**: Single Responsibility Principle compliance, separation of concerns (review mode only - no updates)
-6. **go-version-manager**: Go version currency and consistency across project files (check-only mode)
-7. **go-tooling-assistant**: Makefile and tools.go configuration validation (review mode only - no updates)
-8. **go-factory-pattern-assistant**: Factory pattern implementation, dependency injection, handler wrapping (review mode only - no updates)
-9. **go-http-handler-assistant**: HTTP handler organization, inline handler detection, architectural patterns (review mode only - no updates)
-10. **go-test-coverage-assistant**: Test coverage gaps, missing tests for critical components (review mode only - no updates)
+2. **go-test-quality-assistant**: Test file quality, Ginkgo/Gomega patterns, mock usage, test suite setup (review mode only)
+3. **go-security-specialist**: Security vulnerabilities, OWASP compliance, dependency scanning
+4. **go-metrics-assistant**: Prometheus metrics types, naming, labels, pre-initialization
+5. **srp-checker**: Single Responsibility Principle compliance (review mode only)
+6. **go-version-manager**: Go version currency and consistency (check-only mode)
+7. **go-tooling-assistant**: Makefile and tools.go validation (review mode only)
 
 *Python projects:*
 1. **python-quality-assistant**: Code quality, type hints, error handling

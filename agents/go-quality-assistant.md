@@ -18,14 +18,18 @@ When invoked:
 4. Provide actionable feedback with severity categorization
 
 Go quality review checklist:
-- Zero `context.Background()` in business logic
-- All errors wrapped with context using `errors.Wrap()`
-- Infinite loops include `ctx.Done()` cancellation
 - GoDoc comments for all exported items
 - Counterfeiter comments on all interfaces, placed directly above the interface definition
 - Constructor returns interface, not concrete type
 - Correct glog verbosity levels used
-- No standard `time` package usage (use injected time)
+- File layout: Interface → Constructor → Struct → Methods
+- Package dependency graph is acyclic
+
+**Delegated to specialized agents (do NOT duplicate these checks):**
+- Context violations → `go-context-assistant`
+- Error wrapping → `go-error-assistant`
+- Time usage → `go-time-assistant`
+- Prometheus metrics → `go-metrics-assistant`
 
 ## Communication Protocol
 
@@ -67,9 +71,7 @@ File discovery:
 
 Pattern detection with Grep:
 - Concurrency primitives: `"go "`, `"sync\."`, `"chan "`
-- Context violations: `"context\.Background\(\)"`, `"for \{"` (infinite loops), `"for .*, .* := range"` (collection loops needing ctx check)
-- Error handling: `"errors\.Wrapf"`, `"fmt\.Errorf"`
-- Library usage: `"time\.Now\(\)"`, `"Ptr\("`
+- Library usage: `"Ptr\("`
 - Logging patterns: `"glog\."`, `"glog\.V\("`
 
 Guideline references:
@@ -108,33 +110,6 @@ Code review categories:
 - Interface names (single-method interfaces end in `-er`)
 - Receiver names (short, consistent, 1-2 letters)
 
-**Error Handling**:
-- Use `errors.Wrap(ctx, err, "message")` (not `errors.Wrapf` when no formatting)
-- Error checks not ignored
-- Error messages lowercase, no punctuation
-- Errors as last return value
-
-**Context Usage (CRITICAL)**:
-- **NEVER use `context.Background()` except in main.go entry points or test setup**
-- Always pass context through call chains from caller
-- Context as first parameter named `ctx` in all methods returning error
-- Context not stored in structs
-- **All long-running loops MUST check `ctx.Done()` for cancellation** (see `go-context-cancellation-in-loops.md`):
-  - Infinite loops (`for { ... }`)
-  - Loops over large collections (`for _, item := range items`)
-  - Retry loops with backoff
-  - Paginated API callbacks
-  ```go
-  for _, item := range items {
-      select {
-      case <-ctx.Done():
-          return errors.Wrap(ctx, ctx.Err(), "context cancelled")
-      default:
-      }
-      // process item...
-  }
-  ```
-
 **Concurrency Safety**:
 - Mutex lock/unlock pairs with defer
 - Channel usage (buffering, closing, select patterns)
@@ -152,33 +127,25 @@ Code review categories:
 - `glog.V(3+).Info()` - developer debug, deep troubleshooting
 
 **Library Usage**:
-- Use `github.com/bborbe/time` instead of standard `time` package:
-  - `time.Time` in struct fields → `libtime.DateTime`, `libtime.Date`, or `libtime.UnixTime`
-  - `time.Now()` in production → inject `libtime.CurrentDateTimeGetter` (enables `SetNow()` in tests)
-  - See `go-time-injection.md` for patterns
-  - Detection: grep for `time\.Time` in struct fields, `time\.Now\(\)` outside test files
 - Use `collection.Ptr()` not custom pointer helpers
-- Use `github.com/bborbe/errors` for error wrapping — never `fmt.Errorf`
-  - `errors.Wrap(ctx, err, "message")` for wrapping
-  - `errors.Errorf(ctx, "message %s", val)` for new errors
-  - Detection: grep for `fmt\.Errorf`, bare `return err` without wrapping
+- Detection: grep for `func \w+Ptr\(` or `func strPtr\(` or `func intPtr\(` — replace with `collection.Ptr[T]()`
 - Use `github.com/bborbe/run` instead of raw goroutines:
   - Raw `go func()` or `go methodName()` → must use `run.*` for context cancellation and error propagation
-  - Parallel tasks: `run.CancelOnFirstFinish`, `run.CancelOnFirstError`, `run.All`, `run.Sequential`
-  - Bounded concurrency: `run.NewConcurrentRunner(maxConcurrent)`
-  - Background fire-and-forget: `run.NewBackgroundRunner(ctx)`
-  - Signal handling: `run.ContextWithSig(ctx)` instead of manual `signal.Notify`
   - Detection: grep for `go func\(` or `go \w+\(` in production code (not tests)
 - Use `github.com/bborbe/collection` for channel patterns:
   - Raw `make(chan T)` + goroutine loops → `collection.ChannelFnMap`, `ChannelFnList`, `ChannelFnCount`
   - Detection: grep for `make\(chan ` in production code
-- Detection: grep for `func \w+Ptr\(` or `func strPtr\(` or `func intPtr\(` — replace with `collection.Ptr[T]()`
 
 **Transaction Safety (CRITICAL)**:
 - Command executors that receive `tx libkv.Tx` MUST pass it to dependencies
 - Dependencies MUST NOT open own transactions (`db.View()`, `db.Update()`) when called from tx context
 - Detection: grep for `db.View\|db.Update` in functions that accept `tx` parameter
-- Verify command executor uses `needsTx: true` when dependencies need transaction access
+
+**Delegated to specialized agents (skip these):**
+- Time usage (`time.Time`, `time.Now()`) → `go-time-assistant`
+- Error wrapping (`fmt.Errorf`, bare `return err`) → `go-error-assistant`
+- Context violations (`context.Background()`, loop cancellation) → `go-context-assistant`
+- Prometheus metrics → `go-metrics-assistant`
 
 **Performance**:
 - String concatenation (use `strings.Builder` in loops)

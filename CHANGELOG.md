@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.0.2
+- Trim to 4 essential commands: code-review, pr-review, check-guides, commit
+- Trim to 12 agents required by those commands
+- Remove 9 non-essential commands and 10 unused agents
+
 ## v0.0.1
 - Restructure as Claude Code plugin with .claude-plugin/ metadata
 - Move all guides into docs/ subdirectory

@@ -1,195 +1,119 @@
-# AI Coding Guidelines
+# Coding Guidelines
 
-This repository contains standardized coding guidelines, patterns, and workflows specifically designed for AI agents working with Benjamin Borbe's Go ecosystem and development environment.
+Standardized coding guidelines, patterns, and workflows for Go and Python development.
 
-## Purpose
-
-This repository serves as a comprehensive reference for AI agents (like Claude Code) to ensure consistent, high-quality code generation and development practices. It provides structured guidelines that help AI agents understand established patterns, avoid common mistakes, and integrate seamlessly with existing codebases.
-
----
-
-## Table of Contents
-
-- [Core Go Development Guidelines](#core-go-development-guidelines)
-  - [Architecture & Design Patterns](#architecture--design-patterns)
-  - [Testing & Quality](#testing--quality)
-  - [Infrastructure & Tools](#infrastructure--tools)
-  - [HTTP & APIs](#http--apis)
-  - [Documentation & Code Quality](#documentation--code-quality)
-- [Python Development Guidelines](#python-development-guidelines)
-- [Development Workflows](#development-workflows)
-- [Frontend Development](#frontend-development)
-- [Documentation Standards](#documentation-standards)
-- [Key Ecosystem Libraries](#key-ecosystem-libraries)
-- [For AI Agents](#for-ai-agents)
-- [Usage](#usage)
-- [License](#license)
-
----
-
-## Core Go Development Guidelines
+## Go
 
 ### Architecture & Design Patterns
 
-- **[go-architecture-patterns.md](docs/go-architecture-patterns.md)** - Core service architecture using Interface → Constructor → Struct → Method pattern with dependency injection and ecosystem integration
-- **[go-factory-pattern.md](docs/go-factory-pattern.md)** - Factory function patterns for dependency composition with zero business logic, file organization, and naming conventions
-- **[go-service-implementation-patterns.md](docs/go-service-implementation-patterns.md)** - Decision frameworks for service architecture, type design patterns, and implementation best practices
-- **[go-functional-composition-pattern.md](docs/go-functional-composition-pattern.md)** - Functional composition patterns for implementing interfaces using composable function and list types
-- **[go-functional-options-pattern.md](docs/go-functional-options-pattern.md)** - Functional options pattern for flexible constructor configuration and optional parameters
-- **[go-enum-type-pattern.md](docs/go-enum-type-pattern.md)** - String-based enum pattern with type-safe constants, validation, and collection operations
-- **[go-filter-pattern.md](docs/go-filter-pattern.md)** - Filter pattern for collection operations and data filtering with composable predicates
-- **[go-parse-pattern.md](docs/go-parse-pattern.md)** - Parse pattern for custom type conversion, unmarshaling, and string-to-type transformation
-- **[go-context-cancellation-in-loops.md](docs/go-context-cancellation-in-loops.md)** - Context cancellation pattern for long-running loops with non-blocking select checks
+| Guide | Description |
+|-------|-------------|
+| [Architecture Patterns](docs/go-architecture-patterns.md) | Interface → Constructor → Struct → Method pattern, dependency injection |
+| [Service Implementation](docs/go-service-implementation-patterns.md) | Decision frameworks, type design, package organization |
+| [Factory Pattern](docs/go-factory-pattern.md) | Dependency composition with zero business logic |
+| [Functional Options](docs/go-functional-options-pattern.md) | Flexible constructor configuration |
+| [Functional Composition](docs/go-functional-composition-pattern.md) | Composable function and list types |
+| [Enum Pattern](docs/go-enum-type-pattern.md) | String-based enums with validation |
+| [Filter Pattern](docs/go-filter-pattern.md) | Composable collection predicates |
+| [Parse Pattern](docs/go-parse-pattern.md) | Custom type conversion and unmarshaling |
+| [CQRS](docs/go-cqrs.md) | Command Query Responsibility Segregation |
+| [Composition](docs/go-composition.md) | Struct embedding and interface composition |
+| [Concurrency](docs/go-concurrency-patterns.md) | Goroutines, channels, sync primitives |
 
 ### Testing & Quality
 
-- **[go-testing-guide.md](docs/go-testing-guide.md)** - How to write tests with Ginkgo v2 and Gomega framework syntax, test suite setup, and BDD patterns
-- **[go-test-types-guide.md](docs/go-test-types-guide.md)** - What to test and when: unit vs integration vs end-to-end test definitions and decision framework
-- **[go-mocking-guide.md](docs/go-mocking-guide.md)** - Mocking patterns with Counterfeiter, mock discovery strategies, and what to mock vs not mock
-- **[tdd-guide.md](docs/tdd-guide.md)** - Test-driven development workflow with red-green-refactor cycle
+| Guide | Description |
+|-------|-------------|
+| [Testing Guide](docs/go-testing-guide.md) | Ginkgo v2 + Gomega syntax, BDD patterns |
+| [Test Types](docs/go-test-types-guide.md) | Unit vs integration vs e2e decision framework |
+| [Mocking Guide](docs/go-mocking-guide.md) | Counterfeiter patterns, what to mock |
+| [TDD Guide](docs/tdd-guide.md) | Red-green-refactor cycle |
+| [Linting](docs/go-linting-guide.md) | Static analysis configuration |
+| [Security Linting](docs/go-security-linting.md) | Security-focused static analysis |
 
 ### Infrastructure & Tools
 
-- **[go-library-guide.md](docs/go-library-guide.md)** - Library project structure, versioning, public API design, and release management
-- **[go-validation-framework-guide.md](docs/go-validation-framework-guide.md)** - Input validation patterns, error handling, and validation framework design
-- **[go-prometheus-metrics-guide.md](docs/go-prometheus-metrics-guide.md)** - Prometheus metrics implementation, naming conventions, and best practices
-- **[go-makefile-commands.md](docs/go-makefile-commands.md)** - Standardized Makefile targets for builds, testing, code quality, and license management
-- **[go-licensing-guide.md](docs/go-licensing-guide.md)** - Licensing practices including LICENSE files, README sections, source headers, and addlicense tool
-- **[go-glog.md](docs/go-glog.md)** - Structured logging with glog, log levels, and contextual logging practices
+| Guide | Description |
+|-------|-------------|
+| [Makefile Commands](docs/go-makefile-commands.md) | Standardized build targets |
+| [Library Guide](docs/go-library-guide.md) | Library structure, versioning, API design |
+| [CLI Guide](docs/go-cli-guide.md) | Command-line application patterns |
+| [Validation](docs/go-validation-framework-guide.md) | Input validation framework |
+| [Prometheus Metrics](docs/go-prometheus-metrics-guide.md) | Metrics implementation and naming |
+| [Licensing](docs/go-licensing-guide.md) | License files, headers, addlicense tool |
+| [Precommit](docs/go-precommit.md) | Pre-commit checks and workflow |
+| [Time Injection](docs/go-time-injection.md) | Testable time handling via DI |
 
 ### HTTP & APIs
 
-- **[go-http-handler-refactoring-guide.md](docs/go-http-handler-refactoring-guide.md)** - HTTP handler organization, refactoring patterns, and architectural guidelines
-- **[go-json-error-handler-guide.md](docs/go-json-error-handler-guide.md)** - Standardized JSON error responses for HTTP APIs with error codes, status mapping, and structured details
+| Guide | Description |
+|-------|-------------|
+| [HTTP Handlers](docs/go-http-handler-refactoring-guide.md) | Handler organization and refactoring |
+| [JSON Error Handler](docs/go-json-error-handler-guide.md) | Structured error responses for APIs |
 
-### Documentation & Code Quality
+### Code Style & Documentation
 
-- **[go-doc-best-practices.md](docs/go-doc-best-practices.md)** - GoDoc standards, documentation comments, and API documentation best practices
+| Guide | Description |
+|-------|-------------|
+| [GoDoc](docs/go-doc-best-practices.md) | Documentation comment standards |
+| [Error Wrapping](docs/go-error-wrapping-guide.md) | Context-aware error handling |
+| [Context Cancellation](docs/go-context-cancellation-in-loops.md) | Non-blocking select in loops |
+| [Logging](docs/go-logging-guide.md) | Structured logging patterns |
+| [Design Patterns](docs/go-patterns.md) | Common Go design patterns |
 
----
+## Python
 
-## Python Development Guidelines
-
-- **[python-project-structure.md](docs/python-project-structure.md)** - Standard project layout with src/ structure, pyproject.toml configuration, test organization, and build system setup
-- **[python-architecture-patterns.md](docs/python-architecture-patterns.md)** - Core service architecture with constructor injection, main.py composition root, and file organization
-- **[python-factory-pattern.md](docs/python-factory-pattern.md)** - Factory function patterns for dependency composition with zero business logic, file organization, and naming conventions
-- **[python-ioc-guide.md](docs/python-ioc-guide.md)** - Detailed dependency injection patterns with Protocol vs ABC, async patterns, testing with mocks, and when to use DI
-- **[python-pydantic-guide.md](docs/python-pydantic-guide.md)** - Data validation with Pydantic for API boundaries, configuration management, and external data validation
-- **[python-logging-guide.md](docs/python-logging-guide.md)** - Logging patterns with structured formats, log levels, safe secret handling, and production integration
-- **[python-cli-arguments-guide.md](docs/python-cli-arguments-guide.md)** - CLI argument parsing and environment variable handling with Pydantic BaseSettings, argparse, and typer
-- **[python-makefile-commands.md](docs/python-makefile-commands.md)** - Standardized Makefile targets for Python projects including builds, testing, code quality, and dependency management
-
----
+| Guide | Description |
+|-------|-------------|
+| [Project Structure](docs/python-project-structure.md) | src/ layout, pyproject.toml, uv |
+| [Architecture Patterns](docs/python-architecture-patterns.md) | Constructor injection, composition root |
+| [Factory Pattern](docs/python-factory-pattern.md) | Dependency composition |
+| [IoC / Dependency Injection](docs/python-ioc-guide.md) | Protocol vs ABC, async patterns |
+| [Pydantic](docs/python-pydantic-guide.md) | Data validation, BaseSettings |
+| [Logging](docs/python-logging-guide.md) | Structured logging, safe secrets |
+| [CLI Arguments](docs/python-cli-arguments-guide.md) | argparse, BaseSettings, typer |
+| [Makefile Commands](docs/python-makefile-commands.md) | Build targets (uv, ruff, mypy, pytest) |
 
 ## Development Workflows
 
-- **[git-commit-guide.md](docs/git-commit-guide.md)** - Git commit workflow and reference covering mandatory processes (make precommit, CHANGELOG), message format, repository configuration, and troubleshooting
+| Guide | Description |
+|-------|-------------|
+| [Git Commit](docs/git-commit-guide.md) | Commit workflow, CHANGELOG, message format |
+| [Git Workflow](docs/git-workflow.md) | Branching strategy, PR process |
+| [Changelog](docs/changelog-guide.md) | CHANGELOG.md format and maintenance |
+| [Definition of Done](docs/definition-of-done.md) | Checklist for completed work |
 
----
+## Frontend
 
-## Frontend Development
+| Guide | Description |
+|-------|-------------|
+| [Vue 3 + TypeScript](docs/vue3-typescript-frontend-guide.md) | Composition API, Vite, Vitest |
+| [Astro](docs/astro-development-guide.md) | Astro framework patterns |
 
-- **[vue3-typescript-frontend-guide.md](docs/vue3-typescript-frontend-guide.md)** - Vue 3 + TypeScript patterns with Composition API, Vite setup, and Vitest testing
-- **[astro-development-guide.md](docs/astro-development-guide.md)** - Astro framework development guidelines and best practices
+## Documentation
 
----
+| Guide | Description |
+|-------|-------------|
+| [Documentation Guide](docs/documentation-guide.md) | README, docs/, PRDs, ADRs |
+| [PRD Guide](docs/prd-guide.md) | Product Requirements Documents |
+| [ADR Guide](docs/adr-guide.md) | Architecture Decision Records |
+| [Markdown & Todos](docs/markdown-todo-guide.md) | Formatting standards |
 
-## Documentation Standards
+## Claude Code Plugin
 
-- **[documentation-guide.md](docs/documentation-guide.md)** - Comprehensive guide for documentation structure (README, docs/, PRDs, ADRs) with AI context principles
-- **[prd-guide.md](docs/prd-guide.md)** - Product Requirements Document templates, best practices, and when to create PRDs
-- **[adr-guide.md](docs/adr-guide.md)** - Architecture Decision Records guide with templates, organization patterns, and status management
-- **[markdown-todo-guide.md](docs/markdown-todo-guide.md)** - Markdown formatting standards and todo management patterns
+This repo is also a [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins). Install it to get coding guidelines, code review commands, and quality agents directly in Claude Code.
 
----
+```bash
+# Add as marketplace
+/plugin marketplace add bborbe/coding
 
-## Key Ecosystem Libraries
+# Install plugin
+/plugin install coding@coding
+```
 
-These guidelines emphasize integration with Benjamin Borbe's ecosystem libraries. Each library solves specific problems and has clear usage patterns:
+**Included commands:** `/coding:code-review`, `/coding:pr-review`, `/coding:check-guides`, `/coding:godoc`, `/coding:go-write-test`, `/coding:go-version`, `/coding:doc-review`, `/coding:improve-guide`
 
-- **`github.com/bborbe/time`** - Time handling with dependency injection
-  - **When:** Any code that needs current time (enables deterministic testing)
-  - **Pattern:** Inject `libtime.CurrentDateTime` interface, use `.Now()` method
-  - **Replaces:** Direct `time.Now()` calls
-
-- **`github.com/bborbe/collection`** - Pointer utilities and collection helpers
-  - **When:** Creating pointers to literals (`collection.Ptr("value")`)
-  - **Replaces:** Custom `stringPtr()`, `intPtr()` helper functions
-  - **Also provides:** Filter, Map, Reduce operations for slices
-
-- **`github.com/bborbe/errors`** - Context-aware error wrapping and handling
-  - **When:** All error handling that needs context propagation
-  - **Pattern:** `errors.Wrap(ctx, err, "description")`
-  - **Replaces:** Standard `fmt.Errorf()` for better error chains
-
-- **`github.com/bborbe/http`** - HTTP utilities with JSON error handling
-  - **When:** Building HTTP APIs that need structured error responses
-  - **Pattern:** `libhttp.NewJSONErrorHandler(handler)` with `WrapWithCode/WrapWithDetails`
-  - **See:** [go-json-error-handler-guide.md](docs/go-json-error-handler-guide.md)
-
-- **Ginkgo v2 + Gomega** - BDD-style testing framework with expressive assertions
-  - **When:** All test files (replaces standard `testing` package patterns)
-  - **Pattern:** `Describe/Context/It` structure with `Expect()` assertions
-  - **See:** [go-testing-guide.md](docs/go-testing-guide.md)
-
-- **Counterfeiter** - Type-safe mock generation for interfaces
-  - **When:** Unit tests requiring dependency mocks
-  - **Pattern:** `//counterfeiter:generate` directive, use generated fakes
-  - **See:** [go-mocking-guide.md](docs/go-mocking-guide.md)
-
----
-
-## For AI Agents
-
-This repository is specifically structured to help AI agents:
-
-1. **Understand established patterns** - Clear examples of preferred architectures and implementations
-2. **Avoid common antipatterns** - Explicit guidance on what NOT to do
-3. **Integrate with existing code** - Patterns that work seamlessly with the established ecosystem
-4. **Maintain consistency** - Standardized approaches across all development tasks
-5. **Follow mandatory workflows** - Critical processes like pre-commit checks and changelog management
-
-### Quick Decision Guide for AI Agents
-
-**When generating Go code:**
-- Start with [go-architecture-patterns.md](docs/go-architecture-patterns.md) for overall structure
-- Check [go-service-implementation-patterns.md](docs/go-service-implementation-patterns.md) for design decisions
-- Use specific pattern guides as needed:
-  - [go-factory-pattern.md](docs/go-factory-pattern.md) for factory organization and dependency composition
-  - [go-functional-options-pattern.md](docs/go-functional-options-pattern.md) for flexible constructors
-  - [go-enum-type-pattern.md](docs/go-enum-type-pattern.md) for type-safe enumerations
-  - [go-filter-pattern.md](docs/go-filter-pattern.md) for collection operations
-  - [go-parse-pattern.md](docs/go-parse-pattern.md) for custom type conversions
-
-**When writing tests:**
-1. Read [go-test-types-guide.md](docs/go-test-types-guide.md) to choose test type (unit/integration/e2e)
-2. Follow [go-testing-guide.md](docs/go-testing-guide.md) for Ginkgo v2 syntax and patterns
-3. Consult [go-mocking-guide.md](docs/go-mocking-guide.md) for mock usage and generation
-
-**When setting up projects:**
-- Reference [go-makefile-commands.md](docs/go-makefile-commands.md) for standardized targets
-- Follow [git-commit-guide.md](docs/git-commit-guide.md) for commit process (mandatory)
-- Apply [go-licensing-guide.md](docs/go-licensing-guide.md) for licensing setup
-
-**When working with frontend:**
-- Use [vue3-typescript-frontend-guide.md](docs/vue3-typescript-frontend-guide.md) for Vue 3 projects
-- Reference [astro-development-guide.md](docs/astro-development-guide.md) for Astro projects
-
----
-
-## Usage
-
-AI agents should reference these guidelines when:
-- Generating new Go services or components
-- Writing tests and documentation
-- Setting up build and development workflows
-- Implementing frontend components
-- Following git commit processes
-- Creating or updating documentation
-
-Each guideline document includes complete code examples, key requirements, and common mistakes to avoid, ensuring AI agents can produce high-quality, consistent code that integrates seamlessly with existing development practices.
-
----
+**Included agents:** go-quality-assistant, go-test-quality-assistant, go-security-specialist, srp-checker, python-quality-assistant, and more.
 
 ## License
 

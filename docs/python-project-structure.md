@@ -532,9 +532,9 @@ pip install dist/package-0.1.0-py3-none-any.whl
 ## Reference Projects
 
 **Fully compliant examples:**
-- `/Users/bborbe/Documents/workspaces/netcup-dns` - Production CLI tool
-- `/Users/bborbe/Documents/workspaces/alertmanager-mcp` - MCP server
-- `/Users/bborbe/Documents/workspaces/iphone-image-backup` - CLI with subcommands
+- `github.com/bborbe/netcup-dns` - Production CLI tool
+- `github.com/bborbe/alertmanager-mcp` - MCP server
+- `github.com/bborbe/iphone-image-backup` - CLI with subcommands
 
 ## Related Documentation
 

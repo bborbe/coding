@@ -469,4 +469,4 @@ Always link between root and service ADRs:
 
 - For PRD documentation: See [prd-guide.md](prd-guide.md)
 - For overall documentation structure: See [documentation-guide.md](documentation-guide.md)
-- For PRD workflow with AI: See `~/.claude/docs/prd-workflow-guide.md` (global guide)
+- For PRD workflow with AI: See project-local PRD workflow guide

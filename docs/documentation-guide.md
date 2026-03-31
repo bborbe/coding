@@ -781,7 +781,7 @@ order-service/
 - **When to create**: Feature requires >1 day of work, multiple approaches possible, affects multiple components
 - **Status tracking**: Draft → In Progress → Implemented → Deprecated
 
-**PRD Workflow**: For AI-assisted PRD creation and implementation workflow, see `~/.claude/docs/prd-workflow-guide.md` (global guide).
+**PRD Workflow**: For AI-assisted PRD creation and implementation workflow, see project-local PRD workflow guide.
 
 For complete template with all sections, examples, and detailed guidance, see [prd-guide.md](prd-guide.md).
 

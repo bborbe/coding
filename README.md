@@ -101,19 +101,24 @@ Standardized coding guidelines, patterns, and workflows for Go and Python develo
 
 ## Claude Code Plugin
 
-This repo is also a [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins). Install it to get coding guidelines, code review commands, and quality agents directly in Claude Code.
+This repo includes a Claude Code plugin with code review commands and quality agents.
 
 ```bash
-# Add as marketplace
-/plugin marketplace add bborbe/coding
+# Install
+claude plugin marketplace add bborbe/coding
+claude plugin install coding
 
-# Install plugin
-/plugin install coding@coding
+# Update
+claude plugin marketplace update coding
+claude plugin update coding@coding
 ```
 
-**Included commands:** `/coding:code-review`, `/coding:pr-review`, `/coding:check-guides`, `/coding:godoc`, `/coding:go-write-test`, `/coding:go-version`, `/coding:doc-review`, `/coding:improve-guide`
-
-**Included agents:** go-quality-assistant, go-test-quality-assistant, go-security-specialist, srp-checker, python-quality-assistant, and more.
+| Command | Description |
+|---------|-------------|
+| `/coding:code-review` | Review code against coding guidelines |
+| `/coding:pr-review` | Review pull request against standards |
+| `/coding:check-guides` | Find relevant guides for a task |
+| `/coding:commit` | Git commit with changelog and versioning |
 
 ## License
 

@@ -73,7 +73,7 @@ Based on detected mode, invoke agents **in parallel**:
 *For Go projects:*
 1. **go-quality-assistant**: Idiomatic Go patterns, architecture, error handling, context cancellation in loops
 2. **go-factory-pattern-assistant**: Factory pattern compliance, zero-business-logic rule (review mode only - no updates)
-3. **http-handler-assistant**: HTTP handler organization, inline handler detection, architectural patterns (review mode only - no updates)
+3. **go-http-handler-assistant**: HTTP handler organization, inline handler detection, architectural patterns (review mode only - no updates)
 4. **go-test-coverage-assistant**: Test coverage gaps, missing tests for critical components (review mode only - no updates)
 
 *For Python projects:*
@@ -93,7 +93,7 @@ Based on detected mode, invoke agents **in parallel**:
 6. **go-version-manager**: Go version currency and consistency across project files (check-only mode)
 7. **go-tooling-assistant**: Makefile and tools.go configuration validation (review mode only - no updates)
 8. **go-factory-pattern-assistant**: Factory pattern implementation, dependency injection, handler wrapping (review mode only - no updates)
-9. **http-handler-assistant**: HTTP handler organization, inline handler detection, architectural patterns (review mode only - no updates)
+9. **go-http-handler-assistant**: HTTP handler organization, inline handler detection, architectural patterns (review mode only - no updates)
 10. **go-test-coverage-assistant**: Test coverage gaps, missing tests for critical components (review mode only - no updates)
 
 *Python projects:*

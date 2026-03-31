@@ -38,8 +38,8 @@ Launch all three file-finder agents IN PARALLEL using a single Task tool call wi
 ```
 Task tool with THREE parallel invocations:
 1. subagent_type='obsidian-guide-finder', prompt='<task_description>'
-2. subagent_type='coding-guidelines-finder', prompt='<task_description>'
-3. subagent_type='project-docs-finder', prompt='<task_description>'
+2. subagent_type='coding:coding-guidelines-finder', prompt='<task_description>'
+3. subagent_type='coding:project-docs-finder', prompt='<task_description>'
 ```
 
 **IMPORTANT**: Send a SINGLE message with THREE Task tool calls to run agents in parallel.

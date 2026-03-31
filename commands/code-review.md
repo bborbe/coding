@@ -137,6 +137,8 @@ Merge all findings into a unified report with priority-ranked sections:
 - Missing test suite files (packages with tests but no *_suite_test.go)
 - Manual mock implementations (must use Counterfeiter)
 - Direct time package usage in tests (causes flaky tests)
+- `time.Now()` in production code — must inject `libtime.CurrentDateTimeGetter` (from `github.com/bborbe/time`) for testability via `SetNow()`. See `go-time-injection.md`
+- `time.Time` in struct fields — must use `libtime.DateTime`, `libtime.Date`, or `libtime.UnixTime` (from `github.com/bborbe/time`). See `go-time-injection.md`
 
 #### Should Fix (Important)
 - Error handling issues (missing wrapping, wrong patterns)

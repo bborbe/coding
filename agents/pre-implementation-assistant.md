@@ -159,8 +159,8 @@ Obsidian: (empty - no results)
 Coding guidelines:
   - ~/Documents/workspaces/coding/docs/go-architecture-patterns.md
 Project docs:
-  - /Users/bborbe/Documents/workspaces/trading/docs/design/command-driven-architecture-guide.md
-  - /Users/bborbe/Documents/workspaces/trading/docs/design/service-arch.md
+  - <project>/docs/design/command-driven-architecture-guide.md
+  - <project>/docs/design/service-arch.md
 ```
 
 **Step 3: Read top 3 files**

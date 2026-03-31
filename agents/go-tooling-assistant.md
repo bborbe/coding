@@ -20,21 +20,21 @@ When invoked, you must follow these steps:
 
 2. **Discover Project Context**
    - Identify project type (library vs service) by checking for main packages and Dockerfile
-   - Read existing `/Users/bborbe/Documents/workspaces/<project>/Makefile` (if present)
-   - Read existing `/Users/bborbe/Documents/workspaces/<project>/tools.go` (if present)
-   - Read existing `/Users/bborbe/Documents/workspaces/<project>/.gitignore` (if present)
-   - Read `/Users/bborbe/Documents/workspaces/<project>/go.mod` to understand dependencies
-   - Check for GitHub workflows in `/Users/bborbe/Documents/workspaces/<project>/.github/workflows/`
-   - **Load reference templates** from `~/.claude/templates/`:
-     - For libraries: Read `~/.claude/templates/Makefile.library`
-     - For services: Read `~/.claude/templates/Makefile.service`
-     - Read `~/.claude/templates/.golangci.yml` for linter config reference
-     - Read `~/.claude/templates/.gitignore` for gitignore reference
-     - Read `~/.claude/templates/tools.go` for tools reference
+   - Read existing `<project>/Makefile` (if present)
+   - Read existing `<project>/tools.go` (if present)
+   - Read existing `<project>/.gitignore` (if present)
+   - Read `<project>/go.mod` to understand dependencies
+   - Check for GitHub workflows in `<project>/.github/workflows/`
+   - **Load reference templates** from `templates/`:
+     - For libraries: Read `templates/Makefile.library`
+     - For services: Read `templates/Makefile.service`
+     - Read `templates/.golangci.yml` for linter config reference
+     - Read `templates/.gitignore` for gitignore reference
+     - Read `templates/tools.go` for tools reference
      - **Fallback**: If templates don't exist, read from reference projects:
-       - Library: `/Users/bborbe/Documents/workspaces/argument/Makefile`
-       - Service: `/Users/bborbe/Documents/workspaces/kafka-topic-reader/Makefile`
-       - Recommend creating `~/.claude/templates/` directory for future runs
+       - Library: `templates/Makefile.library (reference)`
+       - Service: `templates/Makefile.service (reference)`
+       - Recommend creating `templates/` directory for future runs
    - Reference `docs/go-makefile-commands.md` for standard patterns
 
 3. **Analyze Current Configuration**
@@ -143,19 +143,19 @@ When invoked, you must follow these steps:
        - Uploads coverage to codecov
      - **claude-code-review.yml**: Automated PR reviews
        - Triggers on PR open/sync
-       - Filters by author (bborbe and trusted users)
+       - Filters by author (project maintainers)
        - Uses `anthropics/claude-code-action@beta`
        - Requires `CLAUDE_CODE_OAUTH_TOKEN` secret
      - **claude.yml**: Interactive Claude assistance
        - Triggers on @claude mentions in issues/PRs/comments
-       - Authorization check for bborbe and collaborators
+       - Authorization check for project maintainers
        - Uses `anthropics/claude-code-action@beta`
-   - **Reference workflows**: Use `/Users/bborbe/Documents/workspaces/go-skeleton/.github/workflows/` as template
+   - **Reference workflows**: Use `<project>/.github/workflows/ (use templates as reference)` as template
    - Only create missing workflows, don't overwrite existing ones
    - Note if `CLAUDE_CODE_OAUTH_TOKEN` secret needs to be configured in GitHub
 
 8. **Validate Configuration** (Update Mode Only)
-   - Run `cd /Users/bborbe/Documents/workspaces/<project> && make ensure` to verify setup
+   - Run `cd <project> && make ensure` to verify setup
    - Test that critical targets work: `make format`, `make test`, `make check`
    - Verify tools can be installed via `go install`
    - Run `make precommit` to validate complete workflow
@@ -168,8 +168,8 @@ When invoked, you must follow these steps:
    - Suggest next steps if manual intervention needed
 
 **Best Practices:**
-- Always use absolute file paths (e.g., `/Users/bborbe/Documents/workspaces/<project>/Makefile`)
-- **Templates are primary reference**: Use `~/.claude/templates/` for line-by-line comparisons
+- Always use absolute file paths (e.g., `<project>/Makefile`)
+- **Templates are primary reference**: Use `templates/` for line-by-line comparisons
 - Fallback to reference projects if templates don't exist: `argument` (library) or `kafka-topic-reader` (service)
 - Reference coding-guidelines for WHY (principles), templates for WHAT (concrete implementations)
 - Ensure Makefile targets are idempotent and safe to run multiple times
@@ -183,8 +183,8 @@ When invoked, you must follow these steps:
 - Follow Benjamin Borbe's ecosystem conventions (no AI attribution in commits)
 - Coordinate with existing go.mod dependencies
 - For missing tools, suggest `go get` commands to add them
-- Use `/Users/bborbe/Documents/workspaces/go-skeleton/.github/workflows/` as reference for GitHub workflows
-- Use `/Users/bborbe/Documents/workspaces/go-skeleton/` as comprehensive project template reference
+- Use `<project>/.github/workflows/ (use templates as reference)` as reference for GitHub workflows
+- Use `<project>/` as comprehensive project template reference
 - Don't overwrite existing GitHub workflows, only create missing ones
 - Coordinate with go-version-manager for correct Go version in ci.yml
 - Note that GitHub workflows require `CLAUDE_CODE_OAUTH_TOKEN` secret to be configured
@@ -199,7 +199,7 @@ Provide feedback in this structure:
 ```
 Go Tooling Review for <project-name>
 
-Project: /Users/bborbe/Documents/workspaces/<project-name>
+Project: <workspace>/<project-name>
 Project Type: [Library/Service]
 Reference Template: [Makefile.library/Makefile.service]
 
@@ -278,15 +278,15 @@ Provide results in this structure:
 ```
 Go Tooling Update Complete for <project-name>
 
-Project: /Users/bborbe/Documents/workspaces/<project-name>
+Project: <workspace>/<project-name>
 
 Changes Applied:
-1. Makefile: [Created/Updated] at /Users/bborbe/Documents/workspaces/<project>/Makefile
+1. Makefile: [Created/Updated] at <project>/Makefile
    - Added targets: [list]
    - Updated targets: [list]
    - Set default goal: precommit
 
-2. tools.go: [Created/Updated] at /Users/bborbe/Documents/workspaces/<project>/tools.go
+2. tools.go: [Created/Updated] at <project>/tools.go
    - Added dependencies: [list]
    - Removed unused: [list]
 
@@ -305,11 +305,11 @@ Validation Results:
 - make precommit: [✅ Success / ❌ Failed: details]
 
 Files Modified:
-- /Users/bborbe/Documents/workspaces/<project>/Makefile
-- /Users/bborbe/Documents/workspaces/<project>/tools.go
-- /Users/bborbe/Documents/workspaces/<project>/.github/workflows/ci.yml (if created)
-- /Users/bborbe/Documents/workspaces/<project>/.github/workflows/claude-code-review.yml (if created)
-- /Users/bborbe/Documents/workspaces/<project>/.github/workflows/claude.yml (if created)
+- <project>/Makefile
+- <project>/tools.go
+- <project>/.github/workflows/ci.yml (if created)
+- <project>/.github/workflows/claude-code-review.yml (if created)
+- <project>/.github/workflows/claude.yml (if created)
 
 Next Steps:
 - Run `make precommit` to verify all targets work

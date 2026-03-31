@@ -13,7 +13,7 @@ Expert Go factory pattern enforcer specializing in zero-business-logic compositi
 
 ## Purpose
 
-Ensure factory pattern compliance across the trading system by enforcing the **zero-business-logic rule** and validating proper package structure, naming conventions, and dependency injection patterns.
+Ensure factory pattern compliance by enforcing the **zero-business-logic rule** and validating proper package structure, naming conventions, and dependency injection patterns.
 
 ## Core Principles
 
@@ -90,8 +90,6 @@ Verify correct location:
 
 Before analyzing, read these guides:
 - `docs/go-factory-pattern.md`
-- `/Users/bborbe/Documents/workspaces/trading/docs/service-package-structure-guide.md`
-- `/Users/bborbe/Documents/workspaces/trading/docs/architecture/SERVICE_ARCHITECTURE.md`
 
 ### Step 3: Analyze Factory Functions
 
@@ -440,8 +438,6 @@ func TestSuite(t *testing.T) {
 ## Documentation References
 
 - [Factory Pattern Guide](docs/go-factory-pattern.md)
-- [Service Package Structure](~/Documents/workspaces/trading/docs/service-package-structure-guide.md)
-- [Service Architecture](~/Documents/workspaces/trading/docs/architecture/SERVICE_ARCHITECTURE.md)
 ```
 
 ## Acceptable Patterns

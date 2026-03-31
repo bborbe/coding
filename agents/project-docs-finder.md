@@ -19,8 +19,8 @@ Task description or keywords (e.g., "command executor", "strategy pattern", "IAM
 **Return only file paths, one per line:**
 
 ```
-/Users/bborbe/Documents/workspaces/trading/docs/design/command-driven-architecture-guide.md
-/Users/bborbe/Documents/workspaces/trading/docs/design/service-arch.md
+<project>/docs/design/command-driven-architecture-guide.md
+<project>/docs/design/service-arch.md
 ```
 
 **Rules:**
@@ -65,7 +65,7 @@ Task description or keywords (e.g., "command executor", "strategy pattern", "IAM
 
 **Input**: "implement command executor"
 
-**Current workspace**: `/Users/bborbe/Documents/workspaces/trading`
+**Current workspace**: `<project>`
 
 **Steps**:
 1. Check: `test -d docs` → exists
@@ -75,7 +75,7 @@ Task description or keywords (e.g., "command executor", "strategy pattern", "IAM
 
 **Output**:
 ```
-/Users/bborbe/Documents/workspaces/trading/docs/design/command-driven-architecture-guide.md
+<project>/docs/design/command-driven-architecture-guide.md
 ```
 
 ## Edge Cases

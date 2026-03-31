@@ -82,7 +82,7 @@ Detect project type in `REVIEW_DIR`:
 
 Check if `REVIEW_DIR/Makefile` exists and has `precommit` target. If yes:
 ```
-simple-bash-runner agent: "cd <REVIEW_DIR> && make precommit"
+coding:simple-bash-runner agent: "cd <REVIEW_DIR> && make precommit"
 ```
 
 Include failures in report. Continue regardless.

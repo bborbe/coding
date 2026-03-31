@@ -31,7 +31,7 @@ Use the Task tool to invoke the `pre-implementation-assistant` agent with the ta
 
 Example:
 ```
-Task tool with subagent_type='pre-implementation-assistant'
+Task tool with subagent_type='coding:pre-implementation-assistant'
 Prompt: "Analyze this task and recommend relevant coding guidelines: [user's task description]"
 ```
 

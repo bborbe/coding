@@ -52,7 +52,7 @@ Check if Makefile exists and has a `precommit` target:
 
 If both checks pass, use Task tool with simple-bash-runner agent:
 ```
-Task tool with subagent_type="simple-bash-runner", prompt="cd [directory] && make precommit"
+Task tool with subagent_type="coding:simple-bash-runner", prompt="cd [directory] && make precommit"
 ```
 
 This provides automated checks (formatting, linting, tests, security) before running agents. Include the output and any failures in the final report.

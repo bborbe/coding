@@ -136,6 +136,52 @@ func init() {
 }
 ```
 
+### Counter Pre-Initialization Pattern
+
+**MUST pre-initialize counters with `.Add(0)` for all known label combinations.** This ensures metrics exist in Prometheus even when no events have occurred, preventing `absent()` alert false negatives.
+
+```go
+func init() {
+	prometheus.MustRegister(
+		requestErrorTotal,
+	)
+
+	// Pre-initialize all known label combinations to 0
+	for _, reason := range []string{"timeout", "validation", "internal"} {
+		requestErrorTotal.With(prometheus.Labels{
+			"reason": reason,
+		}).Add(0)
+	}
+}
+```
+
+**Why:** Without pre-initialization, `rate(metric[5m])` returns no data (not zero) for unseen label combos. Alert expressions like `rate(errors_total[5m]) > 0.1` silently skip absent series instead of evaluating to false.
+
+### Composed Metrics Interface Pattern
+
+**MUST split large Metrics interfaces into focused sub-interfaces when a service has distinct metric domains.** Compose them into a single Metrics interface for the factory.
+
+```go
+//counterfeiter:generate -o ../mocks/metrics.go --fake-name Metrics . Metrics
+type Metrics interface {
+	MetricsCandleHandler
+	MetricsSignalSender
+}
+
+type MetricsCandleHandler interface {
+	CandleHandleTotalCounterInc(broker core.BrokerIdentifier, epic core.Epic)
+	CandleHandleFailureCounterInc(broker core.BrokerIdentifier, epic core.Epic)
+	CandleHandleSuccessCounterInc(broker core.BrokerIdentifier, epic core.Epic)
+}
+
+type MetricsSignalSender interface {
+	SignalSendTotalCounterInc(broker core.BrokerIdentifier, epic core.Epic, strategy core.StrategyIdentifier)
+	SignalSendFailureCounterInc(broker core.BrokerIdentifier, epic core.Epic, strategy core.StrategyIdentifier)
+}
+```
+
+**Why:** Components that only send signals should depend on `MetricsSignalSender`, not the full `Metrics` interface. Follows Interface Segregation Principle.
+
 ### Service Integration Pattern
 
 **Dependency Injection for Metrics:**
@@ -566,6 +612,31 @@ func NewAdvancedPusher(config PusherConfig) Pusher {
 
 ## Metric Types & Design
 
+### Choosing the Right Type
+
+**Decision Rule:**
+
+| Question | Yes → | No → |
+|----------|-------|------|
+| Can the value decrease? | Gauge | Counter |
+| Does it only `.Inc()`? | Counter | — |
+| Need distribution/percentiles? | Histogram | — |
+| Need exact quantiles, can't define buckets? | Summary | Histogram |
+
+**MUST NOT use GaugeVec for values that only increase.** If a metric only calls `.Inc()`, it MUST be a `CounterVec`. Using Gauge for monotonically increasing values breaks `rate()` and `increase()` queries.
+
+```go
+// BAD: Gauge for counter-like metric
+candleHandleTotalCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	Name: "total_counter",
+}, []string{"broker"})
+
+// GOOD: Counter for values that only increase
+candleHandleTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "total",
+}, []string{"broker"})
+```
+
 ### Counter - Monotonically Increasing Values
 
 **Use For:** Events, requests, errors, completed operations
@@ -777,7 +848,63 @@ var (
 - Be descriptive but concise
 - Use consistent namespace/subsystem across related metrics
 
+**Counter `_total` Suffix Rule:**
+
+**MUST end counter metric names with `_total`.** This is a Prometheus naming convention enforced by newer client versions.
+
+```go
+// BAD: Missing _total suffix
+Name: "requests_processed",
+Name: "errors_count",
+
+// GOOD: Counters end with _total
+Name: "requests_processed_total",
+Name: "errors_total",
+```
+
+**Help String Quality Rule:**
+
+**MUST write unique, accurate Help strings for every metric.** Never copy-paste Help from another metric. Help strings appear in `/metrics` output and Grafana metric explorer — wrong descriptions cause confusion during incidents.
+
+```go
+// BAD: Copy-pasted Help from another metric
+signalSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "success_total",
+	Help: "Candle Handle Total Counter",  // Wrong! This is signal sender, not candle handler
+})
+
+// GOOD: Describes THIS metric accurately
+signalSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "success_total",
+	Help: "Total number of successfully sent signals",
+})
+```
+
 ### Label Design Best Practices
+
+**Label Naming Consistency Rule:**
+
+**MUST use the same label name for the same concept across all metrics in a project.** Inconsistent label names break dashboards and PromQL joins.
+
+```go
+// BAD: Same concept, different label names across metrics
+candleHandleCounter.With(prometheus.Labels{"epic": epic.String()})     // uses "epic"
+signalSendCounter.With(prometheus.Labels{"symbol": epic.String()})     // uses "symbol"
+
+// GOOD: Pick one label name, use it everywhere
+candleHandleCounter.With(prometheus.Labels{"epic": epic.String()})
+signalSendCounter.With(prometheus.Labels{"epic": epic.String()})
+```
+
+**Tip:** Define label name constants to enforce consistency:
+```go
+const (
+	labelBroker   = "broker"
+	labelEpic     = "epic"
+	labelStrategy = "strategy"
+)
+```
+
 
 ** Good Label Design:**
 

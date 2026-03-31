@@ -1,0 +1,19 @@
+{
+  "name": "coding",
+  "owner": {
+    "name": "Benjamin Borbe"
+  },
+  "metadata": {
+    "description": "Coding guidelines, code review commands, and quality agents for Go and Python development",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "coding",
+      "description": "Coding guidelines, code review commands, and quality agents for Go and Python development",
+      "source": "./",
+      "version": "1.0.0",
+      "strict": true
+    }
+  ]
+}

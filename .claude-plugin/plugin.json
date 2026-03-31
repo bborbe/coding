@@ -1,0 +1,11 @@
+{
+  "name": "coding",
+  "description": "Coding guidelines, code review commands, and quality agents for Go and Python development",
+  "version": "1.0.0",
+  "author": {
+    "name": "Benjamin Borbe"
+  },
+  "homepage": "https://github.com/bborbe/coding",
+  "repository": "https://github.com/bborbe/coding",
+  "license": "BSD-2-Clause"
+}

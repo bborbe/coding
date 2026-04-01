@@ -91,11 +91,17 @@ templates/          Project templates (Makefile, tools.go, .gitignore)
 make precommit    # Validates links in README.md and llms.txt
 ```
 
-## Versioning
+## Release Checklist
 
-- CHANGELOG.md with semver
-- Tag after merge: `git tag v0.0.X && git push --tags`
-- Update version in `.claude-plugin/plugin.json` and `marketplace.json`
+When releasing a new version, update version in **all three files**:
+1. `CHANGELOG.md` — new `## vX.Y.Z` section
+2. `.claude-plugin/plugin.json` — `"version"` field
+3. `.claude-plugin/marketplace.json` — both `"version"` fields (metadata + plugins array)
+
+Then commit, tag, and push:
+```bash
+git tag vX.Y.Z && git push && git push origin vX.Y.Z
+```
 
 ## Writing Docs
 

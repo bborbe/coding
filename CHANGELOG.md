@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.2.0
+
+- Add readme-guide.md and claude-md-guide.md for README.md vs CLAUDE.md separation
+- Update documentation-guide.md with CLAUDE.md overview and links to specific guides
+
 ## v0.1.0
 - Add finder agents for self-contained check-guides
 - Add templates, remove personal paths from agents

@@ -2,12 +2,32 @@
 
 ## 1. Overview of Documentation Structure
 
-Each service uses:
+Each project uses three layers:
 
-    README.md        → High-level overview and quickstart
-    docs/            → Detailed and in-depth documentation
+    README.md        → What it does, install, use (for humans on GitHub)
+    CLAUDE.md        → How to change the code safely (for AI agents)
+    docs/            → Detailed and in-depth documentation (for both)
     docs/adr/        → (Optional) Architecture Decision Records
     docs/prd/        → Product Requirement Definitions
+
+### What Goes Where
+
+| Content | README.md | CLAUDE.md | docs/ |
+|---------|-----------|-----------|-------|
+| What the project does | Yes | 1 line only | Overview |
+| Install/usage | Yes | Never | - |
+| Features/marketing | Yes | Never | - |
+| Build/test commands | Brief | Detailed | - |
+| Architecture | Never | Package map | Full detail |
+| Design decisions | Never | Constraints list | ADRs |
+| Env vars/config | User-facing | Agent-needs | Full reference |
+| API docs | Brief | Never | Full detail |
+| Workflow rules | Never | Yes | - |
+
+### Detailed Guides
+
+- **[readme-guide.md](readme-guide.md)** — How to write a good README.md (templates, sections, project types)
+- **[claude-md-guide.md](claude-md-guide.md)** — How to write a good CLAUDE.md (architecture, constraints, build commands)
 
 ## 2. Internal vs Public Projects
 

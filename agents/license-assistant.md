@@ -19,6 +19,15 @@ You are a license management specialist. Ensure consistent licensing across all 
 
 ## Workflow
 
+### Step 0: Detect Public vs Private Repository
+
+License requirements only apply to **public** repositories. Skip all checks for private/internal repos.
+
+**Detection rules:**
+- `git remote -v` contains `github.com` → **public** → continue
+- `git remote -v` contains `bitbucket.seibert.tools` or other internal hosting → **private** → report "No licensing required for internal repos" and STOP
+- No remote → assume public, continue
+
 ### Step 1: Detect Project Type
 
 Check for project markers:

@@ -2,9 +2,23 @@
 
 This guide covers how to properly handle licensing in Go projects.
 
+## Public vs Private Repos
+
+Licensing requirements depend on whether the repository is **public** or **private/internal**:
+
+| | Public (GitHub) | Private/Internal (Bitbucket) |
+|---|---|---|
+| LICENSE file | Required | Not needed |
+| README license section | Required | Not needed |
+| Source file headers | Required | Not needed |
+
+**How to detect**: If the repo is hosted on `github.com` → public. If hosted on `bitbucket.seibert.tools` or similar internal hosting → private/internal.
+
+The rest of this guide applies to **public repositories only**.
+
 ## Overview
 
-All projects in the Benjamin Borbe ecosystem use **BSD-2-Clause** (BSD-style) licensing with three components:
+Public projects in the Benjamin Borbe ecosystem use **BSD-2-Clause** (BSD-style) licensing with three components:
 
 1. **LICENSE file** in the root directory
 2. **License section** in README.md

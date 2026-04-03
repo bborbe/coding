@@ -33,16 +33,22 @@ Detect project type to determine which specialist agents to invoke:
 
 ### Step 3: Run Automated Checks (All Modes)
 
-**3a. Check for LICENSE file**
+**3a. Check for LICENSE file (public repos only)**
 
-Use Glob to check if LICENSE file exists in project root:
+First, detect if the repo is public or private:
+- Run `git remote -v` and check the URL
+- `github.com` → **public** → check LICENSE
+- `bitbucket.seibert.tools` or other internal hosting → **private** → skip all license checks
+
+For public repos, use Glob to check if LICENSE file exists in project root:
 ```
 LICENSE or LICENSE.md or LICENSE.txt
 ```
 
 Store result for later:
-- If missing → flag for license-assistant in Standard mode, report in Short mode
-- If present → skip license-assistant in Standard mode
+- If private repo → skip license-assistant entirely (no LICENSE needed)
+- If public and missing → flag for license-assistant in Standard mode, report in Short mode
+- If public and present → skip license-assistant in Standard mode
 
 **3b. Run make precommit (if available)**
 
@@ -64,7 +70,7 @@ If Makefile doesn't exist or lacks `precommit` target, skip this step. If `make 
 Based on detected mode, invoke agents **in parallel**:
 
 **Short Mode**: No agents - skip to Step 5
-- BUT: If LICENSE file is missing (from Step 3a), add to report "Should Fix" section:
+- BUT: If LICENSE file is missing AND repo is public (from Step 3a), add to report "Should Fix" section:
   - "Missing LICENSE file"
   - "README missing license section" (check with Grep for `## License` in README.md)
 
@@ -83,7 +89,7 @@ Based on detected mode, invoke agents **in parallel**:
 1. **python-quality-assistant**: Idiomatic Python patterns, type hints, error handling, logging, async safety
 
 *For all projects (conditional):*
-5. **license-assistant**: ONLY if LICENSE file is missing (from Step 3a) - review mode only
+5. **license-assistant**: ONLY if public repo AND LICENSE file is missing (from Step 3a) - review mode only
 
 **Full Mode**:
 
@@ -100,7 +106,7 @@ Based on detected mode, invoke agents **in parallel**:
 1. **python-quality-assistant**: Code quality, type hints, error handling
 
 *All projects:*
-11. **license-assistant**: LICENSE file, README license section (ALWAYS run in full mode, review mode only)
+11. **license-assistant**: LICENSE file, README license section (ONLY for public repos, review mode only)
 12. **readme-quality-assistant**: README.md quality and completeness (review mode only - no updates)
 13. **shellcheck-assistant**: Shell script quality, security, and best practices
 14. **context7-library-checker**: Check library usage against up-to-date docs, detect deprecated APIs (review mode only)

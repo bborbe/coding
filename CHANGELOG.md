@@ -8,6 +8,14 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.2.1
+
+- Add go-mod dependency fix guide
+- Skip license checks for private repos
+- Improve factory guide
+- Sync plugin version to v0.2.0 and add release checklist to CLAUDE.md
+- Improve /commit to detect unreleased commits since last tag on clean working tree
+
 ## v0.2.0
 
 - Add readme-guide.md and claude-md-guide.md for README.md vs CLAUDE.md separation

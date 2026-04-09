@@ -39,6 +39,18 @@ Tags are ONLY created on master/main branch. Feature branches never create tags.
 6. **Detect trivial changes** (comments, whitespace, TODOs only)
 7. Route to appropriate workflow
 
+### CRITICAL: "No changes" check
+
+When `CHANGELOG.md` exists, NEVER abort based on `git status --porcelain` alone. A clean working tree can still have **unreleased commits since the last tag** that need to be released.
+
+**Always run both checks:**
+```bash
+cd $PROJECT_DIR && git status --porcelain                                  # uncommitted
+cd $PROJECT_DIR && git log --oneline $(git describe --tags --abbrev=0)..HEAD  # unreleased commits
+```
+
+Abort with "No changes to commit" only if **both** are empty. If there are unreleased commits on master/main, proceed with Workflow B or C to create the release (changelog + tag), even with a clean working tree.
+
 ### Workflow A: Feature Branch WITH CHANGELOG.md
 1. Run `make precommit` (if available)
 2. Ensure `## Unreleased` section exists (create if missing)

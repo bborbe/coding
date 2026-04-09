@@ -32,12 +32,13 @@ Tags are ONLY created on master/main branch. Feature branches never create tags.
 
 ### Automatic Detection
 1. Determine working directory
-2. Detect current branch (master/main vs feature)
-3. Check if `CHANGELOG.md` exists
-4. Check for `## Unreleased` section
-5. **Detect pipeline-only changes** (only prompts/, specs/, scenarios/)
-6. **Detect trivial changes** (comments, whitespace, TODOs only)
-7. Route to appropriate workflow
+2. **Read project `CLAUDE.md`** (if present at repo root) — scan for release/commit checklists, extra files to bump, and project-specific rules. Common sections: "Release Checklist", "Plugin Release Checklist", "Publishing", "Version Bump". If a checklist lists extra files (e.g. `.claude-plugin/plugin.json`, `package.json`, `pyproject.toml`, `Cargo.toml`), treat them as mandatory parts of any release commit and bump their version string to match the new `vX.Y.Z`.
+3. Detect current branch (master/main vs feature)
+4. Check if `CHANGELOG.md` exists
+5. Check for `## Unreleased` section
+6. **Detect pipeline-only changes** (only prompts/, specs/, scenarios/)
+7. **Detect trivial changes** (comments, whitespace, TODOs only)
+8. Route to appropriate workflow
 
 ### CRITICAL: "No changes" check
 

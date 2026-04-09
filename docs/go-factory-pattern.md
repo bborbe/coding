@@ -19,12 +19,16 @@ Factory functions compose objects by wiring dependencies together. They contain 
 **Services/Applications:**
 ```
 pkg/factory/factory.go    # All factory functions in ONE file
+pkg/thing.go              # Implementation types live in pkg/ (flat)
+pkg/big_area/thing.go     # If pkg/ grows large, group into pkg/<subpkg>/
 ```
 
 **Libraries:**
 ```
 lib/mylib/factory.go      # NOT lib/mylib/pkg/factory/factory.go
 ```
+
+**Rule:** Implementation types (structs, interfaces, methods with logic) MUST NOT live inside `pkg/factory/`. The factory package is wiring-only. Impl goes in `pkg/` directly, or in a `pkg/<subpkg>/` sibling package if `pkg/` becomes too large. A file named `pkg/factory/roundtripper.go` containing a `mocoRoundTripper` struct is wrong — move it to `pkg/roundtripper/` (or `pkg/roundtripper.go`).
 
 **Naming:**
 - Factories: `Create*` prefix (e.g., `CreateUserService`)
@@ -230,5 +234,5 @@ pkg/factory/factory.go  // All factories in one file
 - ✅ All factories in single file: `pkg/factory/factory.go` or `lib/{name}/factory.go`
 - ✅ Use `Create*` prefix
 - ✅ Only constructor calls - zero business logic
-- ✅ Move complex logic to separate implementation files
+- ✅ Move complex logic to implementation files in `pkg/` (or `pkg/<subpkg>/` if `pkg/` is large) — NEVER inside `pkg/factory/`
 - ✅ Return interface types

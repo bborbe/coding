@@ -1,6 +1,17 @@
 # Coding
 
-Coding guidelines, quality agents, and slash commands for Go and Python development. Install as Claude Code plugin for automated code review.
+[![CI](https://github.com/bborbe/coding/actions/workflows/ci.yml/badge.svg)](https://github.com/bborbe/coding/actions/workflows/ci.yml)
+[![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue.svg)](LICENSE)
+
+Opinionated coding guidelines, quality review agents, and slash commands for Go and Python — packaged as a [Claude Code](https://docs.claude.com/claude-code) plugin.
+
+## Overview
+
+Writing consistent, idiomatic code across a large codebase is hard. This plugin bundles 50+ opinionated guides (Go architecture, error handling, testing, HTTP handlers, Python structure, Git workflow, documentation) together with specialized Claude Code agents that enforce them on your code. Install once, then run `/coding:code-review` or `/coding:pr-review` to review your work against the full ruleset.
+
+## Requirements
+
+- [Claude Code](https://docs.claude.com/claude-code) CLI installed
 
 ## Install
 
@@ -10,17 +21,45 @@ claude plugin install coding
 ```
 
 Update:
+
 ```bash
 claude plugin marketplace update coding
 claude plugin update coding@coding
+```
+
+## Quick Start
+
+Review your current branch against all guidelines:
+
+```
+/coding:pr-review
+```
+
+Review code in standard mode (7 agents) or full mode (14 agents):
+
+```
+/coding:code-review standard
+/coding:code-review full
+```
+
+Find relevant guides before starting work:
+
+```
+/coding:check-guides "add Prometheus metrics to HTTP handler"
+```
+
+Commit with changelog and version bump:
+
+```
+/coding:commit
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/coding:code-review [short\|standard\|full]` | Review code against guidelines (standard: 7 agents, full: 14) |
 | `/coding:pr-review` | Review pull request diff against standards |
+| `/coding:code-review [short\|standard\|full]` | Review code against guidelines (standard: 7 agents, full: 14) |
 | `/coding:check-guides "task"` | Find relevant guides before implementation |
 | `/coding:commit` | Git commit with changelog and versioning |
 | `/coding:go-write-test [basic\|standard\|integration]` | Generate Go tests for changed files |
@@ -29,51 +68,9 @@ claude plugin update coding@coding
 | `/coding:vscode [dir]` | Open VS Code in directory |
 | `/coding:intellij [dir]` | Open IntelliJ IDEA in directory |
 
-## Agents
-
-Agents are invoked by commands. Each reads its matching doc as source of truth.
-
-### Go Quality (standard mode)
-
-| Agent | Doc | Checks |
-|-------|-----|--------|
-| `go-quality-assistant` | `go-architecture-patterns.md` | Naming, file layout, logging, concurrency, transactions |
-| `go-context-assistant` | `go-context-cancellation-in-loops.md` | context.Background(), missing ctx.Done() in loops |
-| `go-error-assistant` | `go-error-wrapping-guide.md` | fmt.Errorf, bare return err, missing wrapping |
-| `go-time-assistant` | `go-time-injection.md` | time.Time in structs, time.Now() in production |
-| `go-factory-pattern-assistant` | `go-factory-pattern.md` | Factory compliance, zero-business-logic |
-| `go-http-handler-assistant` | `go-http-handler-refactoring-guide.md` | Handler organization, inline detection |
-| `go-test-coverage-assistant` | `go-testing-guide.md` | Test coverage gaps |
-
-### Go Quality (full mode adds)
-
-| Agent | Doc | Checks |
-|-------|-----|--------|
-| `go-metrics-assistant` | `go-prometheus-metrics-guide.md` | Metric types, naming, labels, pre-init |
-| `godoc-assistant` | `go-doc-best-practices.md` | GoDoc completeness and format |
-| `go-test-quality-assistant` | `go-testing-guide.md` | Ginkgo/Gomega patterns, mock usage |
-| `go-security-specialist` | `go-security-linting.md` | Vulnerabilities, OWASP |
-| `srp-checker` | — | Single Responsibility Principle |
-| `go-version-manager` | — | Go version currency |
-| `go-tooling-assistant` | `go-makefile-commands.md` | Makefile, tools.go |
-
-### Other
-
-| Agent | Description |
-|-------|-------------|
-| `license-assistant` | LICENSE file, headers, README section |
-| `readme-quality-assistant` | README.md completeness |
-| `shellcheck-assistant` | Shell script quality |
-| `python-quality-assistant` | Python code quality |
-| `context7-library-checker` | Library API currency |
-| `go-test-writer-assistant` | Generate Go tests |
-| `guide-improvement-assistant` | Refactor guides |
-| `simple-bash-runner` | Run build commands |
-| `pre-implementation-assistant` | Find relevant guides |
-| `coding-guidelines-finder` | Search docs/ |
-| `project-docs-finder` | Search project docs/ |
-
 ## Guides
+
+All guides live in [`docs/`](docs/) and can be read standalone without the plugin.
 
 ### Go — Architecture & Patterns
 
@@ -154,6 +151,7 @@ Agents are invoked by commands. Each reads its matching doc as source of truth.
 | [Changelog](docs/changelog-guide.md) | CHANGELOG.md format |
 | [Definition of Done](docs/definition-of-done.md) | Completion checklist |
 | [Documentation Guide](docs/documentation-guide.md) | README, docs/, PRDs |
+| [README Guide](docs/readme-guide.md) | README.md standards |
 | [PRD Guide](docs/prd-guide.md) | Product Requirements |
 | [ADR Guide](docs/adr-guide.md) | Architecture Decisions |
 | [Markdown & Todos](docs/markdown-todo-guide.md) | Formatting standards |
@@ -165,6 +163,65 @@ Agents are invoked by commands. Each reads its matching doc as source of truth.
 | [Vue 3 + TypeScript](docs/vue3-typescript-frontend-guide.md) | Composition API, Vite |
 | [Astro](docs/astro-development-guide.md) | Astro framework |
 
+## Agents
+
+Agents are invoked by commands — you rarely call them directly. Each reads its matching guide as source of truth.
+
+<details>
+<summary><b>Go Quality (standard mode, 7 agents)</b></summary>
+
+| Agent | Doc | Checks |
+|-------|-----|--------|
+| `go-quality-assistant` | `go-architecture-patterns.md` | Naming, file layout, logging, concurrency, transactions |
+| `go-context-assistant` | `go-context-cancellation-in-loops.md` | context.Background(), missing ctx.Done() in loops |
+| `go-error-assistant` | `go-error-wrapping-guide.md` | fmt.Errorf, bare return err, missing wrapping |
+| `go-time-assistant` | `go-time-injection.md` | time.Time in structs, time.Now() in production |
+| `go-factory-pattern-assistant` | `go-factory-pattern.md` | Factory compliance, zero-business-logic |
+| `go-http-handler-assistant` | `go-http-handler-refactoring-guide.md` | Handler organization, inline detection |
+| `go-test-coverage-assistant` | `go-testing-guide.md` | Test coverage gaps |
+
+</details>
+
+<details>
+<summary><b>Go Quality (full mode adds 7 more)</b></summary>
+
+| Agent | Doc | Checks |
+|-------|-----|--------|
+| `go-metrics-assistant` | `go-prometheus-metrics-guide.md` | Metric types, naming, labels, pre-init |
+| `godoc-assistant` | `go-doc-best-practices.md` | GoDoc completeness and format |
+| `go-test-quality-assistant` | `go-testing-guide.md` | Ginkgo/Gomega patterns, mock usage |
+| `go-security-specialist` | `go-security-linting.md` | Vulnerabilities, OWASP |
+| `srp-checker` | — | Single Responsibility Principle |
+| `go-version-manager` | — | Go version currency |
+| `go-tooling-assistant` | `go-makefile-commands.md` | Makefile, tools.go |
+
+</details>
+
+<details>
+<summary><b>Other agents</b></summary>
+
+| Agent | Description |
+|-------|-------------|
+| `license-assistant` | LICENSE file, headers, README section |
+| `readme-quality-assistant` | README.md completeness |
+| `shellcheck-assistant` | Shell script quality |
+| `python-quality-assistant` | Python code quality |
+| `context7-library-checker` | Library API currency |
+| `go-test-writer-assistant` | Generate Go tests |
+| `guide-improvement-assistant` | Refactor guides |
+| `simple-bash-runner` | Run build commands |
+| `pre-implementation-assistant` | Find relevant guides |
+| `coding-guidelines-finder` | Search docs/ |
+| `project-docs-finder` | Search project docs/ |
+
+</details>
+
+## Contributing
+
+Issues and pull requests welcome at [github.com/bborbe/coding](https://github.com/bborbe/coding).
+
+Guides are the source of truth — agents enforce them. To propose a rule change, edit the relevant file in `docs/` and open a PR.
+
 ## License
 
-BSD-style license. See [LICENSE](LICENSE) file.
+BSD-2-Clause. See [LICENSE](LICENSE).

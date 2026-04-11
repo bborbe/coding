@@ -60,6 +60,26 @@ import (
 var ErrNotFound = stderrors.New("not found")
 ```
 
+**Naming**: Use the `ErrXxx` convention (e.g. `ErrNotFound`, `ErrBucketNotFound`),
+not `XxxError` or `XxxErr`. This matches stdlib (`io.EOF`, `sql.ErrNoRows`) and
+Go's sentinel error conventions.
+
+### Renaming Sentinel Errors (Backwards-Compat Alias)
+
+When renaming a sentinel error (e.g. `BucketNotFoundErr` → `ErrBucketNotFound`),
+keep the old name as a deprecated alias so downstream consumers don't break:
+
+```go
+var ErrBucketNotFound = stderrors.New("bucket not found")
+
+// Deprecated: use ErrBucketNotFound.
+var BucketNotFoundErr = ErrBucketNotFound
+```
+
+The `// Deprecated:` godoc marker makes IDEs, `staticcheck`, and `go doc` flag
+usages of the old name. Remove the alias in a later major version once all
+callers have migrated.
+
 ### Enriching Context with Data
 
 ```go

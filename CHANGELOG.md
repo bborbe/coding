@@ -8,6 +8,14 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.3.0
+
+- Rewrite README.md per readme-guide.md (add Overview, Requirements, Quick Start, Contributing; CI and license badges; collapse agents into details; reorder commands; fix license to BSD-2-Clause)
+- Add GitHub Actions CI workflow running `make precommit` on push and PRs
+- Fix Makefile check-links silent-fail bug (pipe subshell swallowed `EXIT=1`) and allow directory links (`-f` → `-e`); strip anchors before check
+- Add `check-json` target validating `.claude-plugin/plugin.json`
+- Add sentinel error naming convention (`ErrXxx`) and backwards-compat alias pattern to go-error-wrapping-guide.md
+
 ## v0.2.2
 
 - commit: Read project CLAUDE.md as step 2 of detection — honors project-specific release checklists (extra files to bump, version-sync rules) that the generic workflow would otherwise miss

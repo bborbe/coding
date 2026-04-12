@@ -10,8 +10,6 @@ Transform verbose coding guidelines into scannable, AI-optimized rule sets:
 
 ```bash
 /coding:improve-guide go-testing-guide.md
-/coding:improve-guide ~/Documents/workspaces/coding/docs/go-factory-pattern.md
-/coding:improve-guide ./docs/architecture-patterns.md
 ```
 
 ## Your Task

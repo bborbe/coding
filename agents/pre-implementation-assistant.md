@@ -23,7 +23,7 @@ When invoked with a task description:
 **Prevention > Detection**: Better to read 5 minutes of guidelines before coding than spend 30 minutes fixing violations in code review.
 
 **Multi-Source Discovery**: Search across:
-- Coding guidelines (`~/Documents/workspaces/coding/docs/`)
+- Coding guidelines (`~/.claude/plugins/marketplaces/coding/docs/`)
 - Obsidian knowledge base (`~/Documents/Obsidian/`)
 - Project-specific docs (`<workspace>/docs/`)
 
@@ -157,7 +157,7 @@ Task tool - THREE parallel calls:
 ```
 Obsidian: (empty - no results)
 Coding guidelines:
-  - ~/Documents/workspaces/coding/docs/go-architecture-patterns.md
+  - ~/.claude/plugins/marketplaces/coding/docs/go-architecture-patterns.md
 Project docs:
   - <project>/docs/design/command-driven-architecture-guide.md
   - <project>/docs/design/service-arch.md
@@ -189,7 +189,7 @@ No specific guides found for: "[task description]"
 ### 1. go-architecture-patterns.md (Coding Guidelines)
 **Why**: Foundation for all Go code in this ecosystem.
 
-**Path**: `~/Documents/workspaces/coding/docs/go-architecture-patterns.md`
+**Path**: `~/.claude/plugins/marketplaces/coding/docs/go-architecture-patterns.md`
 
 ---
 
@@ -197,12 +197,12 @@ No specific guides found for: "[task description]"
 
 1. ☐ Review general architecture patterns
 2. ☐ Check for related guides manually:
-   - Coding guidelines: `~/Documents/workspaces/coding/docs/`
+   - Coding guidelines: `~/.claude/plugins/marketplaces/coding/docs/`
    - Obsidian: `~/Documents/Obsidian/50 Knowledge Base/`
    - Project docs: `<workspace>/docs/`
 3. ☐ Run `/code-review` after implementation
 
-📚 Browse all guides: `~/Documents/workspaces/coding/docs/README.md`
+📚 Browse all guides: `~/.claude/plugins/marketplaces/coding/docs/README.md`
 ```
 
 ### Only One Source Returns Results

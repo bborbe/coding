@@ -39,7 +39,7 @@ Documentation context query:
   "requesting_agent": "godoc-assistant",
   "request_type": "get_documentation_context",
   "payload": {
-    "query": "Documentation context needed: recent code changes scope, exported items without docs, package structure, coding guidelines location (~/Documents/workspaces/coding/docs/go-doc-best-practices.md), and domain-specific terminology."
+    "query": "Documentation context needed: recent code changes scope, exported items without docs, package structure, coding guidelines location (~/.claude/plugins/marketplaces/coding/docs/go-doc-best-practices.md), and domain-specific terminology."
   }
 }
 ```
@@ -69,7 +69,7 @@ Discovery priorities:
 - Use `Read` to examine files
 
 Documentation standards reference:
-- Follow `~/Documents/workspaces/coding/docs/go-doc-best-practices.md`
+- Follow `~/.claude/plugins/marketplaces/coding/docs/go-doc-best-practices.md`
 - Complete sentences starting with item name
 - Third-person perspective
 - Focus on behavior/use, not implementation

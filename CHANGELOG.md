@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.3.1
+
+- Fix agent paths to use canonical plugin path `~/.claude/plugins/marketplaces/coding/docs/`
+- Clarify definition-of-done to follow all guides, not just language-specific ones
+
 ## v0.3.0
 
 - Rewrite README.md per readme-guide.md (add Overview, Requirements, Quick Start, Contributing; CI and license badges; collapse agents into details; reorder commands; fix license to BSD-2-Clause)

@@ -29,6 +29,7 @@ pytest --cov=affected_module --cov-report=term-missing
 
 - Follow project CLAUDE.md conventions
 - Follow all relevant docs in `~/.claude/plugins/marketplaces/coding/docs/`
+- This includes ALL guides (Go, Python, shell, documentation, etc.) — not just language-specific ones
 - Self-review diff against the checklist in CLAUDE.md before `make precommit`
 
 ## Verification

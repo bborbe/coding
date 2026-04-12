@@ -1,7 +1,7 @@
 {
   "name": "coding",
   "description": "Coding guidelines, code review commands, and quality agents for Go and Python development",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Benjamin Borbe"
   },

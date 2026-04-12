@@ -8,7 +8,9 @@ color: blue
 
 # Purpose
 
-Find relevant coding guideline files in `~/Documents/workspaces/coding/docs/` based on task keywords. Return ONLY file paths, no analysis.
+Find relevant coding guideline files based on task keywords. Return ONLY file paths, no analysis.
+
+Docs location: `~/.claude/plugins/marketplaces/coding/docs/`
 
 ## Input
 
@@ -19,8 +21,8 @@ Task description or keywords (e.g., "write tests", "create factory", "HTTP handl
 **Return only file paths, one per line:**
 
 ```
-~/Documents/workspaces/coding/docs/go-testing-guide.md
-~/Documents/workspaces/coding/docs/go-factory-pattern.md
+<docs-dir>/go-testing-guide.md
+<docs-dir>/go-factory-pattern.md
 ```
 
 **Rules:**
@@ -51,14 +53,14 @@ Match task keywords to guide filenames:
 
 1. **Extract keywords** from task description (lowercase)
 
-2. **Search for matching guides**:
+2. **List all guides**:
    ```bash
-   ls ~/Documents/workspaces/coding/docs/*.md
+   ls ~/.claude/plugins/marketplaces/coding/docs/*.md
    ```
 
 3. **Grep filenames for keywords**:
    ```bash
-   ls ~/Documents/workspaces/coding/docs/*.md | grep -i "keyword"
+   ls ~/.claude/plugins/marketplaces/coding/docs/*.md | grep -i "keyword"
    ```
 
 4. **Return matching paths** (max 5, most relevant first)
@@ -74,7 +76,7 @@ Match task keywords to guide filenames:
 
 **Output**:
 ```
-~/Documents/workspaces/coding/docs/go-testing-guide.md
-~/Documents/workspaces/coding/docs/go-factory-pattern.md
-~/Documents/workspaces/coding/docs/go-architecture-patterns.md
+<docs-dir>/go-testing-guide.md
+<docs-dir>/go-factory-pattern.md
+<docs-dir>/go-architecture-patterns.md
 ```

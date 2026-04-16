@@ -86,6 +86,43 @@ libtime.Day   // 24h
 libtime.Week  // 7d
 ```
 
+## Testing `NOW`/`NOW-7d` Parsing — Package-Level `libtime.Now`
+
+`libtime.ParseTime` / `libtime.ParseDate` resolve relative expressions like `NOW`, `NOW-7d`, `NOW+1h` by calling the **package-level** `libtime.Now` variable — NOT an injected `CurrentDateTimeGetter`.
+
+If your production code uses `ParseTime("NOW-7d")` and you need deterministic tests, monkey-patch the package var:
+
+```go
+import libtime "github.com/bborbe/time"
+
+var _ = Describe("parses NOW-7d", func() {
+    var originalNow func() time.Time
+
+    BeforeEach(func() {
+        originalNow = libtime.Now
+        libtime.Now = func() time.Time {
+            return time.Date(2026, 4, 14, 12, 0, 0, 0, time.UTC)
+        }
+    })
+
+    AfterEach(func() {
+        libtime.Now = originalNow  // restore — other tests depend on real clock
+    })
+
+    It("resolves NOW-7d to 2026-04-07", func() {
+        d, err := libtime.ParseDate(ctx, "NOW-7d")
+        Expect(err).NotTo(HaveOccurred())
+        Expect(d.Format("2006-01-02")).To(Equal("2026-04-07"))
+    })
+})
+```
+
+Why this is separate from `CurrentDateTimeGetter`:
+- `CurrentDateTimeGetter` is a dependency you inject into your own structs — your code calls `getter.Now()`.
+- `libtime.Now` is a library-internal free function used by the parser — you don't control the call site.
+
+Always `defer`-restore the original — parallel tests or subsequent specs will break if you leave the patched value.
+
 ## Anti-Patterns
 
 - `time.Now()` in production → inject `CurrentDateTimeGetter`

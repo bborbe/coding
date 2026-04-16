@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.4.1
+
+- Scrub `go-kubernetes-crd-controller-guide.md` of employer-internal references (sm-octopus, trading examples); replace with public bborbe repo references (bborbe/alert, bborbe/cqrs) and generic example domains
+- Fix invalid Go syntax `XPreserveUnknownFields: &true` → `ptr.To(true)` using `k8s.io/utils/ptr`
+- Rename "What to NOT do" heading to "Antipatterns" per guide style
+
 ## v0.4.0
 
 - Add `go-kubernetes-crd-controller-guide.md` covering CRD types, generated clientset, self-install, event-handler pattern, and deliberate exclusions (no Lister, no WaitForCacheSync, no separate YAML manifest)

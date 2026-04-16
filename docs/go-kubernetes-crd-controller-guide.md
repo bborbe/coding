@@ -1,6 +1,6 @@
 # Go Kubernetes CRD Controller Guide
 
-How to define and consume a Kubernetes Custom Resource Definition (CRD) in a bborbe Go service. This pattern is used in production across `alert`, `cqrs/cdb`, `cqrs/raw`, `sm-octopus/raw/schema-v1`, and `sm-octopus/cdb/schema-v1`.
+How to define and consume a Kubernetes Custom Resource Definition (CRD) in a Go service. This pattern is used in production across multiple bborbe Go services including [`bborbe/alert`](https://github.com/bborbe/alert), [`bborbe/cqrs/cdb`](https://github.com/bborbe/cqrs), and [`bborbe/cqrs/raw`](https://github.com/bborbe/cqrs).
 
 ## 1. When to use this pattern
 
@@ -24,8 +24,8 @@ Lives in a dedicated package or sub-module. Follows `kubernetes/code-generator` 
 myservice/
 ├── k8s/
 │   ├── apis/
-│   │   └── <group>.bborbe.dev/          # e.g. monitoring.bborbe.dev, agents.bborbe.dev
-│   │       ├── register.go               # const GroupName = "<group>.bborbe.dev"
+│   │   └── <group>.example.com/         # your API group, e.g. example.com
+│   │       ├── register.go               # const GroupName = "<group>.example.com"
 │   │       └── v1/
 │   │           ├── doc.go                # +groupName marker
 │   │           ├── register.go           # SchemeBuilder, AddToScheme
@@ -67,8 +67,7 @@ myservice/
 ```
 
 **Reference implementations**:
-- `sm-octopus/raw/schema-v1/k8s-controller` + `sm-octopus/cdb/schema-v1/k8s-controller` (identical shape)
-- `trading/monitoring/alert-controller`
+- [`github.com/bborbe/alert`](https://github.com/bborbe/alert) — consumer reacts to alert CRs and dispatches notifications (stateless reactor shape)
 
 ## 3. Types package (library side)
 
@@ -161,7 +160,7 @@ func createSpec() apiextensionsv1.CustomResourceDefinitionSpec {
 
 **Scope**: always `Namespaced` (use namespaces for dev/prod isolation). Cluster-scope is only justified when the resource is genuinely global (nodes, storage classes).
 
-**Schema**: provide a strict OpenAPIV3Schema for first-party CRDs. Use `XPreserveUnknownFields: &true` only when the CR wraps arbitrary user content (cqrs/raw does this because the `Spec` is a marshalled event payload).
+**Schema**: provide a strict OpenAPIV3Schema for first-party CRDs. Use `XPreserveUnknownFields: ptr.To(true)` (from `k8s.io/utils/ptr`) only when the CR wraps arbitrary user content — `bborbe/cqrs/raw` does this because its `Spec` is a marshalled event payload.
 
 **RBAC**: the service account needs `get/create/update/patch` on `customresourcedefinitions.apiextensions.k8s.io` plus `get/list/watch` on the CR group.
 
@@ -249,15 +248,15 @@ func NewEventHandler(ctx context.Context, inner EventHandlerMyResource) cache.Re
 }
 ```
 
-Copy-paste from `sm-octopus/cdb/schema-v1/k8s-controller/pkg/event-handler.go` and change the type.
+The adapter file is boilerplate — the only thing that changes between CRDs is the `*v1.MyResource` type.
 
 ## 6. State management
 
 The adapter is stateless. State, when needed, lives in a store injected into the domain handler:
 
-- **Stateless reactor** (alert, cqrs): handler translates CR events into side effects (Kafka commands, k8s resources). No local state.
+- **Stateless reactor** (bborbe/alert, bborbe/cqrs): handler translates CR events into side effects (Kafka commands, k8s resources). No local state.
 - **In-memory store** (typical for config-lookup CRDs): thread-safe `map[key]Value` behind a `sync.RWMutex`. Handler updates on add/update/delete; consumers read via a lookup method.
-- **Durable store** (sm-octopus): handler writes to a KV DB inside a transaction; consumers query the DB.
+- **Durable store**: handler writes to a KV DB (e.g. BoltDB, BadgerDB) inside a transaction; consumers query the DB. Use this when restart must not lose state or when cross-process sharing is needed.
 
 ### In-memory store skeleton
 
@@ -297,7 +296,7 @@ func (s *myResourceStore) Find(ctx context.Context, key string) (MyResource, err
 }
 ```
 
-## 7. What to NOT do
+## 7. Antipatterns
 
 - **No `Lister` / `Indexer` usage.** The generated `Lister` exists but is not used in this pattern — domain handlers receive typed values directly. A store is simpler to mock and reason about than a cache.
 - **No `WaitForCacheSync` on startup.** Informers sync sub-second in practice; waiting adds a failure mode (timeout) without benefit. If a lookup arrives before sync completes, return `ErrNotFound` → caller logs and retries. This is the "eventual consistency" contract all bborbe CRD consumers assume.
@@ -377,11 +376,8 @@ Production examples to copy-adapt:
 
 | Repository | Role | Notes |
 |------------|------|-------|
-| `github.com/bborbe/alert` | Library | Types + generated client |
-| `github.com/bborbe/cqrs/cdb` + `cqrs/raw` | Library | Same shape; `raw` uses `XPreserveUnknownFields` |
-| `trading/monitoring/alert-controller` | Consumer | Stateless reactor |
-| `sm-octopus/raw/schema-v1/k8s-controller` | Consumer | KV-backed store |
-| `sm-octopus/cdb/schema-v1/k8s-controller` | Consumer | Identical to raw |
+| [`github.com/bborbe/alert`](https://github.com/bborbe/alert) | Library + consumer | Types + generated client + stateless-reactor consumer |
+| [`github.com/bborbe/cqrs`](https://github.com/bborbe/cqrs) | Library | `cdb` + `raw` modules share the same shape; `raw` uses `XPreserveUnknownFields` for arbitrary payloads |
 
 Related guides:
 - [go-factory-pattern.md](./go-factory-pattern.md) — factory wiring rules

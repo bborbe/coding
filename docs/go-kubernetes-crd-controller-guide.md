@@ -2,6 +2,17 @@
 
 How to define and consume a Kubernetes Custom Resource Definition (CRD) in a Go service. This pattern is used in production across multiple bborbe Go services including [`bborbe/alert`](https://github.com/bborbe/alert), [`bborbe/cqrs/cdb`](https://github.com/bborbe/cqrs), and [`bborbe/cqrs/raw`](https://github.com/bborbe/cqrs).
 
+## 0. Before you start — use `bborbe/k8s`
+
+[`github.com/bborbe/k8s`](https://github.com/bborbe/k8s) provides generic primitives that eliminate most of the boilerplate in sections 5–6 of this guide:
+
+- `k8s.Type` — interface your types implement (`Equal`, `Identifier`, `Validate`, `String`)
+- `k8s.EventHandler[T Type]` — typed event handler interface (`OnAdd` / `OnUpdate` / `OnDelete` / `Get`)
+- `k8s.NewEventHandler[T Type]()` — generic thread-safe in-memory store
+- `k8s.NewResourceEventHandler[T Type](ctx, handler)` → `cache.ResourceEventHandler` adapter
+
+If your service already depends on `bborbe/k8s` (most do), use these instead of hand-writing the store and adapter. The hand-written skeletons in sections 5–6 are documented only for services that cannot take the dependency.
+
 ## 1. When to use this pattern
 
 Use a CRD when:
@@ -60,20 +71,21 @@ myservice/
 │   └── <name>-deploy.yaml
 └── pkg/
     ├── k8s-connector.go                   # Sets up the informer + self-installs the CRD
-    ├── event-handler.go                   # Adapts cache.ResourceEventHandler → typed domain handler
-    ├── event-handler-<resource>.go        # Typed domain handler (OnAdd/OnUpdate/OnDelete with *v1.X)
-    ├── <resource>-store.go                # Optional: state holder (in-memory map, KV, DB)
     └── factory/factory.go                 # Wiring
 ```
+
+Nothing else. With `bborbe/k8s`, the event-handler and store files collapse into `k8s.NewEventHandler[T]()` + `k8s.NewResourceEventHandler[T]()` called from the factory. If `bborbe/k8s` is off-limits, add `pkg/event-handler.go` (cast adapter) + `pkg/event-handler-<resource>.go` (typed handler) + `pkg/<resource>-store.go` (state holder) — see the fallbacks in sections 5–6.
 
 **Reference implementations**:
 - [`github.com/bborbe/alert`](https://github.com/bborbe/alert) — consumer reacts to alert CRs and dispatches notifications (stateless reactor shape)
 
 ## 3. Types package (library side)
 
-### `k8s/apis/<group>.bborbe.dev/v1/types.go`
+### `k8s/apis/<group>.example.com/v1/types.go`
 
 ```go
+var _ k8s.Type = MyResource{}
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -83,6 +95,27 @@ type MyResource struct {
     metav1.ObjectMeta `json:"metadata,omitempty"`
     Spec              MyResourceSpec `json:"spec"`
 }
+
+func (r MyResource) Equal(other k8s.Type) bool {
+    switch o := other.(type) {
+    case MyResource:
+        return r.Spec == o.Spec
+    case *MyResource:
+        return r.Spec == o.Spec
+    }
+    return false
+}
+
+func (r MyResource) Identifier() k8s.Identifier {
+    return k8s.Identifier(k8s.BuildName(r.Namespace, r.Name))
+}
+
+func (r MyResource) Validate(ctx context.Context) error {
+    // return validation errors here; called by the generic store
+    return nil
+}
+
+func (r MyResource) String() string { return r.Name }
 
 type MyResourceSpec struct {
     Field1 string `json:"field1"`
@@ -98,11 +131,41 @@ type MyResourceList struct {
 }
 ```
 
-Markers are mandatory — `client-gen` and `deepcopy-gen` consume them.
+Markers are mandatory — `client-gen` and `deepcopy-gen` consume them. The `k8s.Type` methods make the type compatible with `k8s.NewEventHandler[T]()` and `k8s.NewResourceEventHandler[T]`.
 
-### `k8s/apis/<group>.bborbe.dev/v1/register.go`
+### `k8s/apis/<group>.example.com/v1/register.go`
 
 Standard boilerplate — copy from `cqrs/raw` or `alert` and change `GroupName`.
+
+### Code generation setup
+
+The generated client under `k8s/client/` comes from `k8s.io/code-generator`. Copy the following from `bborbe/alert`:
+
+```
+myservice/
+├── hack/
+│   ├── boilerplate.go.txt         # license header for generated files
+│   └── update-codegen.sh          # sources vendor/k8s.io/code-generator/kube_codegen.sh
+└── Makefile
+    └── generatek8s:               # target: bash hack/update-codegen.sh
+```
+
+Add to `tools.go`:
+
+```go
+import _ "k8s.io/code-generator/cmd/validation-gen"
+```
+
+Workflow when types change:
+
+```bash
+go mod vendor                      # populate vendor/ (codegen reads from it)
+make generatek8s                   # regenerates k8s/client/** and zz_generated.deepcopy.go
+make ensure                        # go mod tidy; rm -rf vendor
+git add k8s/ && git commit         # generated files are committed
+```
+
+`generatek8s` is intentionally **separate from `generate`** (which runs mocks). Codegen is expensive and runs manually — the generated tree is stable day-to-day. Do not add `generatek8s` to `precommit`.
 
 ## 4. K8sConnector interface (consumer side)
 
@@ -191,110 +254,77 @@ const defaultResync = 5 * time.Minute
 
 `Listen` blocks until context is cancelled. The caller (`service.Run`) manages the lifecycle — usually one goroutine.
 
-## 5. Event handlers — two files
+## 5. Event handlers
 
-Split into a cast-adapter (untyped) and a domain handler (typed). This keeps the domain handler testable with plain struct values instead of `any`.
+### Preferred: use `bborbe/k8s` generics
 
-### `pkg/event-handler-<resource>.go` — domain-typed handler
+If the type implements `k8s.Type` (see section 3), both the typed handler and the `cache.ResourceEventHandler` adapter are one-liners:
 
 ```go
+// Typed handler with built-in in-memory store:
+eventHandler := k8s.NewEventHandler[v1.MyResource]()
+
+// Adapter to the informer:
+adapter := k8s.NewResourceEventHandler[v1.MyResource](ctx, eventHandler)
+
+// Read the current set anywhere:
+items, _ := eventHandler.Get(ctx)
+```
+
+`NewEventHandler[T]` is thread-safe, de-duplicates via `Equal`, and de-allocates on `OnDelete`. `NewResourceEventHandler[T]` does the type cast and logs mismatches with `glog.V(2)`.
+
+### Fallback: hand-written (when you cannot depend on `bborbe/k8s`)
+
+Split into a cast-adapter (untyped) and a domain handler (typed). Use this only if `bborbe/k8s` is off-limits.
+
+```go
+// pkg/event-handler-<resource>.go — domain-typed handler
 type EventHandlerMyResource interface {
     OnAdd(ctx context.Context, obj v1.MyResource) error
     OnUpdate(ctx context.Context, oldObj, newObj v1.MyResource) error
     OnDelete(ctx context.Context, obj v1.MyResource) error
 }
 
-func NewEventHandlerMyResource(store MyResourceStore) EventHandlerMyResource {
-    return &eventHandlerMyResource{store: store}
-}
-
-type eventHandlerMyResource struct { store MyResourceStore }
-
-func (e *eventHandlerMyResource) OnAdd(ctx context.Context, obj v1.MyResource) error {
-    e.store.Put(obj.Name, convert(obj))
-    return nil
-}
-// OnUpdate, OnDelete similarly
-```
-
-### `pkg/event-handler.go` — adapter to `cache.ResourceEventHandler`
-
-```go
+// pkg/event-handler.go — adapter to cache.ResourceEventHandler
 func NewEventHandler(ctx context.Context, inner EventHandlerMyResource) cache.ResourceEventHandler {
     return cache.ResourceEventHandlerFuncs{
-        AddFunc: func(obj any) {
-            typed, ok := obj.(*v1.MyResource)
-            if !ok { glog.V(2).Infof("cast failed"); return }
-            if err := inner.OnAdd(ctx, *typed); err != nil {
-                glog.V(2).Infof("add failed: %v", err)
-            }
-        },
-        UpdateFunc: func(oldObj, newObj any) {
-            oldT, ok1 := oldObj.(*v1.MyResource)
-            newT, ok2 := newObj.(*v1.MyResource)
-            if !ok1 || !ok2 { glog.V(2).Infof("cast failed"); return }
-            if err := inner.OnUpdate(ctx, *oldT, *newT); err != nil {
-                glog.V(2).Infof("update failed: %v", err)
-            }
-        },
-        DeleteFunc: func(obj any) {
-            typed, ok := obj.(*v1.MyResource)
-            if !ok { glog.V(2).Infof("cast failed"); return }
-            if err := inner.OnDelete(ctx, *typed); err != nil {
-                glog.V(2).Infof("delete failed: %v", err)
-            }
-        },
+        AddFunc:    func(obj any) { /* cast *v1.MyResource → inner.OnAdd */ },
+        UpdateFunc: func(oldObj, newObj any) { /* cast both → inner.OnUpdate */ },
+        DeleteFunc: func(obj any) { /* cast → inner.OnDelete */ },
     }
 }
 ```
 
-The adapter file is boilerplate — the only thing that changes between CRDs is the `*v1.MyResource` type.
+Full bodies: see `k8s_resource-event-handler.go` in `bborbe/k8s` — it is exactly what you would write.
 
 ## 6. State management
 
-The adapter is stateless. State, when needed, lives in a store injected into the domain handler:
+The adapter is stateless. State lives in the typed handler:
 
 - **Stateless reactor** (bborbe/alert, bborbe/cqrs): handler translates CR events into side effects (Kafka commands, k8s resources). No local state.
-- **In-memory store** (typical for config-lookup CRDs): thread-safe `map[key]Value` behind a `sync.RWMutex`. Handler updates on add/update/delete; consumers read via a lookup method.
-- **Durable store**: handler writes to a KV DB (e.g. BoltDB, BadgerDB) inside a transaction; consumers query the DB. Use this when restart must not lose state or when cross-process sharing is needed.
+- **In-memory store** (typical for config-lookup CRDs): use `k8s.NewEventHandler[T]()` — thread-safe, keyed by `Identifier()`, deduplicated via `Equal()`. Query with `handler.Get(ctx)` which returns `[]T`.
+- **Durable store**: wrap `k8s.EventHandler[T]` with a custom implementation that writes to a KV DB (e.g. BoltDB, BadgerDB) inside a transaction. Use this when restart must not lose state or when cross-process sharing is needed.
 
-### In-memory store skeleton
+### Lookup pattern
+
+The generic `Get(ctx) ([]T, error)` is the only read API — no indexed lookup. For high-read-rate lookups, maintain an adjacent index or cache one level above the handler:
 
 ```go
-//counterfeiter:generate -o ../mocks/myresource-store.go --fake-name MyResourceStore . MyResourceStore
-type MyResourceStore interface {
-    Put(key string, value MyResource)
-    Delete(key string)
-    Find(ctx context.Context, key string) (MyResource, error)
+items, err := eventHandler.Get(ctx)
+if err != nil { return errors.Wrap(ctx, err, "get items") }
+for _, it := range items {
+    if it.Spec.Assignee == target {
+        return it, nil
+    }
 }
-
-var ErrNotFound = stderrors.New("not found")
-
-type myResourceStore struct {
-    mu   sync.RWMutex
-    data map[string]MyResource
-}
-
-func NewMyResourceStore() MyResourceStore {
-    return &myResourceStore{data: map[string]MyResource{}}
-}
-
-func (s *myResourceStore) Put(key string, v MyResource) {
-    s.mu.Lock(); defer s.mu.Unlock()
-    s.data[key] = v
-}
-
-func (s *myResourceStore) Delete(key string) {
-    s.mu.Lock(); defer s.mu.Unlock()
-    delete(s.data, key)
-}
-
-func (s *myResourceStore) Find(ctx context.Context, key string) (MyResource, error) {
-    s.mu.RLock(); defer s.mu.RUnlock()
-    if v, ok := s.data[key]; ok { return v, nil }
-    return MyResource{}, errors.Wrapf(ctx, ErrNotFound, "find key %q", key)
-}
+return v1.MyResource{}, errors.Wrapf(ctx, ErrNotFound, "assignee %q", target)
 ```
+
+Linear scan is fine for the small sets CRDs typically hold (<~100). If the set grows, consider a bespoke store that does not use `k8s.NewEventHandler` directly.
+
+### Hand-written fallback (no `bborbe/k8s`)
+
+If you cannot depend on `bborbe/k8s`, write a store behind `sync.RWMutex` with `Put/Delete/Find` + `ErrNotFound` sentinel. Match the `k8s.EventHandler[T]` shape so swapping in is a one-line change later.
 
 ## 7. Antipatterns
 
@@ -306,30 +336,26 @@ func (s *myResourceStore) Find(ctx context.Context, key string) (MyResource, err
 
 ## 8. Testing
 
-- **K8sConnector**: mock `apiextensionsClient` via `apiextensions-apiserver/pkg/client/clientset/clientset/fake`. Assert `Create` called when CRD absent, `Update` called when present.
-- **EventHandlerMyResource**: pass a Counterfeiter-mocked store; assert `Put(key, value)` / `Delete(key)` called with the right arguments. Test each of OnAdd/OnUpdate/OnDelete.
-- **Adapter** (`event-handler.go`): Counterfeiter-mock the domain handler. Assert the adapter calls the typed method when given a `*v1.MyResource`, and logs + returns when given something else.
-- **Store**: table-driven Ginkgo specs for Put/Delete/Find. Include a concurrent-access test (100 goroutines) to exercise the RWMutex. Include a `Find(unknown)` → `ErrNotFound` case.
+- **K8sConnector**: mock `apiextensionsClient` via `apiextensions-apiserver/pkg/client/clientset/clientset/fake`. Assert `Create` called when CRD absent, `Update` called when present. Inject the fake via a `CRDClientBuilder func(*rest.Config) (apiextensionsclient.Interface, error)` injection point on the connector.
+- **Types**: test `Equal`, `Identifier`, `Validate`, `String` with Ginkgo. `Equal` must cover both `T` and `*T` paths.
+- **Handler (bborbe/k8s)**: `k8s.NewEventHandler[T]()` has its own coverage in the library — no extra tests needed. Write integration-style specs that assert `Get(ctx)` returns the expected set after a sequence of `OnAdd/OnUpdate/OnDelete` calls.
+- **Handler (hand-written fallback)**: Counterfeiter-mock dependencies; table-driven Ginkgo specs for each event; include a concurrent-access test (100 goroutines) and a `Find(unknown)` → `ErrNotFound` case.
 
 ## 9. Factory wiring
 
-`pkg/factory/factory.go`:
+`pkg/factory/factory.go` (with `bborbe/k8s`):
 
 ```go
 func CreateK8sConnector(kubeconfig string) pkg.K8sConnector {
     return pkg.NewK8sConnector(kubeconfig)
 }
 
-func CreateMyResourceStore() pkg.MyResourceStore {
-    return pkg.NewMyResourceStore()
+func CreateEventHandler() k8s.EventHandler[v1.MyResource] {
+    return k8s.NewEventHandler[v1.MyResource]()
 }
 
-func CreateEventHandlerMyResource(store pkg.MyResourceStore) pkg.EventHandlerMyResource {
-    return pkg.NewEventHandlerMyResource(store)
-}
-
-func CreateResourceEventHandler(ctx context.Context, inner pkg.EventHandlerMyResource) cache.ResourceEventHandler {
-    return pkg.NewEventHandler(ctx, inner)
+func CreateResourceEventHandler(ctx context.Context, inner k8s.EventHandler[v1.MyResource]) cache.ResourceEventHandler {
+    return k8s.NewResourceEventHandler[v1.MyResource](ctx, inner)
 }
 ```
 
@@ -343,32 +369,31 @@ func (a *application) Run(ctx context.Context, sentry libsentry.Client) error {
     if err := connector.SetupCustomResourceDefinition(ctx); err != nil {
         return errors.Wrap(ctx, err, "setup CRD")
     }
-    store := factory.CreateMyResourceStore()
-    eventHandler := factory.CreateEventHandlerMyResource(store)
+    eventHandler := factory.CreateEventHandler()              // k8s.EventHandler[v1.MyResource]
     adapter := factory.CreateResourceEventHandler(ctx, eventHandler)
 
     return run.All(ctx,
         func(ctx context.Context) error { return connector.Listen(ctx, adapter) },
-        // ... other services that read from `store` ...
+        // ... other services call eventHandler.Get(ctx) to read current set ...
     )
 }
 ```
 
-The informer runs in its own goroutine; lookup consumers run in theirs. Cancellation of `ctx` stops both.
+The informer runs in its own goroutine; lookup consumers run in theirs. Cancellation of `ctx` stops both. Consumers that need typed lookups hold the `k8s.EventHandler[v1.MyResource]` reference and call `Get(ctx)` directly — no separate store interface is needed.
 
 ## 11. Checklist
 
 - [ ] `k8s/apis/<group>.bborbe.dev/v1/types.go` with `+genclient` + `+genclient:noStatus` + deepcopy markers
-- [ ] `hack/update-codegen.sh` runs clean; `k8s/client/*` generated
-- [ ] `K8sConnector` interface with `SetupCustomResourceDefinition` + `Listen`
+- [ ] CR type implements `k8s.Type` (`Equal`, `Identifier`, `Validate`, `String`) — compile-time assert `var _ k8s.Type = MyResource{}`
+- [ ] `hack/update-codegen.sh` + `hack/boilerplate.go.txt` + `tools.go` import of `k8s.io/code-generator/cmd/validation-gen`
+- [ ] `Makefile` has `generatek8s` target (NOT in `precommit`); `k8s/client/*` + `zz_generated.deepcopy.go` committed
+- [ ] `K8sConnector` interface with `SetupCustomResourceDefinition` + `Listen`; `CRDClientBuilder` injection point for testing
 - [ ] Scope = `Namespaced`, strict OpenAPIV3Schema (unless wrapping arbitrary payload)
 - [ ] RBAC: `customresourcedefinitions` write + CR group get/list/watch
-- [ ] `EventHandlerMyResource` domain-typed interface + adapter in separate files
-- [ ] Store (if stateful) with RWMutex + `ErrNotFound` sentinel
-- [ ] Counterfeiter mocks for connector + store + domain handler
-- [ ] Ginkgo tests for all four components
+- [ ] `k8s.NewEventHandler[T]()` for state; `k8s.NewResourceEventHandler[T]` for informer adapter — no hand-written store unless `bborbe/k8s` unavailable
+- [ ] Counterfeiter mock for connector; integration-style Ginkgo tests over `Get(ctx)`
 - [ ] `service.Run`-managed informer lifecycle
-- [ ] No `Lister`, no `WaitForCacheSync`, no separate CRD YAML
+- [ ] No `Lister`, no `WaitForCacheSync`, no separate CRD YAML, no hand-written clientset
 
 ## 12. References
 

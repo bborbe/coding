@@ -3,8 +3,10 @@
 ## Core Pattern: Interface → Constructor → Struct → Method
 
 ```go
-// 1. Interface with counterfeiter comment
-//counterfeiter:generate -o ../../mocks/my-service.go --fake-name MyService . MyService
+// 1. Interface with counterfeiter comment — mock name and filename MUST be
+//    prefixed with the source package (here `service`) to avoid collisions in
+//    the flat mocks/ directory. See go-mocking-guide.md for full rules.
+//counterfeiter:generate -o ../../mocks/service-my-service.go --fake-name ServiceMyService . MyService
 type MyService interface {
     Do(ctx context.Context, input Input) error
 }
@@ -42,10 +44,10 @@ return errors.Wrapf(ctx, err, "operation failed")  // github.com/bborbe/errors
 func (s *myService) Process(ctx context.Context, ...) error { ... }
 ```
 
-**Mocks** — always use counterfeiter, never write manually:
+**Mocks** — always use counterfeiter, never write manually. Both the filename and the `--fake-name` MUST include the source package as a prefix:
 ```go
-// On interface (source file):
-//counterfeiter:generate -o ../../mocks/dep.go --fake-name Dep . Dep
+// On interface (source file in package `service`):
+//counterfeiter:generate -o ../../mocks/service-dep.go --fake-name ServiceDep . Dep
 
 // In *_suite_test.go (one per package, triggers generation):
 //go:generate go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate

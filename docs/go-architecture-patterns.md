@@ -18,8 +18,10 @@ The standard pattern for Go packages in the Services follows this structure:
 Always start with a clear interface definition with counterfeiter comments for mock generation:
 
 ```go
-// UserService handles user operations
-//counterfeiter:generate -o ../mocks/user-service.go --fake-name UserService . UserService
+// UserService handles user operations.
+// Mock name and filename are prefixed with the source package (here `service`)
+// so mocks/ stays collision-free across packages. See go-mocking-guide.md.
+//counterfeiter:generate -o ../mocks/service-user-service.go --fake-name ServiceUserService . UserService
 type UserService interface {
     Create(ctx context.Context, user User) error
     Get(ctx context.Context, id UserID) (*User, error)

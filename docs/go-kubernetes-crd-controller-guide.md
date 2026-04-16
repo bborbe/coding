@@ -172,7 +172,9 @@ git add k8s/ && git commit         # generated files are committed
 Every bborbe CRD consumer has this exact interface:
 
 ```go
-//counterfeiter:generate -o ../mocks/k8s-connector.go --fake-name K8sConnector . K8sConnector
+// Package `controller` defines K8sConnector; mock name and filename include
+// the `controller` prefix per repo-wide naming convention (see go-mocking-guide.md).
+//counterfeiter:generate -o ../mocks/controller-k8s-connector.go --fake-name ControllerK8sConnector . K8sConnector
 type K8sConnector interface {
     SetupCustomResourceDefinition(ctx context.Context) error
     Listen(ctx context.Context, resourceEventHandler cache.ResourceEventHandler) error

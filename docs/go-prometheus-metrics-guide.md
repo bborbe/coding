@@ -52,7 +52,10 @@ This comprehensive guide covers Prometheus metrics implementation patterns and b
 **Always Use Public Interface + Private Implementation:**
 
 ```go
-//counterfeiter:generate -o ../mocks/metrics.go --fake-name Metrics . Metrics
+// Mock name and filename are prefixed with the source package name — here `api` —
+// to keep the shared mocks/ directory collision-free across services. Replace
+// `api` with your actual package name.
+//counterfeiter:generate -o ../mocks/api-metrics.go --fake-name ApiMetrics . Metrics
 type Metrics interface {
 	UserCreated(userType string)
 	UserLoginAttempt(userType string, success bool)
@@ -162,7 +165,7 @@ func init() {
 **MUST split large Metrics interfaces into focused sub-interfaces when a service has distinct metric domains.** Compose them into a single Metrics interface for the factory.
 
 ```go
-//counterfeiter:generate -o ../mocks/metrics.go --fake-name Metrics . Metrics
+//counterfeiter:generate -o ../mocks/api-metrics.go --fake-name ApiMetrics . Metrics
 type Metrics interface {
 	MetricsCandleHandler
 	MetricsSignalSender
@@ -255,7 +258,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 )
 
-//counterfeiter:generate -o ../mocks/pusher.go --fake-name Pusher . Pusher
+//counterfeiter:generate -o ../mocks/metrics-pusher.go --fake-name MetricsPusher . Pusher
 type Pusher interface {
 	Push(ctx context.Context) error
 }
@@ -304,7 +307,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 )
 
-//counterfeiter:generate -o ../mocks/pusher.go --fake-name Pusher . Pusher
+//counterfeiter:generate -o ../mocks/metrics-pusher.go --fake-name MetricsPusher . Pusher
 // Pusher interface supports both default and custom registries
 type Pusher interface {
 	Push(ctx context.Context) error
@@ -2196,8 +2199,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Metrics interface for dependency injection and testing
-//counterfeiter:generate -o mocks/metrics.go --fake-name Metrics . Metrics
+// Metrics interface for dependency injection and testing.
+// Mock name and filename prefixed with source package (replace `api` with yours).
+//counterfeiter:generate -o ../mocks/api-metrics.go --fake-name ApiMetrics . Metrics
 type Metrics interface {
 	HTTPRequestReceived(method, endpoint string)
 	HTTPRequestCompleted(method, endpoint string, statusCode int, duration time.Duration)

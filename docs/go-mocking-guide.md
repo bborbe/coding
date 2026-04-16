@@ -187,7 +187,7 @@ package service
 
 import "context"
 
-//counterfeiter:generate -o ../mocks/user-service.go --fake-name UserService . UserService
+//counterfeiter:generate -o ../mocks/service-user-service.go --fake-name ServiceUserService . UserService
 type UserService interface {
     GetUser(ctx context.Context, id string) (*User, error)
     CreateUser(ctx context.Context, user *User) error
@@ -340,17 +340,19 @@ make generate
 
 ```go
 // Basic pattern:
-//counterfeiter:generate -o <output-path> --fake-name <MockName> <package> <InterfaceName>
+//counterfeiter:generate -o <output-path> --fake-name <PackagePrefix><MockName> <package> <InterfaceName>
 
 // Example:
-//counterfeiter:generate -o ../mocks/cdb-command-object-executor-tx.go --fake-name CDBCommandObjectExecutorTx . CommandObjectExecutorTx
+//counterfeiter:generate -o ../mocks/core-command-object-executor-tx.go --fake-name CoreCommandObjectExecutorTx . CommandObjectExecutorTx
 ```
 
 Where:
-- `-o ../mocks/filename.go` - Output path (always in SERVICE/mocks)
-- `--fake-name` - Name of the generated mock struct  
+- `-o ../mocks/<package>-<interface-kebab>.go` - Output path (always in SERVICE/mocks, ALWAYS prefixed with the source package name)
+- `--fake-name <PackagePrefix><Interface>` - Mock struct name, ALWAYS prefixed with the source package name in PascalCase
 - `.` - Current package (or specify different package)
 - `InterfaceName` - The interface to mock
+
+**Why the package prefix is mandatory:** Mock files share a single flat `mocks/` directory at the repo root. Two packages that each define an interface called `Formatter` (or `Store`, `Handler`, `Sender`, etc.) would collide on `mocks/formatter.go` and on the `Formatter` mock struct name. The package prefix eliminates this by making both filename and type name globally unique.
 
 ## 6. Mock Usage Patterns
 
@@ -720,19 +722,30 @@ var _ = Describe("OrderService Integration", func() {
 - Follow existing patterns in the codebase for alias naming
 
 **Counterfeiter Directives:**
-- Always target `mocks/` directory: `//counterfeiter:generate -o ../mocks/interface_name.go --fake-name InterfaceName . InterfaceName`
-- **NEVER use "Fake" prefix** in `--fake-name`: Use `--fake-name UserService` NOT `--fake-name FakeUserService`
-- **NOT** pkgfakes or other directories
+- Always target the shared `mocks/` directory at the service/module root.
+- **ALWAYS prefix with the source package name** in both the `--fake-name` and the output filename. Example: package `core` with interface `AccountStore` → `--fake-name CoreAccountStore`, file `../mocks/core-account-store.go`.
+  - Filename: `../mocks/<package>-<interface-kebab>.go` (kebab-case, dash-separated between package and interface).
+  - Mock type name: `<PackagePascal><InterfacePascal>` (PascalCase concatenation).
+- **NEVER use "Fake" prefix** in `--fake-name`: Use `--fake-name CoreUserService` NOT `--fake-name FakeCoreUserService`.
+- **NOT** pkgfakes or other directories.
+
+**Why the package prefix is mandatory:** The flat `mocks/` directory is shared by every package in the service. If two packages each define an interface called `Formatter`, the unprefixed convention produces two files both named `mocks/formatter.go` and two mock types both called `Formatter` — collisions at both filename and symbol level. The package prefix makes both globally unique.
 
 **Correct Counterfeiter Patterns:**
 ```go
-// ✅ GOOD: Clean interface names without "Fake" prefix
-//counterfeiter:generate -o ../mocks/user_service.go --fake-name UserService . UserService
-//counterfeiter:generate -o ../mocks/fetcher.go --fake-name Fetcher . Fetcher
+// ✅ GOOD: Package-prefixed mock name + filename
+//counterfeiter:generate -o ../mocks/core-account-store.go --fake-name CoreAccountStore . AccountStore
+//counterfeiter:generate -o ../mocks/formatter-stream-formatter.go --fake-name FormatterStreamFormatter . StreamFormatter
+//counterfeiter:generate -o ../mocks/status-formatter.go --fake-name StatusFormatter . Formatter
+
+// ❌ BAD: Missing package prefix — collides with any other package that exports the same interface name
+//counterfeiter:generate -o ../mocks/formatter.go --fake-name Formatter . Formatter
 
 // ❌ BAD: Don't use "Fake" prefix
-//counterfeiter:generate -o ../mocks/user_service.go --fake-name FakeUserService . UserService
+//counterfeiter:generate -o ../mocks/core-account-store.go --fake-name FakeCoreAccountStore . AccountStore
 ```
+
+**Source file naming:** Keep source files consistent with mocks by also prefixing the interface-defining file with the package: `lib/core/core_account-store.go` defines `AccountStore` in package `core`, and generates `mocks/core-account-store.go` with `--fake-name CoreAccountStore`.
 
 ### 3. Mock Lifecycle
 
@@ -821,14 +834,14 @@ func (m *MockUserService) GetUser(ctx context.Context, id string) (*User, error)
 ```
 
 ```go
-// DO THIS instead - use Counterfeiter
-//counterfeiter:generate -o ../mocks/user-service.go --fake-name UserService . UserService
+// DO THIS instead - use Counterfeiter with package-prefixed mock name
+//counterfeiter:generate -o ../mocks/service-user-service.go --fake-name ServiceUserService . UserService
 type UserService interface {
     GetUser(ctx context.Context, id string) (*User, error)
 }
 
 // In tests:
-service := &mocks.UserService{}
+userService := &mocks.ServiceUserService{}
 ```
 
 ### DON'T: Skip Mock Verification

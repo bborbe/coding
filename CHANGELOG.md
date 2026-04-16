@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.4.2
+
+- Enforce package-prefix convention for all counterfeiter mock filenames and `--fake-name` values across `go-mocking-guide.md`, `go-patterns.md`, `go-architecture-patterns.md`, `go-prometheus-metrics-guide.md`, and `go-kubernetes-crd-controller-guide.md`. Prevents collisions in the flat `mocks/` directory when two packages export interfaces with the same name (e.g. `formatter.Formatter` vs `status.Formatter`).
+- Update k8s CRD guide snippet with example showing `controller-k8s-connector.go` / `ControllerK8sConnector` naming.
+
 ## v0.4.1
 
 - Scrub `go-kubernetes-crd-controller-guide.md` of employer-internal references (sm-octopus, trading examples); replace with public bborbe repo references (bborbe/alert, bborbe/cqrs) and generic example domains

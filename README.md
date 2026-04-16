@@ -185,7 +185,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 </details>
 
 <details>
-<summary><b>Go Quality (full mode adds 7 more)</b></summary>
+<summary><b>Go Quality (full mode adds 8 more)</b></summary>
 
 | Agent | Doc | Checks |
 |-------|-----|--------|
@@ -193,7 +193,8 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `godoc-assistant` | `go-doc-best-practices.md` | GoDoc completeness and format |
 | `go-test-quality-assistant` | `go-testing-guide.md` | Ginkgo/Gomega patterns, mock usage |
 | `go-security-specialist` | `go-security-linting.md` | Vulnerabilities, OWASP |
-| `srp-checker` | — | Single Responsibility Principle |
+| `srp-checker` | — | Single Responsibility Principle (unit-level) |
+| `go-architecture-assistant` | — | Cross-unit architecture, naive extractions, layering, boundaries |
 | `go-version-manager` | — | Go version currency |
 | `go-tooling-assistant` | `go-makefile-commands.md` | Makefile, tools.go |
 
@@ -208,6 +209,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `readme-quality-assistant` | README.md completeness |
 | `shellcheck-assistant` | Shell script quality |
 | `python-quality-assistant` | Python code quality |
+| `python-architecture-assistant` | Cross-module architecture, naive extractions, layering, boundaries |
 | `context7-library-checker` | Library API currency |
 | `go-test-writer-assistant` | Generate Go tests |
 | `guide-improvement-assistant` | Refactor guides |

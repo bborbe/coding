@@ -98,12 +98,14 @@ Based on detected mode, invoke agents **in parallel**:
 2. **go-test-quality-assistant**: Test file quality, Ginkgo/Gomega patterns, mock usage, test suite setup (review mode only)
 3. **go-security-specialist**: Security vulnerabilities, OWASP compliance, dependency scanning
 4. **go-metrics-assistant**: Prometheus metrics types, naming, labels, pre-initialization
-5. **srp-checker**: Single Responsibility Principle compliance (review mode only)
-6. **go-version-manager**: Go version currency and consistency (check-only mode)
-7. **go-tooling-assistant**: Makefile and tools.go validation (review mode only)
+5. **srp-checker**: Single Responsibility Principle compliance, unit-level (review mode only)
+6. **go-architecture-assistant**: Cross-unit architecture — naive extractions (funlen appeasement), package boundaries, dependency direction, layering leaks (review mode only)
+7. **go-version-manager**: Go version currency and consistency (check-only mode)
+8. **go-tooling-assistant**: Makefile and tools.go validation (review mode only)
 
 *Python projects:*
 1. **python-quality-assistant**: Code quality, type hints, error handling
+2. **python-architecture-assistant**: Cross-module architecture — naive extractions, layering, dependency direction, mixin abuse, import-time side effects (review mode only)
 
 *All projects:*
 11. **license-assistant**: LICENSE file, README license section (ONLY for public repos, review mode only)

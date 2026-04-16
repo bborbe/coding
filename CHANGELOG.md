@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.5.0
+
+- Add `go-architecture-assistant` + `python-architecture-assistant` agents plus `/coding:audit-architecture` command. Detect naive extractions (helpers pulled out just to satisfy `funlen`/`C901` — called once, generic names, same-file same-type), package/module boundary violations, dependency direction errors, layering leaks, and missing abstraction seams. Wired into `/coding:code-review full` alongside `srp-checker` (unit-level SRP stays there; architecture agents cover cross-unit).
+- Both agents include a `Concrete patterns` section with 6 (Go) / 5 (Python) high-confidence rules distilled from real-codebase audits: (1) committed `.bak`/`.orig` backup files, (2) dead abstraction (interface/Protocol + impl + zero external callers), (3) empty-chain seam (interface method whose chain is always empty — silent noop), (4) repetitive decode/apply god function (5+ `if key in data { parse; assign }` blocks → apply-map or patch DTO), (5) Go-only: god factory file vs composition root (false-positive guard: free-function factory files >500 LoC are legitimate composition roots, split by subsystem not by package), (6) typos in exported API (`Exectuor`, `Recieve`, etc.). Each rule has deterministic detection commands, generic examples (User/Order only), structural fixes, and false-positive guards.
+
 ## v0.4.2
 
 - Enforce package-prefix convention for all counterfeiter mock filenames and `--fake-name` values across `go-mocking-guide.md`, `go-patterns.md`, `go-architecture-patterns.md`, `go-prometheus-metrics-guide.md`, and `go-kubernetes-crd-controller-guide.md`. Prevents collisions in the flat `mocks/` directory when two packages export interfaces with the same name (e.g. `formatter.Formatter` vs `status.Formatter`).

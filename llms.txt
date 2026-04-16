@@ -32,6 +32,7 @@
 - [Licensing](docs/go-licensing-guide.md): License files, headers, addlicense tool
 - [Precommit](docs/go-precommit.md): Pre-commit checks and workflow
 - [Time Injection](docs/go-time-injection.md): Testable time handling via DI
+- [Kubernetes CRD Controller](docs/go-kubernetes-crd-controller-guide.md): CRD types, informer, self-install, event-handler pattern
 
 ## Go — HTTP & APIs
 - [HTTP Handlers](docs/go-http-handler-refactoring-guide.md): Handler organization and refactoring

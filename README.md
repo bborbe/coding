@@ -65,6 +65,7 @@ Commit with changelog and version bump:
 | `/coding:go-write-test [basic\|standard\|integration]` | Generate Go tests for changed files |
 | `/coding:go-version [check\|update]` | Check/update Go version across project files |
 | `/coding:improve-guide [file]` | Refactor guide into structured rule sets |
+| `/coding:audit-guide [file]` | Audit guide against style, structure, and indexing |
 | `/coding:vscode [dir]` | Open VS Code in directory |
 | `/coding:intellij [dir]` | Open IntelliJ IDEA in directory |
 
@@ -121,6 +122,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Precommit](docs/go-precommit.md) | Pre-commit workflow |
 | [Linting](docs/go-linting-guide.md) | Static analysis |
 | [Security Linting](docs/go-security-linting.md) | Security analysis |
+| [Kubernetes CRD Controller](docs/go-kubernetes-crd-controller-guide.md) | CRD types, informer, self-install |
 
 ### Go — HTTP & APIs
 
@@ -209,6 +211,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `context7-library-checker` | Library API currency |
 | `go-test-writer-assistant` | Generate Go tests |
 | `guide-improvement-assistant` | Refactor guides |
+| `guide-auditor` | Audit guides against style/structure/indexing |
 | `simple-bash-runner` | Run build commands |
 | `pre-implementation-assistant` | Find relevant guides |
 | `coding-guidelines-finder` | Search docs/ |

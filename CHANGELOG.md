@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.4.0
+
+- Add `go-kubernetes-crd-controller-guide.md` covering CRD types, generated clientset, self-install, event-handler pattern, and deliberate exclusions (no Lister, no WaitForCacheSync, no separate YAML manifest)
+- Add `/coding:audit-guide` command + `guide-auditor` agent for auditing coding guides against style/structure/indexing/self-containment standards; explicit forbidden-term grep blocks work-context leakage (seibert, octopus, trading domain, personal paths)
+- Improve `go-time-injection.md`
+
 ## v0.3.1
 
 - Fix agent paths to use canonical plugin path `~/.claude/plugins/marketplaces/coding/docs/`

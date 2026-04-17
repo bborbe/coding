@@ -27,6 +27,9 @@ Go test quality checklist:
 - Counterfeiter directives only mock interfaces from the same package (`. InterfaceName`), never from vendor/ or other packages
 - Mock variable names have no "mock" prefix
 - Counterfeiter `--fake-name` has no "Fake" prefix
+- `main_test.go` uses `gexec.Build(".", "-mod=mod", "-buildvcs=false")` (not missing `-buildvcs=false`)
+- `main_test.go` includes `time.Local = time.UTC` and `format.TruncatedDiff = false` in `TestSuite`
+- `main_test.go` uses `GinkgoConfiguration()` with `suiteConfig.Timeout = 60 * time.Second`
 
 ## Communication Protocol
 

@@ -122,9 +122,11 @@ func TestSuite(t *testing.T) {
 **Main packages** use a different pattern focused on compilation verification:
 
 ```go
-// Copyright (c) 2023 Benjamin Borbe All rights reserved.
+// Copyright (c) 2026 Benjamin Borbe All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+//go:generate go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate
 
 package main_test
 
@@ -134,18 +136,21 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/gexec"
 )
 
 var _ = Describe("Main", func() {
 	It("Compiles", func() {
 		var err error
-		_, err = gexec.Build(".", "-mod=mod")
+		_, err = gexec.Build(".", "-mod=mod", "-buildvcs=false")
 		Expect(err).NotTo(HaveOccurred())
 	})
 })
 
 func TestSuite(t *testing.T) {
+	time.Local = time.UTC
+	format.TruncatedDiff = false
 	RegisterFailHandler(Fail)
 	suiteConfig, reporterConfig := GinkgoConfiguration()
 	suiteConfig.Timeout = 60 * time.Second
@@ -154,11 +159,8 @@ func TestSuite(t *testing.T) {
 ```
 
 **Key differences for main packages:**
-- **Copyright Header**: BSD-style license header (may use older year)
 - **External Test Package**: Use `main_test` package name
-- **No Time/Format Setup**: Omit `time.Local` and `format.TruncatedDiff` configuration
-- **No Mock Generation**: Omit `//go:generate` directive (main packages don't have interfaces)
-- **Compilation Test**: Include `Compiles` test using `gexec.Build` to verify buildability
+- **Compilation Test**: Include `Compiles` test using `gexec.Build` with `-buildvcs=false` to verify buildability
 - **Simplified Suite**: Minimal test suite focused on build verification
 
 ### Critical Notes

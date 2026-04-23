@@ -31,8 +31,10 @@
 - [Prometheus Metrics](docs/go-prometheus-metrics-guide.md): Metrics implementation and naming
 - [Licensing](docs/go-licensing-guide.md): License files, headers, addlicense tool
 - [Precommit](docs/go-precommit.md): Pre-commit checks and workflow
+- [Replace Directive](docs/go-mod-replace-guide.md): When to use `replace` in go.mod (monorepo yes, cross-repo no)
 - [Time Injection](docs/go-time-injection.md): Testable time handling via DI
 - [Kubernetes CRD Controller](docs/go-kubernetes-crd-controller-guide.md): CRD types, informer, self-install, event-handler pattern
+- [Kubernetes Manifest Layout](docs/k8s-manifest-guide.md): k8s/ folder location, filename suffixes, per-env templating placeholders
 
 ## Go — HTTP & APIs
 - [HTTP Handlers](docs/go-http-handler-refactoring-guide.md): Handler organization and refactoring

@@ -79,6 +79,38 @@ Nothing else. With `bborbe/k8s`, the event-handler and store files collapse into
 **Reference implementations**:
 - [`github.com/bborbe/alert`](https://github.com/bborbe/alert) — consumer reacts to alert CRs and dispatches notifications (stateless reactor shape)
 
+## 2a. Naming convention
+
+CRDs are visible in `kubectl api-resources` across the cluster — treat the name like a public API. Pick the group, kind, and plural **once** and never rename (rename means CRD drop/recreate with data loss).
+
+### Group
+
+Pattern: `<category>.<domain>` — category groups related CRDs under one owner, domain is a **real domain you control**.
+
+| Good                       | Bad                      | Why |
+|----------------------------|--------------------------|-----|
+| `monitoring.example.com`   | `monitoring`             | Group must be a domain you control — bare names collide with other operators in shared clusters |
+| `agent.example.com`        | `agents.example.com`     | Category is singular (namespace of related kinds), not plural |
+| `cdb.cqrs.example.com`     | `cdb-cqrs.example.com`   | Nested subdomain expresses hierarchy; hyphens flatten it |
+
+### Kind and plural
+
+| Field       | Rule                                                                | Example               |
+|-------------|---------------------------------------------------------------------|-----------------------|
+| `Kind`      | Short singular PascalCase — **do not repeat the category**          | `Config` (not `AgentConfig` in group `agent.example.com`) |
+| `ListKind`  | `<Kind>List`                                                        | `ConfigList`          |
+| `Plural`    | lowercase plural — becomes the URL segment                          | `configs`             |
+| `Singular`  | lowercase singular                                                  | `config`              |
+| `ShortNames`| 2–4 char lowercase; must be unique cluster-wide                    | `cfg`, `ac`           |
+
+Full resource name: `<plural>.<group>` → `configs.agent.example.com`.
+
+`kubectl get cfg -n dev` works because the category lives in the group. `kubectl get agentconfig` repeats "agent" twice in the URL (`agentconfigs.agent.example.com`) and is a common mistake.
+
+### Scope
+
+Always `Namespaced`. Use namespaces for dev/prod isolation. Cluster-scope is only justified when the resource is genuinely global (nodes, storage classes, cluster-wide RBAC).
+
 ## 3. Types package (library side)
 
 ### `k8s/apis/<group>.example.com/v1/types.go`
@@ -139,31 +171,78 @@ Standard boilerplate — copy from `cqrs/raw` or `alert` and change `GroupName`.
 
 ### Code generation setup
 
-The generated client under `k8s/client/` comes from `k8s.io/code-generator`. Copy the following from `bborbe/alert`:
+The generated client under `k8s/client/` comes from `k8s.io/code-generator`. Files needed:
 
 ```
 myservice/
 ├── hack/
 │   ├── boilerplate.go.txt         # license header for generated files
-│   └── update-codegen.sh          # sources vendor/k8s.io/code-generator/kube_codegen.sh
+│   └── update-codegen.sh          # sources kube_codegen.sh from GOMODCACHE
 └── Makefile
     └── generatek8s:               # target: bash hack/update-codegen.sh
 ```
 
-Add to `tools.go`:
+#### `tools.go`
+
+Pin `k8s.io/code-generator` as a **direct** dependency so `go list -m` can find it:
 
 ```go
-import _ "k8s.io/code-generator/cmd/validation-gen"
+//go:build tools
+
+package tools
+
+import (
+    _ "k8s.io/code-generator/cmd/validation-gen"
+)
 ```
 
-Workflow when types change:
+Importing a subpackage (`cmd/validation-gen`) is sufficient to pin the root module. Do not add a bare `_ "k8s.io/code-generator"` — that path has no Go files and fails to compile.
+
+#### `hack/update-codegen.sh`
+
+`kube_codegen.sh` is a **shell script** — `go mod vendor` vendors only `.go` files, so sourcing from `vendor/` does not work. Resolve the module cache path at runtime instead:
 
 ```bash
-go mod vendor                      # populate vendor/ (codegen reads from it)
+#!/usr/bin/env bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+THIS_PKG="github.com/example/myservice"
+
+CODEGEN_PKG=$(cd "${SCRIPT_ROOT}" && go list -m -f '{{.Dir}}' k8s.io/code-generator 2>/dev/null || echo "")
+if [[ -z "${CODEGEN_PKG}" ]]; then
+    echo "k8s.io/code-generator not found in go.mod. Run: go get k8s.io/code-generator"
+    exit 1
+fi
+
+source "${CODEGEN_PKG}/kube_codegen.sh"
+
+kube::codegen::gen_helpers \
+    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+    "${SCRIPT_ROOT}/k8s/apis"
+
+kube::codegen::gen_client \
+    --with-watch \
+    --with-applyconfig \
+    --output-dir "${SCRIPT_ROOT}/k8s/client" \
+    --output-pkg "${THIS_PKG}/k8s/client" \
+    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+    "${SCRIPT_ROOT}/k8s/apis"
+```
+
+`go list -m -f '{{.Dir}}'` prints the on-disk path of the module in `$GOMODCACHE` (or your replace-directive target). Works both inside and outside the module directory.
+
+#### Workflow when types change
+
+```bash
 make generatek8s                   # regenerates k8s/client/** and zz_generated.deepcopy.go
-make ensure                        # go mod tidy; rm -rf vendor
+make ensure                        # go mod tidy + vendor refresh if applicable
 git add k8s/ && git commit         # generated files are committed
 ```
+
+No `go mod vendor` step is required before `generatek8s` — the generator reads directly from the module cache.
 
 `generatek8s` is intentionally **separate from `generate`** (which runs mocks). Codegen is expensive and runs manually — the generated tree is stable day-to-day. Do not add `generatek8s` to `precommit`.
 
@@ -208,14 +287,15 @@ func (k *k8sConnector) SetupCustomResourceDefinition(ctx context.Context) error 
 
 func createSpec() apiextensionsv1.CustomResourceDefinitionSpec {
     return apiextensionsv1.CustomResourceDefinitionSpec{
-        Group: "<group>.bborbe.dev",
+        Group: "<category>.example.com",
         Names: apiextensionsv1.CustomResourceDefinitionNames{
-            Kind:     "MyResource",
-            ListKind: "MyResourceList",
-            Plural:   "myresources",
-            Singular: "myresource",
+            Kind:       "MyResource",
+            ListKind:   "MyResourceList",
+            Plural:     "myresources",
+            Singular:   "myresource",
+            ShortNames: []string{"mr"},
         },
-        Scope: "Namespaced",
+        Scope: apiextensionsv1.NamespaceScoped,
         Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
             {Name: "v1", Served: true, Storage: true, Schema: /* OpenAPIV3Schema */},
         },
@@ -223,7 +303,7 @@ func createSpec() apiextensionsv1.CustomResourceDefinitionSpec {
 }
 ```
 
-**Scope**: always `Namespaced` (use namespaces for dev/prod isolation). Cluster-scope is only justified when the resource is genuinely global (nodes, storage classes).
+See §2a for group/kind/plural naming rules. Use typed constants (`apiextensionsv1.NamespaceScoped`) over string literals.
 
 **Schema**: provide a strict OpenAPIV3Schema for first-party CRDs. Use `XPreserveUnknownFields: ptr.To(true)` (from `k8s.io/utils/ptr`) only when the CR wraps arbitrary user content — `bborbe/cqrs/raw` does this because its `Spec` is a marshalled event payload.
 
@@ -385,7 +465,8 @@ The informer runs in its own goroutine; lookup consumers run in theirs. Cancella
 
 ## 11. Checklist
 
-- [ ] `k8s/apis/<group>.bborbe.dev/v1/types.go` with `+genclient` + `+genclient:noStatus` + deepcopy markers
+- [ ] Group/Kind/Plural follow §2a: `<category>.<domain>` group, short singular Kind that does not repeat the category, lowercase plural/singular, 2–4 char ShortNames
+- [ ] `k8s/apis/<category>.<domain>/v1/types.go` with `+genclient` + `+genclient:noStatus` + deepcopy markers
 - [ ] CR type implements `k8s.Type` (`Equal`, `Identifier`, `Validate`, `String`) — compile-time assert `var _ k8s.Type = MyResource{}`
 - [ ] `hack/update-codegen.sh` + `hack/boilerplate.go.txt` + `tools.go` import of `k8s.io/code-generator/cmd/validation-gen`
 - [ ] `Makefile` has `generatek8s` target (NOT in `precommit`); `k8s/client/*` + `zz_generated.deepcopy.go` committed

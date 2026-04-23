@@ -120,9 +120,11 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Prometheus Metrics](docs/go-prometheus-metrics-guide.md) | Metrics implementation |
 | [Licensing](docs/go-licensing-guide.md) | License management |
 | [Precommit](docs/go-precommit.md) | Pre-commit workflow |
+| [Replace Directive](docs/go-mod-replace-guide.md) | When to use `replace` in go.mod |
 | [Linting](docs/go-linting-guide.md) | Static analysis |
 | [Security Linting](docs/go-security-linting.md) | Security analysis |
 | [Kubernetes CRD Controller](docs/go-kubernetes-crd-controller-guide.md) | CRD types, informer, self-install |
+| [Kubernetes Manifest Layout](docs/k8s-manifest-guide.md) | `k8s/` folder, filename suffixes, templating |
 
 ### Go — HTTP & APIs
 

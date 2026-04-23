@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.6.0
+
+- Add `docs/go-mod-replace-guide.md` covering when to use `replace` in `go.mod` (monorepo siblings yes, cross-repo no) with GOOD/BAD examples and antipatterns.
+- Add `docs/k8s-manifest-guide.md` covering Kubernetes manifest layout: `k8s/` folder next to code, one-resource-per-file, type-suffix filename convention (`-deploy.yaml`, `-svc.yaml`, etc.), env-substituted placeholder pattern (`{{ "KEY" | env }}`), thin Makefile delegating to shared fragments, secret templating, and antipatterns. Aligned with `github.com/bborbe/go-skeleton/k8s` reference layout.
+- Expand `docs/go-kubernetes-crd-controller-guide.md` §2a with a naming convention section (group/kind/plural/scope rules) and rewrite §3 code generation setup: `tools.go` pins `k8s.io/code-generator` via `cmd/validation-gen` import, and `hack/update-codegen.sh` sources `kube_codegen.sh` from `$GOMODCACHE` (resolved via `go list -m -f '{{.Dir}}'`) instead of `vendor/` — since shell scripts aren't vendored by `go mod vendor`. Drops the `go mod vendor` prerequisite from the workflow.
+- Update `docs/go-mocking-guide.md` to require package-prefixed test suite filenames (`<package>_suite_test.go`) matching Ginkgo's `ginkgo bootstrap` default; removes bare `suite_test.go` references across the guide.
+
 ## v0.5.0
 
 - Add `go-architecture-assistant` + `python-architecture-assistant` agents plus `/coding:audit-architecture` command. Detect naive extractions (helpers pulled out just to satisfy `funlen`/`C901` — called once, generic names, same-file same-type), package/module boundary violations, dependency direction errors, layering leaks, and missing abstraction seams. Wired into `/coding:code-review full` alongside `srp-checker` (unit-level SRP stays there; architecture agents cover cross-unit).

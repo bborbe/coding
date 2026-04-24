@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.7.0
+
+- Add `docs/go-build-args-guide.md` covering the three standard build-time injection values — `BUILD_GIT_VERSION` (from `git describe --tags --always --dirty`), `BUILD_GIT_COMMIT` (from `git rev-parse --short HEAD`), and `BUILD_DATE` — across all four participating files per service: `Makefile.docker` build-args, `Dockerfile` ARG/ENV/LABEL blocks (with OCI `org.opencontainers.image.*` labels), the Argument struct with matching `env:` tags, and the startup log. Integrates with the shared `github.com/bborbe/metrics` v0.5.0 package's `BuildInfoMetrics` helper — publishes a single `build_info{version, commit}` gauge whose value is the build timestamp in Unix seconds, with service identification via the Prometheus `job` label. Includes a rollout checklist and canonical PromQL queries for deployment-age alerting and rollout-state visibility.
+
 ## v0.6.0
 
 - Add `docs/go-mod-replace-guide.md` covering when to use `replace` in `go.mod` (monorepo siblings yes, cross-repo no) with GOOD/BAD examples and antipatterns.

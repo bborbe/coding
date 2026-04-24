@@ -114,6 +114,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | Guide | Description |
 |-------|-------------|
 | [Makefile Commands](docs/go-makefile-commands.md) | Build targets |
+| [Build Args](docs/go-build-args-guide.md) | BUILD_GIT_VERSION / BUILD_GIT_COMMIT / BUILD_DATE injection + Prometheus `build_info` |
 | [Library Guide](docs/go-library-guide.md) | Library structure |
 | [CLI Guide](docs/go-cli-guide.md) | CLI patterns |
 | [Validation](docs/go-validation-framework-guide.md) | Input validation |

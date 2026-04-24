@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.7.1
+
+- Extend `docs/go-build-args-guide.md` with a "Vendor handling" section clarifying that `go mod vendor` is a build-time concern, not a precommit concern. `vendor/` is gitignored in the canonical layout; `Makefile.precommit`'s `ensure` target deletes any lingering `vendor/` and uses `-mod=mod`; `Makefile.docker`'s `build` target regenerates vendor just-in-time before `docker build`. Automation that edits Go code (dark-factory prompts, CI stages) should run `go mod tidy` when deps change but NEVER `go mod vendor` — the precommit step wipes it out immediately after. Prevents ~1–2 min of wasted time per prompt execution in repos that follow this pattern.
+
 ## v0.7.0
 
 - Add `docs/go-build-args-guide.md` covering the three standard build-time injection values — `BUILD_GIT_VERSION` (from `git describe --tags --always --dirty`), `BUILD_GIT_COMMIT` (from `git rev-parse --short HEAD`), and `BUILD_DATE` — across all four participating files per service: `Makefile.docker` build-args, `Dockerfile` ARG/ENV/LABEL blocks (with OCI `org.opencontainers.image.*` labels), the Argument struct with matching `env:` tags, and the startup log. Integrates with the shared `github.com/bborbe/metrics` v0.5.0 package's `BuildInfoMetrics` helper — publishes a single `build_info{version, commit}` gauge whose value is the build timestamp in Unix seconds, with service identification via the Prometheus `job` label. Includes a rollout checklist and canonical PromQL queries for deployment-age alerting and rollout-state visibility.

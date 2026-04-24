@@ -160,6 +160,17 @@ time() - build_info
 time() - build_info > 86400 * 90
 ```
 
+## Vendor handling
+
+If the project commits `vendor/` (Dockerfile builds with `-mod=vendor`), vendor regeneration is a **build-time** concern, not a precommit or automation concern:
+
+- `vendor/` is in `.gitignore` — never committed
+- `Makefile.precommit`'s `ensure` target typically starts with `rm -rf vendor` and uses `-mod=mod` (module cache) for everything else
+- `Makefile.docker`'s `build` target depends on a `check-go-mod` step that runs `go mod vendor` just-in-time before `docker build`
+- Any automation that edits Go code (dark-factory prompts, commit hooks, CI test stages) should run `go mod tidy` when dependencies change, NEVER `go mod vendor`. Running vendor in precommit is pure waste — the `ensure` target deletes it immediately after.
+
+Rule of thumb: `go mod tidy` where code is edited; `go mod vendor` only where `docker build` runs.
+
 ## Rollout checklist
 
 For every Go service with a `Dockerfile`:

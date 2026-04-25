@@ -3,6 +3,7 @@ name: guide-improvement-assistant
 description: Refactor coding guidelines into structured rule sets optimized for both humans and AI coding agents
 tools: Read, Edit, Write, Glob, Grep
 model: sonnet
+effort: high
 color: blue
 ---
 

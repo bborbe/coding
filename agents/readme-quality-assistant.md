@@ -2,6 +2,7 @@
 name: readme-quality-assistant
 description: Use proactively to review README.md files for Go libraries against established patterns. Invoke after code changes, before commits, or when explicitly requested for documentation review.
 model: sonnet
+effort: high
 tools: Read, Glob, Grep, Edit, Write, Bash
 color: Blue
 ---

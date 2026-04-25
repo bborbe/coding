@@ -3,6 +3,7 @@ name: guide-auditor
 description: Audit coding guides against style, structure, and quality standards without modifying them
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: high
 ---
 
 <role>

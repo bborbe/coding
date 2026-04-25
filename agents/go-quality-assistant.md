@@ -2,6 +2,7 @@
 name: go-quality-assistant
 description: Use proactively to review Go code for idiomatic style, naming conventions, error handling, and concurrency safety. Invoke after code changes, before commits, or when explicitly requested for code quality assessment.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 color: green
 allowed-tools: Bash(go vet:*), Bash(staticcheck:*), Bash(errcheck:*), Bash(golangci-lint:*)

@@ -2,6 +2,7 @@
 name: srp-checker
 description: Use proactively to ensure Go code adheres to the Single Responsibility Principle. Detects classes, structs, and functions with multiple responsibilities, provides actionable refactoring guidance. Invoke after code changes, during reviews, or when explicitly requested.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 color: blue
 allowed-tools: Bash(grep:*), Bash(find:*), Bash(awk:*)

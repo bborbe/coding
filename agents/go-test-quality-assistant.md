@@ -2,6 +2,7 @@
 name: go-test-quality-assistant
 description: Use proactively to review Go test files for Ginkgo/Gomega patterns, test suite setup, mock usage, and testing conventions. Invoke after code changes, before commits, or when explicitly requested for test quality assessment.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 color: cyan
 allowed-tools: Bash(grep:*), Bash(find:*), Bash(awk:*)

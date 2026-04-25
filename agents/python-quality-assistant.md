@@ -2,6 +2,7 @@
 name: python-quality-assistant
 description: Use proactively to review Python code for idiomatic style, type hints, error handling, logging patterns, and async safety. Invoke after code changes, before commits, or when explicitly requested for code quality assessment.
 model: sonnet
+effort: high
 tools:
   - Read
   - Grep

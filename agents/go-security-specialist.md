@@ -2,6 +2,7 @@
 name: go-security-specialist
 description: Expert Go security auditor specializing in vulnerability detection, secure coding practices, and security compliance. Masters OWASP Top 10, Go-specific security patterns, and automated security tooling with focus on proactive threat prevention.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 color: red
 allowed-tools: Bash(gosec:*), Bash(trivy:*), Bash(osv-scanner:*), Bash(govulncheck:*), Bash(golangci-lint:*)

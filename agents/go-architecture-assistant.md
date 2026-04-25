@@ -2,6 +2,7 @@
 name: go-architecture-assistant
 description: Review Go architecture for real design quality, not mechanical fixes. Detects naive line-count-driven extractions (helpers pulled out just to satisfy funlen), package boundary violations, dependency direction errors, layering leaks, and abstraction seams. Use during code review or before merging structural changes. Read-only — does not modify code.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 color: purple
 allowed-tools: Bash(grep:*), Bash(find:*), Bash(awk:*), Bash(git:*)

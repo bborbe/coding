@@ -71,6 +71,27 @@ func CreateRunner(promptsDir string) Runner {
 
 If your constructor has 0-1 dependencies but your methods call 5+ package functions → god object. Refactor: wrap each package in an interface, inject via constructor.
 
+## Anti-Pattern: Test-Only Package-Level Mutable State
+
+Same problem as the god object, different shape: production code declares `var X = default` at package level whose only purpose is to let tests override it via a `SetX(d) (restore func())` helper. Often forces a `sync.Mutex` to satisfy `-race`.
+
+```go
+// ❌ BAD: test seam leaked into production
+var sweepIntervalMu sync.Mutex
+var sweepInterval = 60 * time.Second
+func getSweepInterval() time.Duration { ... }   // mutex-guarded
+func SetSweepInterval(d time.Duration) (restore func()) { ... }  // _test.go
+```
+
+```go
+// ✅ GOOD: constructor parameter; tests just pass a small value
+func NewProcessor(..., sweepInterval time.Duration) Processor { ... }
+```
+
+Rule: configurable values that vary between production and tests are **constructor parameters**, not package vars. The default lives in `main.go` / the factory, not at package scope.
+
+(See `go-time-injection.md` for the canonical exception: `libtime.Now` is intentionally a package var because `libtime.ParseTime("NOW-7d")` cannot accept an injected getter — that's a documented carve-out, not the default.)
+
 ## Checklist
 
 - Every external dependency is an injected interface

@@ -13,6 +13,7 @@
 - [CQRS](docs/go-cqrs.md): Command Query Responsibility Segregation
 - [Composition](docs/go-composition.md): Struct embedding and interface composition
 - [Concurrency](docs/go-concurrency-patterns.md): Goroutines, channels, sync primitives
+- [State Machine](docs/go-state-machine-pattern.md): Phase-dispatched state machines for long-running, resumable, multi-process workflows
 - [Design Patterns](docs/go-patterns.md): Common Go design patterns
 
 ## Go — Testing & Quality

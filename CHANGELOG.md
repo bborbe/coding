@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.8.0
+
+- Add `docs/go-state-machine-pattern.md` covering the phase-dispatched state machine pattern for long-running, resumable, multi-process workflows. Documents core structure (Phase enum, Status enum, Result envelope, dispatcher), Status-vs-Phase distinction with controller persistence rule, heterogeneous phases (pure-Go and external runners), external controller contract, four backward-edge patterns (Interventional Reset, Phase Unrolling, Sub-Phase loop, Circuit Breaker), parallel sub-phases via `bborbe/run`, anti-patterns with paired `[GOOD]`/`[BAD]` examples, and testing guidance. Generic Order/Customer/Product domain throughout. Indexed in README.md and llms.txt under Go Architecture & Patterns. Reference-only guide (no matching agent — fits CLAUDE.md exemption for pattern guides).
+
 ## v0.7.1
 
 - Extend `docs/go-build-args-guide.md` with a "Vendor handling" section clarifying that `go mod vendor` is a build-time concern, not a precommit concern. `vendor/` is gitignored in the canonical layout; `Makefile.precommit`'s `ensure` target deletes any lingering `vendor/` and uses `-mod=mod`; `Makefile.docker`'s `build` target regenerates vendor just-in-time before `docker build`. Automation that edits Go code (dark-factory prompts, CI stages) should run `go mod tidy` when deps change but NEVER `go mod vendor` — the precommit step wipes it out immediately after. Prevents ~1–2 min of wasted time per prompt execution in repos that follow this pattern.

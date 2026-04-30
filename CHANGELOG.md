@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.1
+
+- Add `templates/prompt-migrate-tools-go.md` — dark-factory prompt template for migrating Go libraries from `tools.go` to `tools.env` + Makefile `@version` pattern. Self-contained with full migration steps, references the guide, includes verification checks. Copy to each bborbe lib's `prompts/in-progress/` to drive the migration via dark-factory.
+
 ## v0.9.0
 
 - Add `docs/go-tools-versioning-guide.md` covering the migration from `tools.go` to `tools.env` + Makefile `@version` pattern for CLI tool version pinning. Documents why `tools.go` is harmful (transitive dep pollution, cascade through library imports, permanent replace workarounds), the canonical `tools.env` source-of-truth, `go run pkg@$(VERSION)` invocation pattern, `//go:generate` directive update, the 7-step migration procedure, dependency-tree-based migration order, and pitfalls (gosec "dev" cosmetic, `go run` ignoring local replaces, `go mod tidy -e` truncation, osv-scanner v2.3.2+ broken upstream).

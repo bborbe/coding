@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.0
+
+- Add `docs/go-tools-versioning-guide.md` covering the migration from `tools.go` to `tools.env` + Makefile `@version` pattern for CLI tool version pinning. Documents why `tools.go` is harmful (transitive dep pollution, cascade through library imports, permanent replace workarounds), the canonical `tools.env` source-of-truth, `go run pkg@$(VERSION)` invocation pattern, `//go:generate` directive update, the 7-step migration procedure, dependency-tree-based migration order, and pitfalls (gosec "dev" cosmetic, `go run` ignoring local replaces, `go mod tidy -e` truncation, osv-scanner v2.3.2+ broken upstream).
+- Add canonical `templates/tools.env` listing the version pin for every CLI tool (addlicense, counterfeiter, errcheck, ginkgo, goimports-reviser, golangci-lint, golines, go-modtool, gosec, govulncheck, osv-scanner). Pinned `OSV_SCANNER_VERSION=v2.3.1` since v2.3.2+ is broken upstream.
+- Update `templates/Makefile.library` and `templates/Makefile.service` to `include tools.env` and use `go run pkg@$(VERSION)` everywhere instead of `go run -mod=mod pkg`. Switch `golangci-lint` import path to v2 (`github.com/golangci/golangci-lint/v2/cmd/golangci-lint`).
+- Remove `templates/tools.go` — superseded by the `tools.env` + Makefile pattern.
+
 ## v0.8.0
 
 - Add `docs/go-state-machine-pattern.md` covering the phase-dispatched state machine pattern for long-running, resumable, multi-process workflows. Documents core structure (Phase enum, Status enum, Result envelope, dispatcher), Status-vs-Phase distinction with controller persistence rule, heterogeneous phases (pure-Go and external runners), external controller contract, four backward-edge patterns (Interventional Reset, Phase Unrolling, Sub-Phase loop, Circuit Breaker), parallel sub-phases via `bborbe/run`, anti-patterns with paired `[GOOD]`/`[BAD]` examples, and testing guidance. Generic Order/Customer/Product domain throughout. Indexed in README.md and llms.txt under Go Architecture & Patterns. Reference-only guide (no matching agent — fits CLAUDE.md exemption for pattern guides).

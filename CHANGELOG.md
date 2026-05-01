@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.2
+
+- Update `docs/go-tools-versioning-guide.md` with `bborbe/* @latest` recipe — script-driven dep bump replaces fragile manual version enumeration. New step in migration procedure: `grep '^	github.com/bborbe/' go.mod | grep -v '// indirect\|=>' | awk '{print $1}' | xargs -I {} go get {}@latest`
+- Add post-migration verification step (zero pollution check): `grep -E '(cellbuf|go-header|go-diskfs|golangci-lint|osv-scanner|ginkgolinter|charmbracelet/x|denis-tingaikin)' go.mod` must return zero matches
+- Add four new pitfalls based on agent multi-module migration experience: one unbumped bborbe dep brings cascade back; `go mod why` is the diagnostic; hardcoded version lists in prompts truncate; multi-module local-path replaces stay
+- Update `templates/prompt-migrate-tools-go.md` to match: explicit `@latest` step, post-tidy pollution check, multi-module replace handling, renumbered steps to 11
+
 ## v0.9.1
 
 - Add `templates/prompt-migrate-tools-go.md` — dark-factory prompt template for migrating Go libraries from `tools.go` to `tools.env` + Makefile `@version` pattern. Self-contained with full migration steps, references the guide, includes verification checks. Copy to each bborbe lib's `prompts/in-progress/` to drive the migration via dark-factory.

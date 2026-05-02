@@ -84,6 +84,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Functional Composition](docs/go-functional-composition-pattern.md) | Composable function types |
 | [Enum Pattern](docs/go-enum-type-pattern.md) | String-based enums |
 | [Filter Pattern](docs/go-filter-pattern.md) | Composable predicates |
+| [Boolean Combinator Pattern](docs/go-boolean-combinator-pattern.md) | And / Or / Not for predicate interfaces |
 | [Parse Pattern](docs/go-parse-pattern.md) | Custom type conversion |
 | [CQRS](docs/go-cqrs.md) | Command Query Separation |
 | [Composition](docs/go-composition.md) | Struct embedding |

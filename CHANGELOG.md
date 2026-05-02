@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.4
+
+- Add `docs/go-boolean-combinator-pattern.md` — `And` / `Or` / `Not` combinator pattern for predicate-style interfaces. Captures the convention used by `signalcheck` and the upcoming `truster` package: single-method decision interface, structured result with description, slice-typed combinators, function-typed adapter, fail-safe empty-list handling, full-evaluation audit-trail default. Includes anti-patterns (naked bool returns, nesting via callbacks, vacuous truth in security contexts) and a checklist for new implementations.
+- Update `docs/go-filter-pattern.md` Related Patterns — replace the "Specification Pattern" placeholder with a real link to the new combinator guide.
+- Index the new guide in `README.md` (Go — Architecture & Patterns table) and `llms.txt`.
+
 ## v0.9.3
 
 - Add `templates/migrate-tools-go.sh` — reusable bulk migration script for multi-module repos. Operates on current repo via `git rev-parse --show-toplevel`, finds all `tools.go`, deletes them, bumps every `bborbe/*` dep (direct + indirect) to `@latest`, runs `go mod tidy`, drops obsolete replaces. Idempotent. Used to migrate 128 trading sub-modules in one run.

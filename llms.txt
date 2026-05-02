@@ -9,6 +9,7 @@
 - [Functional Composition](docs/go-functional-composition-pattern.md): Composable function and list types
 - [Enum Pattern](docs/go-enum-type-pattern.md): String-based enums with validation
 - [Filter Pattern](docs/go-filter-pattern.md): Composable collection predicates
+- [Boolean Combinator Pattern](docs/go-boolean-combinator-pattern.md): And / Or / Not combinators for predicate-style interfaces with structured-result audit trail
 - [Parse Pattern](docs/go-parse-pattern.md): Custom type conversion and unmarshaling
 - [CQRS](docs/go-cqrs.md): Command Query Responsibility Segregation
 - [Composition](docs/go-composition.md): Struct embedding and interface composition

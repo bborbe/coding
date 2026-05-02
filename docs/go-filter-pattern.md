@@ -302,7 +302,7 @@ When implementing a filter:
 - **Functional Composition Pattern**: See `go-functional-composition-pattern.md`
 - **Strategy Pattern**: When you need runtime filter selection
 - **Chain of Responsibility**: When filters need to pass data between each other
-- **Specification Pattern**: When combining multiple filter conditions
+- **Boolean Combinator Pattern**: See `go-boolean-combinator-pattern.md` — when combining multiple filter conditions with `And`/`Or`/`Not`
 
 ## Real-World Usage
 

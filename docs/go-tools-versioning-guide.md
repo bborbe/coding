@@ -147,13 +147,15 @@ For each repo:
 2. **Update `Makefile`** — every `go run -mod=mod pkg` becomes `go run pkg@$(VERSION)`. Add `include tools.env` at the top.
 3. **Update `//go:generate` directives** — replace `go run -mod=mod github.com/maxbrunsfeld/counterfeiter/v6 -generate` with `go run github.com/maxbrunsfeld/counterfeiter/v6@v6.12.2 -generate`
 4. **Delete `tools.go`**
-5. **Bump every `bborbe/*` direct dep to `@latest`** — script-driven, no manual enumeration:
+5. **Bump every `bborbe/*` dep — direct AND indirect — to `@latest`** — script-driven:
 
    ```bash
-   grep '^	github.com/bborbe/' go.mod | grep -v '// indirect\|=>' | awk '{print $1}' | xargs -I {} go get {}@latest
+   grep '^	github.com/bborbe/' go.mod | awk '{print $1}' | xargs -I {} go get {}@latest
    ```
 
-   This is critical. ONE pre-migration `bborbe/*` dep cascades back ~360 indirect requires from the old tools.go pollution. We saw this empirically: `task/controller` had `bborbe/metrics v0.5.0` (pre-migration) which kept `cellbuf`, `go-header`, `golangci-lint`, `osv-scanner`, etc. in its indirect requires even after deleting its own tools.go. Bumping to `metrics @latest` (= migrated v0.5.2) shrunk `go.mod` from 501 → 135 lines.
+   Critical: bump BOTH direct AND indirect bborbe deps (don't filter `// indirect`). Indirect bborbe deps also drag pollution. Empirical example from backup/service: only direct `http v1.26.11` (migrated) was in require but indirect `kv v1.19.4` (pre-migration) was still pulled via http → kv chain. Result: 486 lines, 11 pollution entries even after migration. Bumping the indirect `kv` to v1.19.6 → 93 lines, zero pollution.
+
+   Filter `=>` to skip multi-module local-replace lines (e.g. `replace github.com/bborbe/agent/lib => ../../lib`) — those resolve to local paths.
 
 6. **Manually trim `go.mod`** to its real direct deps (no replace block — except local `replace ../<sub>` directives in multi-module repos, no lint/scanner indirects). Run `go mod tidy` to repopulate legitimate indirect requires.
 

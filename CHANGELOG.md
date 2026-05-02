@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.3
+
+- Add `templates/migrate-tools-go.sh` — reusable bulk migration script for multi-module repos. Operates on current repo via `git rev-parse --show-toplevel`, finds all `tools.go`, deletes them, bumps every `bborbe/*` dep (direct + indirect) to `@latest`, runs `go mod tidy`, drops obsolete replaces. Idempotent. Used to migrate 128 trading sub-modules in one run.
+- Update `docs/go-tools-versioning-guide.md`: bump bborbe deps to `@latest` must include INDIRECT bborbe deps (drop the `// indirect` filter from the grep). Empirical example documented from `backup/service` (indirect `bborbe/kv v1.19.4` was dragging full pollution; bumping to v1.19.6 dropped go.mod from 486 → 93 lines).
+- Update `templates/prompt-migrate-tools-go.md` to match the guide (script-driven `@latest` for direct + indirect; multi-module local-replace handling).
+
 ## v0.9.2
 
 - Update `docs/go-tools-versioning-guide.md` with `bborbe/* @latest` recipe — script-driven dep bump replaces fragile manual version enumeration. New step in migration procedure: `grep '^	github.com/bborbe/' go.mod | grep -v '// indirect\|=>' | awk '{print $1}' | xargs -I {} go get {}@latest`

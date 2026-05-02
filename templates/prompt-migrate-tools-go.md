@@ -69,17 +69,18 @@ The pattern was validated end-to-end on `bborbe/errors`. Key concepts:
 
 4. **Delete `tools.go`** from the repo root. If `tools.go` imports a CLI that has no Makefile counterpart (historical example: `golang.org/x/lint/golint` in some libs — Makefile doesn't invoke `golint` anywhere), simply drop that import along with `tools.go` — do NOT add a `tools.env` entry for it. Only add `tools.env` entries for tools the Makefile actually invokes.
 
-5. **Bump every `bborbe/*` direct dep to `@latest`.** Critical step — even ONE pre-migration bborbe dep (e.g. `metrics v0.5.0`) cascades back the full tools.go pollution (~360 indirect requires). Use this script-driven recipe (no manual enumeration):
+5. **Bump every `bborbe/*` dep — direct AND indirect — to `@latest`.** Critical step — even ONE pre-migration bborbe dep cascades back the full tools.go pollution. Bumping only DIRECT deps is insufficient: indirect bborbe deps also drag pollution (e.g. `http` requires `kv`; if `kv` indirect is at pre-migration, http's tidy follows kv's tools.go even though http itself is migrated). Use this script-driven recipe:
 
    ```bash
-   # Every bborbe direct dep → @latest, in one shot
-   grep '^	github.com/bborbe/' go.mod | grep -v '// indirect\|=>' | awk '{print $1}' | xargs -I {} go get {}@latest
+   # Every bborbe dep (direct + indirect) → @latest, in one shot
+   grep '^	github.com/bborbe/' go.mod | awk '{print $1}' | xargs -I {} go get {}@latest
    ```
 
    Notes:
-   - This is `@latest` not `@<specific-version>` — the migrated versions are already on the proxy, `@latest` picks them up automatically. No need for the prompt to enumerate every version.
-   - For multi-module repos (e.g. `agent/lib`'s sub-modules) where the lib is referenced via local `replace`, the local replace stays; `@latest` only affects the published require directive.
-   - The constraint "no `go get -u`" still holds for *non-bborbe* deps; the bborbe bump is intentional and required for the migration.
+   - The grep does NOT filter `// indirect` — both direct and indirect bborbe deps must be bumped.
+   - The grep filters `=>` to skip multi-module local-replace lines (e.g. `replace github.com/bborbe/agent/lib => ../../lib`) — those resolve locally.
+   - This is `@latest` not `@<specific-version>` — migrated versions are on the proxy, `@latest` picks them up automatically.
+   - The constraint "no `go get -u`" still holds for *non-bborbe* deps; the bborbe bump is intentional and required.
 
 6. **Reset `go.mod` to a minimal known-good state, then tidy.** Running `go mod tidy -e` on the polluted go.mod can truncate it. Instead:
 

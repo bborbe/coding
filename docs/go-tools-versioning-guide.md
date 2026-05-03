@@ -88,6 +88,8 @@ OSV_SCANNER_VERSION        ?= v2.3.1
 
 Every repo keeps its `tools.env` in sync with `~/Documents/workspaces/coding/templates/tools.env` (the canonical version). When upgrading a tool, update the canonical file and propagate to all repos.
 
+**Don't downgrade during migration.** When a repo's existing tool version is **newer** than the canonical (e.g. project pinned `golangci-lint@v2.12.1` but canonical is `v2.11.4`), **keep the newer version** in the repo's `tools.env`. Newer linters often introduce checks that older ones miss (e.g. `golangci-lint@v2.11.4` triggers gosec `G120` "form body parsing without MaxBytesReader" that `v2.12.1` does not). Downgrading during a tools.go migration silently introduces regressions in already-clean code. Bump the canonical file forward instead.
+
 The `?=` (instead of `=`) lets a developer override per-shell:
 
 ```bash
@@ -139,6 +141,65 @@ Some tools don't support `go install` reliably:
 - **trivy** — Aqua Security distributes a binary. Install via `apt`/`apk`/`brew`. Invoke as a system binary in the Makefile (no `go run`).
 - **osv-scanner** — Currently broken upstream for `go install osv-scanner@v2.3.2+` due to a transitive dep (`buildtools/build`) that Go's module loader can't resolve. **Pin to `v2.3.1`** until upstream releases a fix. Alternative: install the SLSA-compliant prebuilt binary via `brew install osv-scanner` and invoke it as a system binary like trivy.
 
+## errcheck: Run via golangci-lint, Not Standalone
+
+**Don't** create a standalone `errcheck:` Makefile target. **Do** enable `errcheck` inside `.golangci.yml` and let golangci-lint run it.
+
+### Why
+
+When a project uses Go 1.24+ generic type aliases (e.g., transitively via `bborbe/kv`), standalone `errcheck@v1.10.0` fails with `package without types` internal errors unless invoked with `GODEBUG=gotypesalias=1`. golangci-lint handles this internally — no env-var workaround needed.
+
+It also avoids running errcheck twice (once in `check:` target, once inside `golangci-lint`).
+
+### Pattern
+
+In `.golangci.yml`:
+
+```yaml
+linters:
+  enable:
+    - errcheck
+    # ...
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (io.Writer).Write
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+  exclusions:
+    rules:
+      - linters:
+          - errcheck
+        path: "_test\\.go$"
+      # path-based exclusions, e.g. generated k8s clients:
+      - linters:
+          - errcheck
+        path: "k8s/client/"
+```
+
+In `Makefile.precommit`:
+
+```makefile
+# DO NOT add a standalone errcheck target.
+# DO NOT include errcheck in the check: list — golangci-lint runs it.
+.PHONY: check
+check: lint vet vulncheck osv-scanner gosec trivy
+```
+
+In `tools.env`: **omit** `ERRCHECK_VERSION` — version flows from golangci-lint's bundled errcheck.
+
+### Migration from standalone errcheck
+
+If a repo has a standalone `errcheck:` target with `-ignore '(Close|Write|Fprint)'` and `GODEBUG=gotypesalias=1`:
+
+1. Translate `-ignore '(Close|Write|Fprint)'` → `errcheck.exclude-functions` in `.golangci.yml`
+2. Translate any `grep -v <path>` exclusions → `exclusions.rules` with `path:` pattern
+3. Delete the `errcheck:` Makefile target
+4. Drop `errcheck` from the `check:` target's dependency list
+5. Drop `ERRCHECK_VERSION` from `tools.env`
+
 ## Migration Steps
 
 For each repo:
@@ -158,6 +219,8 @@ For each repo:
    Filter `=>` to skip multi-module local-replace lines (e.g. `replace github.com/bborbe/agent/lib => ../../lib`) — those resolve to local paths.
 
 6. **Manually trim `go.mod`** to its real direct deps (no replace block — except local `replace ../<sub>` directives in multi-module repos, no lint/scanner indirects). Run `go mod tidy` to repopulate legitimate indirect requires.
+
+   Note: after rewriting a minimal `go.mod` and running `go get {bborbe-direct-dep}@latest` (step 5), Go's module resolver populates the indirect deps automatically during graph resolution. Running a second-pass `go get @latest` on indirect bborbe deps is still correct (and the verification grep in step 7 catches any miss), but they're often already at latest after step 5.
 
 7. **Verify zero tools.go-era pollution remains:**
 

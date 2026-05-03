@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.5
+
+- Update `docs/go-tools-versioning-guide.md` with three lessons from the `jira-task-creator` migration:
+  - New section "errcheck: Run via golangci-lint, Not Standalone" — recommends running `errcheck` via `.golangci.yml` instead of a standalone Makefile target. Avoids the `GODEBUG=gotypesalias=1` workaround required by `errcheck@v1.10.0` when the project uses Go 1.24+ generic type aliases. Includes the pattern (settings, exclusions) and migration steps.
+  - "Don't downgrade during migration" note in the `tools.env` section — when a repo's existing tool version is newer than canonical (e.g. `golangci-lint@v2.12.1` vs canonical `v2.11.4`), keep the newer version. Newer linters often introduce checks that catch real issues; downgrading silently regresses already-clean code.
+  - Note in the migration step about indirect-dep auto-population — after rewriting a minimal `go.mod` and bumping direct bborbe deps to `@latest`, indirect deps are typically already at latest via Go's module graph resolution.
+
 ## v0.9.4
 
 - Add `docs/go-boolean-combinator-pattern.md` — `And` / `Or` / `Not` combinator pattern for predicate-style interfaces. Captures the convention used by `signalcheck` and the upcoming `truster` package: single-method decision interface, structured result with description, slice-typed combinators, function-typed adapter, fail-safe empty-list handling, full-evaluation audit-trail default. Includes anti-patterns (naked bool returns, nesting via callbacks, vacuous truth in security contexts) and a checklist for new implementations.

@@ -68,17 +68,14 @@ Pass `log.SamplerFactory` (not `log.Sampler`) to constructors for testability.
 
 ## Runtime Log Level
 
-```go
-// Register endpoint in HTTP server
-router.Path("/setloglevel/{level}").Handler(
-    log.NewSetLoglevelHandler(ctx, log.NewLogLevelSetter(2, 5*time.Minute)),
-)
-```
+Bump glog `-v` at runtime via `/setloglevel/{N}` — auto-resets after 5 min:
 
 ```bash
-curl http://pod:9090/setloglevel/3   # bump temporarily
-# auto-resets to 2 after 5 minutes
+curl http://pod:9090/setloglevel/3   # 3 = enable V(1)..V(3)
+curl http://pod:9090/setloglevel/4   # 4 = +V(4) debug paths
 ```
+
+Wiring: see [go-http-service-guide.md](go-http-service-guide.md) for the canonical admin endpoint block (router registration, baseline level, TTL).
 
 ## Rules
 

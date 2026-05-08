@@ -133,6 +133,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 
 | Guide | Description |
 |-------|-------------|
+| [HTTP Service](docs/go-http-service-guide.md) | Canonical admin endpoint block, port 9090, gateway annotations |
 | [HTTP Handlers](docs/go-http-handler-refactoring-guide.md) | Handler organization |
 | [JSON Error Handler](docs/go-json-error-handler-guide.md) | Structured error responses |
 

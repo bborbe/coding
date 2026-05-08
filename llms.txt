@@ -40,6 +40,7 @@
 - [Kubernetes Manifest Layout](docs/k8s-manifest-guide.md): k8s/ folder location, filename suffixes, per-env templating placeholders
 
 ## Go — HTTP & APIs
+- [HTTP Service](docs/go-http-service-guide.md): Canonical admin endpoint block (`/healthz`, `/readiness`, `/metrics`, `/setloglevel`, `/gc`, optional `/resetdb`, `/trigger`), port 9090, K8s `admin/port` annotation
 - [HTTP Handlers](docs/go-http-handler-refactoring-guide.md): Handler organization and refactoring
 - [JSON Error Handler](docs/go-json-error-handler-guide.md): Structured error responses for APIs
 

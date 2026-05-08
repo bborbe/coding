@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.6
+
+- Add `docs/go-http-service-guide.md` — canonical admin endpoint block (`/healthz`, `/readiness`, `/metrics`, `/setloglevel/{level}`, `/gc`, conditional `/resetdb`, `/resetbucket`, `/trigger`, `/sentryalert`, `/testloglevel`), port 9090 convention, K8s `admin/port` / `admin/path` Service annotations for gateway auto-registration, server lifecycle, security boundary, anti-patterns, validation checklist.
+- Trim `/setloglevel` wiring snippet from `docs/go-logging-guide.md` (now a one-line reference to `go-http-service-guide.md`); logging guide retains glog level meanings and curl examples.
+- Cross-link new guide from `README.md` and `llms.txt` under "Go — HTTP & APIs".
+
 ## v0.9.5
 
 - Update `docs/go-tools-versioning-guide.md` with three lessons from the `jira-task-creator` migration:

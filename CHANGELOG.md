@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.7
+
+- Re-align plugin manifests with git tag — `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (both metadata and plugins[0] entries) bumped from `0.8.0` → `0.9.7`. Manifests had drifted across v0.9.x releases.
+- Add `make check-versions` precommit target — fails if `CHANGELOG.md` top version, `plugin.json`, and both `marketplace.json` version fields don't match. Prevents future drift.
+- Strengthen `CLAUDE.md` "Version Alignment — MANDATORY" section: 4-place rule, precommit enforcement, release checklist update.
+- `make check-json` now also validates `marketplace.json` syntax (was only `plugin.json`).
+
 ## v0.9.6
 
 - Add `docs/go-http-service-guide.md` — canonical admin endpoint block (`/healthz`, `/readiness`, `/metrics`, `/setloglevel/{level}`, `/gc`, conditional `/resetdb`, `/resetbucket`, `/trigger`, `/sentryalert`, `/testloglevel`), port 9090 convention, K8s `admin/port` / `admin/path` Service annotations for gateway auto-registration, server lifecycle, security boundary, anti-patterns, validation checklist.

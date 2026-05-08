@@ -88,20 +88,32 @@ templates/          Project templates (Makefile, tools.go, .gitignore)
 ## Build
 
 ```bash
-make precommit    # Validates links in README.md and llms.txt
+make precommit    # Validates links + JSON syntax + version alignment (4 places)
 ```
+
+## 🚨 Version Alignment — MANDATORY
+
+**Four version strings MUST always equal each other:**
+1. `CHANGELOG.md` — top `## vX.Y.Z` entry (the most-recent versioned section)
+2. `.claude-plugin/plugin.json` — `"version"` field
+3. `.claude-plugin/marketplace.json` — `metadata.version`
+4. `.claude-plugin/marketplace.json` — `plugins[0].version`
+
+`make precommit` runs `check-versions` which fails the build if any of the four diverge. Never commit a release with mismatched versions.
+
+**Every release commit (Workflow B in `/coding:commit`) bumps all four together** — even guide-only patch releases. Plugin manifests are NOT decoupled from the git tag; users running `claude plugin update coding@coding` rely on the manifest version matching the tag.
 
 ## Release Checklist
 
-When releasing a new version, update version in **all three files**:
-1. `CHANGELOG.md` — new `## vX.Y.Z` section
-2. `.claude-plugin/plugin.json` — `"version"` field
-3. `.claude-plugin/marketplace.json` — both `"version"` fields (metadata + plugins array)
+When releasing a new version vX.Y.Z, update **all four** version strings together, then commit + tag + push:
 
-Then commit, tag, and push:
-```bash
-git tag vX.Y.Z && git push && git push origin vX.Y.Z
-```
+1. `CHANGELOG.md` — rename `## Unreleased` → `## vX.Y.Z` (or create new section)
+2. `.claude-plugin/plugin.json` — `"version": "X.Y.Z"`
+3. `.claude-plugin/marketplace.json` — `metadata.version` and `plugins[0].version` (both → `"X.Y.Z"`)
+4. `make precommit` — must pass (includes `check-versions`)
+5. `git add -A && git commit -m "release vX.Y.Z" && git tag vX.Y.Z && git push && git push origin vX.Y.Z`
+
+The `/coding:commit` skill should drive this — but if invoked manually, run `make precommit` after the manifest edits and before the commit.
 
 ## Writing Docs
 

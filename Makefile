@@ -1,7 +1,11 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-json check-versions
+precommit: check-links check-json
+
+.PHONY: release-check
+release-check: precommit check-versions
+	@echo "ready to release"
 
 .PHONY: check-links
 check-links:
@@ -29,17 +33,4 @@ check-json:
 
 .PHONY: check-versions
 check-versions:
-	@echo "Checking version alignment..."
-	@CHANGELOG_VER=$$(grep -m1 -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed 's/^## v//'); \
-	PLUGIN_VER=$$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])"); \
-	MARKETPLACE_META_VER=$$(python3 -c "import json; print(json.load(open('.claude-plugin/marketplace.json'))['metadata']['version'])"); \
-	MARKETPLACE_PLUGIN_VER=$$(python3 -c "import json; print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][0]['version'])"); \
-	echo "  CHANGELOG.md (top):                $$CHANGELOG_VER"; \
-	echo "  plugin.json:                       $$PLUGIN_VER"; \
-	echo "  marketplace.json metadata:         $$MARKETPLACE_META_VER"; \
-	echo "  marketplace.json plugins[0]:       $$MARKETPLACE_PLUGIN_VER"; \
-	if [ "$$CHANGELOG_VER" != "$$PLUGIN_VER" ] || [ "$$CHANGELOG_VER" != "$$MARKETPLACE_META_VER" ] || [ "$$CHANGELOG_VER" != "$$MARKETPLACE_PLUGIN_VER" ]; then \
-		echo "MISMATCH: all four versions must equal CHANGELOG top entry ($$CHANGELOG_VER)"; \
-		exit 1; \
-	fi; \
-	echo "All versions aligned at $$CHANGELOG_VER"
+	@bash scripts/check-versions.sh

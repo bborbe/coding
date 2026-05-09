@@ -88,20 +88,23 @@ templates/          Project templates (Makefile, tools.go, .gitignore)
 ## Build
 
 ```bash
-make precommit    # Validates links + JSON syntax + version alignment (4 places)
+make precommit       # validates links + JSON syntax (development gate)
+make release-check   # adds check-versions on top — run before tagging
 ```
 
-## 🚨 Version Alignment — MANDATORY
+## 🚨 Version Alignment — MANDATORY at release time
 
-**Four version strings MUST always equal each other:**
+**Four version strings MUST equal each other at release time:**
 1. `CHANGELOG.md` — top `## vX.Y.Z` entry (the most-recent versioned section)
 2. `.claude-plugin/plugin.json` — `"version"` field
 3. `.claude-plugin/marketplace.json` — `metadata.version`
 4. `.claude-plugin/marketplace.json` — `plugins[0].version`
 
-`make precommit` runs `check-versions` which fails the build if any of the four diverge. Never commit a release with mismatched versions.
+`make check-versions` (script: `scripts/check-versions.sh`) fails non-zero if any of the four diverge. It is NOT wired into `make precommit` — drift during development is allowed; alignment is enforced by `make release-check` before tagging. Same shape as `dark-factory` / `vault-cli` / `semantic-search`.
 
 **Every release commit (Workflow B in `/coding:commit`) bumps all four together** — even guide-only patch releases. Plugin manifests are NOT decoupled from the git tag; users running `claude plugin update coding@coding` rely on the manifest version matching the tag.
+
+Full procedure: see `docs/releasing-coding.md`.
 
 ## Release Checklist
 
@@ -110,10 +113,10 @@ When releasing a new version vX.Y.Z, update **all four** version strings togethe
 1. `CHANGELOG.md` — rename `## Unreleased` → `## vX.Y.Z` (or create new section)
 2. `.claude-plugin/plugin.json` — `"version": "X.Y.Z"`
 3. `.claude-plugin/marketplace.json` — `metadata.version` and `plugins[0].version` (both → `"X.Y.Z"`)
-4. `make precommit` — must pass (includes `check-versions`)
+4. `make release-check` — must pass (precommit + check-versions)
 5. `git add -A && git commit -m "release vX.Y.Z" && git tag vX.Y.Z && git push && git push origin vX.Y.Z`
 
-The `/coding:commit` skill should drive this — but if invoked manually, run `make precommit` after the manifest edits and before the commit.
+The `/coding:commit` skill should drive this — but if invoked manually, run `make release-check` after the manifest edits and before the commit.
 
 ## Writing Docs
 

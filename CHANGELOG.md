@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.8
+
+- chore: extract `check-versions` to `scripts/check-versions.sh`; add `make release-check` (`precommit + check-versions`); unwire `check-versions` from `precommit` so drift during development is allowed and alignment is enforced at release time. Add `docs/releasing-coding.md`. Aligns with `dark-factory` / `vault-cli` / `semantic-search` release-gate shape.
+
 ## v0.9.7
 
 - Re-align plugin manifests with git tag — `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (both metadata and plugins[0] entries) bumped from `0.8.0` → `0.9.7`. Manifests had drifted across v0.9.x releases.

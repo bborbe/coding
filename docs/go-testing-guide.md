@@ -54,6 +54,24 @@ The testing framework is built on **Ginkgo v2** (BDD) with **Gomega** matchers, 
 ### Critical Rules
 - **Never use stdlib `testing` table-driven tests** (`[]struct` loops with `t.Run`). Always use Ginkgo `DescribeTable`/`Entry` for table-driven tests. If a `*_suite_test.go` with Ginkgo imports exists in the package, all tests must use Ginkgo.
 - **Never use `testing.T` directly** in packages that have a Ginkgo test suite. Use `Describe`/`Context`/`It`/`DescribeTable`/`Entry` blocks instead.
+- **Never call an error-returning function bare in an `It` block** — `errcheck` (run by `make precommit`) will fail. Wrap with the matcher that documents intent:
+  - Expecting success: `Expect(someFunc(ctx)).To(Succeed())`
+  - Expecting failure: `Expect(someFunc(ctx)).To(HaveOccurred())`
+  - Need the error for assertions: `err := someFunc(ctx); Expect(err).To(MatchError(...))`
+
+```go
+// ❌ WRONG — errcheck fails: "Error return value not checked"
+It("calls Save exactly twice when the rollback path is exercised", func() {
+    service.Process(ctx)
+    Expect(store.SaveCallCount()).To(Equal(2))
+})
+
+// ✅ CORRECT — error explicitly accounted for
+It("calls Save exactly twice when the rollback path is exercised", func() {
+    Expect(service.Process(ctx)).To(HaveOccurred())
+    Expect(store.SaveCallCount()).To(Equal(2))
+})
+```
 
 ```go
 // ❌ WRONG — stdlib table-driven test
@@ -822,6 +840,57 @@ ginkgo run --label-filter="unit && !slow" ./...
 - Use `Label("unit")` for fast tests with mocks only
 - Multiple labels can be applied: `Label("integration", "slow")`
 - Standard test files remain `*_test.go` (no separate `*_integration_test.go` files)
+
+### Testing Fire-and-Forget Handlers (Background Goroutines)
+
+When the SUT (system under test) launches a goroutine and returns immediately — HTTP handlers wrapped with background-run helpers, queue producers, async dispatchers — the test must reason about three concurrent timelines: the caller, the goroutine, and the assertion. Two failure modes show up:
+
+**1. The "called exactly once" stub panics.** A naive stub that does `close(done)` will panic with `close of closed channel` if scheduler delay lets a second goroutine call the stub after the first finishes. Mutex-based single-flight wrappers (e.g. a `sync.Mutex`-guarded "skip if in-flight" decorator) only block **concurrent** entry — a goroutine scheduled later, after the lock is released, will still invoke the stub. Make stubs idempotent:
+
+```go
+// ❌ WRONG — panics if the stub is invoked more times than expected
+fakeJobRunner.RunStub = func(ctx context.Context) error {
+    close(done)
+    return nil
+}
+
+// ✅ CORRECT — first call wins, later calls are no-ops
+var fired atomic.Bool
+fakeJobRunner.RunStub = func(ctx context.Context) error {
+    if fired.CompareAndSwap(false, true) {
+        close(done)
+    }
+    return nil
+}
+```
+
+**2. The "did NOT happen" assertion races the goroutine.** Asserting "second invocation was skipped" with `Eventually(callCount).Should(Equal(1))` only proves the count was 1 at *some* moment — a delayed goroutine may bump it to 2 right after. Pair `Eventually` (something happened) with `Consistently` (nothing more is going to happen) **while the gating condition still holds**:
+
+```go
+// First request fires the job runner; runner blocks on `unblock`
+h.ServeHTTP(httptest.NewRecorder(), req)
+Eventually(callStarted).Should(BeClosed())   // first goroutine entered stub
+
+// Second request — should be single-flight skipped
+h.ServeHTTP(httptest.NewRecorder(), req)
+
+// While the first call is STILL BLOCKED, the count MUST stay at 1.
+// A buggy single-flight would push it to 2 inside this window.
+Consistently(fakeJobRunner.RunCallCount, "200ms", "20ms").Should(Equal(1))
+
+close(unblock)                                // release the first call
+Eventually(fakeJobRunner.RunCallCount).Should(Equal(1))  // still 1 after release
+```
+
+**Cleanup**: always unblock the gating channel before the `It` ends, even on assertion failure. Leaked goroutines pile up across the suite and mask real bugs:
+
+```go
+defer close(unblock)  // top of It block
+```
+
+See also: [go-concurrency-patterns.md](go-concurrency-patterns.md) for the broader goroutine-lifecycle context.
+
+Or use Ginkgo's `DeferCleanup` to guarantee teardown.
 
 ## Test Organization & Naming
 

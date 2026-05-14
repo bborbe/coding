@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: clarify CQRS handler-error semantics in `go-cqrs.md` — handler errors do NOT cause kafka replay; the result-sender wrapper emits a single Failure result and commits the offset. Use `ErrCommandObjectSkipped` to suppress noisy Failure results when the caller condition is non-retryable. References bborbe/trading#125.
+
 ## v0.9.8
 
 - chore: extract `check-versions` to `scripts/check-versions.sh`; add `make release-check` (`precommit + check-versions`); unwire `check-versions` from `precommit` so drift during development is allowed and alignment is enforced at release time. Add `docs/releasing-coding.md`. Aligns with `dark-factory` / `vault-cli` / `semantic-search` release-gate shape.

@@ -79,7 +79,7 @@ return nil, nil, errors.Wrapf(ctx, cdb.ErrCommandObjectSkipped, "reason: %v", er
 
 A common misconception: "If my handler returns `err`, kafka will replay the message forever." Not true for this framework.
 
-The result-sender wrapper (`cdb_command-object-executor-tx-result-sender.go`) catches the handler error, emits a `ResultObjectFailure` to the `*-result` topic, and returns `nil` to the outer kafka consumer. The offset commits on the next batch tick. Each error is **one** Failure on the result topic — not an infinite replay.
+The result-sender wrapper catches the handler error, emits a `ResultObjectFailure` to the `*-result` topic, and returns `nil` to the outer kafka consumer. The offset commits on the next batch tick. Each error is **one** Failure on the result topic — not an infinite replay.
 
 ```
 Handler returns err

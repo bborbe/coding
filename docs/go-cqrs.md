@@ -98,7 +98,7 @@ The only path where offsets do NOT commit is the result-sender itself failing to
 - Returning `err` from a non-retryable condition (wrong state, validation failure) is **functionally safe** — no replay loop — but it produces a `Failure` on the result topic for every occurrence. If a publisher emits N copies of the same command (no state pre-filter, broker confirm retries, etc.) you get N `Failure` entries and N error log lines. Use `ErrCommandObjectSkipped` to avoid that.
 - Returning `err` from a **transient** condition (network blip, disk full) is still the right choice — but understand it produces a single Failure result and a single error log, NOT an automatic retry. If you want retry, build it into the handler or the orchestration around it.
 
-**Real-world reference:** bborbe/trading#125 — `core/actualtrade/controller` handlers returned `InvalidStateError` for commands targeting trades in terminal states. The "228 failures on one trade" in the logs were 228 **distinct** kafka messages from a publisher that did not pre-filter by state, NOT retries of one offset. Fix: handle terminal states as idempotent skip rather than error.
+**Example pattern:** an order-processing handler returns an `InvalidStateError` whenever a command targets an order already in a terminal state (`Cancelled`, `Filled`). If the publisher does not pre-filter by state and emits N duplicate commands for the same order, the result topic gets N `Failure` entries and the log gets N error lines — none of them retries, all distinct messages. Fix: treat terminal states as an idempotent skip (`ErrCommandObjectSkipped`) rather than an error.
 
 ## Rules
 

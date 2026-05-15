@@ -10,7 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- docs: clarify CQRS handler-error semantics in `go-cqrs.md` — handler errors do NOT cause kafka replay; the result-sender wrapper emits a single Failure result and commits the offset. Use `ErrCommandObjectSkipped` to suppress noisy Failure results when the caller condition is non-retryable. References bborbe/trading#125.
+- docs: clarify CQRS handler-error semantics in `go-cqrs.md` — handler errors do NOT cause kafka replay; the result-sender wrapper emits a single Failure result and commits the offset. Use `ErrCommandObjectSkipped` to suppress noisy Failure results when the caller condition is non-retryable.
 
 ## v0.9.8
 

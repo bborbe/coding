@@ -66,6 +66,10 @@
 - [Changelog](docs/changelog-guide.md): CHANGELOG.md format and maintenance
 - [Definition of Done](docs/definition-of-done.md): Checklist for completed work
 
+## Claude Code Authoring
+- [Agent & Command Development](docs/agent-command-development-guide.md): Standards for authoring agents and slash commands
+- [Skill Writing](docs/claude-code-skill-writing-guide.md): Structure and conventions for Claude Code skill directories
+
 ## Frontend
 - [Vue 3 + TypeScript](docs/vue3-typescript-frontend-guide.md): Composition API, Vite, Vitest
 - [Astro](docs/astro-development-guide.md): Astro framework patterns

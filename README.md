@@ -66,6 +66,9 @@ Commit with changelog and version bump:
 | `/coding:go-version [check\|update]` | Check/update Go version across project files |
 | `/coding:improve-guide [file]` | Refactor guide into structured rule sets |
 | `/coding:audit-guide [file]` | Audit guide against style, structure, and indexing |
+| `/coding:audit-agent [file]` | Audit agent against Agent & Command Development Guide |
+| `/coding:audit-skill [path]` | Audit skill directory against Claude Code Skill Writing Guide |
+| `/coding:audit-slash-command [file]` | Audit slash command against Agent & Command Development Guide |
 | `/coding:vscode [dir]` | Open VS Code in directory |
 | `/coding:intellij [dir]` | Open IntelliJ IDEA in directory |
 
@@ -164,6 +167,13 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [ADR Guide](docs/adr-guide.md) | Architecture Decisions |
 | [Markdown & Todos](docs/markdown-todo-guide.md) | Formatting standards |
 
+### Claude Code Authoring
+
+| Guide | Description |
+|-------|-------------|
+| [Agent & Command Development](docs/agent-command-development-guide.md) | Agent + slash-command authoring standards |
+| [Skill Writing](docs/claude-code-skill-writing-guide.md) | Claude Code skill directory structure |
+
 ### Frontend
 
 | Guide | Description |
@@ -220,6 +230,9 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `go-test-writer-assistant` | Generate Go tests |
 | `guide-improvement-assistant` | Refactor guides |
 | `guide-auditor` | Audit guides against style/structure/indexing |
+| `agent-auditor` | Audit agent files against Agent & Command Development Guide |
+| `slash-command-auditor` | Audit slash commands against Agent & Command Development Guide |
+| `skill-auditor` | Audit skills against Claude Code Skill Writing Guide |
 | `simple-bash-runner` | Run build commands |
 | `pre-implementation-assistant` | Find relevant guides |
 | `coding-guidelines-finder` | Search docs/ |

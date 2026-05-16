@@ -77,6 +77,51 @@ curl http://pod:9090/setloglevel/4   # 4 = +V(4) debug paths
 
 Wiring: see [go-http-service-guide.md](go-http-service-guide.md) for the canonical admin endpoint block (router registration, baseline level, TTL).
 
+## External Calls — Always Log
+
+Any call that crosses the process boundary (HTTP, gRPC, DB, message bus, subprocess) is logged on response. Without this, runtime mysteries — "did the payment send? did the webhook deliver? did the job enqueue?" — become guesswork from indirect signals. The log line is the audit trail.
+
+Minimum payload: method + path/op + status code + latency. Add error message on non-success. Never log credentials, request bodies with secrets, or full response bodies — log lengths/counts instead.
+
+```go
+// HTTP client — one log line per call
+// [GOOD]
+status, body, err := doRequest(ctx, client, token, "POST", url, payload)
+glog.Infof("http POST %s status=%d body_len=%d", path, status, len(body))
+if err != nil {
+    glog.Warningf("http POST %s failed: %v", path, err)
+}
+
+// [BAD] — silent boundary: caller has no audit trail
+status, body, err := doRequest(ctx, client, token, "POST", url, payload)
+if err != nil {
+    return err
+}
+
+// gRPC client — log on response
+// [GOOD]
+resp, err := client.SomeRPC(ctx, req)
+glog.Infof("rpc %s.%s status=%v", service, method, statusOf(err))
+
+// DB query — log latency on hot queries
+// [GOOD]
+start := time.Now()
+rows, err := db.QueryContext(ctx, query, args...)
+glog.Infof("db query=%s rows=%d elapsed=%v", queryName, count, time.Since(start))
+```
+
+**Hot path?** Wrap with a sampler so high-frequency calls don't drown the log:
+
+```go
+if c.logSampler.IsSample() {
+    glog.Infof("queue publish topic=%s partition=%d offset=%d", topic, p, offset)
+}
+```
+
+**Verbosity choice**: `glog.Infof` (V0) for low-frequency external calls where every call matters (payments, deploys, webhook sends, audit-relevant API writes). `glog.V(2)` + sampler for high-frequency (message-bus publishes, cache lookups, polling). Avoid `V(3)+` for boundary calls — they're operational signal, not debug detail.
+
+**What to grep for later**: pick a consistent prefix per boundary so `kubectl logs ... | grep http` returns everything. Examples: `http POST`, `rpc UserService.GetUser`, `db query`, `subprocess exec`.
+
 ## Rules
 
 - **Don't mix** slog and glog in the same project
@@ -86,3 +131,4 @@ Wiring: see [go-http-service-guide.md](go-http-service-guide.md) for the canonic
 - **Log at boundaries** — handlers, processors, startup — not deep internals
 - **Don't log in tight loops** — log aggregated result, or use sampler
 - **V(2) with nothing to report** — skip the log line, or use sampling
+- **Every external call logs its response** — see "External Calls" above. Default V0 for low-frequency; sampled V(2) for hot paths. No silent boundaries.

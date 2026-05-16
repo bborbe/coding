@@ -78,7 +78,8 @@ Pattern detection with Grep:
 Guideline references:
 - `go-architecture-patterns.md` - Interface → Constructor → Struct → Method pattern
 - `go-doc-best-practices.md` - GoDoc formatting rules
-- `go-glog.md` - Logging level guidelines
+- `go-glog-guide.md` - glog API (levels, format strings)
+- `go-logging-guide.md` - logging strategy: verbosity, sampling, external-call boundary rule
 - `go-context-cancellation-in-loops.md` - Context cancellation patterns for loops
 
 ### 2. Analysis Phase
@@ -132,6 +133,18 @@ Code review categories:
 - `glog.V(1).Info()` - operator debug, production troubleshooting
 - `glog.V(2).Info()` - external communication, developer default
 - `glog.V(3+).Info()` - developer debug, deep troubleshooting
+
+**External-call logging (boundary rule)**:
+- Every call crossing the process boundary (HTTP, gRPC, DB, message bus, subprocess) MUST emit a log line on response. Without it, runtime debugging — "did the call go out? what was the status? did the response match what we expected?" — becomes guesswork.
+- Detection: grep for client-call patterns and check there's a log line in the same function:
+  - HTTP: `http.NewRequest`, `client\.Do\(`, `http\.Post`, `http\.Get`
+  - gRPC: client method invocations on generated stubs
+  - DB: `db\.Query`, `db\.Exec`, `sql\..*Context`
+  - Subprocess: `exec\.Command`, `exec\.CommandContext`
+  - For each match, verify a `glog.Infof` or `glog.V(N).Infof` follows within the same function with the method/path/op + status code
+- Verbosity: `glog.Infof` (V0) for low-frequency external calls where every call matters (PR posts, payments, deploys). `glog.V(2).Infof` + sampler for high-frequency (Kafka publish, polling, cache).
+- Severity: flag as **Moderate** if an external call has no surrounding log. Flag as **Critical** if the missing log is on a write/mutating operation (POST/PUT/DELETE on external API, mutating DB query, message publish) where the audit trail is operationally needed.
+- See `go-logging-guide.md` section "External Calls — Always Log" for the canonical pattern and sampler integration.
 
 **Library Usage**:
 - Use `collection.Ptr()` not custom pointer helpers
@@ -250,9 +263,9 @@ Progress tracking:
 ```
 
 Severity categorization:
-- **Critical**: `context.Background()` in business logic, loops without ctx.Done() (infinite loops, large collection iterations, retry loops), concurrency bugs, data races, resource leaks
+- **Critical**: `context.Background()` in business logic, loops without ctx.Done() (infinite loops, large collection iterations, retry loops), concurrency bugs, data races, resource leaks, missing log on a mutating external call (HTTP POST/PUT/DELETE, mutating SQL, message-bus publish, subprocess that writes), `tx` context passed to a dependency that opens its own transaction
 - **Important**: Error handling issues (missing wrapping, wrong error wrapper), API misuse, architectural violations, missing counterfeiter comments, wrong file layout ordering (constructor below struct)
-- **Moderate**: Non-idiomatic code, naming issues, glog level misuse, minor performance, standard library usage instead of ecosystem libs
+- **Moderate**: Non-idiomatic code, naming issues, glog level misuse, missing log on a read-only external call (HTTP GET, read-only SQL, cache lookup), minor performance, standard library usage instead of ecosystem libs
 - **Minor**: GoDoc format issues, style preferences, documentation gaps
 
 ### 3. Quality Assurance Phase

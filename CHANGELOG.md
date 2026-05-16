@@ -8,9 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.9.9
 
 - docs: clarify CQRS handler-error semantics in `go-cqrs.md` — handler errors do NOT cause kafka replay; the result-sender wrapper emits a single Failure result and commits the offset. Use `ErrCommandObjectSkipped` to suppress noisy Failure results when the caller condition is non-retryable.
+- docs: Tighten CHANGELOG header rule in `docs/changelog-guide.md` — everything before the first `##` is frozen; never insert above any header line. Prevents the failure mode where a past `## Unreleased` was placed above the SemVer preamble and later release renames stranded the preamble mid-file.
 
 ## v0.9.8
 

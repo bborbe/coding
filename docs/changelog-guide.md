@@ -37,9 +37,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 **Rules:**
 - Preamble with SemVer explanation always present
+- **Header is frozen**: everything from the start of the file to the FIRST `##` heading (the `# Changelog` title, the "All notable changes..." line, the SemVer link, and the MAJOR/MINOR/PATCH bullets) MUST NOT be moved, deleted, or have anything inserted above or inside it. Insert `## Unreleased` (or any version section) immediately AFTER the last header line — never before any header line. If the header is incomplete, restore it; never leave it partial.
 - `## Unreleased` on feature branches — never a version number
 - `## vX.Y.Z` on master — no date suffix
-- Newest version first
+- Newest version first — `## Unreleased` goes directly above the highest `## vX.Y.Z`
 - Flat list — no `### Added` / `### Fixed` categories
 
 ## Conventional Prefixes (REQUIRED)

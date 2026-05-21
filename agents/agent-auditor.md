@@ -1,11 +1,9 @@
 ---
 name: agent-auditor
 description: Audit agents against Agent & Command Development Guide for structure, role definition, workflow, and effectiveness
-tools:
-  - Read
-  - Bash
-  - Glob
+tools: Read, Bash, Glob
 model: sonnet
+effort: high
 ---
 
 <role>

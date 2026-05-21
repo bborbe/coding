@@ -1,4 +1,5 @@
 ---
+allowed-tools: Task
 description: Audit skill directory against Claude Code Skill Writing Guide for quality and compliance
 argument-hint: "<skill-path>"
 ---

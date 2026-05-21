@@ -1,11 +1,9 @@
 ---
 name: skill-auditor
 description: Audit Claude Code skills for structure, SKILL.md quality, script correctness, and best practices
-tools:
-  - Read
-  - Bash
-  - Glob
+tools: Read, Bash, Glob
 model: sonnet
+effort: high
 ---
 
 <role>

@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.10
+
+- fix(auditors): unbreak `coding:audit-agent`, `coding:audit-slash-command`, `coding:audit-skill` commands and their corresponding agents (`agent-auditor`, `slash-command-auditor`, `skill-auditor`). Three slash commands were missing `allowed-tools: Task` in their frontmatter so the Task tool was blocked at invocation. Three agents were missing `effort: high` and used YAML-list `tools:` form (vs comma-string) which Claude Code's plugin loader silently rejected. Net: 3 previously-dead commands and 3 agents now load and function.
+- note: Claude Code caches plugin agent/command discovery by plugin version. New agents/commands added at the same version are NOT picked up by `/reload-plugins` — only a version bump triggers re-discovery. Document this for future plugin releases.
+
 ## v0.9.9
 
 - docs: clarify CQRS handler-error semantics in `go-cqrs.md` — handler errors do NOT cause kafka replay; the result-sender wrapper emits a single Failure result and commits the offset. Use `ErrCommandObjectSkipped` to suppress noisy Failure results when the caller condition is non-retryable.

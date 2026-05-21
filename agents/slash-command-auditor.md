@@ -1,11 +1,9 @@
 ---
 name: slash-command-auditor
 description: Audit slash commands against Agent & Command Development Guide for structure, YAML config, and effectiveness
-tools:
-  - Read
-  - Bash
-  - Glob
+tools: Read, Bash, Glob
 model: sonnet
+effort: high
 ---
 
 <role>

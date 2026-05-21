@@ -1,4 +1,5 @@
 ---
+allowed-tools: Task
 description: Audit agent file against Agent & Command Development Guide for quality and compliance
 argument-hint: "<agent-path>"
 ---

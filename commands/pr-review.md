@@ -74,6 +74,21 @@ Detect project type in `REVIEW_DIR`:
 - **Go**: `go.mod` exists
 - **Python**: `pyproject.toml` or `requirements.txt` exists
 
+### Step 2.5: Load Context-Specific Conventions
+
+Before running automated checks or agents, scan the diff for file types that demand a project-convention doc. Read each matching doc into context BEFORE Step 4 so agent prompts and the manual-review pass interpret findings against the right rules.
+
+| If diff touches… | Read first |
+|---|---|
+| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `~/Documents/workspaces/coding/docs/teamvault-conventions.md` (so secrets review does not flag teamvault LOOKUP KEYS — short alphanumeric values like `kLoejw` — as exposed credentials) |
+| `main.go` of a service deployed to k8s (HTTP server, StatefulSet, Deployment) | `~/Documents/workspaces/coding/docs/go-k8s-binary-conventions.md` |
+| `k8s/*.yaml` (non-secret) | `~/Documents/workspaces/coding/docs/k8s-manifest-guide.md` |
+| `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
+
+Load only the docs that apply — short reviews don't pay the cost when files aren't touched. Inside the YOLO container the docs are mounted at `/home/node/.claude/plugins/marketplaces/coding/docs/` — use that path instead of the host path when running container-side.
+
+Findings cross-referenced against these docs are stronger than generic guidance: the reviewer can say "teamvault lookup key per teamvault-conventions.md — not flagged" instead of speculating about secret exposure.
+
 ### Step 3: Run Automated Checks (All Modes)
 
 **3a. Check for LICENSE file** in `REVIEW_DIR` root.

@@ -23,7 +23,7 @@ Expert Claude Code skill auditor specializing in evaluating skill directories ag
 1. **Read references first** - Before any evaluation:
    - Read the `docs/claude-code-skill-writing-guide.md` file in the coding plugin (resolve via the plugin marketplace path, typically `~/.claude/plugins/marketplaces/coding/docs/claude-code-skill-writing-guide.md`; if not at that path, locate via `find / -name claude-code-skill-writing-guide.md 2>/dev/null | head -1`)
 
-2. **Discover skill structure** - List all files in the skill directory
+2. **Resolve and discover skill structure** - Resolve the input argument: if it is a directory, use it; if it has no `/`, look in `skills/` (project), then `~/.claude/skills/` (user-global), then `~/.claude/plugins/marketplaces/*/skills/` (plugin). Then list all files in the skill directory.
 
 3. **Read all skill files** - SKILL.md, scripts, references, workflows
 

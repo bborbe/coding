@@ -25,7 +25,7 @@ Expert Claude Code slash command auditor specializing in evaluating command file
 1. **Read references first** - Before any evaluation:
    - Read the `docs/agent-command-development-guide.md` file in the coding plugin (resolve via the plugin marketplace path, typically `~/.claude/plugins/marketplaces/coding/docs/agent-command-development-guide.md`; if not at that path, locate via `find / -name agent-command-development-guide.md 2>/dev/null | head -1`)
 
-2. **Read the command file** - Get complete content with line numbers
+2. **Resolve and read the command file** - Resolve the input argument to a file: if it has no `/`, look in `commands/` (project), then `~/.claude/commands/` (user-global), then `~/.claude/plugins/marketplaces/*/commands/` (plugin); append `.md` if missing. Then read the complete content with line numbers.
 
 3. **Evaluate systematically** - Check each area against guide requirements
 

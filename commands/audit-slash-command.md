@@ -1,7 +1,7 @@
 ---
 allowed-tools: Task
 description: Audit slash command file against Agent & Command Development Guide for quality and compliance
-argument-hint: "<command-path>"
+argument-hint: "[path/to/command.md]"
 ---
 
 <objective>
@@ -9,18 +9,12 @@ Invoke the slash-command-auditor agent to audit the slash command at $ARGUMENTS 
 </objective>
 
 <process>
-1. Parse command path from $ARGUMENTS
-   - If path doesn't contain `/`, look in `commands/` (project), then `~/.claude/commands/` (user-global), then `~/.claude/plugins/marketplaces/*/commands/` (plugin)
-   - If no `.md` extension, append it
-2. Invoke `coding:slash-command-auditor` agent with the command path
-3. Agent reads Agent & Command Development Guide first
-4. Agent evaluates YAML frontmatter, argument handling, structure, tool restrictions, content quality
-5. Review detailed findings with severity levels, scores, and recommendations
+1. Invoke the `coding:slash-command-auditor` agent, passing `$ARGUMENTS` as the command to audit (the agent resolves the path and appends `.md` if needed).
+2. Present the agent's audit report.
 </process>
 
 <success_criteria>
-- Agent invoked successfully
-- Command path passed correctly
-- Audit includes all evaluation areas from Agent & Command Development Guide
+- Report covers every evaluation area from the Agent & Command Development Guide (frontmatter, argument handling, structure, tool restrictions, content quality)
 - Report shows score, critical issues, recommendations, and strengths
+- Findings cite line numbers and quoted snippets
 </success_criteria>

@@ -1,7 +1,7 @@
 ---
 allowed-tools: Task
 description: Audit agent file against Agent & Command Development Guide for quality and compliance
-argument-hint: "<agent-path>"
+argument-hint: "[path/to/agent.md]"
 ---
 
 <objective>
@@ -9,18 +9,12 @@ Invoke the agent-auditor agent to audit the agent at $ARGUMENTS for compliance w
 </objective>
 
 <process>
-1. Parse agent path from $ARGUMENTS
-   - If path doesn't contain `/`, look in `agents/` (project), then `~/.claude/agents/` (user-global), then `~/.claude/plugins/marketplaces/*/agents/` (plugin)
-   - If no `.md` extension, append it
-2. Invoke `coding:agent-auditor` agent with the agent path
-3. Agent reads Agent & Command Development Guide first
-4. Agent evaluates YAML frontmatter, role definition, constraints, workflow, evaluation areas, output format, XML structure
-5. Review detailed findings with severity levels, scores, and recommendations
+1. Invoke the `coding:agent-auditor` agent, passing `$ARGUMENTS` as the agent to audit (the agent resolves the path and appends `.md` if needed).
+2. Present the agent's audit report.
 </process>
 
 <success_criteria>
-- Agent invoked successfully
-- Agent path passed correctly
-- Audit includes all evaluation areas from Agent & Command Development Guide
+- Report covers every evaluation area from the Agent & Command Development Guide (frontmatter, role definition, constraints, workflow, evaluation areas, output format, XML structure)
 - Report shows score, critical issues, recommendations, and strengths
+- Findings cite line numbers and quoted snippets
 </success_criteria>

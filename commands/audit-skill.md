@@ -1,7 +1,7 @@
 ---
 allowed-tools: Task
 description: Audit skill directory against Claude Code Skill Writing Guide for quality and compliance
-argument-hint: "<skill-path>"
+argument-hint: "[path/to/skill]"
 ---
 
 <objective>
@@ -9,18 +9,12 @@ Invoke the skill-auditor agent to audit the skill at $ARGUMENTS for compliance w
 </objective>
 
 <process>
-1. Parse skill path from $ARGUMENTS
-   - If path is a directory, use it directly
-   - If path doesn't contain `/`, look in `skills/` (project), then `~/.claude/skills/` (user-global), then `~/.claude/plugins/marketplaces/*/skills/` (plugin)
-2. Invoke `coding:skill-auditor` agent with the skill path
-3. Agent reads Claude Code Skill Writing Guide first
-4. Agent evaluates SKILL.md structure, frontmatter, scripts, content quality
-5. Review detailed findings with severity levels, scores, and recommendations
+1. Invoke the `coding:skill-auditor` agent, passing `$ARGUMENTS` as the skill to audit (the agent resolves the path, directory or name).
+2. Present the agent's audit report.
 </process>
 
 <success_criteria>
-- Agent invoked successfully
-- Skill path passed correctly
-- Audit includes all evaluation areas from Skill Writing Guide
+- Report covers every evaluation area from the Claude Code Skill Writing Guide (SKILL.md structure, frontmatter, scripts, content quality)
 - Report shows score, critical issues, recommendations, and strengths
+- Findings cite line numbers and quoted snippets
 </success_criteria>

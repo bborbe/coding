@@ -8,6 +8,15 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.11
+
+- docs(go): add `go-k8s-binary-conventions.md` guide.
+- docs(teamvault): add `teamvault-conventions.md` explaining the lookup-key vs raw-secret pattern; make `coding:code-review` aware of it.
+- docs(pr-review): mirror `code-review` Step 2.5 — load context-specific conventions during PR review.
+- templates: replace bare `make vulncheck` in `Makefile.library` and `Makefile.service` with the structured pattern from `go-skeleton` — adds `VULNCHECK_IGNORE ?= ...` allowlist of OSV IDs, runs govulncheck in JSON mode, and prints a deduplicated table (`OSV id`, `module@version -> fixed_version`, `summary`). Exits non-zero only on unignored findings.
+- docs(go-makefile-commands): document new `make vulncheck` behavior, the `VULNCHECK_IGNORE` and `GOVULNCHECK_VERSION` variables, and how to allowlist a new OSV ID per-project.
+- chore(release): version bump to `0.9.11` also forces plugin re-discovery of `coding:audit-agent`, `coding:audit-skill`, `coding:audit-slash-command` — fixed in 0.9.10 but never picked up because Claude Code caches command/agent discovery per plugin version (no bump = no re-scan).
+
 ## v0.9.10
 
 - fix(auditors): unbreak `coding:audit-agent`, `coding:audit-slash-command`, `coding:audit-skill` commands and their corresponding agents (`agent-auditor`, `slash-command-auditor`, `skill-auditor`). Three slash commands were missing `allowed-tools: Task` in their frontmatter so the Task tool was blocked at invocation. Three agents were missing `effort: high` and used YAML-list `tools:` form (vs comma-string) which Claude Code's plugin loader silently rejected. Net: 3 previously-dead commands and 3 agents now load and function.

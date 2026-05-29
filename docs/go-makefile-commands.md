@@ -129,10 +129,19 @@ make errcheck
 ### `make vulncheck`
 **Purpose**: Scan for known security vulnerabilities in dependencies.
 **What it does**:
-- Analyzes Go modules for security issues
-- Checks dependencies against vulnerability databases
-- Reports known CVEs in dependencies
-- Suggests remediation strategies
+- Runs `govulncheck` (pinned to `$(GOVULNCHECK_VERSION)`) in JSON mode
+- Filters out OSV IDs listed in `VULNCHECK_IGNORE` (override per-project as needed)
+- Prints a deduplicated table of remaining findings: `OSV id`, `module@version -> fixed_version`, `summary`
+- Exits non-zero if any unignored vulnerability remains
+
+**Variables**:
+- `GOVULNCHECK_VERSION` — pinned in `tools.env` (canonical: `~/Documents/workspaces/coding/templates/tools.env`)
+- `VULNCHECK_IGNORE` — space-separated OSV IDs to allowlist (default in `templates/Makefile.{library,service}`)
+
+**Adding a new allowlisted OSV** (per-project):
+```make
+VULNCHECK_IGNORE ?= GO-2026-4923 GO-2026-4514 GO-2026-9999
+```
 
 ```bash
 make vulncheck

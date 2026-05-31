@@ -7,5 +7,32 @@
     "id": "go-context/cancel-check-in-loop",
     "level": "SHOULD",
     "owner": "go-context-assistant"
+  },
+  {
+    "anchor": "go-time/inject-getter-not-create",
+    "applies_when": "a factory or constructor file outside `main.go` calls `libtime.NewCurrentDateTime()`.",
+    "doc_path": "docs/go-time-injection.md",
+    "enforcement": "judgment",
+    "id": "go-time/inject-getter-not-create",
+    "level": "MUST",
+    "owner": "go-time-assistant"
+  },
+  {
+    "anchor": "go-time/no-time-now-direct",
+    "applies_when": "any `*.go` file outside `main.go`, `*_test.go`, `vendor/` calls `time.Now()` directly.",
+    "doc_path": "docs/go-time-injection.md",
+    "enforcement": "`rules/go/no-time-now-direct.yml`",
+    "id": "go-time/no-time-now-direct",
+    "level": "MUST",
+    "owner": "go-time-assistant"
+  },
+  {
+    "anchor": "go-time/no-time-time-in-fields",
+    "applies_when": "any Go struct field is declared with stdlib type `time.Time` or `time.Duration`.",
+    "doc_path": "docs/go-time-injection.md",
+    "enforcement": "`rules/go/no-time-time-in-fields.yml`",
+    "id": "go-time/no-time-time-in-fields",
+    "level": "MUST",
+    "owner": "go-time-assistant"
   }
 ]

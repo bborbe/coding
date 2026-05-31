@@ -131,3 +131,77 @@ Always `defer`-restore the original — parallel tests or subsequent specs will 
 - Counterfeiter mock for time → use real `SetNow()`
 - `nowFunc func() time.Time` → `currentDateTimeGetter libtime.CurrentDateTimeGetter`
 - nil fallback to `time.Now()` → require getter in constructor
+
+### RULE go-time/no-time-now-direct (MUST)
+
+**Owner**: go-time-assistant
+**Applies when**: any `*.go` file outside `main.go`, `*_test.go`, `vendor/` calls `time.Now()` directly.
+**Enforcement**: `rules/go/no-time-now-direct.yml`
+**Why**: `time.Now()` is non-deterministic and untestable; production code must inject a `libtime.CurrentDateTimeGetter` and tests must use `libtime.SetNow()`.
+
+#### Bad
+
+```go
+func (s *service) Process(ctx context.Context) {
+    now := time.Now()
+    // ...
+}
+```
+
+#### Good
+
+```go
+func (s *service) Process(ctx context.Context) {
+    now := s.currentDateTimeGetter.Now()
+    // ...
+}
+```
+
+### RULE go-time/no-time-time-in-fields (MUST)
+
+**Owner**: go-time-assistant
+**Applies when**: any Go struct field is declared with stdlib type `time.Time` or `time.Duration`.
+**Enforcement**: `rules/go/no-time-time-in-fields.yml`
+**Why**: `libtime.DateTime` and `libtime.Duration` carry marshalling and timezone discipline; stdlib types lose both at the type boundary.
+
+#### Bad
+
+```go
+type Order struct {
+    Created  time.Time
+    Timeout  time.Duration
+}
+```
+
+#### Good
+
+```go
+type Order struct {
+    Created  libtime.DateTime
+    Timeout  libtime.Duration
+}
+```
+
+### RULE go-time/inject-getter-not-create (MUST)
+
+**Owner**: go-time-assistant
+**Applies when**: a factory or constructor file outside `main.go` calls `libtime.NewCurrentDateTime()`.
+**Enforcement**: judgment
+**Why**: factories must be pure composition; creating `libtime.CurrentDateTime` inside a factory hardcodes the clock and breaks the test-time `SetNow` override. ast-grep cannot reliably distinguish a factory call site from a test fixture — whole-function context is required.
+
+#### Bad
+
+```go
+func NewService() Service {
+    currentDateTime := libtime.NewCurrentDateTime()
+    return &service{currentDateTimeGetter: currentDateTime}
+}
+```
+
+#### Good
+
+```go
+func NewService(currentDateTimeGetter libtime.CurrentDateTimeGetter) Service {
+    return &service{currentDateTimeGetter: currentDateTimeGetter}
+}
+```

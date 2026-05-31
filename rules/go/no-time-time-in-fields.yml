@@ -1,0 +1,16 @@
+id: go-time/no-time-time-in-fields
+language: go
+severity: error
+message: |
+  Struct fields must not use stdlib time.Time or time.Duration.
+  Use libtime.DateTime (or libtime.Date) and libtime.Duration instead.
+  See docs/go-time-injection.md (RULE go-time/no-time-time-in-fields).
+rule:
+  any:
+    - pattern: $NAME time.Time
+    - pattern: $NAME time.Duration
+ignores:
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"

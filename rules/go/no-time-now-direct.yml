@@ -1,0 +1,14 @@
+id: go-time/no-time-now-direct
+language: go
+severity: error
+message: |
+  time.Now() must not be called directly in production code.
+  Inject libtime.CurrentDateTimeGetter and call its Now() method instead.
+  See docs/go-time-injection.md (RULE go-time/no-time-now-direct).
+rule:
+  pattern: time.Now()
+ignores:
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"

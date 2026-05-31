@@ -25,6 +25,7 @@ message: |
 rule:
   pattern: time.Now()
 ignores:
+  - "main.go"
   - "**/main.go"
   - "**/*_test.go"
   - "vendor/**"
@@ -94,6 +95,7 @@ Reference for available node kinds: <https://ast-grep.github.io/reference/yaml.h
 - **Aliased imports defeat literal patterns**. `import t "time"; t.Now()` slips past `pattern: time.Now()`. Mechanical rules at the MUST level catch the 95% case. The dispatcher's judgment-tier review covers aliased imports.
 - **`stopBy: end` walks the whole subtree** — expensive on large functions. Use targeted `inside` / `has` constraints when the search scope is known.
 - **Generated code in `mocks/`**. Counterfeiter outputs to `mocks/` by convention across bborbe Go projects. Always include `**/mocks/**` in `ignores` — generated mock files create false positives (trivial copy loops, unconventional patterns).
+- **`**/main.go` does NOT match the project's root `main.go`** in ast-grep's glob engine — `**/` requires at least one directory level, so `cmd/foo/main.go` matches but a repo-root `main.go` does not. Always include BOTH `main.go` (root) AND `**/main.go` (subdirs) in `ignores`. Verified on dark-factory: a single root-level `main.go` produced 11 false positives until the bare `main.go` pattern was added.
 - **`pattern: $NAME time.Time` matches field declarations specifically**, not arbitrary `time.Time` usage. ast-grep's pattern-with-metavariable shape requires both a placeholder and the literal type — it does not match a bare `time.Time` mention.
 
 ## Smoke Testing

@@ -8,7 +8,9 @@ message: |
 rule:
   pattern: time.Now()
 ignores:
+  - "main.go"
   - "**/main.go"
   - "**/*_test.go"
   - "vendor/**"
   - "**/vendor/**"
+  - "**/mocks/**"

@@ -10,7 +10,9 @@ rule:
     - pattern: $NAME time.Time
     - pattern: $NAME time.Duration
 ignores:
+  - "main.go"
   - "**/main.go"
   - "**/*_test.go"
   - "vendor/**"
   - "**/vendor/**"
+  - "**/mocks/**"

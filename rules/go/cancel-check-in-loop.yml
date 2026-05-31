@@ -12,6 +12,8 @@ rule:
       stopBy: end
       pattern: <-ctx.Done()
 ignores:
+  - "main.go"
+  - "**/main.go"
   - "**/*_test.go"
   - "vendor/**"
   - "**/vendor/**"

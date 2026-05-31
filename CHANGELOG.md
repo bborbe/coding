@@ -12,6 +12,8 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 - feat: add `scripts/build-index.py` — deterministic walker that extracts `### RULE` blocks from `docs/*.md` and emits `rules/index.json`
 - docs: add `docs/rule-block-schema.md` — authoritative reference for `### RULE` block contract and `rules/index.json` schema.
+- feat: add `make build-index` target — generates `rules/index.json` from `### RULE` blocks in `docs/`
+- chore: commit initial `rules/index.json` — single entry for `go-context/cancel-check-in-loop` rule
 
 ## v0.9.13
 

@@ -34,3 +34,8 @@ check-json:
 .PHONY: check-versions
 check-versions:
 	@bash scripts/check-versions.sh
+
+.PHONY: build-index
+build-index:
+	@python3 scripts/build-index.py > rules/index.json
+	@echo "rules/index.json updated"

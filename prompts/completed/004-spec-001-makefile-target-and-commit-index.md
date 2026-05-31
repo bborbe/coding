@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [001-rule-base-interfaces-and-walker]
+summary: Added build-index Makefile target and generated rules/index.json
+container: coding-rule-base-pilot-exec-004-spec-001-makefile-target-and-commit-index
+dark-factory-version: v0.173.0
 created: "2026-05-31T19:51:00Z"
 queued: "2026-05-31T20:01:51Z"
+started: "2026-05-31T20:09:42Z"
+completed: "2026-05-31T20:10:47Z"
 branch: dark-factory/rule-base-interfaces-and-walker
 ---
 

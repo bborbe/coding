@@ -1,0 +1,11 @@
+[
+  {
+    "anchor": "go-context/cancel-check-in-loop",
+    "applies_when": "Go `for` loop body lacks a non-blocking `select { case <-ctx.Done(): ...; default: }` check, outside `*_test.go` and `vendor/`.",
+    "doc_path": "docs/go-context-cancellation-in-loops.md",
+    "enforcement": "`rules/go/cancel-check-in-loop.yml` (mechanical flag) + judgment-tier LLM adjudication for \"long-running enough to matter\".",
+    "id": "go-context/cancel-check-in-loop",
+    "level": "SHOULD",
+    "owner": "go-context-assistant"
+  }
+]

@@ -123,3 +123,18 @@ All commands exit 0; the python one-liner prints `ok`; the diff produces no outp
 ## Do-Nothing Option
 
 If we skip this work, every downstream piece of the doc-driven pipeline (dispatcher, coverage lint, bootstrap pass, per-agent slicing) starts by inventing its own answer to "what shape is a rule block?" and "what shape is the index?". The schema diverges across features and the cost to consolidate later is paid in retrofits and broken citations. The pilot rule block in `docs/go-context-cancellation-in-loops.md` already exists; without this spec it remains a one-off whose conventions are only readable by inspection. The cheap moment to lock the contract is now, before the second rule lands.
+
+## Verification Result
+
+**Verified:** 2026-05-31T20:17:00Z (HEAD 2eb3329)
+**Binary:** /Users/bborbe/Documents/workspaces/go/bin/dark-factory (v0.173.0)
+**Scenario:** Structural ACs verified directly against committed artifacts; walker error paths exercised against /tmp fixtures.
+**Evidence:**
+- `make build-index` exit 0; `rules/index.json` is a length-1 array; entry `id=go-context/cancel-check-in-loop level=SHOULD doc_path=docs/go-context-cancellation-in-loops.md owner=go-context-assistant`, with non-empty `anchor`/`applies_when`/`enforcement`.
+- Determinism: two consecutive `make build-index` runs produced byte-identical output (`diff` empty, exit 0); trailing byte is `0a`; entry keys read top-to-bottom as `anchor, applies_when, doc_path, enforcement, id, level, owner` (alphabetical).
+- Walker imports only stdlib (`json`, `pathlib`, `re`, `sys`); header comment block has 14 leading `#` lines.
+- Makefile: `.PHONY: build-index` + `build-index:` recipe `python3 scripts/build-index.py > rules/index.json`; `precommit: check-links check-json` and `release-check: precommit check-versions` — `build-index` is not a prerequisite of either.
+- Schema doc `docs/rule-block-schema.md` defines required fields (Owner/Applies when/Enforcement), level tokens (MUST/SHOULD/MAY), ID format `<lang>/<topic>/<slug>`, anchor derivation, and the seven `rules/index.json` fields; cites `docs/go-context-cancellation-in-loops.md` as the canonical example; linked from `README.md:176` and `llms.txt:72`.
+- Error paths (via /tmp fixture trees): missing `Owner` field → `Missing required field 'owner' in docs/bad-missing-owner.md rule go/test-missing-owner` (exit 1); invalid ID `Go/BadID` → `Invalid rule ID in docs/bad-id.md: ### RULE Go/BadID (SHOULD)` (exit 1); duplicate ID across docs → `Duplicate rule ID 'go/dup-rule' found in: docs/dup-a.md, docs/dup-b.md` (exit 1).
+- `git ls-files rules/index.json` returns the path; `make precommit` exit 0.
+**Verdict:** PASS

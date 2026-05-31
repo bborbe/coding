@@ -112,3 +112,7 @@ This is the reference implementation. All new rule blocks must follow this struc
 - **Mixed-case IDs**: `Go/Context/Loop` is invalid; IDs must be lowercase.
 - **Non-prefixed owner**: `go-context-assistant` without the `coding:` prefix is invalid in the index but valid in the doc field — the walker adds the prefix on ingestion.
 - **Non-array top-level**: `rules/index.json` must be a JSON array, not an object keyed by rule ID.
+
+## Companion Guides
+
+- [ast-grep Rule Writing Guide](ast-grep-rule-writing-guide.md) — conventions for the `rules/<lang>/<id>.yml` ast-grep detectors that mechanical-tier rules cite via `Enforcement:`

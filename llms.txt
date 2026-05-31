@@ -70,6 +70,7 @@
 - [Agent & Command Development](docs/agent-command-development-guide.md): Standards for authoring agents and slash commands
 - [Skill Writing](docs/claude-code-skill-writing-guide.md): Structure and conventions for Claude Code skill directories
 - [Rule Block Schema](docs/rule-block-schema.md): `### RULE` block contract and index schema
+- [ast-grep Rule Writing Guide](docs/ast-grep-rule-writing-guide.md): ast-grep YAML conventions for mechanical rule enforcement
 
 ## Frontend
 - [Vue 3 + TypeScript](docs/vue3-typescript-frontend-guide.md): Composition API, Vite, Vitest

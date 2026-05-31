@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [001-rule-base-interfaces-and-walker]
+summary: 'Created scripts/build-index.py — deterministic walker that extracts ### RULE blocks from docs/*.md and emits rules/index.json'
+container: coding-rule-base-pilot-exec-003-spec-001-build-index-py-walker
+dark-factory-version: v0.173.0
 created: "2026-05-31T19:51:00Z"
 queued: "2026-05-31T20:01:51Z"
+started: "2026-05-31T20:04:59Z"
+completed: "2026-05-31T20:09:41Z"
 branch: dark-factory/rule-base-interfaces-and-walker
 ---
 

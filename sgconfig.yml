@@ -1,0 +1,6 @@
+# ast-grep project config. Auto-discovered by `ast-grep scan` when run from
+# this repo root, or referenced explicitly via `ast-grep scan -c <path>`.
+#
+# ruleDirs lists directories scanned recursively for *.yml rule files.
+ruleDirs:
+  - ./rules

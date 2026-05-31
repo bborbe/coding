@@ -1,0 +1,18 @@
+id: go-errors/no-context-background-in-business-logic
+language: go
+severity: error
+message: |
+  context.Background() must not appear in business logic.
+  Add ctx context.Context as a function parameter and propagate from callers.
+  See docs/go-error-wrapping-guide.md (RULE go-errors/no-context-background-in-business-logic).
+rule:
+  pattern: context.Background()
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "cmd/**"
+  - "**/cmd/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

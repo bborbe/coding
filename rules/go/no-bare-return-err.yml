@@ -1,0 +1,20 @@
+id: go-errors/no-bare-return-err
+language: go
+severity: error
+message: |
+  Bare `return err` must not appear inside an `if err != nil { ... }` block.
+  Wrap with errors.Wrapf(ctx, err, "operation description") to add context and stack trace.
+  See docs/go-error-wrapping-guide.md (RULE go-errors/no-bare-return-err).
+rule:
+  pattern: return err
+  inside:
+    kind: if_statement
+    has:
+      pattern: err != nil
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

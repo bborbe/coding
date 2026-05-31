@@ -9,6 +9,51 @@
     "owner": "go-context-assistant"
   },
   {
+    "anchor": "go-errors/inner-closure-no-double-wrap",
+    "applies_when": "an inner closure (passed to `db.Update`, `filepath.WalkDir`, or similar callback APIs) calls `errors.Wrap`/`errors.Wrapf` while the surrounding function ALSO wraps the closure's return value.",
+    "doc_path": "docs/go-error-wrapping-guide.md",
+    "enforcement": "judgment",
+    "id": "go-errors/inner-closure-no-double-wrap",
+    "level": "SHOULD",
+    "owner": "go-error-assistant"
+  },
+  {
+    "anchor": "go-errors/no-bare-return-err",
+    "applies_when": "a Go `return err` statement appears inside an `if err != nil { ... }` block, outside `*_test.go` and `vendor/`. Inner closures where the outer scope already wraps are an exception — see RULE `go-errors/inner-closure-no-double-wrap`.",
+    "doc_path": "docs/go-error-wrapping-guide.md",
+    "enforcement": "`rules/go/no-bare-return-err.yml`",
+    "id": "go-errors/no-bare-return-err",
+    "level": "MUST",
+    "owner": "go-error-assistant"
+  },
+  {
+    "anchor": "go-errors/no-context-background-in-business-logic",
+    "applies_when": "a Go `context.Background()` call appears outside `main.go`, `cmd/**`, `*_test.go`, `vendor/`. Top-level goroutine spawners in `main` are exempt by path filter.",
+    "doc_path": "docs/go-error-wrapping-guide.md",
+    "enforcement": "`rules/go/no-context-background-in-business-logic.yml`",
+    "id": "go-errors/no-context-background-in-business-logic",
+    "level": "MUST",
+    "owner": "go-error-assistant"
+  },
+  {
+    "anchor": "go-errors/no-fmt-errorf",
+    "applies_when": "any `*.go` file outside `main.go`, `*_test.go`, `vendor/` calls `fmt.Errorf(...)`.",
+    "doc_path": "docs/go-error-wrapping-guide.md",
+    "enforcement": "`rules/go/no-fmt-errorf.yml`",
+    "id": "go-errors/no-fmt-errorf",
+    "level": "MUST",
+    "owner": "go-error-assistant"
+  },
+  {
+    "anchor": "go-errors/sentinel-err-prefix-naming",
+    "applies_when": "a package-level sentinel error variable uses the legacy `XxxError`/`XxxErr` naming convention (e.g. `BucketNotFoundErr`, `ConnectionError`) instead of the stdlib-style `ErrXxx` prefix (`ErrBucketNotFound`, `ErrConnection`).",
+    "doc_path": "docs/go-error-wrapping-guide.md",
+    "enforcement": "judgment",
+    "id": "go-errors/sentinel-err-prefix-naming",
+    "level": "SHOULD",
+    "owner": "go-error-assistant"
+  },
+  {
     "anchor": "go-time/inject-getter-not-create",
     "applies_when": "a factory or constructor file outside `main.go` calls `libtime.NewCurrentDateTime()`.",
     "doc_path": "docs/go-time-injection.md",

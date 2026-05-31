@@ -22,11 +22,12 @@ Intelligent Git commit command that automatically detects project structure and 
 
 - **Pipeline-only (prompts/specs/scenarios)**: Commit and push, no changelog/version/tag
 - **Feature branch + CHANGELOG.md**: Adds changes to `## Unreleased` section, no tag
-- **Master/main + CHANGELOG.md + Unreleased**: Converts `## Unreleased` to `## vX.Y.Z`, creates tag
+- **Master/main + `.maintainer.yaml: release.autoRelease: true`**: Adds to `## Unreleased`, NO tag — `github-releaser-agent` handles the release within ~10 min
+- **Master/main + CHANGELOG.md + Unreleased (manual release)**: Converts `## Unreleased` to `## vX.Y.Z`, creates tag
 - **Master/main + CHANGELOG.md (no Unreleased)**: Legacy workflow - creates version section + tag
 - **No CHANGELOG.md**: Simple commit without versioning
 
-Tags are ONLY created on master/main branch. Feature branches never create tags.
+Tags are ONLY created on master/main branch AND only when `.maintainer.yaml` does not opt into bot auto-release. Feature branches never create tags.
 
 ## Workflow
 
@@ -36,9 +37,10 @@ Tags are ONLY created on master/main branch. Feature branches never create tags.
 3. Detect current branch (master/main vs feature)
 4. Check if `CHANGELOG.md` exists
 5. Check for `## Unreleased` section
-6. **Detect pipeline-only changes** (only prompts/, specs/, scenarios/)
-7. **Detect trivial changes** (comments, whitespace, TODOs only)
-8. Route to appropriate workflow
+6. **Detect maintainer-bot auto-release opt-in** (`.maintainer.yaml: release.autoRelease: true`)
+7. **Detect pipeline-only changes** (only prompts/, specs/, scenarios/)
+8. **Detect trivial changes** (comments, whitespace, TODOs only)
+9. Route to appropriate workflow
 
 ### CRITICAL: "No changes" check
 
@@ -110,6 +112,28 @@ ls "$PROJECT_DIR/CHANGELOG.md" 2>/dev/null
 grep -q "^## Unreleased" "$PROJECT_DIR/CHANGELOG.md" 2>/dev/null
 ```
 
+### 2b. Detect maintainer-bot Auto-Release Opt-in
+
+If `.maintainer.yaml` exists at repo root and declares `release.autoRelease: true`, the maintainer's `github-releaser-agent` owns the release: it picks up non-empty `## Unreleased` blocks via its watcher (~10 min poll), rewrites the header to `## vX.Y.Z`, commits, tags, pushes.
+
+When this opt-in is detected, this skill MUST NOT:
+- Rename `## Unreleased` → `## vX.Y.Z` itself
+- Run `git tag`
+
+…even on master/main. Route to Workflow A (add to Unreleased, push) regardless of branch.
+
+```bash
+AUTORELEASE_BOT=false
+if [ -f "$PROJECT_DIR/.maintainer.yaml" ]; then
+  # Look for `release:` block with `autoRelease: true` on the next non-empty line.
+  if awk '/^release:/{flag=1; next} flag && /autoRelease:[[:space:]]*true/{print; exit} flag && /^[^[:space:]]/{flag=0}' "$PROJECT_DIR/.maintainer.yaml" | grep -q .; then
+    AUTORELEASE_BOT=true
+  fi
+fi
+```
+
+See [[GitHub Auto-Release Guide]] for the full bot release flow, opt-in config, and manual fallback (`/github-release-repo`).
+
 ### 3. Detect Pipeline-Only Changes
 
 A change is **pipeline-only** if ALL changed/added/deleted files (committed since last tag + uncommitted) are inside these directories:
@@ -155,21 +179,29 @@ IF changes are pipeline-only (only prompts/, specs/, scenarios/):
 ELSE IF changes are trivial (comments/whitespace/TODOs only):
   → Workflow E (Trivial — commit and push, skip changelog)
 ELSE IF CHANGELOG.md exists:
-  IF IS_MASTER = false:
+  IF AUTORELEASE_BOT = true:
+    → Workflow A (Add to Unreleased, NO tag — github-releaser-agent handles release)
+  ELSE IF IS_MASTER = false:
     → Workflow A (Feature Branch with CHANGELOG)
   ELSE IF IS_MASTER = true AND "## Unreleased" section exists:
-    → Workflow B (Master with Unreleased)
+    → Workflow B (Master with Unreleased — manual release path)
   ELSE IF IS_MASTER = true:
     → Workflow C (Master without Unreleased - legacy)
 ELSE:
   → Workflow D (No CHANGELOG - simple commit)
 ```
 
+**Key rule:** `AUTORELEASE_BOT = true` short-circuits the branch check. Even on master, never rename Unreleased or tag — the agent does both.
+
 ---
 
-#### Workflow A: Feature Branch WITH CHANGELOG.md
+#### Workflow A: Unreleased Append (Feature Branch OR maintainer-bot Auto-Release)
 
-Feature branches add changes to `## Unreleased` section. No version increment, no tag.
+Adds changes to `## Unreleased` section. No version increment, no tag.
+
+Triggered for:
+- Any feature branch with `CHANGELOG.md`
+- **Any branch (including master) when `.maintainer.yaml: release.autoRelease: true`** — `github-releaser-agent` will rename `## Unreleased` → `## vX.Y.Z` and tag within ~10 min of push.
 
 **Step A.1: Pre-commit validation**
 ```bash
@@ -586,6 +618,13 @@ Result: Adds changes to `## Unreleased` section, commits with "add metric config
 /commit ~/Documents/workspaces/metrics
 ```
 Result: Converts `## Unreleased` to `## v0.3.4`, commits with "release v0.3.4", creates tag v0.3.4, pushes both.
+
+### Master branch with `.maintainer.yaml: release.autoRelease: true`
+```bash
+# On master, .maintainer.yaml opts into bot release
+/commit ~/Documents/workspaces/vault-cli
+```
+Result: Adds changes under `## Unreleased`, commits with descriptive message, pushes. **No tag created** — `github-releaser-agent` watcher picks up the `## Unreleased` block within ~10 min and tags `vX.Y.Z` autonomously. See [[GitHub Auto-Release Guide]].
 
 ### Master branch without Unreleased (legacy)
 ```bash

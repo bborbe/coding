@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.9.13
+
+- feat(commit): detect `.maintainer.yaml: release.autoRelease: true` and skip the tag step — `github-releaser-agent` owns the release. New routing rule short-circuits the branch check: master with bot opt-in routes to Workflow A (Unreleased append, no tag). See `[[GitHub Auto-Release Guide]]`.
+
 ## v0.9.12
 
 - refactor(auditors): slim `audit-agent`, `audit-skill`, `audit-slash-command` commands to thin delegators — move target-path resolution out of the command body into the `agent-auditor` / `skill-auditor` / `slash-command-auditor` agents (knowledge belongs in the agent), rewrite `<success_criteria>` from invocation-mechanics checks to outcome checks, and normalize `argument-hint` to `[path/...]` style. Behavior unchanged; addresses self-audit findings.

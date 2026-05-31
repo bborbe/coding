@@ -10,7 +10,14 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- refactor: extract `check-links` inline shell logic to `scripts/check-links.sh`; reduce Makefile target to a one-liner invoking the script — enables `shellcheck` linting of the link-check logic
+- refactor(check-links): extract inline shell from Makefile target to `scripts/check-links.sh` — enables `shellcheck` linting of the link-check logic
+- feat(scan): add `scripts/scan.sh` — run ast-grep rules against external repos
+- feat(rules): add two `### RULE` blocks — `go-time/no-time-now-direct`, `go-time/no-time-time-in-fields`; matching ast-grep YAMLs + `rules/index.json` entries
+- docs: add `docs/ast-grep-rule-writing-guide.md` — authoring guide for ast-grep YAML rules paired with `### RULE` blocks
+- docs: add `docs/go-time-injection.md` — guide for the two new go-time rules
+- chore(ast-grep): add `sgconfig.yml` for project discovery; fix root `main.go` glob and expand ignores across all 3 rule YAMLs
+
+## v0.10.0
 
 - feat: add `scripts/build-index.py` — deterministic walker that extracts `### RULE` blocks from `docs/*.md` and emits `rules/index.json`
 - docs: add `docs/rule-block-schema.md` — authoritative reference for `### RULE` block contract and `rules/index.json` schema.

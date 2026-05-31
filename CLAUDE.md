@@ -87,12 +87,63 @@ templates/          Project templates (Makefile, tools.go, .gitignore)
 3. Update llms.txt
 4. Update code-review.md if agent affected
 
-## Build
+## Dark Factory Workflow
+
+**Never code directly.** All code changes go through the dark-factory pipeline.
+
+### What to do
+
+1. **Assess the change size:**
+
+| Change | Action |
+|--------|--------|
+| Doc-only edit, README typo, llms.txt entry | Direct commit — no dark-factory ceremony |
+| Add a `### RULE` block + ast-grep YAML to an existing doc | Write a prompt → [[Dark Factory - Write Prompts]] |
+| Bootstrap pass across many docs | Mirror prompt template per doc → standalone prompts |
+| Multi-prompt feature with shared interfaces | Write a spec first → [[Dark Factory - Write Spec]] |
+
+2. **Read the relevant guide before starting** — every time, not from memory:
+   - Writing a spec → [[Dark Factory - Write Spec]] + [[Dark Factory Guide#Specs What Makes a Good Spec]]
+   - Writing prompts → [[Dark Factory - Write Prompts]] + [[Dark Factory Guide#Prompts What Makes a Good Prompt]]
+   - Running prompts → [[Dark Factory - Run]]
+
+3. **Follow the guide step by step.** Do not skip audit steps.
+
+### Key rules
+
+- Prompts go to **`prompts/`** (inbox) — never to `prompts/in-progress/` or `prompts/completed/`
+- Specs go to **`specs/`** (inbox) — never to `specs/in-progress/` or `specs/completed/`
+- Never number filenames — dark-factory assigns numbers on approve
+- Never manually edit frontmatter status — use CLI (`dark-factory prompt approve`, `dark-factory spec approve`)
+- Always audit before approving (`/dark-factory:audit-prompt`, `/dark-factory:audit-spec`)
+- **Never approve or run dark-factory without explicit user confirmation**
+- `autoRelease: false` — dark-factory commits locally; release is handled by maintainer-agent-releaser per `.maintainer.yaml`
+
+## Development Standards
+
+### Build and test
 
 ```bash
-make precommit       # validates links + JSON syntax (development gate)
+make precommit       # validates links + JSON syntax (the standard verification command)
 make release-check   # adds check-versions on top — run before tagging
+make build-index     # regenerates rules/index.json from ### RULE blocks (Phase 1c+)
 ```
+
+### Project layout
+
+- `docs/` — prose guides + inline `### RULE` blocks (rule source of truth)
+- `rules/` — ast-grep YAML detectors (mechanical layer; new in Phase 0+)
+- `agents/` — specialist agents; reference docs by path
+- `commands/` — slash command thin wrappers
+- `scripts/` — build/check helpers (Python stdlib for `build-index.py`, bash for the rest)
+- `prompts/`, `specs/` — dark-factory inboxes
+
+### Test conventions
+
+Plugin-only repo — no Go/Python test suite. Quality gates:
+- `shellcheck` for `scripts/*.sh`
+- `jq` for JSON syntax of `.claude-plugin/*.json`
+- Markdown link validation in `make precommit`
 
 ## 🚨 Version Alignment — MANDATORY at release time
 

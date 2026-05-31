@@ -1,11 +1,12 @@
 ---
-status: prompted
+status: verifying
 tags:
     - dark-factory
     - spec
 approved: "2026-05-31T19:50:31Z"
 generating: "2026-05-31T19:50:32Z"
 prompted: "2026-05-31T19:56:25Z"
+verifying: "2026-05-31T20:10:47Z"
 branch: dark-factory/rule-base-interfaces-and-walker
 ---
 

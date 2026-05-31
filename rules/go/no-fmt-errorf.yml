@@ -1,0 +1,16 @@
+id: go-errors/no-fmt-errorf
+language: go
+severity: error
+message: |
+  fmt.Errorf must not be used in production code.
+  Use errors.Wrapf (wrapping) or errors.Errorf (new error) from github.com/bborbe/errors instead.
+  See docs/go-error-wrapping-guide.md (RULE go-errors/no-fmt-errorf).
+rule:
+  pattern: fmt.Errorf($$$ARGS)
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

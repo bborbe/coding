@@ -238,3 +238,131 @@ It("returns ErrNotFound for missing item", func() {
     Expect(err).To(MatchError(ErrNotFound))
 })
 ```
+
+### RULE go-errors/no-fmt-errorf (MUST)
+
+**Owner**: go-error-assistant
+**Applies when**: any `*.go` file outside `main.go`, `*_test.go`, `vendor/` calls `fmt.Errorf(...)`.
+**Enforcement**: `rules/go/no-fmt-errorf.yml`
+**Why**: `fmt.Errorf` loses ctx-derived structured data and stack traces. Use `errors.Wrapf(ctx, err, "...")` (wrapping) or `errors.Errorf(ctx, "...", args...)` (new error) from `github.com/bborbe/errors` instead.
+
+#### Bad
+
+```go
+return fmt.Errorf("fetch failed: %w", err)
+```
+
+#### Good
+
+```go
+return errors.Wrapf(ctx, err, "fetch failed")
+```
+
+### RULE go-errors/no-bare-return-err (MUST)
+
+**Owner**: go-error-assistant
+**Applies when**: a Go `return err` statement appears inside an `if err != nil { ... }` block, outside `*_test.go` and `vendor/`. Inner closures where the outer scope already wraps are an exception — see RULE `go-errors/inner-closure-no-double-wrap`.
+**Enforcement**: `rules/go/no-bare-return-err.yml`
+**Why**: bare `return err` propagates errors without context or stack trace. Wrap with `errors.Wrapf(ctx, err, "operation description")` at every layer that adds meaning.
+
+#### Bad
+
+```go
+if err != nil {
+    return err // No context, no stack trace
+}
+```
+
+#### Good
+
+```go
+result, err := s.repo.Fetch(ctx, id)
+if err != nil {
+    return nil, errors.Wrapf(ctx, err, "fetch account %s", id)
+}
+```
+
+### RULE go-errors/no-context-background-in-business-logic (MUST)
+
+**Owner**: go-error-assistant
+**Applies when**: a Go `context.Background()` call appears outside `main.go`, `cmd/**`, `*_test.go`, `vendor/`. Top-level goroutine spawners in `main` are exempt by path filter.
+**Enforcement**: `rules/go/no-context-background-in-business-logic.yml`
+**Why**: `context.Background()` discards any context data the caller added via `errors.AddToContext`, making subsequent wrapping pointless. Add `ctx context.Context` as a function parameter and propagate from callers.
+
+#### Bad
+
+```go
+return errors.Wrapf(context.Background(), err, "failed")
+// Loses all structured data from caller's context
+```
+
+#### Good
+
+```go
+func (s *svc) validate(ctx context.Context, input string) error {
+    return errors.Errorf(ctx, "invalid: %s", input)
+}
+```
+
+### RULE go-errors/inner-closure-no-double-wrap (SHOULD)
+
+**Owner**: go-error-assistant
+**Applies when**: an inner closure (passed to `db.Update`, `filepath.WalkDir`, or similar callback APIs) calls `errors.Wrap`/`errors.Wrapf` while the surrounding function ALSO wraps the closure's return value.
+**Enforcement**: judgment
+**Why**: double-wrapping inflates error messages with redundant prefixes (`save data X: update: put: bolt: connection refused`) and doesn't add new information. The outer wrap is enough.
+
+#### Bad
+
+```go
+err := s.db.Update(func(tx *bolt.Tx) error {
+    if err := put(tx); err != nil {
+        return errors.Wrapf(ctx, err, "put") // Redundant — outer wraps too
+    }
+    return nil
+})
+return errors.Wrapf(ctx, err, "update") // Double-wrapped
+```
+
+#### Good
+
+```go
+func (s *svc) Save(ctx context.Context, data Data) error {
+    err := s.db.Update(func(tx *bolt.Tx) error {
+        // Inner closure: bare return is OK here
+        // The outer Wrapf below will add context
+        return tx.Bucket(key).Put(id, encoded)
+    })
+    if err != nil {
+        return errors.Wrapf(ctx, err, "save data %s", data.ID)
+    }
+    return nil
+}
+```
+
+### RULE go-errors/sentinel-err-prefix-naming (SHOULD)
+
+**Owner**: go-error-assistant
+**Applies when**: a package-level sentinel error variable uses the legacy `XxxError`/`XxxErr` naming convention (e.g. `BucketNotFoundErr`, `ConnectionError`) instead of the stdlib-style `ErrXxx` prefix (`ErrBucketNotFound`, `ErrConnection`).
+**Enforcement**: judgment
+**Why**: stdlib uses `Err` prefix (`io.EOF`, `sql.ErrNoRows`); matching it makes the convention discoverable and consistent. Legacy projects may keep the old name as a `Deprecated:` alias during transition.
+
+#### Bad
+
+```go
+var BucketNotFoundErr = stderrors.New("bucket not found")
+```
+
+#### Good
+
+```go
+var ErrNotFound = stderrors.New("not found")
+```
+
+And during a rename transition:
+
+```go
+var ErrBucketNotFound = stderrors.New("bucket not found")
+
+// Deprecated: use ErrBucketNotFound.
+var BucketNotFoundErr = ErrBucketNotFound
+```

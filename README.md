@@ -173,6 +173,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 |-------|-------------|
 | [Agent & Command Development](docs/agent-command-development-guide.md) | Agent + slash-command authoring standards |
 | [Skill Writing](docs/claude-code-skill-writing-guide.md) | Claude Code skill directory structure |
+| [Rule Block Schema](docs/rule-block-schema.md) | `### RULE` block contract and index schema |
 
 ### Frontend
 

@@ -10,6 +10,8 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- docs: add `docs/rule-block-schema.md` — authoritative reference for `### RULE` block contract and `rules/index.json` schema.
+
 ## v0.9.13
 
 - feat(commit): detect `.maintainer.yaml: release.autoRelease: true` and skip the tag step — `github-releaser-agent` owns the release. New routing rule short-circuits the branch check: master with bot opt-in routes to Workflow A (Unreleased append, no tag). See `[[GitHub Auto-Release Guide]]`.

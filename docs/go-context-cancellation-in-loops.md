@@ -156,3 +156,36 @@ It("respects deadline in long loop", func() {
 ```
 
 **Rule:** If a loop runs >few milliseconds, cancellation is mandatory.
+
+### RULE go-context/cancel-check-in-loop (SHOULD)
+
+**Owner**: go-context-assistant
+**Applies when**: Go `for` loop body lacks a non-blocking `select { case <-ctx.Done(): ...; default: }` check, outside `*_test.go` and `vendor/`.
+**Enforcement**: `rules/go/cancel-check-in-loop.yml` (mechanical flag) + judgment-tier LLM adjudication for "long-running enough to matter".
+**Why**: long loops without per-iteration cancellation checks block graceful shutdown, waste CPU/network/DB past cancel, and break deadline SLAs. ast-grep flags every uncovered `for` loop; the LLM downstream drops trivially-short ones.
+
+#### Bad
+
+```go
+for _, item := range items {
+    if err := process(ctx, item); err != nil {
+        return errors.Wrap(ctx, err, "process item")
+    }
+}
+```
+
+#### Good
+
+```go
+for _, item := range items {
+    select {
+    case <-ctx.Done():
+        return errors.Wrap(ctx, ctx.Err(), "context cancelled")
+    default:
+    }
+
+    if err := process(ctx, item); err != nil {
+        return errors.Wrap(ctx, err, "process item")
+    }
+}
+```

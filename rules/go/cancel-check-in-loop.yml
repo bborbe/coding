@@ -1,0 +1,17 @@
+id: go-context/cancel-check-in-loop
+language: go
+severity: warning
+message: |
+  Long for-loops should check ctx.Done() each iteration.
+  Add a non-blocking `select { case <-ctx.Done(): ...; default: }` at the top of the loop body.
+  See docs/go-context-cancellation-in-loops.md (RULE go-context/cancel-check-in-loop).
+rule:
+  kind: for_statement
+  not:
+    has:
+      stopBy: end
+      pattern: <-ctx.Done()
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"

@@ -1,4 +1,5 @@
-pr: false
-worktree: false
-validationPrompt: docs/dod.md
+autoGeneratePrompts: true
 autoRelease: false
+pr: false
+validationPrompt: docs/dod.md
+worktree: false

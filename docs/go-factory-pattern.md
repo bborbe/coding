@@ -414,3 +414,183 @@ If you feel the need to test a factory, it probably contains logic that should b
 - ✅ No `(_, cleanup, _)` return — cleanup lifecycle owned by `main.go` via `defer` (section 6.2)
 - ✅ Move complex logic to implementation files in `pkg/` (or `pkg/<subpkg>/` if `pkg/` is large) — NEVER inside `pkg/factory/`
 - ✅ Return interface types
+
+### RULE go-factory/no-error-return (MUST)
+
+**Owner**: go-factory-pattern-assistant
+**Applies when**: a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` has a return type list that includes `error`. The single permitted exception is a pass-through wrapper per section 7 — a one-statement factory that immediately returns an error-returning constructor call without adding wiring, logging, or validation.
+**Enforcement**: `rules/go/factory-no-error-return.yml` (mechanical flag) + judgment-tier LLM adjudication for the pass-through wrapper exception.
+**Why**: factories are pure composition. Errors are runtime concerns and belong in `main.go Run` or behind a Provider interface (section 5). A factory returning `error` typically signals boot-time validation, dispatch logic, or constructor failure handling living in the wrong layer.
+
+#### Bad
+
+```go
+func CreateDeliverer(ctx context.Context, taskID TaskID, brokers Brokers) (Deliverer, func(), error) {
+    if taskID == "" {
+        return NewNoopDeliverer(), func() {}, nil
+    }
+    if len(brokers) == 0 {
+        return nil, nil, errors.Errorf(ctx, "BROKERS must be set")
+    }
+    producer, err := NewSyncProducer(ctx, brokers)
+    if err != nil { return nil, nil, err }
+    cleanup := func() { producer.Close() }
+    return NewKafkaDeliverer(producer), cleanup, nil
+}
+```
+
+#### Good
+
+```go
+// main.go — boot-time decisions live here
+deliverer := factory.CreateNoopDeliverer()
+if a.TaskID != "" {
+    if len(a.Brokers) == 0 {
+        return errors.Errorf(ctx, "BROKERS must be set when TASK_ID is set")
+    }
+    producer, err := factory.CreateSyncProducer(ctx, a.Brokers)
+    if err != nil { return errors.Wrap(ctx, err, "create producer") }
+    defer func() {
+        if err := producer.Close(); err != nil {
+            glog.Warningf("close producer: %v", err)
+        }
+    }()
+    deliverer = factory.CreateKafkaDeliverer(producer)
+}
+
+// factory.go — two small, single-purpose factories, no error, no cleanup
+func CreateNoopDeliverer() Deliverer  { return delivery.NewNoopDeliverer() }
+func CreateKafkaDeliverer(p SyncProducer) Deliverer { return delivery.NewKafkaDeliverer(p) }
+```
+
+### RULE go-factory/no-conditional-in-body (MUST)
+
+**Owner**: go-factory-pattern-assistant
+**Applies when**: a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` contains an `if`, `switch`, or `for` statement anywhere in its body. Anonymous functions inside the body that are pure pass-throughs (single method call, no logic — see section 4.3 `Run Function Wrapper`) are an acceptable exception adjudicated by the judgment tier.
+**Enforcement**: `rules/go/factory-no-conditional-in-body.yml` (mechanical flag) + judgment-tier LLM adjudication for the anonymous-function exception.
+**Why**: conditionals in a factory mean the factory is making a decision. Decisions belong in `main.go Run` (boot-time) or behind a Provider interface (runtime dispatch). The factory's job is to wire pre-validated dependencies into a constructor call tree.
+
+#### Bad
+
+```go
+func CreateAgentForTaskType(ctx context.Context, t TaskType, runner Runner) (*Agent, error) {
+    switch t {
+    case TaskTypeClaude:
+        return CreateClaudeAgent(runner), nil
+    case TaskTypeHealthcheck:
+        return NewHealthcheckAgent(runner), nil
+    default:
+        return nil, errors.Errorf(ctx,
+            "unknown task_type %q for agent-claude; accepted: [%s %s]",
+            t, TaskTypeClaude, TaskTypeHealthcheck)
+    }
+}
+```
+
+#### Good
+
+```go
+type AgentProvider interface {
+    Get(ctx context.Context, t TaskType) (*Agent, error)
+}
+
+// factory.go — pure plumbing: no error, no switch, no conditional
+func CreateAgentProvider(runner Runner) AgentProvider {
+    return NewAgentProvider("agent-claude", map[TaskType]*Agent{
+        TaskTypeClaude:      CreateClaudeAgent(runner),
+        TaskTypeHealthcheck: NewHealthcheckAgent(runner),
+    })
+}
+
+// main.go — dispatch error handled at the boundary
+provider := factory.CreateAgentProvider(runner)
+agent, err := provider.Get(ctx, t)
+if err != nil { return errors.Wrap(ctx, err, "select agent") }
+```
+
+### RULE go-factory/no-cleanup-return (MUST)
+
+**Owner**: go-factory-pattern-assistant
+**Applies when**: a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` has a return type list that includes `func()` (a cleanup closure). Common shapes: `(T, func())`, `(T, func(), error)`, `(func(), error)`.
+**Enforcement**: `rules/go/factory-no-cleanup-return.yml` (mechanical flag) + judgment-tier LLM adjudication for any legitimate edge case.
+**Why**: cleanup lifecycle is `main.go`'s concern via `defer`. A factory returning a cleanup closure forces the caller to know about lifecycle semantics the factory shouldn't own. Lift cleanup to the call site.
+
+#### Bad
+
+```go
+func CreateDeliverer(ctx context.Context, taskID TaskID, brokers Brokers) (Deliverer, func(), error) {
+    if taskID == "" {
+        return NewNoopDeliverer(), func() {}, nil
+    }
+    if len(brokers) == 0 {
+        return nil, nil, errors.Errorf(ctx, "BROKERS must be set")
+    }
+    producer, err := NewSyncProducer(ctx, brokers)
+    if err != nil { return nil, nil, err }
+    cleanup := func() { producer.Close() }
+    return NewKafkaDeliverer(producer), cleanup, nil
+}
+```
+
+#### Good
+
+```go
+// factory.go — two small, single-purpose factories, no error, no cleanup
+func CreateNoopDeliverer() Deliverer        { return delivery.NewNoopDeliverer() }
+func CreateKafkaDeliverer(p SyncProducer)  Deliverer { return delivery.NewKafkaDeliverer(p) }
+
+// main.go — cleanup via defer at the call site
+producer, err := factory.CreateSyncProducer(ctx, a.Brokers)
+if err != nil { return errors.Wrap(ctx, err, "create producer") }
+defer func() {
+    if err := producer.Close(); err != nil {
+        glog.Warningf("close producer: %v", err)
+    }
+}()
+```
+
+### RULE go-factory/no-impl-in-factory-pkg (MUST)
+
+**Owner**: go-factory-pattern-assistant
+**Applies when**: a `*.go` file inside `pkg/factory/` (any path matching `**/pkg/factory/*.go`) contains a struct type declaration with non-trivial methods (methods with logic beyond a trivial accessor), an interface declaration with multiple methods, or any function declaration that is NOT a `Create*` factory function. Detecting "non-trivial" requires reading the method body — pure ast-grep can match `type X struct` and method declarations but cannot reliably decide which methods are "trivial".
+**Enforcement**: judgment — implementation-vs-trivial-helper distinction needs whole-method reasoning. Mechanical flag can catch structural violations (non-`Create*` function declarations, multi-method interfaces, impl structs) inside `pkg/factory/`, but the "trivial accessor" exception requires LLM adjudication.
+**Why**: `pkg/factory/` is wiring-only. Implementation types belong in `pkg/` (flat) or `pkg/<subpkg>/` (grouped). A struct like `mocoRoundTripper` inside `pkg/factory/roundtripper.go` is wrong — move it.
+
+#### Bad
+
+```go
+// pkg/factory/roundtripper.go — SAME impl, WRONG directory
+package factory
+
+type mocoRoundTripper struct {
+    client *http.Client
+}
+
+func (r *mocoRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+    // implementation logic lives here
+    return r.client.Do(req)
+}
+```
+
+#### Good
+
+```go
+// pkg/roundtripper/roundtripper.go — SAME impl, RIGHT directory
+package roundtripper
+
+type mocoRoundTripper struct {
+    client *http.Client
+}
+
+func (r *mocoRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+    // implementation logic lives here
+    return r.client.Do(req)
+}
+
+// pkg/factory/factory.go — wiring only
+package factory
+
+func CreateRoundTripper() http.RoundTripper {
+    return roundtripper.NewMocoRoundTripper()
+}
+```

@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- chore(release): live-verify `github-releaser-agent` plugin-manifest bumping — release commit should rewrite `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` version fields alongside the CHANGELOG (feature shipped via `bborbe/maintainer` PR #33).
+
 ## v0.11.0
 
 - refactor(check-links): extract inline shell from Makefile target to `scripts/check-links.sh` — enables `shellcheck` linting of the link-check logic

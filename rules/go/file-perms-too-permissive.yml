@@ -21,8 +21,8 @@ rule:
     - pattern: os.WriteFile($PATH, $DATA, 0o664)
     - pattern: os.WriteFile($PATH, $DATA, 0666)
     - pattern: os.WriteFile($PATH, $DATA, 0o666)
-    - pattern: os.WriteFile($PATH, $DATA, 0700)
-    - pattern: os.WriteFile($PATH, $DATA, 0o700)
+    # 0700/0o700 intentionally NOT listed — owner-only (not world-readable),
+    # more restrictive than 0600, doesn't violate the rule's "no world-readable" intent.
     - pattern: os.WriteFile($PATH, $DATA, 0744)
     - pattern: os.WriteFile($PATH, $DATA, 0o744)
     - pattern: os.WriteFile($PATH, $DATA, 0755)

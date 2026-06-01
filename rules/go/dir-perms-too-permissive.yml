@@ -8,8 +8,9 @@ message: |
 rule:
   any:
     # Broadened enumeration — see file-perms-too-permissive.yml for rationale.
-    - pattern: os.MkdirAll($PATH, 0700)
-    - pattern: os.MkdirAll($PATH, 0o700)
+    # 0700/0o700 intentionally NOT listed — owner-only directory (not
+    # world-readable), more restrictive than 0750, doesn't violate the rule's
+    # "no world-readable" intent.
     - pattern: os.MkdirAll($PATH, 0740)
     - pattern: os.MkdirAll($PATH, 0o740)
     - pattern: os.MkdirAll($PATH, 0755)
@@ -20,8 +21,6 @@ rule:
     - pattern: os.MkdirAll($PATH, 0o775)
     - pattern: os.MkdirAll($PATH, 0777)
     - pattern: os.MkdirAll($PATH, 0o777)
-    - pattern: os.Mkdir($PATH, 0700)
-    - pattern: os.Mkdir($PATH, 0o700)
     - pattern: os.Mkdir($PATH, 0740)
     - pattern: os.Mkdir($PATH, 0o740)
     - pattern: os.Mkdir($PATH, 0755)

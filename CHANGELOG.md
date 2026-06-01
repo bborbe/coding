@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.11.1
 
 - chore(release): live-verify `github-releaser-agent` plugin-manifest bumping — release commit should rewrite `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` version fields alongside the CHANGELOG (feature shipped via `bborbe/maintainer` PR #33).
 

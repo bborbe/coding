@@ -1,0 +1,24 @@
+id: go-security/dir-perms-too-permissive
+language: go
+severity: error
+message: |
+  Directory permissions must not be world-readable.
+  Use 0750 (owner-rwx, group-rx, no world) for all directories created via os.MkdirAll or os.Mkdir.
+  See docs/go-security-linting.md (RULE go-security/dir-perms-too-permissive).
+rule:
+  any:
+    - pattern: os.MkdirAll($PATH, 0755)
+    - pattern: os.MkdirAll($PATH, 0o755)
+    - pattern: os.MkdirAll($PATH, 0777)
+    - pattern: os.MkdirAll($PATH, 0o777)
+    - pattern: os.Mkdir($PATH, 0755)
+    - pattern: os.Mkdir($PATH, 0o755)
+    - pattern: os.Mkdir($PATH, 0777)
+    - pattern: os.Mkdir($PATH, 0o777)
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

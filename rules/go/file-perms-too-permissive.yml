@@ -1,0 +1,28 @@
+id: go-security/file-perms-too-permissive
+language: go
+severity: error
+message: |
+  File permissions must not be world-readable.
+  Use 0600 (owner-only) for all files created via os.WriteFile or os.OpenFile.
+  See docs/go-security-linting.md (RULE go-security/file-perms-too-permissive).
+rule:
+  any:
+    - pattern: os.WriteFile($PATH, $DATA, 0644)
+    - pattern: os.WriteFile($PATH, $DATA, 0o644)
+    - pattern: os.WriteFile($PATH, $DATA, 0666)
+    - pattern: os.WriteFile($PATH, $DATA, 0o666)
+    - pattern: os.WriteFile($PATH, $DATA, 0777)
+    - pattern: os.WriteFile($PATH, $DATA, 0o777)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0644)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o644)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0666)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o666)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0777)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o777)
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

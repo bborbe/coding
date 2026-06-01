@@ -6,14 +6,18 @@ message: |
   Cleanup lifecycle belongs in main.go via defer, not in the factory return signature.
   See docs/go-factory-pattern.md (RULE go-factory/no-cleanup-return).
 rule:
+  # ast-grep 0.43.0: match Create* whose result field text contains `func()`.
+  # The result regex matches the literal `func()` substring, which is the
+  # standard rendering of a zero-arg, no-return cleanup closure type.
+  # Verified locally: flags `(T, func(), error)` and `(func(), error)`.
   kind: function_declaration
-  regex: "^Create"
-  has:
-    kind: func_type
-    has:
-      kind: parameter_list
-      equaling:
-        length: 0
+  all:
+    - has:
+        field: name
+        regex: '^Create'
+    - has:
+        field: result
+        regex: 'func\(\)'
 ignores:
   - "main.go"
   - "**/main.go"

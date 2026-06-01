@@ -6,15 +6,21 @@ message: |
   Factories are pure composition — dispatch belongs in a Provider interface, not the factory.
   See docs/go-factory-pattern.md (RULE go-factory/no-conditional-in-body).
 rule:
+  # ast-grep 0.43.0: regex on the function name needs to live INSIDE a
+  # has-clause targeting the name field, not at rule-top-level (which would
+  # match against the whole function_declaration's text).
   kind: function_declaration
-  has:
-    stopBy: end
-    any:
-      - kind: if_statement
-      - kind: expression_switch_statement
-      - kind: type_switch_statement
-      - kind: for_statement
-  regex: "^Create"
+  all:
+    - has:
+        field: name
+        regex: '^Create'
+    - has:
+        stopBy: end
+        any:
+          - kind: if_statement
+          - kind: expression_switch_statement
+          - kind: type_switch_statement
+          - kind: for_statement
 ignores:
   - "main.go"
   - "**/main.go"

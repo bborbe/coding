@@ -6,15 +6,19 @@ message: |
   Factories are pure composition — errors belong in main.go Run or behind a Provider interface.
   See docs/go-factory-pattern.md (RULE go-factory/no-error-return).
 rule:
-  any:
-    - pattern: |
-        func Create$NAME($$$ARGS) error {
-          $$$BODY
-        }
-    - pattern: |
-        func Create$NAME($$$ARGS) ($$$RET, error) {
-          $$$BODY
-        }
+  # ast-grep 0.43.0: rule-level `regex` matches the whole node's text, NOT a
+  # specific field. Use field-based has-clauses on the function_declaration's
+  # name + result fields. Verified locally to match `func CreateX() error {}`,
+  # `func CreateX() (T, error) {}`, and friends while skipping `New*` and
+  # error-free factories.
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        regex: '^Create'
+    - has:
+        field: result
+        regex: 'error'
 ignores:
   - "main.go"
   - "**/main.go"

@@ -90,6 +90,42 @@
     "owner": "go-factory-pattern-assistant"
   },
   {
+    "anchor": "go-http-handler/kebab-case-handler-files",
+    "applies_when": "a `*.go` file under `**/pkg/handler/**` is named with non-kebab-case style (e.g. `exists_handler.go`, `existshandler.go`, or `handler.go`) instead of the documented `<action>-<noun>.go` kebab-case (e.g. `exists.go`, `forward-invoice.go`). Pure ast-grep operates on file contents, not filenames — this is a filesystem convention check.",
+    "doc_path": "docs/go-http-handler-refactoring-guide.md",
+    "enforcement": "judgment",
+    "id": "go-http-handler/kebab-case-handler-files",
+    "level": "SHOULD",
+    "owner": "go-http-handler-assistant"
+  },
+  {
+    "anchor": "go-http-handler/new-prefix-naming",
+    "applies_when": "a function declared in a `*.go` file inside `**/pkg/handler/**` returning `libhttp.WithError`, `run.Func`, or `http.Handler` does not follow the `New[Purpose]Handler` naming pattern. Pure ast-grep can match the function's return type but cannot reliably check whether the chosen name is descriptive enough — that semantic check needs a reviewer.",
+    "doc_path": "docs/go-http-handler-refactoring-guide.md",
+    "enforcement": "judgment",
+    "id": "go-http-handler/new-prefix-naming",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant"
+  },
+  {
+    "anchor": "go-http-handler/no-inline-background-handler",
+    "applies_when": "`libhttp.NewBackgroundRunHandler(ctx, func ...)` is called with an inline anonymous function as its second argument in a `*.go` file outside `**/pkg/handler/**`, `*_test.go`, and `vendor/`. The legitimate place is inside `pkg/handler/New*Handler` factories (returning `run.Func`).",
+    "doc_path": "docs/go-http-handler-refactoring-guide.md",
+    "enforcement": "`rules/go/handler-no-inline-background-handler.yml`",
+    "id": "go-http-handler/no-inline-background-handler",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant"
+  },
+  {
+    "anchor": "go-http-handler/no-inline-error-handler",
+    "applies_when": "`libhttp.WithErrorFunc(func ...)` is called with an inline anonymous function as its argument in a `*.go` file outside `**/pkg/handler/**`, `*_test.go`, and `vendor/`. The legitimate place for inline error handler closures is inside `pkg/handler/New*Handler` factory functions; anywhere else (typically `main.go`) the closure should be extracted into the handler package.",
+    "doc_path": "docs/go-http-handler-refactoring-guide.md",
+    "enforcement": "`rules/go/handler-no-inline-error-handler.yml`",
+    "id": "go-http-handler/no-inline-error-handler",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant"
+  },
+  {
     "anchor": "go-security/chmod-return-checked",
     "applies_when": "an `os.Chmod($PATH, $PERM)` call in a `*.go` file outside `*_test.go` and `vendor/` whose return value is discarded (no `if err := os.Chmod(...); err != nil` wrapper, no `_ = os.Chmod(...)` with an explanatory comment). Detecting \"return value used in error check\" requires reading the surrounding statement — pure ast-grep cannot reliably distinguish a checked `os.Chmod(...)` from an unchecked one without false positives.",
     "doc_path": "docs/go-security-linting.md",

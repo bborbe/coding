@@ -339,3 +339,134 @@ Different services may have slightly different patterns based on their needs, bu
 2. Factory methods for dependency injection
 3. Descriptive naming
 4. Proper return types (`libhttp.WithError`, `run.Func`)
+
+### RULE go-http-handler/no-inline-error-handler (MUST)
+
+**Owner**: go-http-handler-assistant
+**Applies when**: `libhttp.WithErrorFunc(func ...)` is called with an inline anonymous function as its argument in a `*.go` file outside `**/pkg/handler/**`, `*_test.go`, and `vendor/`. The legitimate place for inline error handler closures is inside `pkg/handler/New*Handler` factory functions; anywhere else (typically `main.go`) the closure should be extracted into the handler package.
+**Enforcement**: `rules/go/handler-no-inline-error-handler.yml`
+**Why**: inline error-handler closures inside `main.go` mix bootstrap code with business logic, make the handler untestable in isolation, and cannot be reused. The Before/After Example in the doc shows the same logic moved from `main.go` to `pkg/handler/exists.go` with no behavioral change.
+
+#### Bad
+
+```go
+router.Path("/exists/{invoiceID:.+}").Handler(libhttp.NewErrorHandler(libhttp.WithErrorFunc(func(ctx context.Context, resp http.ResponseWriter, req *http.Request) error {
+    vars := mux.Vars(req)
+    invoiceID := commerce.InvoiceID(vars["invoiceID"])
+    if err := invoiceID.Validate(ctx); err != nil {
+        return errors.Wrap(ctx, err, "validate failed")
+    }
+    libhttp.WriteAndGlog(resp, "invoice %s", invoiceID)
+    commerceInvoiceStore := pkg.NewCommerceInvoiceStore(db)
+    commerceInvoiceExists, err := commerceInvoiceStore.Exists(ctx, invoiceID)
+    if err != nil {
+        return errors.Wrapf(ctx, err, "view failed")
+    }
+    libhttp.WriteAndGlog(resp, "commerceInvoiceExists = %v", commerceInvoiceExists)
+    return nil
+})))
+```
+
+#### Good
+
+**pkg/handler/exists.go**:
+
+```go
+func NewExistsHandler(db libkv.DB) libhttp.WithError {
+    return libhttp.WithErrorFunc(func(ctx context.Context, resp http.ResponseWriter, req *http.Request) error {
+        // ... handler logic
+        return nil
+    })
+}
+```
+
+**pkg/factory/factory.go**:
+
+```go
+func CreateExistsHandler(db libkv.DB) http.Handler {
+    return libhttp.NewErrorHandler(handler.NewExistsHandler(db))
+}
+```
+
+**main.go**:
+
+```go
+router.Path("/exists/{invoiceID:.+}").Handler(factory.CreateExistsHandler(db))
+```
+
+### RULE go-http-handler/no-inline-background-handler (MUST)
+
+**Owner**: go-http-handler-assistant
+**Applies when**: `libhttp.NewBackgroundRunHandler(ctx, func ...)` is called with an inline anonymous function as its second argument in a `*.go` file outside `**/pkg/handler/**`, `*_test.go`, and `vendor/`. The legitimate place is inside `pkg/handler/New*Handler` factories (returning `run.Func`).
+**Enforcement**: `rules/go/handler-no-inline-background-handler.yml`
+**Why**: inline background task closures in `main.go` mix bootstrap code with business logic, make the handler untestable in isolation, and cannot be reused. The Background Task Handlers section shows the correct pattern: a `New[Purpose]Handler` function returning `run.Func` that the factory wraps with `libhttp.NewBackgroundRunHandler`.
+
+#### Bad
+
+```go
+router.Path("/forward-all").Handler(libhttp.NewBackgroundRunHandler(ctx, func(ctx context.Context) error {
+    return processor.ProcessAll(ctx)
+}))
+```
+
+#### Good
+
+**pkg/handler/forward-all-invoices.go**:
+
+```go
+func NewForwardAllInvoicesHandler(processor pkg.InvoiceForwarder) run.Func {
+    return func(ctx context.Context) error {
+        return processor.ProcessAll(ctx)
+    }
+}
+```
+
+**main.go**:
+
+```go
+router.Path("/forward-all").Handler(factory.CreateForwardAllInvoicesHandler(ctx, forwarder))
+```
+
+### RULE go-http-handler/new-prefix-naming (MUST)
+
+**Owner**: go-http-handler-assistant
+**Applies when**: a function declared in a `*.go` file inside `**/pkg/handler/**` returning `libhttp.WithError`, `run.Func`, or `http.Handler` does not follow the `New[Purpose]Handler` naming pattern. Pure ast-grep can match the function's return type but cannot reliably check whether the chosen name is descriptive enough — that semantic check needs a reviewer.
+**Enforcement**: judgment
+**Why**: consistent `New*Handler` naming makes the handler discoverable across services, matches the constructor naming used elsewhere in bborbe Go projects (`New*` for constructors, `Create*` for factories), and signals the function's role as a handler factory.
+
+#### Bad
+
+```go
+func NewSendHandler(...) ...      // too generic
+func NewHandler(...) ...          // no purpose indicated
+```
+
+#### Good
+
+```go
+func NewForwardInvoiceHandler(forwarder pkg.InvoiceForwarder) run.Func { ... }
+func NewFetchDetailsHandler(store ResourceStore) libhttp.WithError { ... }
+```
+
+### RULE go-http-handler/kebab-case-handler-files (SHOULD)
+
+**Owner**: go-http-handler-assistant
+**Applies when**: a `*.go` file under `**/pkg/handler/**` is named with non-kebab-case style (e.g. `exists_handler.go`, `existshandler.go`, or `handler.go`) instead of the documented `<action>-<noun>.go` kebab-case (e.g. `exists.go`, `forward-invoice.go`). Pure ast-grep operates on file contents, not filenames — this is a filesystem convention check.
+**Enforcement**: judgment
+**Why**: kebab-case action-oriented names (`forward-invoice.go`, `fetch-details.go`) immediately signal what the handler does without opening the file. Generic names (`handler.go`, `send.go`) require reading the file to discover its purpose; that's friction at scale.
+
+#### Bad
+
+```
+handler.go       // generic, requires opening to discover purpose
+send.go          // vague
+exists_handler.go // snake_case, verbose
+```
+
+#### Good
+
+```
+forward-invoice.go
+fetch-details.go
+exists.go
+```

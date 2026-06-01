@@ -1,0 +1,23 @@
+id: go-http-handler/no-inline-background-handler
+language: go
+severity: error
+message: |
+  libhttp.NewBackgroundRunHandler must not be called with an inline anonymous function outside pkg/handler/.
+  Extract the closure into a New*Handler function in the handler package.
+  See docs/go-http-handler-refactoring-guide.md (RULE go-http-handler/no-inline-background-handler).
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        regex: '^libhttp\.NewBackgroundRunHandler$'
+    - has:
+        field: arguments
+        has:
+          kind: func_literal
+ignores:
+  - "**/pkg/handler/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.12.0
 
 - feat(rules): add four `### RULE` blocks to `docs/go-http-handler-refactoring-guide.md` — `go-http-handler/no-inline-error-handler`, `go-http-handler/no-inline-background-handler`, `go-http-handler/new-prefix-naming`, `go-http-handler/kebab-case-handler-files`; matching ast-grep YAMLs for the two mechanical rules + `rules/index.json` entries grown from 17 to 21
 

@@ -7,12 +7,29 @@ message: |
   See docs/go-security-linting.md (RULE go-security/dir-perms-too-permissive).
 rule:
   any:
+    # Broadened enumeration — see file-perms-too-permissive.yml for rationale.
+    - pattern: os.MkdirAll($PATH, 0700)
+    - pattern: os.MkdirAll($PATH, 0o700)
+    - pattern: os.MkdirAll($PATH, 0740)
+    - pattern: os.MkdirAll($PATH, 0o740)
     - pattern: os.MkdirAll($PATH, 0755)
     - pattern: os.MkdirAll($PATH, 0o755)
+    - pattern: os.MkdirAll($PATH, 0770)
+    - pattern: os.MkdirAll($PATH, 0o770)
+    - pattern: os.MkdirAll($PATH, 0775)
+    - pattern: os.MkdirAll($PATH, 0o775)
     - pattern: os.MkdirAll($PATH, 0777)
     - pattern: os.MkdirAll($PATH, 0o777)
+    - pattern: os.Mkdir($PATH, 0700)
+    - pattern: os.Mkdir($PATH, 0o700)
+    - pattern: os.Mkdir($PATH, 0740)
+    - pattern: os.Mkdir($PATH, 0o740)
     - pattern: os.Mkdir($PATH, 0755)
     - pattern: os.Mkdir($PATH, 0o755)
+    - pattern: os.Mkdir($PATH, 0770)
+    - pattern: os.Mkdir($PATH, 0o770)
+    - pattern: os.Mkdir($PATH, 0775)
+    - pattern: os.Mkdir($PATH, 0o775)
     - pattern: os.Mkdir($PATH, 0777)
     - pattern: os.Mkdir($PATH, 0o777)
 ignores:

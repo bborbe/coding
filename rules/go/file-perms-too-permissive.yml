@@ -7,16 +7,42 @@ message: |
   See docs/go-security-linting.md (RULE go-security/file-perms-too-permissive).
 rule:
   any:
+    # Broadened enumeration — ast-grep 0.43.0 metavariable constraints don't filter
+    # int literals, so we list common gosec-flagged permissive octals explicitly.
+    # NOT exhaustive; uncommon values (e.g. 0641) slip through and are caught by
+    # gosec G306 directly + the judgment-tier review.
     - pattern: os.WriteFile($PATH, $DATA, 0644)
     - pattern: os.WriteFile($PATH, $DATA, 0o644)
+    - pattern: os.WriteFile($PATH, $DATA, 0640)
+    - pattern: os.WriteFile($PATH, $DATA, 0o640)
+    - pattern: os.WriteFile($PATH, $DATA, 0660)
+    - pattern: os.WriteFile($PATH, $DATA, 0o660)
+    - pattern: os.WriteFile($PATH, $DATA, 0664)
+    - pattern: os.WriteFile($PATH, $DATA, 0o664)
     - pattern: os.WriteFile($PATH, $DATA, 0666)
     - pattern: os.WriteFile($PATH, $DATA, 0o666)
+    - pattern: os.WriteFile($PATH, $DATA, 0700)
+    - pattern: os.WriteFile($PATH, $DATA, 0o700)
+    - pattern: os.WriteFile($PATH, $DATA, 0744)
+    - pattern: os.WriteFile($PATH, $DATA, 0o744)
+    - pattern: os.WriteFile($PATH, $DATA, 0755)
+    - pattern: os.WriteFile($PATH, $DATA, 0o755)
     - pattern: os.WriteFile($PATH, $DATA, 0777)
     - pattern: os.WriteFile($PATH, $DATA, 0o777)
     - pattern: os.OpenFile($PATH, $FLAGS, 0644)
     - pattern: os.OpenFile($PATH, $FLAGS, 0o644)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0640)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o640)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0660)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o660)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0664)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o664)
     - pattern: os.OpenFile($PATH, $FLAGS, 0666)
     - pattern: os.OpenFile($PATH, $FLAGS, 0o666)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0744)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o744)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0755)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o755)
     - pattern: os.OpenFile($PATH, $FLAGS, 0777)
     - pattern: os.OpenFile($PATH, $FLAGS, 0o777)
 ignores:

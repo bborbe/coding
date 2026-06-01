@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat(rules): add four `### RULE` blocks to `docs/go-http-handler-refactoring-guide.md` — `go-http-handler/no-inline-error-handler`, `go-http-handler/no-inline-background-handler`, `go-http-handler/new-prefix-naming`, `go-http-handler/kebab-case-handler-files`; matching ast-grep YAMLs for the two mechanical rules + `rules/index.json` entries grown from 17 to 21
+
 ## v0.11.1
 
 - feat(rules): add four `### RULE` blocks to `docs/go-security-linting.md` — `go-security/file-perms-too-permissive`, `go-security/dir-perms-too-permissive`, `go-security/nosec-requires-reason`, `go-security/chmod-return-checked`; matching ast-grep YAMLs + `rules/index.json` entries

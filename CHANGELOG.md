@@ -10,6 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## v0.11.1
 
+- feat(rules): add four `### RULE` blocks to `docs/go-security-linting.md` — `go-security/file-perms-too-permissive`, `go-security/dir-perms-too-permissive`, `go-security/nosec-requires-reason`, `go-security/chmod-return-checked`; matching ast-grep YAMLs + `rules/index.json` entries
 - chore(release): live-verify `github-releaser-agent` plugin-manifest bumping — release commit should rewrite `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` version fields alongside the CHANGELOG (feature shipped via `bborbe/maintainer` PR #33).
 
 ## v0.11.0

@@ -1,0 +1,54 @@
+id: go-security/file-perms-too-permissive
+language: go
+severity: error
+message: |
+  File permissions must not be world-readable.
+  Use 0600 (owner-only) for all files created via os.WriteFile or os.OpenFile.
+  See docs/go-security-linting.md (RULE go-security/file-perms-too-permissive).
+rule:
+  any:
+    # Broadened enumeration — ast-grep 0.43.0 metavariable constraints don't filter
+    # int literals, so we list common gosec-flagged permissive octals explicitly.
+    # NOT exhaustive; uncommon values (e.g. 0641) slip through and are caught by
+    # gosec G306 directly + the judgment-tier review.
+    - pattern: os.WriteFile($PATH, $DATA, 0644)
+    - pattern: os.WriteFile($PATH, $DATA, 0o644)
+    - pattern: os.WriteFile($PATH, $DATA, 0640)
+    - pattern: os.WriteFile($PATH, $DATA, 0o640)
+    - pattern: os.WriteFile($PATH, $DATA, 0660)
+    - pattern: os.WriteFile($PATH, $DATA, 0o660)
+    - pattern: os.WriteFile($PATH, $DATA, 0664)
+    - pattern: os.WriteFile($PATH, $DATA, 0o664)
+    - pattern: os.WriteFile($PATH, $DATA, 0666)
+    - pattern: os.WriteFile($PATH, $DATA, 0o666)
+    # 0700/0o700 intentionally NOT listed — owner-only (not world-readable),
+    # more restrictive than 0600, doesn't violate the rule's "no world-readable" intent.
+    - pattern: os.WriteFile($PATH, $DATA, 0744)
+    - pattern: os.WriteFile($PATH, $DATA, 0o744)
+    - pattern: os.WriteFile($PATH, $DATA, 0755)
+    - pattern: os.WriteFile($PATH, $DATA, 0o755)
+    - pattern: os.WriteFile($PATH, $DATA, 0777)
+    - pattern: os.WriteFile($PATH, $DATA, 0o777)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0644)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o644)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0640)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o640)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0660)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o660)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0664)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o664)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0666)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o666)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0744)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o744)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0755)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o755)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0777)
+    - pattern: os.OpenFile($PATH, $FLAGS, 0o777)
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

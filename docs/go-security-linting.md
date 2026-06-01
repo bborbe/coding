@@ -54,3 +54,87 @@ cmd := exec.CommandContext(ctx, "git", "push")
 - [ ] All `#nosec` have explanatory comments
 - [ ] All `os.Chmod` return values checked (or explicitly `_ =` with comment)
 - [ ] No `os.ReadFile` with untrusted paths without `#nosec` + reason
+
+### RULE go-security/file-perms-too-permissive (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: `os.WriteFile($PATH, $DATA, $PERM)` or `os.OpenFile($PATH, $FLAGS, $PERM)` calls in a `*.go` file outside `*_test.go` and `vendor/`, where `$PERM` is a literal octal that is NOT `0600` / `0o600`.
+**Enforcement**: `rules/go/file-perms-too-permissive.yml`
+**Why**: world-readable file permissions (e.g. `0644`) expose configuration data, lock files, and other artifacts to any process on the host. gosec G306 flags this; the convention is owner-only `0600` for ALL files unless there is a specific reason documented via `#nosec` with explanation.
+
+#### Bad
+
+```go
+os.WriteFile(path, data, 0644)
+os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
+```
+
+#### Good
+
+```go
+os.WriteFile(path, data, 0600)
+os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+```
+
+### RULE go-security/dir-perms-too-permissive (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: `os.MkdirAll($PATH, $PERM)` or `os.Mkdir($PATH, $PERM)` calls in a `*.go` file outside `*_test.go` and `vendor/`, where `$PERM` is a literal octal that is NOT `0750` / `0o750`.
+**Enforcement**: `rules/go/dir-perms-too-permissive.yml`
+**Why**: world-readable directories (e.g. `0755`) expose contents to any process on the host. The convention is `0750` (owner-rwx + group-rx, no world) for ALL agent-created directories.
+
+#### Bad
+
+```go
+os.MkdirAll(dir, 0755)
+os.Mkdir(dir, 0755)
+```
+
+#### Good
+
+```go
+os.MkdirAll(dir, 0750)
+os.Mkdir(dir, 0750)
+```
+
+### RULE go-security/nosec-requires-reason (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: a `// #nosec <CODE>` comment in a `*.go` file outside `*_test.go` and `vendor/` appears WITHOUT a `-- <reason>` text component on the same line.
+**Enforcement**: `rules/go/nosec-requires-reason.yml`
+**Why**: bare `#nosec` suppresses a finding without explaining why the input is trusted. The next reviewer has no audit trail. Mandate `// #nosec G304 -- path from internal ListQueued(), not user input` style.
+
+#### Bad
+
+```go
+// #nosec G304
+data, err := os.ReadFile(userPath)
+```
+
+#### Good
+
+```go
+// #nosec G304 -- path from internal ListQueued(), not user input
+data, err := os.ReadFile(trustedPath)
+```
+
+### RULE go-security/chmod-return-checked (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: an `os.Chmod($PATH, $PERM)` call in a `*.go` file outside `*_test.go` and `vendor/` whose return value is discarded (no `if err := os.Chmod(...); err != nil` wrapper, no `_ = os.Chmod(...)` with an explanatory comment). Detecting "return value used in error check" requires reading the surrounding statement — pure ast-grep cannot reliably distinguish a checked `os.Chmod(...)` from an unchecked one without false positives.
+**Enforcement**: judgment
+**Why**: silent `os.Chmod` failures leave file permissions in an unexpected state. The convention is either `if err := os.Chmod(...); err != nil { return ... }` or explicit `_ = os.Chmod(...)` with a comment explaining why the error is ignored.
+
+#### Bad
+
+```go
+os.Chmod(path, 0600)
+```
+
+#### Good
+
+```go
+if err := os.Chmod(path, 0600); err != nil {
+    return errors.Wrapf(ctx, err, "chmod %s", path)
+}
+```

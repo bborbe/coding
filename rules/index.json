@@ -54,6 +54,42 @@
     "owner": "go-error-assistant"
   },
   {
+    "anchor": "go-security/chmod-return-checked",
+    "applies_when": "an `os.Chmod($PATH, $PERM)` call in a `*.go` file outside `*_test.go` and `vendor/` whose return value is discarded (no `if err := os.Chmod(...); err != nil` wrapper, no `_ = os.Chmod(...)` with an explanatory comment). Detecting \"return value used in error check\" requires reading the surrounding statement — pure ast-grep cannot reliably distinguish a checked `os.Chmod(...)` from an unchecked one without false positives.",
+    "doc_path": "docs/go-security-linting.md",
+    "enforcement": "judgment",
+    "id": "go-security/chmod-return-checked",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/dir-perms-too-permissive",
+    "applies_when": "`os.MkdirAll($PATH, $PERM)` or `os.Mkdir($PATH, $PERM)` calls in a `*.go` file outside `*_test.go` and `vendor/`, where `$PERM` is a literal octal that is NOT `0750` / `0o750`.",
+    "doc_path": "docs/go-security-linting.md",
+    "enforcement": "`rules/go/dir-perms-too-permissive.yml`",
+    "id": "go-security/dir-perms-too-permissive",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/file-perms-too-permissive",
+    "applies_when": "`os.WriteFile($PATH, $DATA, $PERM)` or `os.OpenFile($PATH, $FLAGS, $PERM)` calls in a `*.go` file outside `*_test.go` and `vendor/`, where `$PERM` is a literal octal that is NOT `0600` / `0o600`.",
+    "doc_path": "docs/go-security-linting.md",
+    "enforcement": "`rules/go/file-perms-too-permissive.yml`",
+    "id": "go-security/file-perms-too-permissive",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/nosec-requires-reason",
+    "applies_when": "a `// #nosec <CODE>` comment in a `*.go` file outside `*_test.go` and `vendor/` appears WITHOUT a `-- <reason>` text component on the same line.",
+    "doc_path": "docs/go-security-linting.md",
+    "enforcement": "`rules/go/nosec-requires-reason.yml`",
+    "id": "go-security/nosec-requires-reason",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
     "anchor": "go-time/inject-getter-not-create",
     "applies_when": "a factory or constructor file outside `main.go` calls `libtime.NewCurrentDateTime()`.",
     "doc_path": "docs/go-time-injection.md",

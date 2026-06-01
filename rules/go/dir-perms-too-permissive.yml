@@ -1,0 +1,40 @@
+id: go-security/dir-perms-too-permissive
+language: go
+severity: error
+message: |
+  Directory permissions must not be world-readable.
+  Use 0750 (owner-rwx, group-rx, no world) for all directories created via os.MkdirAll or os.Mkdir.
+  See docs/go-security-linting.md (RULE go-security/dir-perms-too-permissive).
+rule:
+  any:
+    # Broadened enumeration — see file-perms-too-permissive.yml for rationale.
+    # 0700/0o700 intentionally NOT listed — owner-only directory (not
+    # world-readable), more restrictive than 0750, doesn't violate the rule's
+    # "no world-readable" intent.
+    - pattern: os.MkdirAll($PATH, 0740)
+    - pattern: os.MkdirAll($PATH, 0o740)
+    - pattern: os.MkdirAll($PATH, 0755)
+    - pattern: os.MkdirAll($PATH, 0o755)
+    - pattern: os.MkdirAll($PATH, 0770)
+    - pattern: os.MkdirAll($PATH, 0o770)
+    - pattern: os.MkdirAll($PATH, 0775)
+    - pattern: os.MkdirAll($PATH, 0o775)
+    - pattern: os.MkdirAll($PATH, 0777)
+    - pattern: os.MkdirAll($PATH, 0o777)
+    - pattern: os.Mkdir($PATH, 0740)
+    - pattern: os.Mkdir($PATH, 0o740)
+    - pattern: os.Mkdir($PATH, 0755)
+    - pattern: os.Mkdir($PATH, 0o755)
+    - pattern: os.Mkdir($PATH, 0770)
+    - pattern: os.Mkdir($PATH, 0o770)
+    - pattern: os.Mkdir($PATH, 0775)
+    - pattern: os.Mkdir($PATH, 0o775)
+    - pattern: os.Mkdir($PATH, 0777)
+    - pattern: os.Mkdir($PATH, 0o777)
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

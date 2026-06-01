@@ -1,0 +1,16 @@
+id: go-security/nosec-requires-reason
+language: go
+severity: error
+message: |
+  #nosec comments must include a `-- <reason>` explanation.
+  Bare suppressions give no audit trail for the next reviewer.
+  See docs/go-security-linting.md (RULE go-security/nosec-requires-reason).
+rule:
+  pattern-regex: '//\s*#nosec\b(?!.*--)'
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

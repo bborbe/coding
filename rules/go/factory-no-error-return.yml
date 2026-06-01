@@ -1,0 +1,24 @@
+id: go-factory/no-error-return
+language: go
+severity: error
+message: |
+  Factory functions (Create*) must not return error.
+  Factories are pure composition — errors belong in main.go Run or behind a Provider interface.
+  See docs/go-factory-pattern.md (RULE go-factory/no-error-return).
+rule:
+  any:
+    - pattern: |
+        func Create$NAME($$$ARGS) error {
+          $$$BODY
+        }
+    - pattern: |
+        func Create$NAME($$$ARGS) ($$$RET, error) {
+          $$$BODY
+        }
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

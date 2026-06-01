@@ -54,6 +54,42 @@
     "owner": "go-error-assistant"
   },
   {
+    "anchor": "go-factory/no-cleanup-return",
+    "applies_when": "a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` has a return type list that includes `func()` (a cleanup closure). Common shapes: `(T, func())`, `(T, func(), error)`, `(func(), error)`.",
+    "doc_path": "docs/go-factory-pattern.md",
+    "enforcement": "`rules/go/factory-no-cleanup-return.yml` (mechanical flag) + judgment-tier LLM adjudication for any legitimate edge case.",
+    "id": "go-factory/no-cleanup-return",
+    "level": "MUST",
+    "owner": "go-factory-pattern-assistant"
+  },
+  {
+    "anchor": "go-factory/no-conditional-in-body",
+    "applies_when": "a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` contains an `if`, `switch`, or `for` statement anywhere in its body. Anonymous functions inside the body that are pure pass-throughs (single method call, no logic — see section 4.3 `Run Function Wrapper`) are an acceptable exception adjudicated by the judgment tier.",
+    "doc_path": "docs/go-factory-pattern.md",
+    "enforcement": "`rules/go/factory-no-conditional-in-body.yml` (mechanical flag) + judgment-tier LLM adjudication for the anonymous-function exception.",
+    "id": "go-factory/no-conditional-in-body",
+    "level": "MUST",
+    "owner": "go-factory-pattern-assistant"
+  },
+  {
+    "anchor": "go-factory/no-error-return",
+    "applies_when": "a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` has a return type list that includes `error`. The single permitted exception is a pass-through wrapper per section 7 — a one-statement factory that immediately returns an error-returning constructor call without adding wiring, logging, or validation.",
+    "doc_path": "docs/go-factory-pattern.md",
+    "enforcement": "`rules/go/factory-no-error-return.yml` (mechanical flag) + judgment-tier LLM adjudication for the pass-through wrapper exception.",
+    "id": "go-factory/no-error-return",
+    "level": "MUST",
+    "owner": "go-factory-pattern-assistant"
+  },
+  {
+    "anchor": "go-factory/no-impl-in-factory-pkg",
+    "applies_when": "a `*.go` file inside `pkg/factory/` (any path matching `**/pkg/factory/*.go`) contains a struct type declaration with non-trivial methods (methods with logic beyond a trivial accessor), an interface declaration with multiple methods, or any function declaration that is NOT a `Create*` factory function. Detecting \"non-trivial\" requires reading the method body — pure ast-grep can match `type X struct` and method declarations but cannot reliably decide which methods are \"trivial\".",
+    "doc_path": "docs/go-factory-pattern.md",
+    "enforcement": "judgment — implementation-vs-trivial-helper distinction needs whole-method reasoning. Mechanical flag can catch structural violations (non-`Create*` function declarations, multi-method interfaces, impl structs) inside `pkg/factory/`, but the \"trivial accessor\" exception requires LLM adjudication.",
+    "id": "go-factory/no-impl-in-factory-pkg",
+    "level": "MUST",
+    "owner": "go-factory-pattern-assistant"
+  },
+  {
     "anchor": "go-security/chmod-return-checked",
     "applies_when": "an `os.Chmod($PATH, $PERM)` call in a `*.go` file outside `*_test.go` and `vendor/` whose return value is discarded (no `if err := os.Chmod(...); err != nil` wrapper, no `_ = os.Chmod(...)` with an explanatory comment). Detecting \"return value used in error check\" requires reading the surrounding statement — pure ast-grep cannot reliably distinguish a checked `os.Chmod(...)` from an unchecked one without false positives.",
     "doc_path": "docs/go-security-linting.md",

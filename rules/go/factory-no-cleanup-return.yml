@@ -1,0 +1,23 @@
+id: go-factory/no-cleanup-return
+language: go
+severity: error
+message: |
+  Factory functions (Create*) must not return a cleanup closure (func()).
+  Cleanup lifecycle belongs in main.go via defer, not in the factory return signature.
+  See docs/go-factory-pattern.md (RULE go-factory/no-cleanup-return).
+rule:
+  kind: function_declaration
+  regex: "^Create"
+  has:
+    kind: func_type
+    has:
+      kind: parameter_list
+      equaling:
+        length: 0
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

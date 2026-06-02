@@ -243,6 +243,24 @@
     "owner": "go-factory-pattern-assistant"
   },
   {
+    "anchor": "go-functional-options/singular-option-type",
+    "applies_when": "a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.",
+    "doc_path": "docs/go-functional-options-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `type_alias_declaration` / `type_declaration` with `XxxOptions func(...)` matching the wrong-singular pattern, and `struct_type` named `XxxOption`)",
+    "id": "go-functional-options/singular-option-type",
+    "level": "SHOULD",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-functional-options/with-prefix-option-functions",
+    "applies_when": "a Go package using the functional-options pattern names the option constructors with prefixes other than `With*` (e.g. `Set*`, `Use*`, `Configure*`, bare nouns like `BatchSize(n)`).",
+    "doc_path": "docs/go-functional-options-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `function_declaration` returning a type matching `*Option` / `*ConfigFunc` with name not starting with `With`)",
+    "id": "go-functional-options/with-prefix-option-functions",
+    "level": "SHOULD",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "go-http-handler/kebab-case-handler-files",
     "applies_when": "a `*.go` file under `**/pkg/handler/**` is named with non-kebab-case style (e.g. `exists_handler.go`, `existshandler.go`, or `handler.go`) instead of the documented `<action>-<noun>.go` kebab-case (e.g. `exists.go`, `forward-invoice.go`). Pure ast-grep operates on file contents, not filenames — this is a filesystem convention check.",
     "doc_path": "docs/go-http-handler-refactoring-guide.md",
@@ -295,6 +313,24 @@
     "id": "go-json-error-handler/use-error-code-constants",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
+  },
+  {
+    "anchor": "go-k8s-crd/generated-client-not-dynamic",
+    "applies_when": "a Go consumer service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of the typed clientset generated via `hack/update-codegen.sh`.",
+    "doc_path": "docs/go-kubernetes-crd-controller-guide.md",
+    "enforcement": "judgment (import-graph check on the consumer service: `client-go/dynamic` imported alongside a known-schema CR type is the smell; dynamic-client use is acceptable only when the CR is third-party with unknown schema)",
+    "id": "go-k8s-crd/generated-client-not-dynamic",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-k8s-crd/use-bborbe-k8s",
+    "applies_when": "a Go service consuming a CRD hand-writes the event-handler cast adapter, the typed event handler, or the in-memory state store, while the service already depends on (or could depend on) `github.com/bborbe/k8s`.",
+    "doc_path": "docs/go-kubernetes-crd-controller-guide.md",
+    "enforcement": "judgment (file-existence + dependency-graph check: presence of `pkg/event-handler*.go` or `pkg/<resource>-store.go` alongside a non-trivial `bborbe/k8s` import means hand-written boilerplate that should use the generic primitives)",
+    "id": "go-k8s-crd/use-bborbe-k8s",
+    "level": "SHOULD",
+    "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-licensing/copyright-year-discipline",
@@ -439,6 +475,24 @@
     "id": "go-security/nosec-requires-reason",
     "level": "MUST",
     "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-service-impl/no-context-object-injection",
+    "applies_when": "a Go service method receives a struct (by value OR by pointer) named `Context` / `ServiceContext` / `Deps` / etc. that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.",
+    "doc_path": "docs/go-service-implementation-patterns.md",
+    "enforcement": "judgment (ast-grep follow-up: method signature with a parameter type matching `<Name>Context` or `*<Name>Context` / `<Name>Deps` or `*<Name>Deps` where the struct contains 2+ service-interface fields — value and pointer shapes share the anti-pattern)",
+    "id": "go-service-impl/no-context-object-injection",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-service-impl/provider-vs-registry-choice",
+    "applies_when": "a Go service needs to dispatch to one of several implementations and the code uses the wrong dispatch shape for the set's openness: a `map[string]Creator` registry for a closed compile-time set, or a compiled `switch` for an open runtime-extensible set.",
+    "doc_path": "docs/go-service-implementation-patterns.md",
+    "enforcement": "judgment (semantic — depends on whether the implementation set is closed or open)",
+    "id": "go-service-impl/provider-vs-registry-choice",
+    "level": "SHOULD",
+    "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-state-machine/forward-only-by-default",

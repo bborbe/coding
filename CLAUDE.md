@@ -30,6 +30,9 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-json-error-handler-guide.md` | `go-http-handler-assistant` |
 | `go-linting-guide.md` | `go-quality-assistant` |
 | `go-state-machine-pattern.md` | `go-architecture-assistant` |
+| `go-service-implementation-patterns.md` | `go-architecture-assistant` |
+| `go-kubernetes-crd-controller-guide.md` | `go-architecture-assistant` |
+| `go-functional-options-pattern.md` | `go-quality-assistant` |
 | `go-doc-best-practices.md` | `godoc-assistant` |
 | `go-testing-guide.md` | `go-test-quality-assistant` |
 | `go-security-linting.md` | `go-security-specialist` |

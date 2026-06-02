@@ -13,6 +13,61 @@ This guide captures practical decision-making patterns and implementation choice
 
 ## Service Architecture Decision Framework
 
+### RULE go-service-impl/provider-vs-registry-choice (SHOULD)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go service needs to dispatch to one of several implementations and the code uses the wrong dispatch shape for the set's openness: a `map[string]Creator` registry for a closed compile-time set, or a compiled `switch` for an open runtime-extensible set.
+**Enforcement**: judgment (semantic — depends on whether the implementation set is closed or open)
+**Why**: Static `switch` is faster (compiled jump table vs. map lookup + indirect call), trivially exhaustive (compiler-checked via `default:` + `errors.Errorf`), and refactor-friendly (renames propagate). Dynamic map-based registries are necessary when implementations register themselves at runtime (plugin systems, third-party extensions) but the cost — lost compile-time exhaustiveness, harder-to-test, registration-order sensitivity — is real. Match the shape to the problem: closed set → switch; open set → registry. Defaulting to one or the other regardless of context produces both unnecessary overhead and brittle systems.
+
+#### Bad
+
+```go
+// Fixed 3-implementation set, runtime registry — overkill.
+// Also violates `go-architecture/no-globals-or-singletons` (MUST): init()
+// initialises a package-level Registry with all the bound creators —
+// untestable in parallel, hidden dependency graph.
+type ProcessorRegistry struct {
+	processors map[string]ProcessorCreator
+}
+
+func init() {
+	r := &ProcessorRegistry{processors: make(map[string]ProcessorCreator)}
+	r.Register("image",    NewImageProcessor)    // these never change
+	r.Register("video",    NewVideoProcessor)
+	r.Register("document", NewDocumentProcessor)
+}
+```
+
+#### Good
+
+```go
+// Fixed set → compiled switch; exhaustiveness checked at compile time
+type ProcessorProvider interface {
+	Get(ctx context.Context, t ProcessType) (Processor, error)
+}
+
+func (p *processorProvider) Get(ctx context.Context, t ProcessType) (Processor, error) {
+	switch t {
+	case ProcessImage:
+		return NewImageProcessor(p.deps...), nil
+	case ProcessVideo:
+		return NewVideoProcessor(p.deps...), nil
+	case ProcessDocument:
+		return NewDocumentProcessor(p.deps...), nil
+	default:
+		return nil, errors.Errorf(ctx, "unknown processor type: %s", t)
+	}
+}
+
+// Plugin-extensible set → registry; new types register at startup
+type PluginRegistry struct {
+	plugins map[string]PluginCreator
+}
+
+func (r *PluginRegistry) Register(name string, creator PluginCreator) { r.plugins[name] = creator }
+```
+
 ### Provider vs Registry Pattern
 
 **Use Static Provider Pattern When:**
@@ -140,6 +195,55 @@ type PaymentHandler interface {   // Focuses on technical aspect
 - Methods should describe intent (`Process`, `Validate`, `Store`)
 
 ## Dependency Injection Best Practices
+
+### RULE go-service-impl/no-context-object-injection (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go service method receives a struct (by value OR by pointer) named `Context` / `ServiceContext` / `Deps` / etc. that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.
+**Enforcement**: judgment (ast-grep follow-up: method signature with a parameter type matching `<Name>Context` or `*<Name>Context` / `<Name>Deps` or `*<Name>Deps` where the struct contains 2+ service-interface fields — value and pointer shapes share the anti-pattern)
+**Why**: Context-object injection is the rebrand of global state — every method becomes "give me everything, I'll pick what I need." Three failure modes: (1) compile-time can't tell which deps a method actually uses, so refactors and dead-code detection break; (2) tests need to construct a full context object for every call site, even for methods that touch one dependency; (3) the context grows over time (the "we'll just add one more field" trap), and unused fields linger forever. Constructor injection forces the dep set to be minimal and visible at the type signature.
+
+#### Bad
+
+```go
+type ServiceContext struct {
+	SMTPClient   SMTPClient
+	TemplateRepo TemplateRepository
+	Logger       log.Logger
+}
+
+func (e *EmailService) Send(ctx context.Context, msg Message, svcCtx ServiceContext) error {
+	svcCtx.Logger.Info("sending")
+	return svcCtx.SMTPClient.Send(ctx, msg)  // hidden dep set; compile-time can't see it
+}
+```
+
+#### Good
+
+```go
+type EmailService interface {
+	Send(ctx context.Context, msg Message) error
+}
+
+type emailService struct {
+	smtpClient   SMTPClient
+	templateRepo TemplateRepository
+	logger       log.Logger
+}
+
+func NewEmailService(
+	smtpClient SMTPClient,
+	templateRepo TemplateRepository,
+	logger log.Logger,
+) EmailService {
+	return &emailService{smtpClient: smtpClient, templateRepo: templateRepo, logger: logger}
+}
+
+func (e *emailService) Send(ctx context.Context, msg Message) error {
+	e.logger.Info("sending")              // dep is a struct field, visible at type
+	return e.smtpClient.Send(ctx, msg)
+}
+```
 
 ### Constructor Injection vs Context Objects
 

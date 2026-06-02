@@ -120,7 +120,7 @@
     "anchor": "go-concurrency/channel-closed-by-sender-only",
     "applies_when": "a Go file calls `close(ch)` on a channel that was passed in as a function parameter from elsewhere — i.e. closed by a consumer/receiver rather than by the goroutine that produces values into it.",
     "doc_path": "docs/go-concurrency-patterns.md",
-    "enforcement": "judgment (ast-grep partial: `close(X)` where `X` is a parameter type `chan T` or `chan<- T`; the agent rules in whether the function is the producer or consumer based on whether it sends into `X`)",
+    "enforcement": "judgment (ast-grep follow-up: `close(X)` where `X` is a parameter type `chan T` or `chan<- T`; the agent rules in whether the function is the producer or consumer based on whether it sends into `X`)",
     "id": "go-concurrency/channel-closed-by-sender-only",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -129,7 +129,7 @@
     "anchor": "go-concurrency/no-raw-go-func",
     "applies_when": "a Go file uses the raw `go func() { ... }()` / `go someMethod(...)` syntax outside `main.go` / top-level entry points — instead of one of the `github.com/bborbe/run` strategies (`CancelOnFirstErrorWait`, `CancelOnFirstFinishWait`, `All`, `Sequential`).",
     "doc_path": "docs/go-concurrency-patterns.md",
-    "enforcement": "judgment (ast-grep partial: `go_statement` outside `main.go` / `cmd/**`. Test files exempt; `main` entry-point goroutine spawners exempt by path filter)",
+    "enforcement": "judgment (ast-grep follow-up: `go_statement` outside `main.go` / `cmd/**`. Test files exempt; `main` entry-point goroutine spawners exempt by path filter)",
     "id": "go-concurrency/no-raw-go-func",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -280,9 +280,9 @@
   },
   {
     "anchor": "go-glog/use-v-for-debug-not-info",
-    "applies_when": "a Go file calls `glog.Info` / `glog.Infof` for debug, trace, internal-state, or developer-troubleshooting log lines that should be filtered out in production — instead of `glog.V(N).Info...` / `glog.V(N).Infof...` with an appropriate verbosity level (1 for sysop debug, 2 for dev default, 3+ for deep debug).",
+    "applies_when": "a Go file calls `glog.Info` / `glog.Infof` for debug, trace, internal-state, or developer-troubleshooting log lines that should be filtered out in production — instead of `glog.V(N).Info...` / `glog.V(N).Infof...` with an appropriate verbosity level (1 for sysop debug, 2 for dev default, 3+ for deep debug). Scope: applies across ALL V levels — V0 is reserved for production-default operator info; everything debug-shaped goes through `V(N)`.",
     "doc_path": "docs/go-glog-guide.md",
-    "enforcement": "judgment (ast-grep partial: `call_expression` matching `glog.Info(...)` / `glog.Infof(...)` outside startup/shutdown contexts; the agent rules in \"is this production-default-worthy?\" based on the log content)",
+    "enforcement": "judgment (ast-grep follow-up: `call_expression` matching `glog.Info(...)` / `glog.Infof(...)` outside startup/shutdown contexts; the agent rules in \"is this production-default-worthy?\" based on the log content)",
     "id": "go-glog/use-v-for-debug-not-info",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -417,7 +417,7 @@
     "anchor": "go-mod-replace/no-cross-repo-replace",
     "applies_when": "a Go project's `go.mod` contains a `replace` directive whose right-hand side path points outside the current repo's working tree — relative paths that escape the repo root (`../../other-repo/lib`), absolute filesystem paths (`/Users/<name>/work/...`), or any other off-repo location.",
     "doc_path": "docs/go-mod-replace-guide.md",
-    "enforcement": "judgment (ast-grep partial: pattern over `go.mod` `replace` lines with right-hand side starting with `../` reaching above the repo root or starting with `/`. Same-repo `replace github.com/acme/monorepo/libs/shared => ../../libs/shared` is fine — the rule fires only when the destination escapes the repo)",
+    "enforcement": "judgment (ast-grep follow-up: pattern over `go.mod` `replace` lines with right-hand side starting with `../` reaching above the repo root or starting with `/`. Same-repo `replace github.com/acme/monorepo/libs/shared => ../../libs/shared` is fine — the rule fires only when the destination escapes the repo)",
     "id": "go-mod-replace/no-cross-repo-replace",
     "level": "MUST",
     "owner": "go-quality-assistant"

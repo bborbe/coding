@@ -49,6 +49,7 @@
 - [Error Wrapping](docs/go-error-wrapping-guide.md): Context-aware error handling
 - [Context Cancellation](docs/go-context-cancellation-in-loops.md): Non-blocking select in loops
 - [Logging](docs/go-logging-guide.md): Structured logging patterns
+- [glog Levels](docs/go-glog-guide.md): glog verbosity-level discipline (legacy projects)
 
 ## Python
 - [Project Structure](docs/python-project-structure.md): src/ layout, pyproject.toml, uv

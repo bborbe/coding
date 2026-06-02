@@ -8,7 +8,7 @@
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go file uses the raw `go func() { ... }()` / `go someMethod(...)` syntax outside `main.go` / top-level entry points — instead of one of the `github.com/bborbe/run` strategies (`CancelOnFirstErrorWait`, `CancelOnFirstFinishWait`, `All`, `Sequential`).
-**Enforcement**: judgment (ast-grep partial: `go_statement` outside `main.go` / `cmd/**`. Test files exempt; `main` entry-point goroutine spawners exempt by path filter)
+**Enforcement**: judgment (ast-grep follow-up: `go_statement` outside `main.go` / `cmd/**`. Test files exempt; `main` entry-point goroutine spawners exempt by path filter)
 **Why**: Raw goroutines have three failure modes the `run` package solves: (1) they leak when the parent context is cancelled but the goroutine doesn't observe it; (2) they race when the parent function returns before the goroutine writes its result; (3) error propagation requires hand-rolled channels + `sync.WaitGroup` that drift toward subtle deadlocks. `run.CancelOnFirstErrorWait` wires context cancellation, error aggregation, and synchronization in one call — every consumer learns the same primitives, refactors stay safe, and goroutine lifetimes are explicit at the type signature.
 
 #### Bad
@@ -110,7 +110,7 @@ func process(ctx context.Context) error {
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go file calls `close(ch)` on a channel that was passed in as a function parameter from elsewhere — i.e. closed by a consumer/receiver rather than by the goroutine that produces values into it.
-**Enforcement**: judgment (ast-grep partial: `close(X)` where `X` is a parameter type `chan T` or `chan<- T`; the agent rules in whether the function is the producer or consumer based on whether it sends into `X`)
+**Enforcement**: judgment (ast-grep follow-up: `close(X)` where `X` is a parameter type `chan T` or `chan<- T`; the agent rules in whether the function is the producer or consumer based on whether it sends into `X`)
 **Why**: Closing a channel from the receiver side is a textbook race — the sender may still be writing when the close happens, producing `send on closed channel` panic. The Go convention is: **the producer owns the channel and is the only one allowed to close it.** Receivers learn of "no more values" via `for v := range ch` or the `comma-ok` idiom (`v, ok := <-ch`), never by closing themselves. Multi-producer cases use `sync.WaitGroup` + a single dedicated closer goroutine, not concurrent closes (which also panic).
 
 #### Bad
@@ -208,9 +208,19 @@ if errors.Is(err, errReachedUntil) { return nil }
 
 ## Rules
 
-1. Never `go func()` — use `run.CancelOnFirstErrorWait`
+1. Never `go func()` — use `run.CancelOnFirstErrorWait` (canonicalised as `go-concurrency/no-raw-go-func`)
 2. Caller owns the channel, passes `chan<- T` as parameter
-3. Producer closes bounded channels (`defer close(ch)`)
-4. Always check `ctx.Done()` in consumer loops
+3. Producer closes bounded channels (`defer close(ch)`) (canonicalised as `go-concurrency/channel-closed-by-sender-only`)
+4. Always check `ctx.Done()` in consumer loops (cross-references `go-context/cancel-check-in-loop`)
 5. Never close channel in unbounded/polling producers
-6. Capture loop variables by value: `x := x`
+
+> Note: an earlier revision listed a sixth rule "Capture loop variables by value (`x := x`)". That rule was removed because Go 1.22+ fixed loop-variable capture semantics — the variable is now scoped per iteration. For pre-1.22 projects, the `x := x` workaround is still required; this guide assumes Go 1.22+.
+
+## Antipatterns
+
+See the `#### Bad` blocks under each `### RULE` above for the canonical antipattern shapes. Summary:
+
+- **Raw `go func()`** — `go-concurrency/no-raw-go-func` (leaks, races, hand-rolled `sync.WaitGroup` deadlocks).
+- **Consumer closes channel** — `go-concurrency/channel-closed-by-sender-only` (panics on still-pending sends).
+- **Unbounded producer with `defer close(ch)`** — bounded-shape primitive misapplied; the polling producer's `defer close` fires when the function returns on ctx-cancel, but the consumer goroutine may still be reading and panic on subsequent sends from anywhere else in the codebase.
+- **Hidden `Results()` channel-returning method** — anti-pattern shown in Channel Ownership above; pass `chan<- T` as a parameter instead so ownership is explicit at the call site.

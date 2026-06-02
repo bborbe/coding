@@ -103,6 +103,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Time Injection](docs/go-time-injection.md) | bborbe/time, CurrentDateTimeGetter |
 | [GoDoc](docs/go-doc-best-practices.md) | Documentation standards |
 | [Logging](docs/go-logging-guide.md) | Structured logging |
+| [glog Levels](docs/go-glog-guide.md) | glog verbosity-level discipline (legacy projects) |
 | [Design Patterns](docs/go-patterns.md) | Common Go patterns |
 
 ### Go — Testing

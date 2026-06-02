@@ -4,6 +4,35 @@
 
 Google's [glog](https://github.com/golang/glog) provides more granular logging levels than standard Go logging. This guide explains when to use each level for consistent logging across Go services.
 
+### RULE go-glog/use-v-for-debug-not-info (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go file calls `glog.Info` / `glog.Infof` for debug, trace, internal-state, or developer-troubleshooting log lines that should be filtered out in production — instead of `glog.V(N).Info...` / `glog.V(N).Infof...` with an appropriate verbosity level (1 for sysop debug, 2 for dev default, 3+ for deep debug). Scope: applies across ALL V levels — V0 is reserved for production-default operator info; everything debug-shaped goes through `V(N)`.
+**Enforcement**: judgment (ast-grep follow-up: `call_expression` matching `glog.Info(...)` / `glog.Infof(...)` outside startup/shutdown contexts; the agent rules in "is this production-default-worthy?" based on the log content)
+**Why**: V0 (bare `glog.Info`) is the *always-on* production logging level. Every line at V0 ships to log aggregators, gets indexed, and burns CPU on every request whether anyone reads it or not. Using V0 for debug-style logs ("Cache miss for key %s", "Internal state: %+v") produces gigabytes of noise in production, drowns operators in irrelevant detail, and inflates log-storage cost. The `glog.V(N)` mechanism exists exactly to gate verbosity at runtime: V0 stays operator-readable (startup, shutdown, health changes), V1+ stays off by default and turns on for troubleshooting. Inverting the levels means production logs are useless and dev debugging requires a deploy.
+
+#### Bad
+
+```go
+// V0 used for debug-style content — runs in production, drowns operators
+glog.Infof("Cache miss for key %s, fetching from database", key)
+glog.Infof("Processing batch of %d items", len(batch))
+glog.Infof("Internal state: %+v", internalStruct)
+```
+
+#### Good
+
+```go
+// V0 reserved for production-default operator info
+glog.Info("Service started successfully on port 8080")
+glog.Infof("Recovered from panic: %v", recovered)
+
+// Debug-style content gated behind V(N)
+glog.V(2).Infof("Cache miss for key %s, fetching from database", key)
+glog.V(3).Infof("Processing batch of %d items", len(batch))
+glog.V(4).Infof("Internal state: %+v", internalStruct)
+```
+
 ## Error - Always an Error / Requires System Operator Action
 
 Use for genuine errors that require immediate attention:
@@ -35,35 +64,6 @@ glog.Warningf("High memory usage detected: %d%%", memoryPercent)
 ```
 
 ## Info V0 - Production Default / System Operator Information
-
-### RULE go-glog/use-v-for-debug-not-info (MUST)
-
-**Owner**: go-quality-assistant
-**Applies when**: a Go file calls `glog.Info` / `glog.Infof` for debug, trace, internal-state, or developer-troubleshooting log lines that should be filtered out in production — instead of `glog.V(N).Info...` / `glog.V(N).Infof...` with an appropriate verbosity level (1 for sysop debug, 2 for dev default, 3+ for deep debug).
-**Enforcement**: judgment (ast-grep partial: `call_expression` matching `glog.Info(...)` / `glog.Infof(...)` outside startup/shutdown contexts; the agent rules in "is this production-default-worthy?" based on the log content)
-**Why**: V0 (bare `glog.Info`) is the *always-on* production logging level. Every line at V0 ships to log aggregators, gets indexed, and burns CPU on every request whether anyone reads it or not. Using V0 for debug-style logs ("Cache miss for key %s", "Internal state: %+v") produces gigabytes of noise in production, drowns operators in irrelevant detail, and inflates log-storage cost. The `glog.V(N)` mechanism exists exactly to gate verbosity at runtime: V0 stays operator-readable (startup, shutdown, health changes), V1+ stays off by default and turns on for troubleshooting. Inverting the levels means production logs are useless and dev debugging requires a deploy.
-
-#### Bad
-
-```go
-// V0 used for debug-style content — runs in production, drowns operators
-glog.Infof("Cache miss for key %s, fetching from database", key)
-glog.Infof("Processing batch of %d items", len(batch))
-glog.Infof("Internal state: %+v", internalStruct)
-```
-
-#### Good
-
-```go
-// V0 reserved for production-default operator info
-glog.Info("Service started successfully on port 8080")
-glog.Infof("Recovered from panic: %v", recovered)
-
-// Debug-style content gated behind V(N)
-glog.V(2).Infof("Cache miss for key %s, fetching from database", key)
-glog.V(3).Infof("Processing batch of %d items", len(batch))
-glog.V(4).Infof("Internal state: %+v", internalStruct)
-```
 
 This is the default production logging level. Only log information that IT operators need to see:
 

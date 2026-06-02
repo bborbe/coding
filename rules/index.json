@@ -63,6 +63,42 @@
     "owner": "agent-auditor"
   },
   {
+    "anchor": "changelog/conventional-prefix-required",
+    "applies_when": "a bullet under `## Unreleased` in CHANGELOG.md does not start with one of the recognised conventional prefixes (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`).",
+    "doc_path": "docs/changelog-guide.md",
+    "enforcement": "judgment (regex over `## Unreleased` bullets: `^- ([a-z]+:)` first token must be in the allowed prefix set)",
+    "id": "changelog/conventional-prefix-required",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "changelog/preamble-frozen",
+    "applies_when": "a CHANGELOG.md edit inserts content above the `# Changelog` title, modifies the SemVer preamble bullets (MAJOR/MINOR/PATCH), or places a `## Unreleased` / `## vX.Y.Z` section inside (rather than after) the preamble block.",
+    "doc_path": "docs/changelog-guide.md",
+    "enforcement": "judgment (markdown-structure inspection: every CHANGELOG.md must have the canonical preamble first, then sections in `## Unreleased` → `## vX.Y.Z` order)",
+    "id": "changelog/preamble-frozen",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "git-workflow/never-direct-commit-to-master",
+    "applies_when": "a git commit lands directly on `master` / `main` without going through a feature branch + PR — typically caught by `pre-push` hook rejecting cross-name pushes to the default branch, or by GitHub's `master-protection` ruleset.",
+    "doc_path": "docs/git-workflow.md",
+    "enforcement": "judgment + tooling (`~/.git-hooks/pre-push` rejects feature-branch-to-master pushes; GitHub ruleset enforces required PR). Release commits (`release vX.Y.Z`) are the documented exception.",
+    "id": "git-workflow/never-direct-commit-to-master",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "git-workflow/no-ai-attribution-in-commits",
+    "applies_when": "a git commit message body or trailer contains \"Co-Authored-By: Claude\", \"Generated with Claude Code\", \"Co-Authored-By: GitHub Copilot\", or any other AI-attribution line.",
+    "doc_path": "docs/git-workflow.md",
+    "enforcement": "judgment (commit-message grep at PR-review time; can be a `commit-msg` hook reject)",
+    "id": "git-workflow/no-ai-attribution-in-commits",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
     "anchor": "go-architecture/business-logic-not-in-main",
     "applies_when": "`main.go` (production code only — `main_test.go` is exempt) or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.",
     "doc_path": "docs/go-architecture-patterns.md",
@@ -898,5 +934,23 @@
     "id": "python-pydantic/optional-needs-default",
     "level": "MUST",
     "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "tdd/failing-test-before-implementation",
+    "applies_when": "a PR introduces new functionality (new file, new function, new branch) without a corresponding test-file change that demonstrates the new behavior failing before the implementation lands.",
+    "doc_path": "docs/tdd-guide.md",
+    "enforcement": "judgment (commit-ordering inspection; ast-grep can flag new exported functions without adjacent test additions as a first-pass filter)",
+    "id": "tdd/failing-test-before-implementation",
+    "level": "SHOULD",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "teamvault/short-alphanumeric-is-lookup-key-not-secret",
+    "applies_when": "a code-review agent or security-lint pass flags a 6-12 char alphanumeric value in a `.env` file / k8s manifest / config file as an exposed credential, when the corresponding k8s manifest uses `teamvaultFileBase64` / `teamvaultPassword` / `teamvaultConfig` template functions to resolve the value.",
+    "doc_path": "docs/teamvault-conventions.md",
+    "enforcement": "judgment (semantic — distinguishing a lookup key from a real short token requires reading the k8s manifest the env var feeds into)",
+    "id": "teamvault/short-alphanumeric-is-lookup-key-not-secret",
+    "level": "MUST",
+    "owner": "go-security-specialist"
   }
 ]

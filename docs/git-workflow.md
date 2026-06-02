@@ -2,6 +2,52 @@
 
 ## Hard Rules
 
+### RULE git-workflow/never-direct-commit-to-master (MUST)
+
+**Owner**: agent-auditor
+**Applies when**: a git commit lands directly on `master` / `main` without going through a feature branch + PR — typically caught by `pre-push` hook rejecting cross-name pushes to the default branch, or by GitHub's `master-protection` ruleset.
+**Enforcement**: judgment + tooling (`~/.git-hooks/pre-push` rejects feature-branch-to-master pushes; GitHub ruleset enforces required PR). Release commits (`release vX.Y.Z`) are the documented exception.
+**Why**: Direct-to-master commits skip review, skip CI, skip the audit trail. The 14-commits-on-origin-master trap (PR #1) happened this way: `git worktree add -b feat/foo origin/master` left upstream pointing at master so `git push` shipped to the wrong place. Hook + ruleset catch it before it happens.
+
+#### Bad
+
+```bash
+git checkout master && git commit -m "quick fix" && git push   # no PR, no review
+```
+
+#### Good
+
+```bash
+wt-feat coding fix/payment-bug   # feature worktree + branch + push -u in one shot
+git commit -m "fix: payment bug" && git push
+gh pr create                      # PR triggers review + CI
+```
+
+### RULE git-workflow/no-ai-attribution-in-commits (MUST)
+
+**Owner**: agent-auditor
+**Applies when**: a git commit message body or trailer contains "Co-Authored-By: Claude", "Generated with Claude Code", "Co-Authored-By: GitHub Copilot", or any other AI-attribution line.
+**Enforcement**: judgment (commit-message grep at PR-review time; can be a `commit-msg` hook reject)
+**Why**: AI attribution inflates commit metadata noise, signals tool use rather than authorship, and makes commits look "automated" even when the human did substantive design + review work. The human + commit message together constitute the canonical history. AI is a tool; tools don't get authorship credit any more than the editor or compiler does.
+
+#### Bad
+
+```
+add login endpoint
+
+Generated with Claude Code
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+#### Good
+
+```
+add login endpoint
+
+Validates the OAuth token against the configured issuer, returns
+the corresponding user record or 401.
+```
+
 - **NEVER commit directly to master/main**
 - **NEVER add AI attribution** to commits (no "Co-Authored-By: Claude", no "Generated with Claude Code")
 - **NEVER use `git -C /path`** — always `cd /path && git ...`

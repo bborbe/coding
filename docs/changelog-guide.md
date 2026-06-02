@@ -35,6 +35,35 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - fix: Fix WaiterUntil to handle equal times correctly
 ```
 
+### RULE changelog/preamble-frozen (MUST)
+
+**Owner**: agent-auditor
+**Applies when**: a CHANGELOG.md edit inserts content above the `# Changelog` title, modifies the SemVer preamble bullets (MAJOR/MINOR/PATCH), or places a `## Unreleased` / `## vX.Y.Z` section inside (rather than after) the preamble block.
+**Enforcement**: judgment (markdown-structure inspection: every CHANGELOG.md must have the canonical preamble first, then sections in `## Unreleased` → `## vX.Y.Z` order)
+**Why**: The preamble is the API contract between the changelog and every tool that parses it (dark-factory's version-bump detector, /coding:commit's CHANGELOG validator, downstream release-notes generators). Moving / deleting / shifting it breaks the parsers silently — the next release attempt either bumps the wrong version or misses entries entirely. Restoring is cheap; preventing the edit is cheaper.
+
+#### Bad
+
+```markdown
+## Unreleased
+- feat: new thing
+
+# Changelog                          ← preamble shoved below
+All notable changes...
+```
+
+#### Good
+
+```markdown
+# Changelog
+All notable changes to this project will be documented in this file.
+Please choose versions by [Semantic Versioning](http://semver.org/).
+* MAJOR / MINOR / PATCH bullets here
+
+## Unreleased
+- feat: new thing
+```
+
 **Rules:**
 - Preamble with SemVer explanation always present
 - **Header is frozen**: everything from the start of the file to the FIRST `##` heading (the `# Changelog` title, the "All notable changes..." line, the SemVer link, and the MAJOR/MINOR/PATCH bullets) MUST NOT be moved, deleted, or have anything inserted above or inside it. Insert `## Unreleased` (or any version section) immediately AFTER the last header line — never before any header line. If the header is incomplete, restore it; never leave it partial.
@@ -44,6 +73,31 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - Flat list — no `### Added` / `### Fixed` categories
 
 ## Conventional Prefixes (REQUIRED)
+
+### RULE changelog/conventional-prefix-required (MUST)
+
+**Owner**: agent-auditor
+**Applies when**: a bullet under `## Unreleased` in CHANGELOG.md does not start with one of the recognised conventional prefixes (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`).
+**Enforcement**: judgment (regex over `## Unreleased` bullets: `^- ([a-z]+:)` first token must be in the allowed prefix set)
+**Why**: dark-factory and `/coding:commit` parse the prefix to decide the version bump automatically — any `feat:` entry triggers a minor bump, everything else triggers a patch. Missing or wrong prefix means the version-bump detection fails: the release may patch-bump a feature commit (downstream consumers miss the new functionality in their range queries) or minor-bump a chore. Standardising the prefix is the cheapest possible structure for unambiguous machine parsing.
+
+#### Bad
+
+```markdown
+## Unreleased
+- Add SpecWatcher                    ← no prefix
+- update go and deps                 ← no prefix
+- fix and refactor                   ← ambiguous; multiple prefixes
+```
+
+#### Good
+
+```markdown
+## Unreleased
+- feat: Add SpecWatcher to monitor specs/ for approved status changes
+- chore: Update Go from 1.25.5 to 1.26.0
+- refactor: Extract worktree cleanup to reduce cognitive complexity
+```
 
 Every `## Unreleased` entry must start with a conventional prefix:
 

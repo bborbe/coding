@@ -515,7 +515,7 @@ func NewConsumer(options ...func(*ConsumerOptions)) Consumer {
 ### RULE go-functional-options/singular-option-type (SHOULD)
 
 **Owner**: go-quality-assistant
-**Applies when**: a Go package using the functional-options pattern names the function type with a plural `XxxOptions` (matching the struct) instead of the singular `XxxOption`, OR names the config struct with the singular `XxxOption` (clashing with the function type).
+**Applies when**: a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.
 **Enforcement**: judgment (ast-grep follow-up: `type_alias_declaration` / `type_declaration` with `XxxOptions func(...)` matching the wrong-singular pattern, and `struct_type` named `XxxOption`)
 **Why**: The pair-naming convention — `XxxOption` (singular function type) + `XxxOptions` (plural config struct) — makes the relationship at the type signature unambiguous: one `XxxOption` modifies one `XxxOptions`. Swapping them or using the same word for both makes every reader pause to remember which is which. Industry standard (Dave Cheney's original pattern, gRPC, OpenTelemetry, k8s client-go) follows the singular-function / plural-struct shape; deviating costs reader-onboarding effort with no upside.
 

@@ -196,8 +196,8 @@ type PaymentHandler interface {   // Focuses on technical aspect
 ### RULE go-service-impl/no-context-object-injection (MUST)
 
 **Owner**: go-architecture-assistant
-**Applies when**: a Go service method receives a struct named `*Context`, `*ServiceContext`, `*Deps`, or similar that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.
-**Enforcement**: judgment (ast-grep follow-up: method signature with a parameter type matching `*<Name>Context` / `*<Name>Deps` where the struct contains 2+ service-interface fields)
+**Applies when**: a Go service method receives a struct (by value OR by pointer) named `Context` / `ServiceContext` / `Deps` / etc. that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.
+**Enforcement**: judgment (ast-grep follow-up: method signature with a parameter type matching `<Name>Context` or `*<Name>Context` / `<Name>Deps` or `*<Name>Deps` where the struct contains 2+ service-interface fields — value and pointer shapes share the anti-pattern)
 **Why**: Context-object injection is the rebrand of global state — every method becomes "give me everything, I'll pick what I need." Three failure modes: (1) compile-time can't tell which deps a method actually uses, so refactors and dead-code detection break; (2) tests need to construct a full context object for every call site, even for methods that touch one dependency; (3) the context grows over time (the "we'll just add one more field" trap), and unused fields linger forever. Constructor injection forces the dep set to be minimal and visible at the type signature.
 
 #### Bad

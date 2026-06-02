@@ -244,7 +244,7 @@
   },
   {
     "anchor": "go-functional-options/singular-option-type",
-    "applies_when": "a Go package using the functional-options pattern names the function type with a plural `XxxOptions` (matching the struct) instead of the singular `XxxOption`, OR names the config struct with the singular `XxxOption` (clashing with the function type).",
+    "applies_when": "a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.",
     "doc_path": "docs/go-functional-options-pattern.md",
     "enforcement": "judgment (ast-grep follow-up: `type_alias_declaration` / `type_declaration` with `XxxOptions func(...)` matching the wrong-singular pattern, and `struct_type` named `XxxOption`)",
     "id": "go-functional-options/singular-option-type",
@@ -316,9 +316,9 @@
   },
   {
     "anchor": "go-k8s-crd/generated-client-not-dynamic",
-    "applies_when": "a Go service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of a typed clientset generated via `hack/update-codegen.sh`.",
+    "applies_when": "a Go consumer service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of the typed clientset generated via `hack/update-codegen.sh`.",
     "doc_path": "docs/go-kubernetes-crd-controller-guide.md",
-    "enforcement": "judgment (import-graph check: `client-go/dynamic` imported alongside a known-schema CR type is the smell; dynamic-client use is acceptable only when the CR is third-party with unknown schema)",
+    "enforcement": "judgment (import-graph check on the consumer service: `client-go/dynamic` imported alongside a known-schema CR type is the smell; dynamic-client use is acceptable only when the CR is third-party with unknown schema)",
     "id": "go-k8s-crd/generated-client-not-dynamic",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -478,9 +478,9 @@
   },
   {
     "anchor": "go-service-impl/no-context-object-injection",
-    "applies_when": "a Go service method receives a struct named `*Context`, `*ServiceContext`, `*Deps`, or similar that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.",
+    "applies_when": "a Go service method receives a struct (by value OR by pointer) named `Context` / `ServiceContext` / `Deps` / etc. that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.",
     "doc_path": "docs/go-service-implementation-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: method signature with a parameter type matching `*<Name>Context` / `*<Name>Deps` where the struct contains 2+ service-interface fields)",
+    "enforcement": "judgment (ast-grep follow-up: method signature with a parameter type matching `<Name>Context` or `*<Name>Context` / `<Name>Deps` or `*<Name>Deps` where the struct contains 2+ service-interface fields — value and pointer shapes share the anti-pattern)",
     "id": "go-service-impl/no-context-object-injection",
     "level": "MUST",
     "owner": "go-architecture-assistant"

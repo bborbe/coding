@@ -4,6 +4,15 @@ How to define and consume a Kubernetes Custom Resource Definition (CRD) in a Go 
 
 ## 0. Before you start — use `bborbe/k8s`
 
+[`github.com/bborbe/k8s`](https://github.com/bborbe/k8s) provides generic primitives that eliminate most of the boilerplate in sections 5–6 of this guide:
+
+- `k8s.Type` — interface your types implement (`Equal`, `Identifier`, `Validate`, `String`)
+- `k8s.EventHandler[T Type]` — typed event handler interface (`OnAdd` / `OnUpdate` / `OnDelete` / `Get`)
+- `k8s.NewEventHandler[T Type]()` — generic thread-safe in-memory store
+- `k8s.NewResourceEventHandler[T Type](ctx, handler)` → `cache.ResourceEventHandler` adapter
+
+If your service already depends on `bborbe/k8s` (most do), use these instead of hand-writing the store and adapter. The hand-written skeletons in sections 5–6 are documented only for services that cannot take the dependency.
+
 ### RULE go-k8s-crd/use-bborbe-k8s (SHOULD)
 
 **Owner**: go-architecture-assistant
@@ -17,7 +26,7 @@ How to define and consume a Kubernetes Custom Resource Definition (CRD) in a Go 
 // pkg/event-handler.go — hand-written cast adapter
 // pkg/event-handler-user.go — typed handler with OnAdd/OnUpdate/OnDelete
 // pkg/user-store.go — sync.RWMutex + map[string]*User, 60+ lines
-// (three files of boilerplate per CRD)
+// (three files of boilerplate per CRD — re-invents the same bugs every service)
 ```
 
 #### Good
@@ -29,15 +38,6 @@ adapter := k8s.NewResourceEventHandler[*v1.User](ctx, store)
 informer.AddEventHandler(adapter)
 // done — typed, thread-safe, tested upstream
 ```
-
-[`github.com/bborbe/k8s`](https://github.com/bborbe/k8s) provides generic primitives that eliminate most of the boilerplate in sections 5–6 of this guide:
-
-- `k8s.Type` — interface your types implement (`Equal`, `Identifier`, `Validate`, `String`)
-- `k8s.EventHandler[T Type]` — typed event handler interface (`OnAdd` / `OnUpdate` / `OnDelete` / `Get`)
-- `k8s.NewEventHandler[T Type]()` — generic thread-safe in-memory store
-- `k8s.NewResourceEventHandler[T Type](ctx, handler)` → `cache.ResourceEventHandler` adapter
-
-If your service already depends on `bborbe/k8s` (most do), use these instead of hand-writing the store and adapter. The hand-written skeletons in sections 5–6 are documented only for services that cannot take the dependency.
 
 ## 1. When to use this pattern
 
@@ -82,32 +82,6 @@ myservice/
 **Reference implementations**:
 - `github.com/bborbe/alert` (library)
 - `github.com/bborbe/cqrs/cdb` + `github.com/bborbe/cqrs/raw` (libraries)
-
-### RULE go-k8s-crd/generated-client-not-dynamic (MUST)
-
-**Owner**: go-architecture-assistant
-**Applies when**: a Go service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of a typed clientset generated via `hack/update-codegen.sh`.
-**Enforcement**: judgment (import-graph check: `client-go/dynamic` imported alongside a known-schema CR type is the smell; dynamic-client use is acceptable only when the CR is third-party with unknown schema)
-**Why**: The dynamic client returns `*unstructured.Unstructured` — every field access is a string lookup, every value comes back as `interface{}`, every typo is a runtime error. Generated clientsets return typed Go structs: typos fail at compile time, IDE auto-complete works, refactors propagate. The dynamic client is the right tool when you don't know the schema (admin tools, generic operators, schema discovery); for first-party CRDs where you wrote the types, it's the wrong tool — it discards every type-safety guarantee Go offers.
-
-#### Bad
-
-```go
-// Dynamic client for a first-party CRD — every field access is stringly-typed
-client := dynamic.NewForConfigOrDie(config)
-gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "users"}
-obj, err := client.Resource(gvr).Namespace("default").Get(ctx, "alice", metav1.GetOptions{})
-// obj.Object["spec"].(map[string]interface{})["email"].(string)  ← typo-prone, runtime-only
-```
-
-#### Good
-
-```go
-// Generated typed clientset — fields are real Go types
-clientset := versioned.NewForConfigOrDie(config)
-user, err := clientset.ExampleV1().Users("default").Get(ctx, "alice", metav1.GetOptions{})
-// user.Spec.Email  ← compile-time checked
-```
 
 The client must be **generated** via `hack/update-codegen.sh` — do NOT hand-write or use `client-go/dynamic`. The dynamic client is acceptable only when the CR schema is unknown at compile time; that is never the case for a first-party CRD.
 
@@ -299,6 +273,32 @@ No `go mod vendor` step is required before `generatek8s` — the generator reads
 `generatek8s` is intentionally **separate from `generate`** (which runs mocks). Codegen is expensive and runs manually — the generated tree is stable day-to-day. Do not add `generatek8s` to `precommit`.
 
 ## 4. K8sConnector interface (consumer side)
+
+### RULE go-k8s-crd/generated-client-not-dynamic (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go consumer service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of the typed clientset generated via `hack/update-codegen.sh`.
+**Enforcement**: judgment (import-graph check on the consumer service: `client-go/dynamic` imported alongside a known-schema CR type is the smell; dynamic-client use is acceptable only when the CR is third-party with unknown schema)
+**Why**: The dynamic client returns `*unstructured.Unstructured` — every field access is a string lookup, every value comes back as `interface{}`, every typo is a runtime error. Generated clientsets return typed Go structs: typos fail at compile time, IDE auto-complete works, refactors propagate. The dynamic client is the right tool when you don't know the schema (admin tools, generic operators, schema discovery); for first-party CRDs where you wrote the types, it's the wrong tool — it discards every type-safety guarantee Go offers.
+
+#### Bad
+
+```go
+// Dynamic client for a first-party CRD — every field access is stringly-typed
+client := dynamic.NewForConfigOrDie(config)
+gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "users"}
+obj, err := client.Resource(gvr).Namespace("default").Get(ctx, "alice", metav1.GetOptions{})
+// obj.Object["spec"].(map[string]interface{})["email"].(string)  ← typo-prone, runtime-only
+```
+
+#### Good
+
+```go
+// Generated typed clientset — fields are real Go types
+clientset := versioned.NewForConfigOrDie(config)
+user, err := clientset.ExampleV1().Users("default").Get(ctx, "alice", metav1.GetOptions{})
+// user.Spec.Email  ← compile-time checked
+```
 
 Every bborbe CRD consumer has this exact interface:
 

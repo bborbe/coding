@@ -72,6 +72,42 @@
     "owner": "go-context-assistant"
   },
   {
+    "anchor": "go-doc/comment-starts-with-name",
+    "applies_when": "an exported identifier has a doc comment whose first word does not match the identifier's name exactly (case-sensitive).",
+    "doc_path": "docs/go-doc-best-practices.md",
+    "enforcement": "judgment (mechanical follow-up: no standard linter catches this — `revive`'s `exported` rule only flags *missing* doc comments, not first-word mismatch. Best path is an ast-grep pattern over `func_declaration` / `type_declaration` + adjacent comment text, comparing the first whitespace-delimited word against the identifier name — see PR #11 recipe for the surrounding-comment pattern shape)",
+    "id": "go-doc/comment-starts-with-name",
+    "level": "MUST",
+    "owner": "godoc-assistant"
+  },
+  {
+    "anchor": "go-doc/exported-item-must-have-comment",
+    "applies_when": "a Go file defines an exported (capitalized) function, method, type, interface, struct, struct field, constant, or variable without a preceding `//` doc comment.",
+    "doc_path": "docs/go-doc-best-practices.md",
+    "enforcement": "judgment (mechanical follow-up: enable `revive`'s `exported` rule or `golangci-lint`'s `revive` linter with `exported` enabled — these flag every exported identifier without a doc comment)",
+    "id": "go-doc/exported-item-must-have-comment",
+    "level": "MUST",
+    "owner": "godoc-assistant"
+  },
+  {
+    "anchor": "go-doc/package-comment-in-doc-go",
+    "applies_when": "a Go package's package-level comment lives in a regular source file (`<feature>.go`) rather than in a dedicated `doc.go`.",
+    "doc_path": "docs/go-doc-best-practices.md",
+    "enforcement": "judgment (filename presence + first-comment-block check)",
+    "id": "go-doc/package-comment-in-doc-go",
+    "level": "SHOULD",
+    "owner": "godoc-assistant"
+  },
+  {
+    "anchor": "go-doc/third-person-no-signature-repeat",
+    "applies_when": "a doc comment uses first-person (\"I\", \"we\", \"our\") OR repeats the function signature verbatim in the prose (\"takes an `int` and returns a `string`\" when the signature already says `func F(int) string`).",
+    "doc_path": "docs/go-doc-best-practices.md",
+    "enforcement": "judgment (prose linters can flag first-person; signature-repeat is semantic and needs review)",
+    "id": "go-doc/third-person-no-signature-repeat",
+    "level": "SHOULD",
+    "owner": "godoc-assistant"
+  },
+  {
     "anchor": "go-errors/inner-closure-no-double-wrap",
     "applies_when": "an inner closure (passed to `db.Update`, `filepath.WalkDir`, or similar callback APIs) calls `errors.Wrap`/`errors.Wrapf` while the surrounding function ALSO wraps the closure's return value.",
     "doc_path": "docs/go-error-wrapping-guide.md",

@@ -31,21 +31,6 @@ Detect project type to determine which specialist agents to invoke:
 - **Python project**: Check for `*.py` files or `pyproject.toml`/`requirements.txt`
 - **Other languages**: Add detection as needed
 
-### Step 2.5: Load Context-Specific Conventions
-
-Before running automated checks or agents, scan the diff for file types that demand a project-convention doc.
-
-| If diff touches… | Read first |
-|---|---|
-| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `~/Documents/workspaces/coding/docs/teamvault-conventions.md` (so secrets review does not flag teamvault LOOKUP KEYS as exposed credentials) |
-| `main.go` of a service deployed to k8s (HTTP server, StatefulSet, Deployment) | `~/Documents/workspaces/coding/docs/go-k8s-binary-conventions.md` |
-| `k8s/*.yaml` (non-secret) | `~/Documents/workspaces/coding/docs/k8s-manifest-guide.md` |
-| `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
-
-Load only the docs that apply — short reviews don't pay the cost when files aren't touched.
-
-Findings cross-referenced against these docs are stronger than generic guidance: the reviewer can say "teamvault key per teamvault-conventions.md — not flagged" instead of speculating about secret exposure.
-
 ### Step 3: Run Automated Checks (All Modes)
 
 **3a. Check for LICENSE file (public repos only)**
@@ -80,55 +65,75 @@ This provides automated checks (formatting, linting, tests, security) before run
 
 If Makefile doesn't exist or lacks `precommit` target, skip this step. If `make precommit` fails, note the failures but continue with the review.
 
-### Step 4: Automated Agent Review
+### Step 4: Dispatcher — ast-grep funnel → per-Owner LLM adjudication
 
-Based on detected mode, invoke agents **in parallel**:
+Mirrors `commands/pr-review.md` Step 4 (PR #27). Mechanical pre-filter via `coding:ast-grep-runner`; LLM-tier adjudication only for findings that survive plus judgment-tier rules with no mechanical YAML.
 
-**Short Mode**: No agents - skip to Step 5
-- BUT: If LICENSE file is missing AND repo is public (from Step 3a), add to report "Should Fix" section:
+**Short Mode**: No agents — skip to Step 5.
+- BUT: if LICENSE missing AND repo is public, add to "Should Fix":
   - "Missing LICENSE file"
   - "README missing license section" (check with Grep for `## License` in README.md)
 
-**Standard Mode** (default - core architectural compliance):
+#### 4a: Mechanical funnel
 
-*For Go projects:*
-1. **go-quality-assistant**: Naming, architecture, file layout, logging, concurrency, transaction safety
-2. **go-context-assistant**: context.Background() violations, missing ctx.Done() in loops
-3. **go-error-assistant**: fmt.Errorf, bare return err, missing error wrapping
-4. **go-time-assistant**: time.Time in structs, time.Now() in production
-5. **go-factory-pattern-assistant**: Factory pattern compliance, zero-business-logic rule (review mode only)
-6. **go-http-handler-assistant**: HTTP handler organization, inline handler detection (review mode only)
-7. **go-test-coverage-assistant**: Test coverage gaps, missing tests (review mode only)
+```
+coding:ast-grep-runner agent: "TARGET_DIR=<directory>. Run every ast-grep YAML in rules/<lang>/*.yml. Return findings grouped by Owner per the agent's documented JSON contract."
+```
 
-*For Python projects:*
-1. **python-quality-assistant**: Idiomatic Python patterns, type hints, error handling, logging, async safety
+Emits `{stats, findings_by_owner: {<agent-name>: [...findings]}, errors}`.
 
-*For all projects (conditional):*
-5. **license-assistant**: ONLY if public repo AND LICENSE file is missing (from Step 3a) - review mode only
+#### 4b: Per-Owner adjudication
 
-**Full Mode**:
+For each `<owner>` in `findings_by_owner` AND for each non-mechanical (judgment-tier) rule whose `owner` matches a per-language agent in `agents/`:
 
-*Go projects (all Standard mode agents plus):*
-1. **godoc-assistant**: Documentation completeness and GoDoc format
-2. **go-test-quality-assistant**: Test file quality, Ginkgo/Gomega patterns, mock usage, test suite setup (review mode only)
-3. **go-security-specialist**: Security vulnerabilities, OWASP compliance, dependency scanning
-4. **go-metrics-assistant**: Prometheus metrics types, naming, labels, pre-initialization
-5. **srp-checker**: Single Responsibility Principle compliance, unit-level (review mode only)
-6. **go-architecture-assistant**: Cross-unit architecture — naive extractions (funlen appeasement), package boundaries, dependency direction, layering leaks (review mode only)
-7. **go-version-manager**: Go version currency and consistency (check-only mode)
-8. **go-tooling-assistant**: Makefile and tools.go validation (review mode only)
+```
+coding:<owner> agent: "TARGET_DIR=<directory>.
 
-*Python projects:*
-1. **python-quality-assistant**: Code quality, type hints, error handling
-2. **python-architecture-assistant**: Cross-module architecture — naive extractions, layering, dependency direction, mixin abuse, import-time side effects (review mode only)
+Pre-filtered mechanical findings (from ast-grep-runner):
+<findings_by_owner[<owner>] JSON>
 
-*All projects:*
-11. **license-assistant**: LICENSE file, README license section (ONLY for public repos, review mode only)
-12. **readme-quality-assistant**: README.md quality and completeness (review mode only - no updates)
-13. **shellcheck-assistant**: Shell script quality, security, and best practices
-14. **context7-library-checker**: Check library usage against up-to-date docs, detect deprecated APIs (review mode only)
+Judgment-tier rules you own (from rules/index.json):
+<list of rule ids with enforcement=judgment AND owner=<this agent>>
 
-Run agents concurrently using multiple Task tool calls in a single message for maximum efficiency.
+Adjudicate: for each finding, assign severity (Critical / Important / Optional), add a fix suggestion that cites the rule by ID. Drop any finding whose rule_id is not in the index — that's a stale-walker bug, not your concern.
+
+Also scan the diff for judgment-tier rules listed above and report violations you find there.
+
+Review changed code only."
+```
+
+Run per-Owner dispatches **concurrently** — they're independent.
+
+#### 4c: Context-specific conventions
+
+Load these conventionally when the diff matches:
+
+| If diff touches… | Read first |
+|---|---|
+| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `~/Documents/workspaces/coding/docs/teamvault-conventions.md` (teamvault lookup keys are not exposed credentials) |
+| `main.go` of a k8s-deployed service | `~/Documents/workspaces/coding/docs/go-k8s-binary-conventions.md` |
+| `k8s/*.yaml` (non-secret) | `~/Documents/workspaces/coding/docs/k8s-manifest-guide.md` |
+| `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
+
+#### 4d: Citation validation
+
+```bash
+coding:simple-bash-runner agent: "bash scripts/validate-citations.sh <findings.json>"
+```
+
+Drops findings citing missing rule IDs; logs drift to stderr.
+
+#### Conditional / full-mode agents (independent of rule-base)
+
+These are file-presence / language-feature checks not yet expressed as RULE blocks in `rules/index.json`. Continue invoking directly:
+
+- **`license-assistant`** — public repos with missing LICENSE
+- **`readme-quality-assistant`** — full mode only (README quality)
+- **`shellcheck-assistant`** — shell-script review
+- **`context7-library-checker`** — full mode; up-to-date library docs
+- **`go-version-manager`** / **`go-tooling-assistant`** — full mode; version + Makefile checks
+
+These will migrate to RULE blocks in follow-up PRs as their conventions get canonicalised. For now they fire on the legacy path alongside the dispatcher.
 
 ### Step 5: Consolidated Report
 

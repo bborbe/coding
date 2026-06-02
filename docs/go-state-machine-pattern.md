@@ -165,7 +165,7 @@ type Task struct {
 
 func persist(task *Task, result *Result) {
 	switch {
-	case result.Status == "done" && result.NextPhase == "" || result.NextPhase == PhaseDone:
+	case result.Status == "done" && (result.NextPhase == "" || result.NextPhase == PhaseDone):
 		task.Status = "completed" // workflow terminates
 	case result.Status == "done":
 		task.Phase = result.NextPhase

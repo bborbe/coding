@@ -179,7 +179,7 @@ linters-settings:
   funlen:    { lines: 80, statements: 50 }
   gocognit:  { min-complexity: 20 }
   nestif:    { min-complexity: 4 }
-  maintidx:  { under: 20 }
+  maintidx:  { min-maintainability-index: 20 }
 ```
 
 | Linter | Limit | Description |

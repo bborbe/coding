@@ -18,6 +18,8 @@ ignores:
   - "**/main.go"
   - "cmd/**"
   - "**/cmd/**"
+  - "pkg/cli/**"
+  - "**/pkg/cli/**"
   - "**/*_test.go"
   - "vendor/**"
   - "**/vendor/**"

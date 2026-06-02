@@ -17,15 +17,30 @@ rule:
       has:
         field: path
         regex: '^"flag"$'
-    # Also catch `flag.Parse()` / `flag.String(...)` call sites — in case
-    # someone uses the type-imported form via dot-import or transitively.
+    # Also catch flag.* call sites — covers the full primitive family
+    # (String/Bool/Int/Float64/Duration/Int64/Uint/Uint64) + their *Var
+    # variants, plus NewFlagSet (known workaround for the global pollution
+    # this rule prevents) and CommandLine direct access.
     - pattern: flag.Parse()
     - pattern: 'flag.String($$$ARGS)'
     - pattern: 'flag.Bool($$$ARGS)'
     - pattern: 'flag.Int($$$ARGS)'
+    - pattern: 'flag.Int64($$$ARGS)'
+    - pattern: 'flag.Uint($$$ARGS)'
+    - pattern: 'flag.Uint64($$$ARGS)'
+    - pattern: 'flag.Float64($$$ARGS)'
+    - pattern: 'flag.Duration($$$ARGS)'
     - pattern: 'flag.StringVar($$$ARGS)'
     - pattern: 'flag.BoolVar($$$ARGS)'
     - pattern: 'flag.IntVar($$$ARGS)'
+    - pattern: 'flag.Int64Var($$$ARGS)'
+    - pattern: 'flag.UintVar($$$ARGS)'
+    - pattern: 'flag.Uint64Var($$$ARGS)'
+    - pattern: 'flag.Float64Var($$$ARGS)'
+    - pattern: 'flag.DurationVar($$$ARGS)'
+    - pattern: 'flag.Var($$$ARGS)'
+    - pattern: 'flag.NewFlagSet($$$ARGS)'
+    - pattern: 'flag.CommandLine'
 ignores:
   - "**/*_test.go"
   - "vendor/**"

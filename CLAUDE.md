@@ -27,6 +27,9 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-prometheus-metrics-guide.md` | `go-metrics-assistant` |
 | `go-factory-pattern.md` | `go-factory-pattern-assistant` |
 | `go-http-handler-refactoring-guide.md` | `go-http-handler-assistant` |
+| `go-json-error-handler-guide.md` | `go-http-handler-assistant` |
+| `go-linting-guide.md` | `go-quality-assistant` |
+| `go-state-machine-pattern.md` | `go-architecture-assistant` |
 | `go-doc-best-practices.md` | `godoc-assistant` |
 | `go-testing-guide.md` | `go-test-quality-assistant` |
 | `go-security-linting.md` | `go-security-specialist` |

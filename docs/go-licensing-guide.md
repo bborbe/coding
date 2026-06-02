@@ -28,6 +28,32 @@ Public projects in the Benjamin Borbe ecosystem use **BSD-2-Clause** (BSD-style)
 
 ## 1. LICENSE File
 
+### RULE go-licensing/license-file-required (MUST)
+
+**Owner**: license-assistant
+**Applies when**: a Go project published to `github.com/*` (public) does not have a `LICENSE` file in its repo root.
+**Enforcement**: judgment (file-existence check; ast-grep cannot detect file absence)
+**Why**: GitHub's repo metadata, package managers (`go.mod` consumers), and downstream Linux distros all key off the root `LICENSE` file. Without it, consumers can't legally redistribute, GitHub's "License" badge stays empty, and `go list -m all` license aggregators report the project as unlicensed. Private/internal repos (`bitbucket.seibert.tools` etc.) are exempt.
+
+#### Bad
+
+```
+repo/
+├── README.md
+├── go.mod
+└── main.go        # no LICENSE file at root — public consumers can't redistribute
+```
+
+#### Good
+
+```
+repo/
+├── LICENSE        # BSD-2-Clause, copyright year matches project creation
+├── README.md
+├── go.mod
+└── main.go
+```
+
 Place a `LICENSE` file in the root directory with the BSD-2-Clause license text:
 
 ```
@@ -67,6 +93,47 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## 2. README License Section
 
+### RULE go-licensing/readme-license-section-required (MUST)
+
+**Owner**: license-assistant
+**Applies when**: a public Go project's `README.md` has no `## License` (H2) section pointing at the root `LICENSE` file.
+**Enforcement**: judgment (markdown section presence; ast-grep doesn't parse markdown structure)
+**Why**: README is the first thing a consumer reads. Without a License section pointing at the LICENSE file, downstream users have to scroll the repo file tree to discover the license — friction that turns into "I'll just use a different library." The section is one line of work and removes a real adoption barrier.
+
+#### Bad
+
+```markdown
+# my-go-tool
+
+CLI for processing widgets.
+
+## Usage
+
+...
+
+## Contributing
+
+...
+
+# (no License section — consumers must guess)
+```
+
+#### Good
+
+```markdown
+# my-go-tool
+
+CLI for processing widgets.
+
+## Usage
+
+...
+
+## License
+
+BSD-style license. See [LICENSE](LICENSE) file for details.
+```
+
 Add this at the end of README.md:
 
 ```markdown
@@ -82,6 +149,34 @@ Keep it simple - the full text is in the LICENSE file.
 ---
 
 ## 3. Source File License Headers
+
+### RULE go-licensing/source-file-header-required (MUST)
+
+**Owner**: license-assistant
+**Applies when**: a public Go project has `*.go` files outside `vendor/` without the 3-line BSD-2-Clause header block at the top.
+**Enforcement**: `addlicense -check` invocation via `make precommit` (the canonical tool; ast-grep can detect missing headers via first-line regex, but `addlicense` is already wired through the toolchain).
+**Why**: License headers per source file are a redistribution requirement under the BSD-2-Clause terms. The 3-line header makes every file self-describing for legal review and prevents the "this file was copied into my project without provenance" failure mode that bites at audit time. `addlicense` automates the maintenance — `make precommit` should never let a public project commit a Go file without the header.
+
+#### Bad
+
+```go
+// errors.go (public repo, no header)
+package errors
+
+func Wrap(...) error { ... }
+```
+
+#### Good
+
+```go
+// Copyright (c) 2026 Benjamin Borbe All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package errors
+
+func Wrap(...) error { ... }
+```
 
 All `.go` files (excluding `vendor/`) must have license headers:
 
@@ -138,6 +233,13 @@ go run -mod=mod github.com/google/addlicense \
 - Keep the original year - it marks when copyright was established
 - Optionally update to a range when making substantial changes (e.g., `2020-2025`)
 - Not updating years is fine - it's conservative and acceptable
+
+### RULE go-licensing/copyright-year-discipline (MUST)
+
+**Owner**: license-assistant
+**Applies when**: a PR diff modifies copyright years in `*.go` source-file headers — either bulk-updating across many files or setting future / non-numeric years (`2099`, `present`, etc.).
+**Enforcement**: judgment (diff inspection — ast-grep can detect `Copyright (c) 2099` shapes but the "bulk-update for trivial changes" trigger needs PR-scope reasoning)
+**Why**: Copyright years record when copyright was *established* on a file, not when the file was last touched. Bulk year-updates obscure the original publication date (legally meaningful for derivative-work claims) and produce noisy diffs that bury the real change. Future / non-numeric years break OSS license aggregators and look unprofessional to downstream auditors.
 
 ### What NOT to Do
 - Don't bulk update all years just because it's a new year

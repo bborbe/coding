@@ -189,6 +189,42 @@
     "owner": "go-http-handler-assistant"
   },
   {
+    "anchor": "go-licensing/copyright-year-discipline",
+    "applies_when": "a PR diff modifies copyright years in `*.go` source-file headers — either bulk-updating across many files or setting future / non-numeric years (`2099`, `present`, etc.).",
+    "doc_path": "docs/go-licensing-guide.md",
+    "enforcement": "judgment (diff inspection — ast-grep can detect `Copyright (c) 2099` shapes but the \"bulk-update for trivial changes\" trigger needs PR-scope reasoning)",
+    "id": "go-licensing/copyright-year-discipline",
+    "level": "MUST",
+    "owner": "license-assistant"
+  },
+  {
+    "anchor": "go-licensing/license-file-required",
+    "applies_when": "a Go project published to `github.com/*` (public) does not have a `LICENSE` file in its repo root.",
+    "doc_path": "docs/go-licensing-guide.md",
+    "enforcement": "judgment (file-existence check; ast-grep cannot detect file absence)",
+    "id": "go-licensing/license-file-required",
+    "level": "MUST",
+    "owner": "license-assistant"
+  },
+  {
+    "anchor": "go-licensing/readme-license-section-required",
+    "applies_when": "a public Go project's `README.md` has no `## License` (H2) section pointing at the root `LICENSE` file.",
+    "doc_path": "docs/go-licensing-guide.md",
+    "enforcement": "judgment (markdown section presence; ast-grep doesn't parse markdown structure)",
+    "id": "go-licensing/readme-license-section-required",
+    "level": "MUST",
+    "owner": "license-assistant"
+  },
+  {
+    "anchor": "go-licensing/source-file-header-required",
+    "applies_when": "a public Go project has `*.go` files outside `vendor/` without the 3-line BSD-2-Clause header block at the top.",
+    "doc_path": "docs/go-licensing-guide.md",
+    "enforcement": "`addlicense -check` invocation via `make precommit` (the canonical tool; ast-grep can detect missing headers via first-line regex, but `addlicense` is already wired through the toolchain).",
+    "id": "go-licensing/source-file-header-required",
+    "level": "MUST",
+    "owner": "license-assistant"
+  },
+  {
     "anchor": "go-prometheus/composed-metrics-interface",
     "applies_when": "a single `Metrics` interface aggregates methods spanning two or more distinct functional domains (handlers + senders + schedulers + …), forcing consumers to depend on methods they don't use.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",

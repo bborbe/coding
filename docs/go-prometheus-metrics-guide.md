@@ -1,8 +1,6 @@
 # Go Prometheus Metrics Guide
 
-Rules-only version. For full architecture, push gateway internals, testing/alerting/perf playbooks, and the real-world example, see the comprehensive reference in Obsidian Knowledge Base (`Go Prometheus Metrics Reference`).
-
-This guide captures the enforceable conventions for Prometheus metrics in bborbe Go services — the patterns that `coding:go-metrics-assistant` checks during `/coding:pr-review`.
+Rules-only version. Captures the enforceable Prometheus conventions for Go services — the patterns that `coding:go-metrics-assistant` checks during `/coding:pr-review`. For deeper background (push gateway internals, alerting playbooks, full real-world example), consult the official Prometheus documentation linked at the end of this file.
 
 ## Framework Overview
 
@@ -186,15 +184,15 @@ Name: "errors_total",
 
 ```go
 // BAD: Copy-pasted Help
-signalSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+notificationSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "success_total",
-	Help: "Candle Handle Total Counter", // Wrong! This is signal sender
+	Help: "Order Handle Total Counter", // Wrong! This is the notification sender
 })
 
 // GOOD
-signalSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+notificationSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "success_total",
-	Help: "Total number of successfully sent signals",
+	Help: "Total number of successfully sent notifications",
 })
 ```
 
@@ -374,6 +372,7 @@ func processItem(item Item) {
 
 ## Further Reading
 
-- Comprehensive reference (full architecture, push gateway, alerting playbooks, real-world example): `Personal/50 Knowledge Base/Go Prometheus Metrics Reference.md` in the Obsidian vault.
 - [prometheus/client_golang](https://github.com/prometheus/client_golang) — official Go client.
 - [Prometheus naming conventions](https://prometheus.io/docs/practices/naming/).
+- [Prometheus instrumentation best practices](https://prometheus.io/docs/practices/instrumentation/).
+- [Prometheus histograms and summaries](https://prometheus.io/docs/practices/histograms/).

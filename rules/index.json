@@ -201,7 +201,7 @@
     "anchor": "go-cli/slog-not-glog-in-new-projects",
     "applies_when": "a *new* Go CLI binary (created after Go 1.21 release; no prior glog usage in the same module) imports `github.com/golang/glog`. Existing glog-using projects are exempt — they should not introduce slog and glog side by side.",
     "doc_path": "docs/go-cli-guide.md",
-    "enforcement": "judgment (semantic — distinguishing \"new project\" from \"existing project mid-migration\" requires checking git history / module age; ast-grep partial: `import \"github.com/golang/glog\"` in any main module without prior glog usage)",
+    "enforcement": "`rules/go/slog-not-glog-in-new-projects.yml` flags every `import \"github.com/golang/glog\"`. The agent decides whether each finding is a real violation (new project introducing glog) or an exempt case (existing project mid-migration with prior glog usage) — that distinction needs git-history / module-age reasoning ast-grep can't do.",
     "id": "go-cli/slog-not-glog-in-new-projects",
     "level": "MUST",
     "owner": "go-quality-assistant"

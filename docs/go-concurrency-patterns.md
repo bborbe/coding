@@ -7,8 +7,8 @@
 ### RULE go-concurrency/no-raw-go-func (MUST)
 
 **Owner**: go-architecture-assistant
-**Applies when**: a Go file uses the raw `go func() { ... }()` / `go someMethod(...)` syntax outside `main.go` / top-level entry points — instead of one of the `github.com/bborbe/run` strategies (`CancelOnFirstErrorWait`, `CancelOnFirstFinishWait`, `All`, `Sequential`).
-**Enforcement**: judgment (ast-grep follow-up: `go_statement` outside `main.go` / `cmd/**`. Test files exempt; `main` entry-point goroutine spawners exempt by path filter)
+**Applies when**: a Go file uses the raw `go func() { ... }()` / `go someMethod(...)` syntax outside top-level entry points — instead of one of the `github.com/bborbe/run` strategies (`CancelOnFirstErrorWait`, `CancelOnFirstFinishWait`, `All`, `Sequential`). Exempt paths: `main.go` / `cmd/**` (binary entry points where goroutine spawn-and-cancel is the canonical pattern), `pkg/cli/**` (where the canonical `Execute()` signal-listener uses `go func() { <-sigCh; cancel() }()` per the `go-cli-guide.md` pattern), and `*_test.go` / `vendor/` / `mocks/`.
+**Enforcement**: `rules/go/no-raw-go-func.yml`
 **Why**: Raw goroutines have three failure modes the `run` package solves: (1) they leak when the parent context is cancelled but the goroutine doesn't observe it; (2) they race when the parent function returns before the goroutine writes its result; (3) error propagation requires hand-rolled channels + `sync.WaitGroup` that drift toward subtle deadlocks. `run.CancelOnFirstErrorWait` wires context cancellation, error aggregation, and synchronization in one call — every consumer learns the same primitives, refactors stay safe, and goroutine lifetimes are explicit at the type signature.
 
 #### Bad

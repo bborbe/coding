@@ -1,0 +1,33 @@
+id: go-concurrency/no-raw-go-func
+language: go
+severity: error
+message: |
+  Raw 'go func()' / 'go expr()' is forbidden outside main entry points.
+  Use github.com/bborbe/run strategies (CancelOnFirstErrorWait, All,
+  Sequential) — raw goroutines leak, race, and require hand-rolled
+  sync.WaitGroup that drift toward deadlocks.
+  See docs/go-concurrency-patterns.md (RULE go-concurrency/no-raw-go-func).
+rule:
+  # ast-grep 0.43.0 shape: Go's tree-sitter grammar uses `go_statement`
+  # for `go expr()` statements. Direct kind match — no metavariable
+  # constraints needed; the path-based `ignores` carry the
+  # main.go / cmd/** / _test.go exemptions.
+  kind: go_statement
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "cmd/**"
+  - "**/cmd/**"
+  # pkg/cli/** exempted because the canonical Execute() shape in
+  # go-cli-guide.md uses 'go func() { <-sigCh; cancel() }()' for
+  # signal-listener wiring — that's the documented correct pattern
+  # for that location. Subcommand RunE goroutines that don't fit
+  # run.* primitives are rare enough that the false-negative cost
+  # is lower than the false-positive cost of catching every
+  # signal-listener bootstrap.
+  - "pkg/cli/**"
+  - "**/pkg/cli/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -1,0 +1,49 @@
+id: go-cli/cobra-not-stdlib-flag
+language: go
+severity: error
+message: |
+  stdlib 'flag' package must not be used for CLI parsing.
+  Transitive dependencies (most famously github.com/golang/glog) register
+  flags via init() and pollute --help output. Use github.com/spf13/cobra
+  with pflag instead.
+  See docs/go-cli-guide.md (RULE go-cli/cobra-not-stdlib-flag).
+rule:
+  # ast-grep 0.43.0 shape: match `import_spec` nodes whose path text
+  # equals "flag" — Go's tree-sitter grammar represents each import line
+  # (in single or grouped form) as an import_spec node with a `path`
+  # field whose value is the quoted package path.
+  any:
+    - kind: import_spec
+      has:
+        field: path
+        regex: '^"flag"$'
+    # Also catch flag.* call sites — covers the full primitive family
+    # (String/Bool/Int/Float64/Duration/Int64/Uint/Uint64) + their *Var
+    # variants, plus NewFlagSet (known workaround for the global pollution
+    # this rule prevents) and CommandLine direct access.
+    - pattern: flag.Parse()
+    - pattern: 'flag.String($$$ARGS)'
+    - pattern: 'flag.Bool($$$ARGS)'
+    - pattern: 'flag.Int($$$ARGS)'
+    - pattern: 'flag.Int64($$$ARGS)'
+    - pattern: 'flag.Uint($$$ARGS)'
+    - pattern: 'flag.Uint64($$$ARGS)'
+    - pattern: 'flag.Float64($$$ARGS)'
+    - pattern: 'flag.Duration($$$ARGS)'
+    - pattern: 'flag.StringVar($$$ARGS)'
+    - pattern: 'flag.BoolVar($$$ARGS)'
+    - pattern: 'flag.IntVar($$$ARGS)'
+    - pattern: 'flag.Int64Var($$$ARGS)'
+    - pattern: 'flag.UintVar($$$ARGS)'
+    - pattern: 'flag.Uint64Var($$$ARGS)'
+    - pattern: 'flag.Float64Var($$$ARGS)'
+    - pattern: 'flag.DurationVar($$$ARGS)'
+    - pattern: 'flag.Var($$$ARGS)'
+    - pattern: 'flag.Func($$$ARGS)'
+    - pattern: 'flag.NewFlagSet($$$ARGS)'
+    - pattern: 'flag.CommandLine'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -512,6 +512,68 @@ func NewConsumer(options ...func(*ConsumerOptions)) Consumer {
 
 ## Naming Conventions
 
+### RULE go-functional-options/singular-option-type (SHOULD)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go package using the functional-options pattern names the function type with a plural `XxxOptions` (matching the struct) instead of the singular `XxxOption`, OR names the config struct with the singular `XxxOption` (clashing with the function type).
+**Enforcement**: judgment (ast-grep follow-up: `type_alias_declaration` / `type_declaration` with `XxxOptions func(...)` matching the wrong-singular pattern, and `struct_type` named `XxxOption`)
+**Why**: The pair-naming convention — `XxxOption` (singular function type) + `XxxOptions` (plural config struct) — makes the relationship at the type signature unambiguous: one `XxxOption` modifies one `XxxOptions`. Swapping them or using the same word for both makes every reader pause to remember which is which. Industry standard (Dave Cheney's original pattern, gRPC, OpenTelemetry, k8s client-go) follows the singular-function / plural-struct shape; deviating costs reader-onboarding effort with no upside.
+
+#### Bad
+
+```go
+// Function type plural — collides semantically with the struct
+type ConsumerOptions func(*ConsumerOptions) // and the struct is also ConsumerOptions?
+
+// Or: function type singular, struct also singular
+type ServerOption func(*ServerOption)       // is ServerOption the modifier or the config?
+```
+
+#### Good
+
+```go
+// Function type singular; config struct plural
+type ConsumerOption func(*ConsumerOptions)
+type ServerOption   func(*ServerOptions)
+type ClientOption   func(*ClientOptions)
+
+type ConsumerOptions struct {
+	BatchSize int
+	Timeout   time.Duration
+}
+```
+
+### RULE go-functional-options/with-prefix-option-functions (SHOULD)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go package using the functional-options pattern names the option constructors with prefixes other than `With*` (e.g. `Set*`, `Use*`, `Configure*`, bare nouns like `BatchSize(n)`).
+**Enforcement**: judgment (ast-grep follow-up: `function_declaration` returning a type matching `*Option` / `*ConfigFunc` with name not starting with `With`)
+**Why**: `With*` is the unambiguous signal that this function is an option constructor, not an action — `WithBatchSize(100)` reads as "with a batch size of 100" while `SetBatchSize(100)` reads as a mutating call against an existing config. Mixed prefixes in the same package leave the reader guessing which functions belong in the option list at the call site (`NewConsumer(WithX(...), SetY(...), Z(...))`) and which are unrelated calls. Picking `With*` and sticking to it makes the pattern self-describing.
+
+#### Bad
+
+```go
+// Mixed prefixes — call site is unreadable
+consumer := NewConsumer(
+	BatchSize(100),
+	UseTimeout(30 * time.Second),
+	ConfigureRetry(3),
+	WithTLS(tlsCfg),  // which of these are option constructors?
+)
+```
+
+#### Good
+
+```go
+// Uniform With* prefix — every arg is obviously an option
+consumer := NewConsumer(
+	WithBatchSize(100),
+	WithTimeout(30 * time.Second),
+	WithRetry(3),
+	WithTLS(tlsCfg),
+)
+```
+
 ### Option Type Names
 
 **Recommended Pattern**: Use **singular** for the function type (represents one option):

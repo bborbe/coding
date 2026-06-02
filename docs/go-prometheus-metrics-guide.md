@@ -47,23 +47,23 @@ func init() {
 ```go
 //counterfeiter:generate -o ../mocks/api-metrics.go --fake-name ApiMetrics . Metrics
 type Metrics interface {
-	MetricsCandleHandler
-	MetricsSignalSender
+	MetricsOrderHandler
+	MetricsNotificationSender
 }
 
-type MetricsCandleHandler interface {
-	CandleHandleTotalCounterInc(broker core.BrokerIdentifier, epic core.Epic)
-	CandleHandleFailureCounterInc(broker core.BrokerIdentifier, epic core.Epic)
-	CandleHandleSuccessCounterInc(broker core.BrokerIdentifier, epic core.Epic)
+type MetricsOrderHandler interface {
+	OrderHandleTotalCounterInc(tenant core.TenantID, product core.ProductID)
+	OrderHandleFailureCounterInc(tenant core.TenantID, product core.ProductID)
+	OrderHandleSuccessCounterInc(tenant core.TenantID, product core.ProductID)
 }
 
-type MetricsSignalSender interface {
-	SignalSendTotalCounterInc(broker core.BrokerIdentifier, epic core.Epic, strategy core.StrategyIdentifier)
-	SignalSendFailureCounterInc(broker core.BrokerIdentifier, epic core.Epic, strategy core.StrategyIdentifier)
+type MetricsNotificationSender interface {
+	NotificationSendTotalCounterInc(tenant core.TenantID, product core.ProductID, channel core.ChannelID)
+	NotificationSendFailureCounterInc(tenant core.TenantID, product core.ProductID, channel core.ChannelID)
 }
 ```
 
-**Why:** Components that only send signals should depend on `MetricsSignalSender`, not the full `Metrics` interface. Follows Interface Segregation Principle.
+**Why:** Components that only send notifications should depend on `MetricsNotificationSender`, not the full `Metrics` interface. Follows Interface Segregation Principle.
 
 ## Metric Types & Design
 
@@ -204,21 +204,21 @@ signalSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 
 ```go
 // BAD
-candleHandleCounter.With(prometheus.Labels{"epic": epic.String()})
-signalSendCounter.With(prometheus.Labels{"symbol": epic.String()})
+orderHandleCounter.With(prometheus.Labels{"product": product.String()})
+notificationSendCounter.With(prometheus.Labels{"item": product.String()})
 
 // GOOD
-candleHandleCounter.With(prometheus.Labels{"epic": epic.String()})
-signalSendCounter.With(prometheus.Labels{"epic": epic.String()})
+orderHandleCounter.With(prometheus.Labels{"product": product.String()})
+notificationSendCounter.With(prometheus.Labels{"product": product.String()})
 ```
 
 Define label-name constants to enforce consistency:
 
 ```go
 const (
-	labelBroker   = "broker"
-	labelEpic     = "epic"
-	labelStrategy = "strategy"
+	labelTenant  = "tenant"
+	labelProduct = "product"
+	labelChannel = "channel"
 )
 ```
 

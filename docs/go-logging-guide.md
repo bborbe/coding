@@ -109,15 +109,33 @@ return parseBody(body)
 #### Good
 
 ```go
-// One audit line per call — success branch
+// HTTP — one audit line per call, with latency
+start := time.Now()
 status, body, err := doRequest(ctx, client, token, "POST", url, payload)
 if err != nil {
 	// One audit line per call — failure branch (transport failure status known here, not at caller)
-	glog.Warningf("http POST %s err=%v", path, err)
+	glog.Warningf("http POST %s elapsed_ms=%d err=%v", path, time.Since(start).Milliseconds(), err)
 	return err
 }
-glog.Infof("http POST %s status=%d body_len=%d", path, status, len(body))
+glog.Infof("http POST %s status=%d body_len=%d elapsed_ms=%d", path, status, len(body), time.Since(start).Milliseconds())
 return parseBody(body)
+```
+
+DB queries, gRPC calls, and subprocess `exec` follow the same shape — one log line per call with op + result + latency:
+
+```go
+// DB
+start := time.Now()
+rows, err := db.QueryContext(ctx, query, args...)
+glog.Infof("db query=%s rows=%d elapsed_ms=%d", queryName, count, time.Since(start).Milliseconds())
+
+// gRPC
+resp, err := client.GetUser(ctx, req)
+glog.Infof("rpc UserService.GetUser status=%v elapsed_ms=%d", statusOf(err), time.Since(start).Milliseconds())
+
+// subprocess
+out, err := exec.CommandContext(ctx, cmd, args...).Output()
+glog.Infof("exec %s exit=%v elapsed_ms=%d", cmd, exitCodeOf(err), time.Since(start).Milliseconds())
 ```
 
 **Related**: pair with [`go-logging/no-tight-loop-without-sampler`](#rule-go-loggingno-tight-loop-without-sampler) when the boundary call is in a hot path (e.g. message-bus publishes); sample the audit line via `log.NewSampleTime` instead of emitting once per send.
@@ -125,8 +143,8 @@ return parseBody(body)
 ### RULE go-logging/no-sensitive-data-in-logs (MUST)
 
 **Owner**: go-security-specialist
-**Applies when**: a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material — password, passphrase, token (access/refresh/bearer/CSRF/session/JWT), secret (raw value, not k8s `secretName`/`secretRef`), credential-shaped key (privateKey, signingKey, encryptionKey, apiKey, PEM key — NOT publicKey / partitionKey / sortKey / lookupKey), Authorization header, DB connection string / DSN, OAuth client secret, X.509 certificate body, full request/response struct that contains any of the above as a field.
-**Enforcement**: judgment (semantic — distinguishing real credential from credential-shaped name on a public value, e.g. `publicKey` / `partitionKey`, requires reading the source and intent; ast-grep partial: `call_expression` matching `glog.{Info,Warning,Error}{,f}` / `slog.{Info,Warn,Error,Debug}` / `log.Printf` with format args including identifiers matching `(?i)(password|passphrase|token|credential|authorization|jwt|pem|dsn|connection[_ ]?string)\b|(private|signing|encryption|api)Key\b`. Word-boundary anchors required: bare `key` matches `partitionKey` / `sortKey` / `lookupKey` (over-flag); bare `secret` matches `secretName` / `secretRef` / `secretNamespace` (over-flag). Whole-struct dumps via `%+v` / `%#v` of any request / response / config struct also flag.)
+**Applies when**: a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material — password, passphrase, token (access/refresh/bearer/CSRF/session/JWT), secret (raw value, not k8s `secretName`/`secretRef`), compound `*Secret` (`clientSecret`, `webhookSecret`, `signingSecret`), credential-shaped key (privateKey, signingKey, encryptionKey, apiKey, PEM key — NOT publicKey / partitionKey / sortKey / lookupKey), Authorization header, cookie (session / auth / tracking, including `Set-Cookie` header value and individual cookie values), DB connection string / DSN, OAuth client secret, X.509 certificate body, full request/response struct that contains any of the above as a field.
+**Enforcement**: judgment (semantic — distinguishing real credential from credential-shaped name on a public value, e.g. `publicKey` / `partitionKey`, requires reading the source and intent; ast-grep partial — identifier filter: `call_expression` matching `glog.{Info,Warning,Error}{,f}` / `slog.{Info,Warn,Error,Debug}` / `log.Printf` with format args including identifiers matching `(?i)(password|passphrase|token|credential|authorization|jwt|pem|dsn|connection[_ ]?string|cookie|set[_-]?cookie)\b|\b(private|signing|encryption|api|client|webhook)(Key|Secret)\b`. Word-boundary anchors required: bare `key` matches `partitionKey` / `sortKey` / `lookupKey` (over-flag); bare `secret` without prefix matches `secretName` / `secretRef` / `secretNamespace` (over-flag — k8s reference fields, safe to log). Whole-struct dumps via `%+v` / `%#v` are a separate judgment-tier check — ast-grep can flag the format verb but cannot mechanically correlate it with the argument's struct type; the agent reads the struct fields to decide.)
 **Why**: Logged credentials land in stdout, log aggregators, cloud logging backends — searchable, indexed, and impossible to redact once the batch has shipped. A single `glog.Infof("request: %+v", r)` dumps the `Authorization` header to every operator with log access; `glog.Infof("config: %+v", cfg)` on a struct that contains a `PEMKey` field leaks the key. Use `display:"length"` tags (see [`go-k8s-binary/secret-fields-need-display-length`](go-k8s-binary-conventions.md)), log lengths instead of values (`body_len=%d`), never interpolate raw credential-shaped variables, and never `%+v` whole request/response/config structs that contain authorization headers or secret fields.
 
 #### Bad
@@ -154,7 +172,7 @@ glog.Infof("authenticated token_len=%d", len(token))
 
 // slog projects — structured key-value with length, not value
 slog.Info("request", "method", r.Method, "path", r.URL.Path, "authz_len", len(r.Header.Get("Authorization")))
-slog.Info("connecting", "dsn_len", len(connectionString), "driver", driverName)
+slog.Info("connecting", "driver", driverName, "host", dbHost, "db", dbName, "dsn_len", len(connectionString)) // host+db identify the target; dsn_len signals "is the secret set"
 slog.Info("oauth refresh", "refresh_token_len", len(refreshToken))
 ```
 

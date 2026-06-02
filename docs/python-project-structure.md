@@ -46,38 +46,76 @@ project-name/
 
 ## Rules
 
-### Use src/ Package Layout
+### RULE python-project-structure/src-layout-required (MUST)
 
-**Constraint:** Packages MUST be placed in `src/package_name/`, NOT at repository root.
+**Owner**: python-architecture-assistant
+**Applies when**: a Python project's importable package directory (`<package_name>/__init__.py`) sits at the repo root instead of under `src/`.
+**Enforcement**: judgment (file-layout check: `<repo-root>/<package_name>/__init__.py` exists at root level when `pyproject.toml` declares the package)
+**Why**: Root-layout projects inherit a subtle bug — running tests from the repo root adds `.` to `sys.path`, so `import mypackage` succeeds against the *development* directory regardless of whether the package was actually built and installed. Tests pass locally; the wheel ships broken. `src/` layout forces the package to be installed (or `pip install -e .`-ed) before it's importable — tests then run against the same code consumers will get. Standard build tools (hatchling, setuptools, flit) recognise the layout automatically.
 
-**Rationale:** src/ layout prevents accidental imports of development code, ensures package installation testing, and separates source from metadata files.
-
-**Examples:**
+#### Bad
 
 ```bash
-# [GOOD] - src/ layout
+# Root layout — tests pass against dev directory, miss packaging bugs
+iphone_backup/
+  __init__.py
+  backup.py
+tests/
+  test_backup.py
+pyproject.toml
+```
+
+#### Good
+
+```bash
+# src/ layout — package must be installed to import; tests catch packaging bugs
 src/
   iphone_backup/
     __init__.py
     backup.py
-
-# [BAD] - Root layout
-iphone_backup/
-  __init__.py
-  backup.py
+tests/
+  test_backup.py
+pyproject.toml
 ```
 
-**Benefits:**
-- Prevents `sys.path` pollution during development
-- Forces testing against installed package, not development directory
-- Clean separation between package code and project files
-- Standard recognized by all Python build tools
+### RULE python-project-structure/pyproject-toml-with-hatchling (MUST)
 
-### Use pyproject.toml with hatchling
+**Owner**: python-architecture-assistant
+**Applies when**: a Python project ships a `setup.py` (legacy distutils/setuptools) or omits `pyproject.toml`, instead of using `pyproject.toml` + hatchling build backend.
+**Enforcement**: judgment (file-layout check: `setup.py` present at repo root, OR `pyproject.toml` missing `[build-system]` with `build-backend = "hatchling.build"`)
+**Why**: `setup.py` is the legacy build entry point — it executes arbitrary code at install time, has no declarative manifest, and ties the project to setuptools forever. PEP 517/518 made `pyproject.toml` the standard *declarative* build manifest; any modern build backend can read it. Hatchling is the recommended PyPA backend: zero plugin configuration for the 95% case, fast, maintained, and doesn't require setuptools as a transitive dependency. Sticking with `setup.py` blocks every modern Python tooling chain (uv, hatch, build, pip-tools-modern).
 
-**Constraint:** Projects MUST use `pyproject.toml` with hatchling build backend, NOT setup.py.
+#### Bad
 
-**Rationale:** PEP 517/518 standard build system; hatchling is simple, fast, and maintained by PyPA.
+```python
+# setup.py — legacy, executable, no declarative manifest
+from setuptools import setup, find_packages
+
+setup(
+    name="iphone-backup",
+    version="0.5.0",
+    packages=find_packages(),
+    install_requires=["pymobiledevice3>=3.0.0"],
+)
+```
+
+#### Good
+
+```toml
+# pyproject.toml — declarative, PEP 517/518, hatchling backend
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iphone-backup"
+version = "0.5.0"
+requires-python = ">=3.11"
+dependencies = ["pymobiledevice3>=3.0.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iphone_backup"]
+```
 
 **Examples:**
 

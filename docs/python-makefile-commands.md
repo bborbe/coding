@@ -22,6 +22,38 @@ make
 make precommit
 ```
 
+### RULE python-makefile/precommit-target-required (MUST)
+
+**Owner**: python-quality-assistant
+**Applies when**: a Python project's `Makefile` is missing a `precommit` target that runs `format` + `test` + `check` (or equivalent: lint, type-check, test). The default `make` target (no argument) MUST resolve to `precommit` so CI and pre-commit hooks can invoke `make` uniformly across projects.
+**Enforcement**: judgment (Makefile presence + target-list inspection: `grep -E '^precommit:' Makefile` plus default-target check via `make -np | grep '^precommit'`)
+**Why**: Different Python projects use different tools (ruff vs pyright vs mypy; pytest vs unittest; uv vs poetry). `make precommit` is the project-agnostic uniform entry point — CI scripts, pre-commit hooks, and editor integrations call `make precommit` and don't have to know the tool choices behind it. Without the target, CI scripts hard-code tool names that drift per-project, and the "run all quality checks" command is unmemorable per-developer. The target is one line; the value is uniform tooling across the org.
+
+#### Bad
+
+```makefile
+# No precommit target — CI scripts must know each tool by name per project
+test:
+	uv run pytest
+lint:
+	uv run ruff check
+typecheck:
+	uv run mypy src
+```
+
+#### Good
+
+```makefile
+.PHONY: precommit format test check sync
+
+precommit: format test check
+	@echo "All precommit checks passed"
+
+# Alternative with dependency sync (recommended for CI/CD):
+sync:
+	uv sync --all-extras
+```
+
 **Standard implementation**:
 ```makefile
 precommit: format test check
@@ -66,6 +98,36 @@ test:
 - Async test support via pytest-asyncio
 - Comprehensive assertion framework
 - Coverage reporting and threshold enforcement
+
+### RULE python-makefile/uv-not-pip-or-poetry (SHOULD)
+
+**Owner**: python-quality-assistant
+**Applies when**: a Python project's `Makefile` (or CI script) uses `pip install -r requirements.txt` / `poetry install` / `pipenv install` instead of `uv sync` for dependency management.
+**Enforcement**: judgment (Makefile + CI-config inspection for non-uv install commands; cross-check against `pyproject.toml` having `[tool.uv]` or `uv.lock` present)
+**Why**: `uv` is 10-100× faster than pip/poetry/pipenv on dependency resolution and install; it reads the standard `pyproject.toml` PEP 621 metadata directly (no per-tool config block); and it produces a deterministic `uv.lock` that's portable across machines. pip is fine for installing a single package; for project dependency management it lacks lock files and resolves slowly. Poetry has lock files but its own non-standard `[tool.poetry]` section in `pyproject.toml` and is much slower. The org has consolidated on uv; new Python projects MUST start there. (SHOULD level because legacy projects mid-migration are acceptable.)
+
+#### Bad
+
+```makefile
+# pip — no lock file, slow resolution
+install:
+	pip install -r requirements.txt
+
+# poetry — non-standard pyproject.toml, slower than uv
+install:
+	poetry install --with dev
+```
+
+#### Good
+
+```makefile
+install:
+	uv sync --all-extras
+
+# CI:
+test: install
+	uv run pytest
+```
 
 ### `make install`
 **Purpose**: Install project dependencies using uv.

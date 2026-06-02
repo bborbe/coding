@@ -610,5 +610,59 @@
     "id": "go-time/no-time-time-in-fields",
     "level": "MUST",
     "owner": "go-time-assistant"
+  },
+  {
+    "anchor": "python-architecture/constructor-injection-only",
+    "applies_when": "a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a *method parameter* instead of through `__init__`. Related but distinct anti-patterns covered by other rules: dependency from a global module variable (see `python-architecture/main-py-composition-root`); post-construction `self.foo = bar.foo` mutation (see `python-ioc/dependencies-as-private-fields`, which mandates private-field storage that makes mutation socially difficult).",
+    "doc_path": "docs/python-architecture-patterns.md",
+    "enforcement": "judgment (semantic — requires distinguishing dependency injection from runtime parameter passing. The other two related anti-patterns have their own rules and enforcement paths.)",
+    "id": "python-architecture/constructor-injection-only",
+    "level": "MUST",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-architecture/main-py-composition-root",
+    "applies_when": "a Python application instantiates service objects at module level (top of `repository.py`, `handler.py`, etc.) instead of wiring them inside `main()` / `main.py`.",
+    "doc_path": "docs/python-architecture-patterns.md",
+    "enforcement": "judgment (file-scope check: module-level `Service()` / `Repository()` calls outside `if __name__ == \"__main__\":` blocks)",
+    "id": "python-architecture/main-py-composition-root",
+    "level": "SHOULD",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-ioc/dependencies-as-private-fields",
+    "applies_when": "a Python service class stores an injected dependency on `self.<name>` (public attribute) instead of `self._<name>` (single-underscore private convention).",
+    "doc_path": "docs/python-ioc-guide.md",
+    "enforcement": "judgment (ast-grep first-pass filter: any `assignment` inside `__init__` with left-hand side `self.X` where `X` does not start with `_`. Type-annotation resolution to distinguish service deps from public data fields cannot be done in ast-grep — the agent makes the final call. Overinclusive first-pass is acceptable: most public `self.X` assignments in service classes ARE the smell.)",
+    "id": "python-ioc/dependencies-as-private-fields",
+    "level": "MUST",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-ioc/protocol-not-abc-for-dependencies",
+    "applies_when": "a Python service interface (dependency surface, e.g. `UserRepository`, `Logger`) is declared with `abc.ABC` + `@abstractmethod` decorators instead of `typing.Protocol`, AND no shared implementation across concrete types motivates the ABC.",
+    "doc_path": "docs/python-ioc-guide.md",
+    "enforcement": "judgment (ast-grep partial: detect `class X(ABC):` declarations that only contain `@abstractmethod` methods — but the \"no shared impl needed\" trigger is semantic)",
+    "id": "python-ioc/protocol-not-abc-for-dependencies",
+    "level": "MUST",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-logging/configure-once-in-main",
+    "applies_when": "a Python file in *library code* (modules imported by application code, intended for reuse across applications) calls `logging.basicConfig()` or adds handlers to the root logger. **Exempt**: the application entry point (`main.py` / `__main__.py` / `cli.py`) AND application-private helper modules wired from the entry point exclusively for configuration (e.g. `logging_setup.py` — see the next section), since those are part of the entry-point configuration surface, not library code.",
+    "doc_path": "docs/python-logging-guide.md",
+    "enforcement": "judgment (semantic — distinguishing library code from application-private configuration helpers requires reading the import graph; ast-grep can flag every non-entry-point `logging.basicConfig` call as a first-pass filter, but the agent must rule out the helper-module exemption case)",
+    "id": "python-logging/configure-once-in-main",
+    "level": "MUST",
+    "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "python-logging/lazy-evaluation-for-debug",
+    "applies_when": "a Python `logger.debug(...)` / `logger.log(logging.DEBUG, ...)` call passes an f-string whose interpolation calls an expensive function (serializer, JSON dump, network fetch, large-collection traversal) instead of using `%s` placeholders with deferred arguments.",
+    "doc_path": "docs/python-logging-guide.md",
+    "enforcement": "judgment (ast-grep is a first-pass filter only: `call_expression` named `logger.debug` with an `interpreted_string_literal` first argument matching `f\"...\"`. Trivial f-string interpolations like `logger.debug(f\"count={count}\")` are NOT violations — the rule targets *expensive* interpolations (serializers, JSON dumps, network fetches, large-collection traversals). The agent makes the expensive-vs-trivial judgment after the mechanical filter.)",
+    "id": "python-logging/lazy-evaluation-for-debug",
+    "level": "MUST",
+    "owner": "python-quality-assistant"
   }
 ]

@@ -12,17 +12,30 @@ The standard pattern for Python services follows this structure:
 
 ## 1. Core Pattern: Constructor Injection
 
-### Protocol Definition
+### RULE python-architecture/constructor-injection-only (MUST)
+
+**Owner**: python-architecture-assistant
+**Applies when**: a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a *method parameter* instead of through `__init__`. Related but distinct anti-patterns covered by other rules: dependency from a global module variable (see `python-architecture/main-py-composition-root`); post-construction `self.foo = bar.foo` mutation (see `python-ioc/dependencies-as-private-fields`, which mandates private-field storage that makes mutation socially difficult).
+**Enforcement**: judgment (semantic — requires distinguishing dependency injection from runtime parameter passing. The other two related anti-patterns have their own rules and enforcement paths.)
+**Why**: Mixing dependency injection with runtime parameter passing breaks the contract Python's type system relies on. Constructor injection makes the dep set visible at `__init__`, immutable after construction, and self-documenting at the type signature. Method-level injection means tests have to construct the full dep graph for every call site; global injection means tests are order-dependent. Methods should receive only the data needed to do their job — `create_user(user: User)`, not `create_user(repo, logger, validator, user)`.
+
+#### Bad
 
 ```python
-from typing import Protocol
-
-class UserRepository(Protocol):
-    def save(self, user: User) -> None: ...
-    def find_by_id(self, user_id: int) -> User | None: ...
+class UserService:
+    def create_user(
+        self,
+        repo: UserRepository,   # ← dependency, not runtime data
+        logger: Logger,         # ← dependency, not runtime data
+        validator: UserValidator,  # ← dependency, not runtime data
+        user: User,             # ← actual runtime data
+    ) -> None:
+        validator.validate(user)
+        repo.save(user)
+        logger.info(f"Created user {user.id}")
 ```
 
-### Service Implementation
+#### Good
 
 ```python
 class UserService:
@@ -32,23 +45,63 @@ class UserService:
         logger: Logger,
         validator: UserValidator,
     ):
-        self._repo = repo           # Static dependency
-        self._logger = logger       # Static dependency
-        self._validator = validator # Static dependency
+        self._repo = repo
+        self._logger = logger
+        self._validator = validator
 
-    def create_user(self, user: User) -> None:  # Runtime param only
+    def create_user(self, user: User) -> None:   # only runtime data
         self._validator.validate(user)
         self._repo.save(user)
         self._logger.info(f"Created user {user.id}")
 ```
 
-**Key points:**
-- Constructor receives ALL dependencies (static, mockable)
-- Methods receive ONLY runtime data (request params, user input)
-- Dependencies stored as private fields (`self._dep`)
-- Clean separation: deps bound once, methods reusable
+**Key points** (the RULE above shows the canonical Bad/Good shape; below are the orthogonal supporting conventions):
+
+- Constructor receives ALL dependencies (static, mockable); methods receive ONLY runtime data.
+- Dependencies stored as private fields (`self._dep`) — see [`python-ioc/dependencies-as-private-fields`](python-ioc-guide.md).
+- Dependency interfaces use `Protocol` — see [`python-ioc/protocol-not-abc-for-dependencies`](python-ioc-guide.md).
 
 ## 2. main.py Pattern (Composition Root)
+
+### RULE python-architecture/main-py-composition-root (SHOULD)
+
+**Owner**: python-architecture-assistant
+**Applies when**: a Python application instantiates service objects at module level (top of `repository.py`, `handler.py`, etc.) instead of wiring them inside `main()` / `main.py`.
+**Enforcement**: judgment (file-scope check: module-level `Service()` / `Repository()` calls outside `if __name__ == "__main__":` blocks)
+**Why**: Module-level instantiation runs at *import time* — order-dependent, hard to test, impossible to mock for unit tests. The composition root pattern says: configuration parsing, infrastructure setup, and service wiring all happen in one place (`main.py` → `main(argv)`), in a deterministic order, with explicit dependency edges. Tests can then construct their own composition root with mock infrastructure; production constructs the real one. Module-level state collapses this clean separation into spaghetti.
+
+#### Bad
+
+```python
+# user_service.py
+from infrastructure import database, api_client  # imports trigger connection!
+
+repo = SqlUserRepository(database)             # module-level — runs at import
+service = UserService(repo, api_client)         # module-level — runs at import
+```
+
+#### Good
+
+```python
+# main.py — composition root
+def main(argv):
+    logging.basicConfig(...)
+    db_url = os.getenv("DATABASE_URL")
+    api_key = os.getenv("API_KEY")
+
+    database = Database(db_url)               # infrastructure first
+    api_client = ApiClient(api_key)
+
+    repo = SqlUserRepository(database)        # services composed explicitly
+    service = UserService(repo, api_client)
+
+    handler = UserHandler(service)
+    HttpServer(8080, handler).run()
+
+# user_service.py — no module-level instantiation
+class UserService:
+    def __init__(self, repo: UserRepository, api: ApiClient): ...
+```
 
 The `main.py` is the **composition root** where all dependencies are wired together.
 

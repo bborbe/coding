@@ -8,6 +8,18 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.13.0
+
+- docs(trim): trim `docs/go-prometheus-metrics-guide.md` 2399 → 379 lines (rules-only architecture; comprehensive reference moves to maintainer's Obsidian KB).
+- docs(trim): trim `docs/go-testing-guide.md` 1207 → 428 lines (same architecture).
+- docs(trim): trim `docs/agent-command-development-guide.md` 1750 → 347 lines with 7 pre-canonicalized `### RULE` blocks (`agent-cmd/command-thin`, `no-user-prompts`, `scripts-in-claude-dir`, `command-frontmatter`, `agent-frontmatter`, `single-source-of-truth`, `gap-driven-feedback`).
+- feat(rules): add six `### RULE` blocks to `docs/go-prometheus-metrics-guide.md` — `go-prometheus/counter-pre-initialization`, `composed-metrics-interface`, `no-gauge-for-monotonic`, `counter-total-suffix`, `help-string-quality`, `label-naming-consistency`.
+- feat(rules): add eight `### RULE` blocks to `docs/go-testing-guide.md` — `go-testing/no-stdlib-table-tests`, `no-testing-t-direct`, `no-bare-error-call`, `suite-test-file-required`, `main-test-with-compiles`, `suite-timeout-required`, `counterfeiter-mocks-required`, `libtime-injection-required`.
+- feat(rules): first mechanical ast-grep YAML for `go-prometheus/counter-total-suffix` (`rules/go/counter-total-suffix.yml`) — uses `pattern.context + selector + inside.stopBy + constraints.not.regex` recipe; 4 TP / 0 FP across fixture cases (NewCounterVec, NewCounter, Name-position-agnostic, no false-flag on GaugeOpts/HistogramOpts).
+- docs(ast-grep): propagate struct-literal-field-matching recipe to `docs/ast-grep-rule-writing-guide.md` (new section + three pitfall entries + canonical-example pointer).
+- feat(precommit): add `make check-index` target; wired into `precommit` chain. Diff-based drift detection on `rules/index.json` — fails loud with actionable error when walker output and committed index diverge. Closes the gap exposed by the agent-cmd-guide trim's walker-regen miss (caught retroactively by the testing-bootstrap PR).
+- `rules/index.json` grown 17 → 42 entries across eight rule families: `agent-cmd`, `go-context`, `go-errors`, `go-factory`, `go-http-handler`, `go-prometheus` (new), `go-security`, `go-testing` (new), `go-time`.
+
 ## v0.12.0
 
 - feat(rules): add four `### RULE` blocks to `docs/go-http-handler-refactoring-guide.md` — `go-http-handler/no-inline-error-handler`, `go-http-handler/no-inline-background-handler`, `go-http-handler/new-prefix-naming`, `go-http-handler/kebab-case-handler-files`; matching ast-grep YAMLs for the two mechanical rules + `rules/index.json` entries grown from 17 to 21

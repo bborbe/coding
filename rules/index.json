@@ -127,7 +127,7 @@
   },
   {
     "anchor": "go-prometheus/composed-metrics-interface",
-    "applies_when": "a service exposes a single `Metrics` interface aggregating more than ~6 methods across distinct functional domains (handlers, senders, schedulers, etc.).",
+    "applies_when": "a single `Metrics` interface aggregates methods spanning two or more distinct functional domains (handlers + senders + schedulers + …), forcing consumers to depend on methods they don't use.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "judgment",
     "id": "go-prometheus/composed-metrics-interface",
@@ -136,7 +136,7 @@
   },
   {
     "anchor": "go-prometheus/counter-pre-initialization",
-    "applies_when": "a CounterVec is registered for a label set whose value domain is known at compile time (enum, fixed slice of strings, etc.).",
+    "applies_when": "a CounterVec is registered for a label set whose value domain is small, bounded, and known at compile time (typically < 20 combinations — enum, fixed slice of strings, etc.). For large or unbounded domains, prefer `absent()` checks in alerting rules instead.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "judgment",
     "id": "go-prometheus/counter-pre-initialization",
@@ -147,7 +147,7 @@
     "anchor": "go-prometheus/counter-total-suffix",
     "applies_when": "a `prometheus.CounterOpts` struct literal sets a `Name:` field whose string value does not end with `_total`.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
-    "enforcement": "judgment (mechanical ast-grep YAML tracked as follow-up; CounterOpts struct-literal traversal in ast-grep 0.43.0 needs further investigation)",
+    "enforcement": "judgment (ast-grep follow-up)",
     "id": "go-prometheus/counter-total-suffix",
     "level": "MUST",
     "owner": "go-metrics-assistant"

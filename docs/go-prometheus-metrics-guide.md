@@ -20,7 +20,7 @@ Key principles:
 ### RULE go-prometheus/counter-pre-initialization (MUST)
 
 **Owner**: go-metrics-assistant
-**Applies when**: a CounterVec is registered for a label set whose value domain is known at compile time (enum, fixed slice of strings, etc.).
+**Applies when**: a CounterVec is registered for a label set whose value domain is small, bounded, and known at compile time (typically < 20 combinations — enum, fixed slice of strings, etc.). For large or unbounded domains, prefer `absent()` checks in alerting rules instead.
 **Enforcement**: judgment
 **Why**: Without pre-initialization, `rate(metric[5m])` returns *no data* (not zero) for unseen label combos. Alert expressions like `rate(errors_total[5m]) > 0.1` silently skip absent series instead of evaluating to false — so the alert never fires when the system is fine *and never fires when the system is broken either*. `absent()` checks don't save you because the series literally doesn't exist yet.
 
@@ -53,7 +53,7 @@ func init() {
 ### RULE go-prometheus/composed-metrics-interface (SHOULD)
 
 **Owner**: go-metrics-assistant
-**Applies when**: a service exposes a single `Metrics` interface aggregating more than ~6 methods across distinct functional domains (handlers, senders, schedulers, etc.).
+**Applies when**: a single `Metrics` interface aggregates methods spanning two or more distinct functional domains (handlers + senders + schedulers + …), forcing consumers to depend on methods they don't use.
 **Enforcement**: judgment
 **Why**: Interface Segregation Principle. Components that only send notifications should depend on `MetricsNotificationSender`, not the full `Metrics` interface. Narrow interfaces produce smaller Counterfeiter mocks, clearer test setup, and make accidental coupling visible at the type signature.
 
@@ -107,14 +107,14 @@ type MetricsNotificationSender interface {
 **Owner**: go-metrics-assistant
 **Applies when**: a `prometheus.NewGaugeVec` / `prometheus.NewGauge` registers a metric the code only ever increments (only `.Inc()` / `.Add(positive)` call sites, never `.Set()` / `.Dec()` / `.Sub()`).
 **Enforcement**: judgment
-**Why**: Using Gauge for monotonically increasing values breaks `rate()` and `increase()` queries — they assume the underlying type is a counter that can reset to zero on process restart, and they treat any decrease as a counter reset rather than an actual decrease. Dashboards silently produce nonsense.
+**Why**: `rate()` and `increase()` are type-agnostic — they interpret *any* downward movement in the sample series as a counter reset and adjust accordingly. With a Gauge, a legitimate decrease (e.g. queue drains) is treated as a reset, producing nonsense rates. With a Counter, the type signals that the value can only increase, so PromQL's reset detection is sound. Dashboards built on a Gauge-used-as-counter silently produce wrong numbers.
 
 #### Bad
 
 ```go
 // Gauge for counter-like metric — rate() and increase() return nonsense
 orderHandleTotalCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-	Name: "total_counter",
+	Name: "order_handle_total",
 }, []string{"tenant"})
 ```
 
@@ -123,7 +123,7 @@ orderHandleTotalCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 ```go
 // Counter for values that only increase
 orderHandleTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "total",
+	Name: "order_handle_total",
 }, []string{"tenant"})
 ```
 
@@ -207,7 +207,7 @@ Guidelines:
 
 **Owner**: go-metrics-assistant
 **Applies when**: a `prometheus.CounterOpts` struct literal sets a `Name:` field whose string value does not end with `_total`.
-**Enforcement**: judgment (mechanical ast-grep YAML tracked as follow-up; CounterOpts struct-literal traversal in ast-grep 0.43.0 needs further investigation)
+**Enforcement**: judgment (ast-grep follow-up)
 **Why**: Prometheus naming convention; newer `client_golang` versions enforce this at registration time (panic). Counters without `_total` also fail the OpenMetrics spec and confuse Grafana auto-completion.
 
 #### Bad
@@ -238,6 +238,23 @@ prometheus.NewCounterVec(prometheus.CounterOpts{
 #### Bad
 
 ```go
+// Empty Help — useless in /metrics and Grafana
+emptyHelpCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "requests_total",
+	Help: "",
+}, []string{"method"})
+
+// Duplicate Help across two distinct metrics — collapses to one entry in the explorer
+orderHandleTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "order_handle_total",
+	Help: "Total number of operations",
+}, []string{"tenant"})
+notificationSendTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "notification_send_total",
+	Help: "Total number of operations", // identical Help, different metric
+}, []string{"tenant"})
+
+// Copy-paste residue — Help describes the wrong metric
 notificationSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "success_total",
 	Help: "Order Handle Total Counter", // Wrong! This is the notification sender

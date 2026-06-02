@@ -156,7 +156,7 @@
     "anchor": "go-architecture/no-globals-or-singletons",
     "applies_when": "a Go service package introduces a service dependency (logger, DB, HTTP client, time getter, etc.) via any of: (a) a package-level `var` declaration, (b) initialisation inside `func init()`, or (c) lazy initialisation via `sync.Once` keyed to a package-level pointer. All three patterns share the same test-ordering and parallelism problems.",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: `kind: var_spec` at file scope + `kind: function_declaration` named `init` + `sync.Once` patterns with package-level state; full enforcement needs package-scope reasoning to distinguish service deps from constants and config values).",
+    "enforcement": "`rules/go/no-globals-or-singletons.yml` covers the most common variant — `var X = NewY(...)` / `var X = CreateY(...)` package-level declarations whose RHS is a New*/Create* constructor call. The `init()` and `sync.Once` variants stay judgment-tier (the agent makes the final call based on body inspection); the YAML catches the highest-frequency case mechanically.",
     "id": "go-architecture/no-globals-or-singletons",
     "level": "MUST",
     "owner": "go-architecture-assistant"

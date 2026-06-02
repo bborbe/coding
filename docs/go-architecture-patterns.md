@@ -554,7 +554,7 @@ func TestUserService_Create_Success(t *testing.T) {
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go service package introduces a service dependency (logger, DB, HTTP client, time getter, etc.) via any of: (a) a package-level `var` declaration, (b) initialisation inside `func init()`, or (c) lazy initialisation via `sync.Once` keyed to a package-level pointer. All three patterns share the same test-ordering and parallelism problems.
-**Enforcement**: judgment (ast-grep follow-up: `kind: var_spec` at file scope + `kind: function_declaration` named `init` + `sync.Once` patterns with package-level state; full enforcement needs package-scope reasoning to distinguish service deps from constants and config values).
+**Enforcement**: `rules/go/no-globals-or-singletons.yml` covers the most common variant — `var X = NewY(...)` / `var X = CreateY(...)` package-level declarations whose RHS is a New*/Create* constructor call. The `init()` and `sync.Once` variants stay judgment-tier (the agent makes the final call based on body inspection); the YAML catches the highest-frequency case mechanically.
 **Why**: Package-level service deps are global state. They (1) make tests order-dependent (one test mutates the global, the next sees it), (2) prevent parallelism (`go test -p N` shares the var), (3) hide the dependency graph (callers can't see what's used), and (4) make refactors fragile (changing the dep means tracing every package that imports the global). Constructor injection makes the graph explicit and the lifecycle controllable.
 
 #### Bad

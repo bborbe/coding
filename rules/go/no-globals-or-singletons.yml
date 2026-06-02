@@ -1,0 +1,35 @@
+id: go-architecture/no-globals-or-singletons
+language: go
+severity: error
+message: |
+  Package-level service dependencies (logger, DB, HTTP client) must not
+  be declared as 'var X = NewY(...)' / 'var X = CreateY(...)'. Inject
+  them through the constructor instead. Globals break test parallelism,
+  hide the dependency graph, and make refactors fragile.
+  See docs/go-architecture-patterns.md (RULE go-architecture/no-globals-or-singletons).
+rule:
+  # ast-grep 0.43.0 shape: match `var_declaration` at file scope whose
+  # right-hand side contains a call_expression matching the New*/Create*
+  # constructor convention. The regex requires an uppercase letter after
+  # the prefix (so 'errors.New(...)' for sentinel errors is exempt while
+  # 'errors.NewWithCode(...)' would still flag — debatable, accepted as
+  # mild over-flag for the cleaner pattern).
+  #
+  # Bare `var x int` / `var DefaultTimeout = 30` / `var ErrNotFound =
+  # errors.New("...")` correctly exempt because no New*/Create* call
+  # appears on the RHS (or the call is just `New(...)` without an
+  # uppercase suffix).
+  kind: var_declaration
+  has:
+    stopBy: end
+    kind: call_expression
+    regex: '\b(New|Create)[A-Z]'
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "cmd/**"
+  - "**/cmd/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

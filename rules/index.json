@@ -649,16 +649,16 @@
   },
   {
     "anchor": "go-logging/no-sensitive-data-in-logs",
-    "applies_when": "a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material (password, token, secret, key, PEM, JWT, raw request body containing credentials, full session cookie).",
+    "applies_when": "a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material — password, passphrase, token (access/refresh/bearer/CSRF/session/JWT), secret (raw value, not k8s `secretName`/`secretRef`), credential-shaped key (privateKey, signingKey, encryptionKey, apiKey, PEM key — NOT publicKey / partitionKey / sortKey / lookupKey), Authorization header, DB connection string / DSN, OAuth client secret, X.509 certificate body, full request/response struct that contains any of the above as a field.",
     "doc_path": "docs/go-logging-guide.md",
-    "enforcement": "judgment (semantic — distinguishing \"credential\" from \"credential-shaped name on a public value (e.g. `publicKey`)\" requires reading the source and intent; ast-grep partial: `call_expression` matching `glog.*` / `slog.*` with format args including identifiers matching `(?i)password|token|secret|.*Key|PEM|JWT|credential|authorization`)",
+    "enforcement": "judgment (semantic — distinguishing real credential from credential-shaped name on a public value, e.g. `publicKey` / `partitionKey`, requires reading the source and intent; ast-grep partial: `call_expression` matching `glog.{Info,Warning,Error}{,f}` / `slog.{Info,Warn,Error,Debug}` / `log.Printf` with format args including identifiers matching `(?i)(password|passphrase|token|credential|authorization|jwt|pem|dsn|connection[_ ]?string)\\b|(private|signing|encryption|api)Key\\b`. Word-boundary anchors required: bare `key` matches `partitionKey` / `sortKey` / `lookupKey` (over-flag); bare `secret` matches `secretName` / `secretRef` / `secretNamespace` (over-flag). Whole-struct dumps via `%+v` / `%#v` of any request / response / config struct also flag.)",
     "id": "go-logging/no-sensitive-data-in-logs",
     "level": "MUST",
     "owner": "go-security-specialist"
   },
   {
     "anchor": "go-logging/no-tight-loop-without-sampler",
-    "applies_when": "a Go log statement appears inside a `for` loop body that processes more than ~100 items per iteration without being gated by a `log.Sampler` / `IsSample()` check or a `glog.V(N)` verbosity guard.",
+    "applies_when": "a Go log statement appears inside a `for` loop body whose iteration count is unbounded at compile time (range over an externally-sourced slice / channel; classic for-condition driven by external state) without being gated by a `log.Sampler` / `IsSample()` check or a `glog.V(N)` verbosity guard. The judgment threshold is \"would this log line out-pace what an operator can scan at expected load?\" — a poll-loop running once per second is fine to log every iteration; a per-message Kafka consumer running 10k msg/s is not.",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "judgment (semantic — distinguishing \"tight inner loop\" from \"small bounded outer loop\" requires reading the loop bound; ast-grep partial: `call_expression` matching `glog.{Info,Warning}{,f}` / `slog.{Info,Warn}` inside a `for_statement` body without a sibling `if .IsSample()` / `glog.V(N)` guard)",
     "id": "go-logging/no-tight-loop-without-sampler",

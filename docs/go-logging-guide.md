@@ -11,6 +11,8 @@
 **Enforcement**: judgment (semantic — distinguishing "this binary already uses X; the new import of Y is wrong" from "this is a new binary that happens to coexist with X-using siblings in the monorepo" requires checking which logger the rest of the same module uses; ast-grep partial: detect both `import "log/slog"` AND `import "github.com/golang/glog"` co-occurring in any single `.go` file)
 **Why**: Mixing the two loggers in one binary fragments the operator's view: log aggregators see two different formats (slog's structured key-values vs glog's free-form Errorf strings), grep patterns from one side miss the other, and verbosity gating (`-v` for glog, log level for slog) controls only half the output. Migration is an explicit project-level decision — either all-slog or all-glog — not a per-file choice that creeps in during PR review.
 
+**Rule boundary vs `go-cli/slog-not-glog-in-new-projects`**: that rule fires on *new* binaries that pick `glog` (the "you should have picked slog" check). This rule fires on *any* binary — new or existing — that uses both loggers (the "you've mixed them in one binary" check). The two are independent: a new project mixing both triggers both rules; an existing all-glog project introducing slog triggers only this one.
+
 #### Bad
 
 ```go
@@ -71,14 +73,18 @@ func fetchUser(ctx context.Context, id string) (*User, error) {
 
 // Boundary (HTTP handler / main.go): log once with full context
 func (h *handler) Get(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	user, err := h.svc.FetchUser(r.Context(), id)
 	if err != nil {
 		glog.Errorf("get user %s: %+v", id, err) // log once at the boundary
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	respondJSON(w, user)
 }
 ```
+
+**Related rules**: see [`go-errors/no-bare-return-err`](go-error-wrapping-guide.md) and the surrounding error-wrapping family — the boundary-logging pattern depends on inner callers properly wrapping errors via `errors.Wrapf(ctx, err, ...)` so the boundary log line carries the full context chain.
 
 ### RULE go-logging/external-call-logs-response (MUST)
 
@@ -86,6 +92,8 @@ func (h *handler) Get(w http.ResponseWriter, r *http.Request) {
 **Applies when**: a Go function makes a call that crosses the process boundary (HTTP client, gRPC client, database query, message-bus publish, subprocess `exec`) without emitting a single log line summarising the call's outcome (method/op + status/result + latency, plus error message on failure).
 **Enforcement**: judgment (semantic — identifying "this is a boundary call" requires recognising the client package (`http.Client.Do`, `*sql.DB.Query`, `client.SomeRPC`, `kafka.Producer.Send`, `exec.Command`) and verifying no log statement follows; ast-grep partial: `call_expression` matching known boundary clients without a sibling glog/slog call in the same block)
 **Why**: Boundary calls are the audit trail. Without a log line per call, runtime mysteries — "did the payment send? did the webhook deliver? did the job enqueue?" — become guesswork from indirect signals (downstream alerts, partial state in a DB, support tickets). The log line lets operators answer "what crossed the wire?" without redeploying with extra instrumentation. Minimum payload: method + path/op + status code + latency; add error message on non-success. Never log credentials, request bodies with secrets, or full response bodies — log lengths/counts instead.
+
+**Carve-out from `go-logging/no-log-and-return-error`**: this rule is the documented exception. A boundary-audit log line (one event per wire crossing) is a different concern from error-propagation logging (which fires once at the boundary that decides what to do). Emit exactly one audit line per boundary call — success path or failure path, never both for the same call — and then return the error for the caller to handle.
 
 #### Bad
 
@@ -101,38 +109,53 @@ return parseBody(body)
 #### Good
 
 ```go
+// One audit line per call — success branch
 status, body, err := doRequest(ctx, client, token, "POST", url, payload)
-glog.Infof("http POST %s status=%d body_len=%d", path, status, len(body))
 if err != nil {
-	glog.Warningf("http POST %s failed: %v", path, err)
+	// One audit line per call — failure branch (transport failure status known here, not at caller)
+	glog.Warningf("http POST %s err=%v", path, err)
 	return err
 }
+glog.Infof("http POST %s status=%d body_len=%d", path, status, len(body))
 return parseBody(body)
 ```
+
+**Related**: pair with [`go-logging/no-tight-loop-without-sampler`](#rule-go-loggingno-tight-loop-without-sampler) when the boundary call is in a hot path (e.g. message-bus publishes); sample the audit line via `log.NewSampleTime` instead of emitting once per send.
 
 ### RULE go-logging/no-sensitive-data-in-logs (MUST)
 
 **Owner**: go-security-specialist
-**Applies when**: a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material (password, token, secret, key, PEM, JWT, raw request body containing credentials, full session cookie).
-**Enforcement**: judgment (semantic — distinguishing "credential" from "credential-shaped name on a public value (e.g. `publicKey`)" requires reading the source and intent; ast-grep partial: `call_expression` matching `glog.*` / `slog.*` with format args including identifiers matching `(?i)password|token|secret|.*Key|PEM|JWT|credential|authorization`)
-**Why**: Logged credentials land in stdout, log aggregators, cloud logging backends — searchable, indexed, and impossible to redact once the batch has shipped. A single `glog.Infof("config: %+v", cfg)` on a struct that contains a `PEMKey` field leaks the key to every operator with log access. Use `display:"length"` tags (see `go-k8s-binary/secret-fields-need-display-length`), log lengths instead of values (`body_len=%d`), and never interpolate raw credential-shaped variables into log strings.
+**Applies when**: a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material — password, passphrase, token (access/refresh/bearer/CSRF/session/JWT), secret (raw value, not k8s `secretName`/`secretRef`), credential-shaped key (privateKey, signingKey, encryptionKey, apiKey, PEM key — NOT publicKey / partitionKey / sortKey / lookupKey), Authorization header, DB connection string / DSN, OAuth client secret, X.509 certificate body, full request/response struct that contains any of the above as a field.
+**Enforcement**: judgment (semantic — distinguishing real credential from credential-shaped name on a public value, e.g. `publicKey` / `partitionKey`, requires reading the source and intent; ast-grep partial: `call_expression` matching `glog.{Info,Warning,Error}{,f}` / `slog.{Info,Warn,Error,Debug}` / `log.Printf` with format args including identifiers matching `(?i)(password|passphrase|token|credential|authorization|jwt|pem|dsn|connection[_ ]?string)\b|(private|signing|encryption|api)Key\b`. Word-boundary anchors required: bare `key` matches `partitionKey` / `sortKey` / `lookupKey` (over-flag); bare `secret` matches `secretName` / `secretRef` / `secretNamespace` (over-flag). Whole-struct dumps via `%+v` / `%#v` of any request / response / config struct also flag.)
+**Why**: Logged credentials land in stdout, log aggregators, cloud logging backends — searchable, indexed, and impossible to redact once the batch has shipped. A single `glog.Infof("request: %+v", r)` dumps the `Authorization` header to every operator with log access; `glog.Infof("config: %+v", cfg)` on a struct that contains a `PEMKey` field leaks the key. Use `display:"length"` tags (see [`go-k8s-binary/secret-fields-need-display-length`](go-k8s-binary-conventions.md)), log lengths instead of values (`body_len=%d`), never interpolate raw credential-shaped variables, and never `%+v` whole request/response/config structs that contain authorization headers or secret fields.
 
 #### Bad
 
 ```go
-// %+v dumps the whole struct including the PEMKey field — secret in the log
+// Most common leak: whole-struct %+v dumps the Authorization header
+glog.Infof("request: %+v", r) // r.Header["Authorization"] in the log
+
+// Config struct with PEMKey field — secret in the log
 glog.Infof("config: %+v", cfg)
 
-// Direct interpolation
+// Direct interpolation of credential-shaped variables
 glog.Infof("authenticated with token=%s", token)
+slog.Info("connecting", "dsn", connectionString) // structured key-value still leaks the value
+slog.Info("oauth refresh", "refresh_token", refreshToken)
 ```
 
 #### Good
 
 ```go
-// Length only — operators know it's set without seeing the value
+// glog projects — log identifier + lengths, never the values
+glog.Infof("request: method=%s path=%s authz_len=%d", r.Method, r.URL.Path, len(r.Header.Get("Authorization")))
 glog.Infof("config: stage=%s pem_key_len=%d", cfg.Stage, len(cfg.PEMKey))
 glog.Infof("authenticated token_len=%d", len(token))
+
+// slog projects — structured key-value with length, not value
+slog.Info("request", "method", r.Method, "path", r.URL.Path, "authz_len", len(r.Header.Get("Authorization")))
+slog.Info("connecting", "dsn_len", len(connectionString), "driver", driverName)
+slog.Info("oauth refresh", "refresh_token_len", len(refreshToken))
 ```
 
 ### RULE go-logging/lowercase-log-messages (SHOULD)
@@ -159,7 +182,7 @@ slog.Error("failed to parse request", "error", err)
 ### RULE go-logging/no-tight-loop-without-sampler (SHOULD)
 
 **Owner**: go-quality-assistant
-**Applies when**: a Go log statement appears inside a `for` loop body that processes more than ~100 items per iteration without being gated by a `log.Sampler` / `IsSample()` check or a `glog.V(N)` verbosity guard.
+**Applies when**: a Go log statement appears inside a `for` loop body whose iteration count is unbounded at compile time (range over an externally-sourced slice / channel; classic for-condition driven by external state) without being gated by a `log.Sampler` / `IsSample()` check or a `glog.V(N)` verbosity guard. The judgment threshold is "would this log line out-pace what an operator can scan at expected load?" — a poll-loop running once per second is fine to log every iteration; a per-message Kafka consumer running 10k msg/s is not.
 **Enforcement**: judgment (semantic — distinguishing "tight inner loop" from "small bounded outer loop" requires reading the loop bound; ast-grep partial: `call_expression` matching `glog.{Info,Warning}{,f}` / `slog.{Info,Warn}` inside a `for_statement` body without a sibling `if .IsSample()` / `glog.V(N)` guard)
 **Why**: Unsampled log calls in hot paths produce log gigabytes per minute — drowning real operator signal, inflating cloud-logging cost, and adding non-trivial latency to the loop itself (sync.Mutex contention inside `glog` on heavy concurrent writes). Sampling preserves the "is something happening?" signal at sustainable volume. `github.com/bborbe/log` provides `NewSampleTime(d)` (once per duration), `NewSampleMod(n)` (every N-th), `NewSamplerGlogLevel(n)` (gated by verbosity).
 
@@ -176,6 +199,9 @@ for _, item := range items {
 #### Good
 
 ```go
+// h.logSampler is wired through the handler constructor — see the
+// "Log Sampling (glog projects)" section below for the canonical
+// constructor shape: log.SamplerFactory -> Sampler stored on struct.
 for _, item := range items {
 	if err := process(item); err != nil {
 		if h.logSampler.IsSample() {
@@ -205,14 +231,21 @@ if failures > 0 {
 #### Bad
 
 ```go
+// Use select+ctx.Done() for graceful shutdown — bare for+time.Sleep
+// leaks the goroutine on process termination. Production loops also
+// pair this rule with go-context-cancellation-in-loops.
 for {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(interval):
+	}
 	changed, err := scanForUpdates(ctx)
 	if err != nil {
 		glog.Errorf("scan failed: %v", err)
 		continue
 	}
 	glog.V(2).Infof("scan cycle: %d changed", changed) // fires even when changed=0
-	time.Sleep(interval)
 }
 ```
 
@@ -220,6 +253,11 @@ for {
 
 ```go
 for {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(interval):
+	}
 	changed, err := scanForUpdates(ctx)
 	if err != nil {
 		glog.Errorf("scan failed: %v", err)
@@ -228,7 +266,6 @@ for {
 	if changed > 0 {
 		glog.V(2).Infof("scan cycle: %d changed", changed) // only when there's something to report
 	}
-	time.Sleep(interval)
 }
 ```
 
@@ -309,6 +346,8 @@ Wiring: see [go-http-service-guide.md](go-http-service-guide.md) for the canonic
 
 ## Related Rules
 
-- [`go-cli/slog-not-glog-in-new-projects`](go-cli-guide.md) — new projects should pick `slog`, not introduce `glog`
+- [`go-cli/slog-not-glog-in-new-projects`](go-cli-guide.md) — new projects should pick `slog`, not introduce `glog` (boundary with `go-logging/no-mixing-slog-and-glog` documented in the latter's Why paragraph)
 - [`go-glog/use-v-for-debug-not-info`](go-glog-guide.md) — V0 (bare `glog.Info`) is operator-default; debug-shaped lines go behind `V(N)`
-- [`go-k8s-binary/secret-fields-need-display-length`](go-k8s-binary-conventions.md) — application-config secret fields carry `display:"length"` so `argument.Parse()` startup dump never prints values
+- [`go-k8s-binary/secret-fields-need-display-length`](go-k8s-binary-conventions.md) — application-config secret fields carry `display:"length"` so `argument.Parse()` startup dump never prints values; companion to `go-logging/no-sensitive-data-in-logs`
+- [`go-errors/no-bare-return-err`](go-error-wrapping-guide.md) and the surrounding error-wrapping family — `go-logging/no-log-and-return-error` depends on inner callers properly wrapping errors so the boundary log line carries full context
+- [`go-context-cancellation-in-loops`](go-context-cancellation-in-loops.md) — pair with `go-logging/skip-empty-v2-heartbeats` for any V(2) heartbeat loop, so the goroutine exits cleanly on shutdown

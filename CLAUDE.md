@@ -20,7 +20,7 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 
 | Doc | Agent |
 |-----|-------|
-| `go-architecture-patterns.md` | `go-quality-assistant` |
+| `go-architecture-patterns.md` | `go-architecture-assistant` (rule-block owner; cross-unit concerns) + `go-quality-assistant` (broader review) |
 | `go-context-cancellation-in-loops.md` | `go-context-assistant` |
 | `go-error-wrapping-guide.md` | `go-error-assistant` |
 | `go-time-injection.md` | `go-time-assistant` |

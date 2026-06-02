@@ -64,9 +64,9 @@
   },
   {
     "anchor": "go-architecture/business-logic-not-in-main",
-    "applies_when": "`main.go` or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.",
+    "applies_when": "`main.go` (production code only — `main_test.go` is exempt) or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (semantic check — what counts as \"business logic\" requires reading the code)",
+    "enforcement": "judgment (semantic check — what counts as \"business logic\" requires reading the code). Coarse ast-grep filter is possible: `main.go` containing imports of `bborbe/errors` or `bborbe/validation` is a strong signal that domain logic leaked out of `pkg/`; production-file-scoped, `_test.go` excluded.",
     "id": "go-architecture/business-logic-not-in-main",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -82,36 +82,36 @@
   },
   {
     "anchor": "go-architecture/counterfeiter-directive-on-interface",
-    "applies_when": "a Go service package defines an `interface` declaration intended to be substitutable (mocked, stubbed, or replaced for testing) without a preceding `//counterfeiter:generate` directive.",
+    "applies_when": "an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests) has no preceding `//counterfeiter:generate` line. Concrete trigger: any package with `*_test.go` files that import a `mocks` package, plus every exported interface in that package.",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: `kind: interface_declaration` + `not.precedes` on a comment matching `//counterfeiter:generate`)",
+    "enforcement": "judgment (ast-grep partial: pattern over `interface_declaration` with surrounding-comment context per the PR #11 struct-literal recipe — negative-precedes relations are awkward in ast-grep 0.43.0, so the agent does the absence check)",
     "id": "go-architecture/counterfeiter-directive-on-interface",
     "level": "MUST",
     "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-architecture/new-prefix-constructor-naming",
-    "applies_when": "a Go function returns an exported interface or struct type and is intended to be the canonical construction site, but the function name does not start with `New`.",
+    "applies_when": "a Go function outside `pkg/factory/**` returns an exported interface or struct type and is intended to be the canonical construction site, but the function name does not start with `New`.",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: `function_declaration` returning a type registered as a service interface; partial overlap with `go-factory/no-impl-in-factory-pkg` for the `Create*` family)",
+    "enforcement": "judgment (ast-grep follow-up: `function_declaration` returning a service-interface type with `name` not matching `^New`. `Create*` factories under `pkg/factory/**` are covered by `go-factory/no-impl-in-factory-pkg` instead and MUST be excluded from this rule's scope).",
     "id": "go-architecture/new-prefix-constructor-naming",
     "level": "MUST",
     "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-architecture/no-globals-or-singletons",
-    "applies_when": "a Go service package declares a package-level `var` holding a service dependency (logger, DB, HTTP client, time getter, etc.) instead of receiving it through a `New*` constructor.",
+    "applies_when": "a Go service package introduces a service dependency (logger, DB, HTTP client, time getter, etc.) via any of: (a) a package-level `var` declaration, (b) initialisation inside `func init()`, or (c) lazy initialisation via `sync.Once` keyed to a package-level pointer. All three patterns share the same test-ordering and parallelism problems.",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: `kind: var_spec` at file scope with a type matching a known service interface; full enforcement needs package-scope reasoning)",
+    "enforcement": "judgment (ast-grep follow-up: `kind: var_spec` at file scope + `kind: function_declaration` named `init` + `sync.Once` patterns with package-level state; full enforcement needs package-scope reasoning to distinguish service deps from constants and config values).",
     "id": "go-architecture/no-globals-or-singletons",
     "level": "MUST",
     "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-architecture/private-struct-matches-interface",
-    "applies_when": "a Go package exposes an interface (e.g. `UserService`) implemented by a single struct whose name does not match the interface name with the first letter lowercased (`userService`).",
+    "applies_when": "a Go package exposes an exported interface (e.g. `UserService`) and the package contains exactly one struct implementing every method of that interface, but the struct's name is not the interface name with the first letter lowercased (`userService`).",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (paired-declaration check; ast-grep can detect the shape but the \"single implementation\" trigger is package-scope)",
+    "enforcement": "judgment (paired-declaration scan: for each exported interface, find structs with matching method sets in the same package and check name correspondence — single-implementation packages only)",
     "id": "go-architecture/private-struct-matches-interface",
     "level": "SHOULD",
     "owner": "go-architecture-assistant"

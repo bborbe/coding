@@ -34,24 +34,38 @@ pip install "pydantic<2"
 
 ## Boundary Validation Rules
 
-### Pydantic Usage Scope
+### RULE python-pydantic/boundary-validation-only (MUST)
 
-**Constraint:** Pydantic MUST ONLY be used at system boundaries for external data validation.
+**Owner**: python-quality-assistant
+**Applies when**: a Python service class or internal domain model inherits from `pydantic.BaseModel` instead of using `dataclass` / plain types, in code reached only from already-validated callers (not at an API boundary, queue consumer, file parser, or other untrusted-input ingestion point).
+**Enforcement**: judgment (ast-grep first-pass filter: `class X(BaseModel):` declarations in files outside designated boundary directories like `pkg/api/`, `pkg/handler/`, `pkg/ingestion/`; the agent rules out the "actually at a boundary" case)
+**Why**: Pydantic validation runs on every instantiation. At the system boundary, that cost is justified — incoming JSON could be malformed. Inside the service, the data has already been validated at ingestion; re-validating wastes CPU on every method call and obscures the trust boundary (a reader can't tell which `User` instances are "raw input" vs "already trusted"). Boundary-only use keeps the validation cost where the trust boundary actually is and makes internal code free of `**user.dict()` re-validation rituals.
 
-**Rationale:** Validation overhead is justified only when parsing untrusted input; internal data has already been validated.
-
-**Examples:**
+#### Bad
 
 ```python
-# [GOOD] - Validate at API boundary
-@app.post("/users")
-def create_user(request: CreateUserRequest):  # Pydantic validates here
-    user_service.create(request.to_entity())  # Internal uses plain types
-
-# [BAD] - Pydantic deep in internal code
 class UserService:
-    def get_user(self, user_id: int) -> User:  # Pydantic model internally
-        return self._repo.find_by_id(user_id)
+    def get_user(self, user_id: int) -> User:  # User is a Pydantic BaseModel
+        user = self._repo.find_by_id(user_id)   # validates again on every read
+        return user
+```
+
+#### Good
+
+```python
+# Pydantic at the boundary only
+@app.post("/users")
+def create_user(request: CreateUserRequest):  # validates incoming JSON
+    user_service.create(request.to_entity())  # internal uses plain User type
+
+# Internal types use dataclass — no validation overhead on trusted data
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    id: int
+    name: str
+    email: str
 ```
 
 ### Single Validation Point
@@ -112,24 +126,29 @@ class UserEntity(BaseModel):  # Unnecessary validation overhead
 
 ## Field Definition Rules
 
-### Optional Field Declaration
+### RULE python-pydantic/optional-needs-default (MUST)
 
-**Constraint:** Omittable fields MUST have a default value; `Optional[T]` alone is NOT sufficient.
+**Owner**: python-quality-assistant
+**Applies when**: a Pydantic `BaseModel` field is typed `Optional[T]` / `T | None` (intended to be omittable) but has no default value assigned.
+**Enforcement**: judgment (ast-grep first-pass: `class X(BaseModel):` body containing `name: Optional[T]` or `name: T | None` declarations without `= None` or `= Field(default=...)`; agent confirms intent if needed)
+**Why**: `Optional[T]` is a type-system declaration that values can be `None` — it does NOT make the field omittable. Pydantic still requires the field at instantiation; callers must explicitly pass `name=None`. The "field omitted ⇒ default applied" semantic only kicks in when a default is declared. The bug is silent at definition time and explodes as a `ValidationError: field required` at instantiation — usually in a code path the author thought was optional. Always pair `Optional[T]` with `= None` (or `= Field(default=...)`) when the intent is "may be omitted."
 
-**Rationale:** `Optional[T]` means "T or None", not "field can be omitted". Without a default, the field is still required.
-
-**Examples:**
+#### Bad
 
 ```python
-# [GOOD] - Truly optional with default
 class User(BaseModel):
-    name: Optional[str] = None  # Can be omitted
+    name: Optional[str]   # type says "T or None"; field is still REQUIRED
 
-# [BAD] - Required despite Optional annotation
+User()                    # ValidationError: name field required
+```
+
+#### Good
+
+```python
 class User(BaseModel):
-    name: Optional[str]  # Still REQUIRED - only allows None as value
+    name: Optional[str] = None   # truly omittable: default kicks in when omitted
 
-User()  # ValidationError: field required
+User()                            # OK — name = None
 ```
 
 ### Field Constraints

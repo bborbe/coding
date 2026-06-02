@@ -664,5 +664,59 @@
     "id": "python-logging/lazy-evaluation-for-debug",
     "level": "MUST",
     "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "python-makefile/precommit-target-required",
+    "applies_when": "a Python project's `Makefile` is missing a `precommit` target that runs `format` + `test` + `check` (or equivalent: lint, type-check, test). The default `make` target (no argument) MUST resolve to `precommit` so CI and pre-commit hooks can invoke `make` uniformly across projects.",
+    "doc_path": "docs/python-makefile-commands.md",
+    "enforcement": "judgment (Makefile presence + target-list inspection: `grep -E '^precommit:' Makefile` plus default-target check via `make -np | grep '^precommit'`)",
+    "id": "python-makefile/precommit-target-required",
+    "level": "MUST",
+    "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "python-makefile/uv-not-pip-or-poetry",
+    "applies_when": "a Python project's `Makefile` (or CI script) uses `pip install -r requirements.txt` / `poetry install` / `pipenv install` instead of `uv sync` for dependency management.",
+    "doc_path": "docs/python-makefile-commands.md",
+    "enforcement": "judgment (Makefile + CI-config inspection for non-uv install commands; cross-check against `pyproject.toml` having `[tool.uv]` or `uv.lock` present)",
+    "id": "python-makefile/uv-not-pip-or-poetry",
+    "level": "SHOULD",
+    "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "python-project-structure/pyproject-toml-with-hatchling",
+    "applies_when": "a Python project ships a `setup.py` (legacy distutils/setuptools) or omits `pyproject.toml`, instead of using `pyproject.toml` + hatchling build backend.",
+    "doc_path": "docs/python-project-structure.md",
+    "enforcement": "judgment (file-layout check: `setup.py` present at repo root, OR `pyproject.toml` missing `[build-system]` with `build-backend = \"hatchling.build\"`)",
+    "id": "python-project-structure/pyproject-toml-with-hatchling",
+    "level": "MUST",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-project-structure/src-layout-required",
+    "applies_when": "a Python project's importable package directory (`<package_name>/__init__.py`) sits at the repo root instead of under `src/`.",
+    "doc_path": "docs/python-project-structure.md",
+    "enforcement": "judgment (file-layout check: `<repo-root>/<package_name>/__init__.py` exists at root level when `pyproject.toml` declares the package)",
+    "id": "python-project-structure/src-layout-required",
+    "level": "MUST",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-pydantic/boundary-validation-only",
+    "applies_when": "a Python service class or internal domain model inherits from `pydantic.BaseModel` instead of using `dataclass` / plain types, in code reached only from already-validated callers (not at an API boundary, queue consumer, file parser, or other untrusted-input ingestion point).",
+    "doc_path": "docs/python-pydantic-guide.md",
+    "enforcement": "judgment (ast-grep first-pass filter: `class X(BaseModel):` declarations in files outside designated boundary directories like `pkg/api/`, `pkg/handler/`, `pkg/ingestion/`; the agent rules out the \"actually at a boundary\" case)",
+    "id": "python-pydantic/boundary-validation-only",
+    "level": "MUST",
+    "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "python-pydantic/optional-needs-default",
+    "applies_when": "a Pydantic `BaseModel` field is typed `Optional[T]` / `T | None` (intended to be omittable) but has no default value assigned.",
+    "doc_path": "docs/python-pydantic-guide.md",
+    "enforcement": "judgment (ast-grep first-pass: `class X(BaseModel):` body containing `name: Optional[T]` or `name: T | None` declarations without `= None` or `= Field(default=...)`; agent confirms intent if needed)",
+    "id": "python-pydantic/optional-needs-default",
+    "level": "MUST",
+    "owner": "python-quality-assistant"
   }
 ]

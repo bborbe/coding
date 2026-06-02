@@ -13,6 +13,33 @@ The standard pattern for Go packages in the Services follows this structure:
 
 ## 1. Interface → Constructor → Struct → Method Pattern
 
+### RULE go-architecture/counterfeiter-directive-on-interface (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go service package defines an `interface` declaration intended to be substitutable (mocked, stubbed, or replaced for testing) without a preceding `//counterfeiter:generate` directive.
+**Enforcement**: judgment (ast-grep follow-up: `kind: interface_declaration` + `not.precedes` on a comment matching `//counterfeiter:generate`)
+**Why**: Hand-written mocks drift silently — when the interface gains a method, the mock keeps satisfying the old surface and tests pass against a stale contract. The `//counterfeiter:generate` directive forces `go generate ./...` to regenerate the fake, so any drift surfaces immediately at code-gen time. Missing the directive means the fake isn't regenerated, the test doesn't exercise the new method, and the bug ships.
+
+#### Bad
+
+```go
+// No counterfeiter directive — mock won't regenerate when interface changes
+type UserService interface {
+	Create(ctx context.Context, user User) error
+	Get(ctx context.Context, id UserID) (*User, error)
+}
+```
+
+#### Good
+
+```go
+//counterfeiter:generate -o ../mocks/service-user-service.go --fake-name ServiceUserService . UserService
+type UserService interface {
+	Create(ctx context.Context, user User) error
+	Get(ctx context.Context, id UserID) (*User, error)
+}
+```
+
 ### Interface Definition
 
 Always start with a clear interface definition with counterfeiter comments for mock generation:
@@ -33,6 +60,58 @@ type UserService interface {
 - Include context.Context as first parameter in all methods that return a error
 - Use descriptive interface names ending with the service purpose
 - Document the interface purpose clearly
+
+### RULE go-architecture/new-prefix-constructor-naming (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go function returns an exported interface or struct type and is intended to be the canonical construction site, but the function name does not start with `New`.
+**Enforcement**: judgment (ast-grep follow-up: `function_declaration` returning a type registered as a service interface; partial overlap with `go-factory/no-impl-in-factory-pkg` for the `Create*` family)
+**Why**: `New*` is the universal Go signal for "this is the constructor — give it deps, get back a ready-to-use object". Without it, consumers can't tell `UserService(...)` from a regular function call; tooling (IDE search, godoc grouping, godoc renderers) treats it as ordinary; refactors don't surface the construction site. The convention is cheap; ignoring it costs every consumer a second of "wait, is this the constructor?".
+
+#### Bad
+
+```go
+// Constructor doesn't carry the New* signal
+func CreateUserService(db bolt.DB, logger log.Logger) UserService { ... }
+func UserSvc(db bolt.DB, logger log.Logger) UserService { ... }
+func MakeUserService(db bolt.DB, logger log.Logger) UserService { ... }
+```
+
+#### Good
+
+```go
+func NewUserService(
+	db bolt.DB,
+	logger log.Logger,
+	currentDateTime libtime.CurrentDateTime,
+	userValidator UserValidator,
+) UserService { ... }
+```
+
+### RULE go-architecture/constructor-returns-interface (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go `New*` constructor returns the concrete struct type (`*userService`) instead of the interface it implements (`UserService`).
+**Enforcement**: judgment (ast-grep follow-up: `function_declaration` with name `^New` and result containing the concrete struct, paired with the corresponding interface declaration in the same package)
+**Why**: Returning the concrete struct leaks implementation: callers can reach for non-interface methods, type-assert downstream, depend on private struct fields via reflection. Returning the interface forces every consumer through the contract surface — refactors stay contained, mocks stay drop-in, dependency direction stays one-way.
+
+#### Bad
+
+```go
+// Returns concrete struct — leaks implementation
+func NewUserService(...) *userService {
+	return &userService{...}
+}
+```
+
+#### Good
+
+```go
+// Returns interface — consumers see only the contract
+func NewUserService(...) UserService {
+	return &userService{...}
+}
+```
 
 ### Constructor Function
 
@@ -59,6 +138,33 @@ func NewUserService(
 - Use dependency injection for all dependencies
 - Return the interface type, not the concrete struct
 - Order dependencies logically (db, external services, utilities)
+
+### RULE go-architecture/private-struct-matches-interface (SHOULD)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go package exposes an interface (e.g. `UserService`) implemented by a single struct whose name does not match the interface name with the first letter lowercased (`userService`).
+**Enforcement**: judgment (paired-declaration check; ast-grep can detect the shape but the "single implementation" trigger is package-scope)
+**Why**: When `UserService`'s implementation is `userService`, every reader knows at a glance which struct backs which interface — godoc renders them adjacent, IDE outlines pair them, refactors find them with one rename. When the implementation is `defaultUserService` / `userServiceImpl` / `internalUser`, every reader has to grep to find the link, and "which struct implements this interface" becomes a research task.
+
+#### Bad
+
+```go
+type UserService interface { ... }
+
+// Mismatched name — pairing not obvious
+type userServiceImpl struct { ... }
+type defaultUserService struct { ... }
+type internalUserService struct { ... }
+```
+
+#### Good
+
+```go
+type UserService interface { ... }
+
+// Same name, first letter lowercased — pairing self-evident
+type userService struct { ... }
+```
 
 ### Private Struct Implementation
 
@@ -446,6 +552,50 @@ func TestUserService_Create_Success(t *testing.T) {
 
 ## 7. Dependency Injection Best Practices
 
+### RULE go-architecture/no-globals-or-singletons (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go service package declares a package-level `var` holding a service dependency (logger, DB, HTTP client, time getter, etc.) instead of receiving it through a `New*` constructor.
+**Enforcement**: judgment (ast-grep follow-up: `kind: var_spec` at file scope with a type matching a known service interface; full enforcement needs package-scope reasoning)
+**Why**: Package-level service deps are global state. They (1) make tests order-dependent (one test mutates the global, the next sees it), (2) prevent parallelism (`go test -p N` shares the var), (3) hide the dependency graph (callers can't see what's used), and (4) make refactors fragile (changing the dep means tracing every package that imports the global). Constructor injection makes the graph explicit and the lifecycle controllable.
+
+#### Bad
+
+```go
+// Package-level globals — every consumer shares them
+var (
+	defaultLogger = log.New()
+	defaultDB     = bolt.MustOpen("data.db")
+	defaultNow    = libtime.NewCurrentDateTime()
+)
+
+func DoWork(ctx context.Context) error {
+	defaultLogger.Info("starting")  // implicit dep — hidden from caller
+	return defaultDB.Update(ctx, ...)
+}
+```
+
+#### Good
+
+```go
+type Worker interface {
+	DoWork(ctx context.Context) error
+}
+
+func NewWorker(
+	logger log.Logger,
+	db bolt.DB,
+	currentDateTime libtime.CurrentDateTime,
+) Worker {
+	return &worker{logger: logger, db: db, currentDateTime: currentDateTime}
+}
+
+func (w *worker) DoWork(ctx context.Context) error {
+	w.logger.Info("starting")  // explicit dep — caller controls
+	return w.db.Update(ctx, ...)
+}
+```
+
 ### Service Composition
 - Inject all dependencies through constructors
 - Use interfaces for all dependencies
@@ -635,6 +785,49 @@ func (s *service) ProcessDocument(ctx context.Context, document *Document) error
         return err
     }
     // ... rest of processing
+}
+```
+
+### RULE go-architecture/business-logic-not-in-main (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: `main.go` or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.
+**Enforcement**: judgment (semantic check — what counts as "business logic" requires reading the code)
+**Why**: `main.go` is for wiring: parsing flags, building dependencies, starting goroutines, handling shutdown. Business logic in `main.go` is untestable (Ginkgo suites can't exercise it without `gexec.Build` overhead), unreachable from other binaries (CLI tool vs HTTP server vs worker — they should share `pkg/` code), and impossible to refactor without touching the entry-point. Keep `main.go` thin; push every domain operation into a service.
+
+#### Bad
+
+```go
+// Domain logic mixed into main.go
+func (a *application) Run(ctx context.Context, sentryClient sentry.Client) error {
+	// ... setup code ...
+
+	// Business logic — wrong place
+	user := User{Name: "John"}
+	if user.Name == "" {
+		return errors.New("invalid user")
+	}
+	if err := persistUser(user); err != nil {
+		return err
+	}
+	return nil
+}
+```
+
+#### Good
+
+```go
+// main.go wires; pkg/ owns domain
+func (a *application) Run(ctx context.Context, sentryClient sentry.Client) error {
+	// ... setup code ...
+	service := pkg.NewUserService(a.db, a.logger, a.currentDateTime)
+	return service.ProcessUsers(ctx)
+}
+
+// pkg/user-service.go has the domain
+func (s *userService) ProcessUsers(ctx context.Context) error {
+	// All validation, persistence, decision logic here
+	return nil
 }
 ```
 

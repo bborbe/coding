@@ -525,7 +525,7 @@
     "anchor": "go-k8s-binary/secret-fields-need-display-length",
     "applies_when": "an `application` struct field in a Go k8s-deployed binary holds secret material (PEM key, OAuth token, password, API key, JWT signing secret) without the `display:\"length\"` tag — meaning glog / structured-logging dumps of the application config will print the secret value.",
     "doc_path": "docs/go-k8s-binary-conventions.md",
-    "enforcement": "judgment (ast-grep follow-up: `struct_field_declaration` with name matching `PEM*` / `*Token*` / `*Secret*` / `*Password*` / `*Key` outside `display:\"length\"` tag)",
+    "enforcement": "`rules/go/secret-fields-need-display-length.yml` flags `field_declaration` whose name contains `PEM` / `Token` / `Secret` / `Password` / `Key` / `Credential` and whose tag either lacks `display:\"length\"` or is absent entirely. The agent dismisses incidental name matches (e.g. `MasterKey` for a non-credential master record).",
     "id": "go-k8s-binary/secret-fields-need-display-length",
     "level": "MUST",
     "owner": "go-security-specialist"

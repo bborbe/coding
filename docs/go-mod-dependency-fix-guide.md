@@ -131,7 +131,7 @@ go mod tidy
 go get -u github.com/some/lib@latest
 git add go.mod go.sum
 git commit -m "update some/lib"
-# next contributor: 'go build ./...' errors with transitive version conflicts
+# next contributor: 'make test' errors with transitive version conflicts
 ```
 
 #### Good
@@ -139,7 +139,8 @@ git commit -m "update some/lib"
 ```bash
 go get -u github.com/some/lib@latest
 go mod tidy           # ← reconciles the graph
-go build ./...        # verify it still compiles
+make test             # canonical verification — catches what 'go build' misses
+                      # (per go-makefile/test-not-build-for-verification)
 git add go.mod go.sum
 git commit -m "update some/lib"
 ```
@@ -169,7 +170,7 @@ exclude github.com/broken/dep v0.4.6-0.20260318175007-ec4239d68fb9
 
 ### Other prevention bullets (judgment-tier, not yet canonicalised as RULE blocks)
 
-1. **Test compilation before committing** — `make test` (NOT `go build ./...`) catches transitive breakage AND test failures
+1. **Verify with `make test` before committing** (NOT `go build ./...`) — catches transitive breakage AND test failures; canonical per `go-makefile/test-not-build-for-verification`
 2. **Pin tool dependencies carefully** — tools in `tools.go` pull large dependency trees
 3. **Watch Go release notes** — stdlib type changes (like `os.FileInfo` → `io/fs.DirEntry`) break pre-release dependencies first
 

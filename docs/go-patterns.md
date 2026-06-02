@@ -97,11 +97,16 @@ req := APIRequest{
 #### Bad
 
 ```go
-// if/else chain — silent fallthrough, new enum value silently runs handleDirect
+// if/else chain over 3+ enum values — silent fallthrough,
+// new enum value silently runs handleDirect
 if w.mode == config.WorkflowPR {
 	return w.handlePR(ctx)
+} else if w.mode == config.WorkflowMerge {
+	return w.handleMerge(ctx)
+} else if w.mode == config.WorkflowRebase {
+	return w.handleRebase(ctx)
 }
-return w.handleDirect(ctx) // also runs when mode is the new WorkflowDarkFactory we forgot to handle
+return w.handleDirect(ctx) // ← also runs when mode is the new WorkflowDarkFactory we forgot to handle
 ```
 
 #### Good
@@ -113,6 +118,10 @@ case config.WorkflowDirect:
 	return w.handleDirect(ctx)
 case config.WorkflowPR:
 	return w.handlePR(ctx)
+case config.WorkflowMerge:
+	return w.handleMerge(ctx)
+case config.WorkflowRebase:
+	return w.handleRebase(ctx)
 default:
 	return errors.Errorf(ctx, "unknown workflow: %s", w.mode)
 }

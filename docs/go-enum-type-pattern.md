@@ -14,6 +14,55 @@ Use this pattern when you need:
 
 ## Core Pattern Structure
 
+### RULE go-enum-type/typed-constants-with-collection (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go package introduces a finite set of enum-like values (status codes, kinds, modes, etc.) declared as untyped `const` strings or `const` ints, without a paired typed `string`/`int` newtype AND without an `Available<Name>s` collection containing every valid value.
+**Enforcement**: judgment (ast-grep follow-up: `const_declaration` of `string` literals with shared semantic prefix; pair-check against the existence of a `type X string` newtype + a `var AvailableXs Xs` collection in the same package)
+**Why**: Untyped enum constants spread through the codebase as bare strings — every call site can pass any string, every comparison can typo, and the linter has no signal that "scheduled" / "completed" / "pending" are meant to be members of a closed set. Typed constants paired with an `AvailableXs` collection turn the enum into a first-class type the type-checker enforces and that `Validate()` can range over. The `Available*` collection is what makes the pattern self-describing — a new contributor reads the package and immediately sees the full value space.
+
+#### Bad
+
+```go
+// Untyped string constants — every call site can pass any string
+const (
+	OrderStatusPending    = "pending"
+	OrderStatusProcessing = "processing"
+	OrderStatusCompleted  = "completed"
+	OrderStatusFailed     = "failed"
+)
+
+func Process(status string) error { // accepts any string; typo silent
+	if status == "compleated" { ... } // compiles cleanly; runtime no-op
+}
+```
+
+#### Good
+
+```go
+type OrderStatus string
+
+const (
+	PendingOrderStatus    OrderStatus = "pending"
+	ProcessingOrderStatus OrderStatus = "processing"
+	CompletedOrderStatus  OrderStatus = "completed"
+	FailedOrderStatus     OrderStatus = "failed"
+)
+
+type OrderStatuses []OrderStatus
+
+var AvailableOrderStatuses = OrderStatuses{
+	PendingOrderStatus,
+	ProcessingOrderStatus,
+	CompletedOrderStatus,
+	FailedOrderStatus,
+}
+
+func Process(status OrderStatus) error { // type-checked at call site
+	// ...
+}
+```
+
 ### Minimal Complete Implementation
 
 ```go
@@ -66,6 +115,42 @@ type OrderStatuses []OrderStatus
 func (o OrderStatuses) Contains(status OrderStatus) bool {
 	return collection.Contains(o, status)
 }
+```
+
+### RULE go-enum-type/validate-against-available-collection (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go enum type's `Validate(ctx context.Context) error` method validates against an inline switch / hardcoded value list / regex, instead of `AvailableXs.Contains(value)`.
+**Enforcement**: judgment (ast-grep follow-up: `method_declaration` named `Validate` on an enum-shaped type, body containing inline `switch` / `||` chain over string literals, paired with the package having a defined `AvailableXs` collection)
+**Why**: Validating against an inline switch duplicates the enum's value space — adding a new enum constant requires updating both `const (...)` and the `Validate()` body, and the type checker can't enforce the pair. Range-over-`AvailableXs` collapses the two into one declaration: the collection IS the validation source, so the only place to add a value is the collection literal. Adds-a-constant-but-forgets-to-update-validate becomes structurally impossible.
+
+#### Bad
+
+```go
+func (o OrderStatus) Validate(ctx context.Context) error {
+	switch o {
+	case PendingOrderStatus, ProcessingOrderStatus,
+	     CompletedOrderStatus, FailedOrderStatus:
+		return nil
+	default:
+		return errors.Wrapf(ctx, validation.Error, "unknown order status '%s'", o)
+	}
+	// Adding a new status to const(...) without updating this switch
+	// produces silent validation failures.
+}
+```
+
+#### Good
+
+```go
+func (o OrderStatus) Validate(ctx context.Context) error {
+	if !AvailableOrderStatuses.Contains(o) {
+		return errors.Wrapf(ctx, validation.Error, "unknown order status '%s'", o)
+	}
+	return nil
+}
+// Adding a new status to AvailableOrderStatuses automatically extends
+// the validation surface. Single source of truth.
 ```
 
 ## Implementation Checklist

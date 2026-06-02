@@ -117,6 +117,15 @@
     "owner": "go-architecture-assistant"
   },
   {
+    "anchor": "go-build-args/three-args-required",
+    "applies_when": "a Go service's `Makefile.docker` / `Dockerfile` is missing any of the three canonical `--build-arg` values: `BUILD_GIT_VERSION` (`git describe --tags --always --dirty`), `BUILD_GIT_COMMIT` (`git rev-parse --short HEAD`), `BUILD_DATE` (`date -u +%Y-%m-%dT%H:%M:%SZ`). Equivalent: the `main.go` `var` block doesn't declare matching `buildGitVersion` / `buildGitCommit` / `buildDate` variables wired via `-ldflags \"-X\"`.",
+    "doc_path": "docs/go-build-args-guide.md",
+    "enforcement": "judgment (file-grep across `Makefile.docker` for the three `--build-arg` lines + `Dockerfile` ARG/ENV declarations + `main.go` ldflag-wired var declarations)",
+    "id": "go-build-args/three-args-required",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "go-cli/cobra-not-stdlib-flag",
     "applies_when": "a Go CLI binary's `main.go` / `pkg/cli/...` imports `flag` (stdlib) and calls `flag.String` / `flag.Bool` / `flag.Parse`, instead of using `github.com/spf13/cobra` (with its `pflag` library).",
     "doc_path": "docs/go-cli-guide.md",
@@ -133,6 +142,24 @@
     "id": "go-cli/slog-not-glog-in-new-projects",
     "level": "MUST",
     "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-composition/no-package-function-calls-in-business-logic",
+    "applies_when": "a Go service method calls a top-level package function (`prompt.ListQueued(...)`, `git.CommitAndRelease(...)`) directly instead of receiving the equivalent capability through an injected interface declared in the same package as the consumer.",
+    "doc_path": "docs/go-composition.md",
+    "enforcement": "judgment (ast-grep follow-up: `call_expression` of the form `<package>.<Function>(...)` inside method bodies, where `<package>` is a non-stdlib non-bborbe-library import; the agent rules out leaf packages whose functions are pure helpers).",
+    "id": "go-composition/no-package-function-calls-in-business-logic",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-composition/small-interfaces-1-2-methods",
+    "applies_when": "a Go interface declares 3+ methods spanning more than one logical capability — i.e. consumers of the interface use a subset of methods, and the unused-by-this-consumer methods are inferred from method-count plus call-site analysis.",
+    "doc_path": "docs/go-composition.md",
+    "enforcement": "judgment (ast-grep follow-up: `type_declaration` with `interface_type` body containing 3+ method specifications; the \"one logical capability\" check is semantic)",
+    "id": "go-composition/small-interfaces-1-2-methods",
+    "level": "SHOULD",
+    "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-concurrency/channel-closed-by-sender-only",
@@ -214,6 +241,24 @@
     "id": "go-doc/third-person-no-signature-repeat",
     "level": "SHOULD",
     "owner": "godoc-assistant"
+  },
+  {
+    "anchor": "go-enum-type/typed-constants-with-collection",
+    "applies_when": "a Go package introduces a finite set of enum-like values (status codes, kinds, modes, etc.) declared as untyped `const` strings or `const` ints, without a paired typed `string`/`int` newtype AND without an `Available<Name>s` collection containing every valid value.",
+    "doc_path": "docs/go-enum-type-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `const_declaration` of `string` literals with shared semantic prefix; pair-check against the existence of a `type X string` newtype + a `var AvailableXs Xs` collection in the same package)",
+    "id": "go-enum-type/typed-constants-with-collection",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-enum-type/validate-against-available-collection",
+    "applies_when": "a Go enum type's `Validate(ctx context.Context) error` method validates against an inline switch / hardcoded value list / regex, instead of `AvailableXs.Contains(value)`.",
+    "doc_path": "docs/go-enum-type-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `method_declaration` named `Validate` on an enum-shaped type, body containing inline `switch` / `||` chain over string literals, paired with the package having a defined `AvailableXs` collection)",
+    "id": "go-enum-type/validate-against-available-collection",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-errors/inner-closure-no-double-wrap",

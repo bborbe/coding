@@ -522,11 +522,22 @@ func NewConsumer(options ...func(*ConsumerOptions)) Consumer {
 #### Bad
 
 ```go
-// Function type plural — collides semantically with the struct
-type ConsumerOptions func(*ConsumerOptions) // and the struct is also ConsumerOptions?
+// Function type uses plural — semantically collides with the typical
+// XxxOptions struct name. To avoid a duplicate declaration, the config
+// struct is then forced to a different word (Config), splitting the
+// naming pair across two unrelated nouns.
+type ConsumerOptions func(*ConsumerConfig)
+type ConsumerConfig  struct {
+	BatchSize int
+	Timeout   time.Duration
+}
 
-// Or: function type singular, struct also singular
-type ServerOption func(*ServerOption)       // is ServerOption the modifier or the config?
+// Or: config struct uses singular — collides with the typical XxxOption
+// function-type name. Function type then needs a different word.
+type ServerOption struct {
+	Port int
+}
+type ServerOptionFunc func(*ServerOption)
 ```
 
 #### Good

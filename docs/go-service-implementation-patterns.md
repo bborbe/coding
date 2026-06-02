@@ -23,7 +23,10 @@ This guide captures practical decision-making patterns and implementation choice
 #### Bad
 
 ```go
-// Fixed 3-implementation set, runtime registry — overkill
+// Fixed 3-implementation set, runtime registry — overkill.
+// Also violates `go-architecture/no-globals-or-singletons` (MUST): init()
+// initialises a package-level Registry with all the bound creators —
+// untestable in parallel, hidden dependency graph.
 type ProcessorRegistry struct {
 	processors map[string]ProcessorCreator
 }
@@ -220,6 +223,12 @@ func (e *EmailService) Send(ctx context.Context, msg Message, svcCtx ServiceCont
 ```go
 type EmailService interface {
 	Send(ctx context.Context, msg Message) error
+}
+
+type emailService struct {
+	smtpClient   SMTPClient
+	templateRepo TemplateRepository
+	logger       log.Logger
 }
 
 func NewEmailService(

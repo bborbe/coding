@@ -16,6 +16,20 @@ Every Go binary that runs in a k8s pod (StatefulSet, Deployment, CronJob, epheme
 | `run.CancelOnFirstFinish(ctx, work..., httpServer)` | yes | One goroutine exit cancels the others; clean shutdown |
 | Auth via `application` struct fields, not `os.Getenv` | yes | Framework handles defaults + validation + redaction |
 
+### RULE go-k8s-binary/secret-fields-need-display-length (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: an `application` struct field in a Go k8s-deployed binary holds secret material (PEM key, OAuth token, password, API key, JWT signing secret) without the `display:"length"` tag — meaning glog / structured-logging dumps of the application config will print the secret value.
+**Enforcement**: judgment (ast-grep follow-up: `struct_field_declaration` with name matching `PEM*` / `*Token*` / `*Secret*` / `*Password*` / `*Key` outside `display:"length"` tag)
+**Why**: `argument.Parse()` prints the application config at startup. Without `display:"length"`, the secret value lands in stdout / glog / log aggregators — searchable, indexed, and impossible to redact retroactively once the log batch has shipped. `display:"length"` substitutes `length=42` for the value, preserving the "is it set?" signal without the leak. The tag costs zero runtime; the leak costs a credential rotation.
+
+### RULE go-k8s-binary/argument-struct-not-os-getenv (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go k8s-deployed binary calls `os.Getenv("FOO")` to read a config / auth value that's already declared as an `application` struct field bound via `argument` tags.
+**Enforcement**: judgment (ast-grep partial: `call_expression` matching `os.Getenv(...)` outside `main.go` early bootstrap)
+**Why**: `argument.Parse()` already populates the struct field with the right precedence (CLI flag > env var > default), validates `required:"true"` fields at startup, and redacts via `display:"length"`. Calling `os.Getenv` directly duplicates the env-read, skips the validation, and bypasses the redaction (`os.Getenv("PEM_KEY")` returns the raw secret with no `display:"length"` involvement). Use `a.PEMKey` etc.
+
 ## Application struct shape
 
 ```go

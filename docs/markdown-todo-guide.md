@@ -6,6 +6,13 @@ Read, create, and update Markdown files using checkboxes to manage to-do items a
 
 ---
 
+### RULE markdown-todo/lowercase-x-for-complete (MUST)
+
+**Owner**: agent-auditor
+**Applies when**: a markdown checkbox uses `[X]` (uppercase) or any other variant (`[v]`, `[*]`, `[/]`) to mark a task complete instead of `[x]` (lowercase).
+**Enforcement**: judgment (regex over `^- \[.\]` markdown bullets: only `[ ]` (incomplete) and `[x]` (complete) are recognised by GitHub-flavoured markdown renderers and most checkbox parsers)
+**Why**: GitHub, Obsidian, and most markdown checkbox parsers strictly require lowercase `[x]` to render the checkbox as checked. `[X]` renders as a literal X-in-brackets in some renderers and as a checked checkbox in others — inconsistent across the team's tooling. Picking one form (lowercase, per GFM spec) keeps progress-tracking parsers reliable and visual rendering uniform.
+
 ## 📝 1. Markdown Checkbox Format
 
 ### Basic Syntax

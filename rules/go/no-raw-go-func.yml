@@ -1,0 +1,24 @@
+id: go-concurrency/no-raw-go-func
+language: go
+severity: error
+message: |
+  Raw 'go func()' / 'go expr()' is forbidden outside main entry points.
+  Use github.com/bborbe/run strategies (CancelOnFirstErrorWait, All,
+  Sequential) — raw goroutines leak, race, and require hand-rolled
+  sync.WaitGroup that drift toward deadlocks.
+  See docs/go-concurrency-patterns.md (RULE go-concurrency/no-raw-go-func).
+rule:
+  # ast-grep 0.43.0 shape: Go's tree-sitter grammar uses `go_statement`
+  # for `go expr()` statements. Direct kind match — no metavariable
+  # constraints needed; the path-based `ignores` carry the
+  # main.go / cmd/** / _test.go exemptions.
+  kind: go_statement
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "cmd/**"
+  - "**/cmd/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

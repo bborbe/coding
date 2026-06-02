@@ -1,0 +1,33 @@
+id: go-cli/cobra-not-stdlib-flag
+language: go
+severity: error
+message: |
+  stdlib 'flag' package must not be used for CLI parsing.
+  Transitive dependencies (most famously github.com/golang/glog) register
+  flags via init() and pollute --help output. Use github.com/spf13/cobra
+  with pflag instead.
+  See docs/go-cli-guide.md (RULE go-cli/cobra-not-stdlib-flag).
+rule:
+  # ast-grep 0.43.0 shape: match `import_spec` nodes whose path text
+  # equals "flag" — Go's tree-sitter grammar represents each import line
+  # (in single or grouped form) as an import_spec node with a `path`
+  # field whose value is the quoted package path.
+  any:
+    - kind: import_spec
+      has:
+        field: path
+        regex: '^"flag"$'
+    # Also catch `flag.Parse()` / `flag.String(...)` call sites — in case
+    # someone uses the type-imported form via dot-import or transitively.
+    - pattern: flag.Parse()
+    - pattern: 'flag.String($$$ARGS)'
+    - pattern: 'flag.Bool($$$ARGS)'
+    - pattern: 'flag.Int($$$ARGS)'
+    - pattern: 'flag.StringVar($$$ARGS)'
+    - pattern: 'flag.BoolVar($$$ARGS)'
+    - pattern: 'flag.IntVar($$$ARGS)'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

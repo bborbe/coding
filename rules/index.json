@@ -838,9 +838,9 @@
   },
   {
     "anchor": "go-testing/no-stdlib-table-tests",
-    "applies_when": "a Go test file in a package that has a Ginkgo `*_suite_test.go` uses `t.Run` inside a `for _, tt := range tests` loop instead of `DescribeTable`/`Entry`.",
+    "applies_when": "a Go test file uses `t.Run` inside a `for ... range` loop instead of `DescribeTable`/`Entry`. The rule fires regardless of whether a Ginkgo suite exists in the package — stdlib table-driven tests are discouraged universally; suite-coexistence amplifies the cost.",
     "doc_path": "docs/go-testing-guide.md",
-    "enforcement": "judgment (ast-grep follow-up)",
+    "enforcement": "`rules/go/no-stdlib-table-tests.yml`",
     "id": "go-testing/no-stdlib-table-tests",
     "level": "MUST",
     "owner": "go-test-quality-assistant"

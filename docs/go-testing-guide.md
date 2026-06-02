@@ -18,8 +18,8 @@ Key principles:
 ### RULE go-testing/no-stdlib-table-tests (MUST)
 
 **Owner**: go-test-quality-assistant
-**Applies when**: a Go test file in a package that has a Ginkgo `*_suite_test.go` uses `t.Run` inside a `for _, tt := range tests` loop instead of `DescribeTable`/`Entry`.
-**Enforcement**: judgment (ast-grep follow-up)
+**Applies when**: a Go test file uses `t.Run` inside a `for ... range` loop instead of `DescribeTable`/`Entry`. The rule fires regardless of whether a Ginkgo suite exists in the package — stdlib table-driven tests are discouraged universally; suite-coexistence amplifies the cost.
+**Enforcement**: `rules/go/no-stdlib-table-tests.yml`
 **Why**: Mixed Ginkgo + stdlib tables produce inconsistent reporter output, fragmented runs, and surprises with `--focus` / `--label-filter`. Single-framework enforcement keeps test runs predictable.
 
 #### Bad

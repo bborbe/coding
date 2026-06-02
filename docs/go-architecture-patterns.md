@@ -92,7 +92,7 @@ func NewUserService(
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go `New*` constructor returns the concrete struct type (`*userService`) instead of the interface it implements (`UserService`).
-**Enforcement**: judgment (ast-grep follow-up: `function_declaration` with name `^New` and result containing the concrete struct, paired with the corresponding interface declaration in the same package)
+**Enforcement**: `rules/go/constructor-returns-pointer-not-interface.yml` flags every `func NewXxx(...) *ConcreteStruct` declaration. The agent decides per-finding whether the returned concrete type has a corresponding interface in the same package (real violation) or is a data-holder / config / DTO struct without an interface (exempt) — the same-package interface lookup needs cross-file reasoning ast-grep can't do in a single rule.
 **Why**: Returning the concrete struct leaks implementation: callers can reach for non-interface methods, type-assert downstream, depend on private struct fields via reflection. Returning the interface forces every consumer through the contract surface — refactors stay contained, mocks stay drop-in, dependency direction stays one-way.
 
 #### Bad

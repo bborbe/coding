@@ -38,6 +38,46 @@ logger = logging.getLogger(__name__)
 
 ## Configuration Rules
 
+### RULE python-logging/configure-once-in-main (MUST)
+
+**Owner**: python-quality-assistant
+**Applies when**: a Python file outside the application entry point (i.e. NOT `main.py` / `__main__.py` / `cli.py` invoked as the entry) calls `logging.basicConfig()` or adds handlers to the root logger.
+**Enforcement**: judgment (ast-grep follow-up: `call_expression` matching `logging.basicConfig` outside files identified as entry points by `if __name__ == "__main__":` presence; also flag `root_logger.addHandler` in library code)
+**Why**: `basicConfig` is a one-shot global root-logger setup. Calling it from library code produces three failure modes: (1) first import wins, so the library's config silently overrides the application's choice depending on import order; (2) repeated calls add duplicate handlers, doubling every log line; (3) applications can't change log level without code edits in libraries they don't control. Libraries call `logging.getLogger(__name__)` and emit; configuration is the application's responsibility, and the application does it exactly once.
+
+#### Bad
+
+```python
+# mylib/service.py — library configures logging — wrong
+import logging
+
+logging.basicConfig(level=logging.INFO)   # first import wins, overrides app
+logger = logging.getLogger(__name__)
+
+class UserService: ...
+```
+
+#### Good
+
+```python
+# main.py — application entry point, configure once
+import logging
+
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s [%(name)s:%(lineno)d] %(message)s',
+    level=logging.INFO,
+)
+
+# mylib/service.py — library only gets a logger, never configures
+import logging
+
+logger = logging.getLogger(__name__)
+
+class UserService:
+    def process(self):
+        logger.info("processing user")
+```
+
 ### Configure Logging Once at Application Entry Point
 
 **Constraint:** Application code MUST call `logging.basicConfig()` exactly once at startup in `main.py`. Library code MUST NOT call `basicConfig()` or configure handlers.
@@ -375,6 +415,32 @@ logger.warning("Failed to connect", connection_error)  # Only logs first arg
 
 # [GOOD] Comma syntax with % placeholders (works but less clear)
 logger.warning("Failed to connect: %s", connection_error)
+```
+
+### RULE python-logging/lazy-evaluation-for-debug (MUST)
+
+**Owner**: python-quality-assistant
+**Applies when**: a Python `logger.debug(...)` / `logger.log(logging.DEBUG, ...)` call passes an f-string whose interpolation calls an expensive function (serializer, JSON dump, network fetch, large-collection traversal) instead of using `%s` placeholders with deferred arguments.
+**Enforcement**: judgment (ast-grep partial: `call_expression` named `logger.debug` with an `interpreted_string_literal` first argument containing `f"..."` patterns — the "expensive operation" judgment is semantic)
+**Why**: F-strings interpolate immediately at function-call time. With `logger.debug(f"...{expensive(x)}...")`, `expensive(x)` runs every call, even when DEBUG is filtered out and the message is discarded. `logger.debug("... %s ...", expensive(x))` defers `expensive(x)` to the logging library, which only evaluates arguments when the level is enabled. In hot paths with DEBUG-by-default-off production, the difference between "free" and "this expensive call runs millions of times for log lines no one sees" is measurable. The `isEnabledFor(logging.DEBUG)` guard is the explicit alternative; `%s` is the implicit-defer pattern that scales.
+
+#### Bad
+
+```python
+# F-string forces expensive_serialization to run on every call,
+# even when DEBUG is filtered out and the message is discarded
+logger.debug(f"Details: {expensive_serialization(large_object)}")
+```
+
+#### Good
+
+```python
+# %s placeholder defers evaluation to the logging library — runs only if DEBUG enabled
+logger.debug("Details: %s", expensive_serialization(large_object))
+
+# Explicit guard — same effect, more readable when you also need f-string features
+if logger.isEnabledFor(logging.DEBUG):
+    logger.debug(f"Details: {expensive_serialization(large_object)}")
 ```
 
 ### Use Lazy Evaluation for Expensive DEBUG Operations

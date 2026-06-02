@@ -12,6 +12,49 @@ The standard pattern for Python services follows this structure:
 
 ## 1. Core Pattern: Constructor Injection
 
+### RULE python-architecture/constructor-injection-only (MUST)
+
+**Owner**: python-architecture-assistant
+**Applies when**: a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a method parameter, a global module variable, or `self.foo = bar.foo` mutation after construction — instead of through `__init__`.
+**Enforcement**: judgment (semantic — requires distinguishing dependency injection from runtime parameter passing)
+**Why**: Mixing dependency injection with runtime parameter passing breaks the contract Python's type system relies on. Constructor injection makes the dep set visible at `__init__`, immutable after construction, and self-documenting at the type signature. Method-level injection means tests have to construct the full dep graph for every call site; global injection means tests are order-dependent. Methods should receive only the data needed to do their job — `create_user(user: User)`, not `create_user(repo, logger, validator, user)`.
+
+#### Bad
+
+```python
+class UserService:
+    def create_user(
+        self,
+        repo: UserRepository,   # ← dependency, not runtime data
+        logger: Logger,         # ← dependency, not runtime data
+        validator: UserValidator,  # ← dependency, not runtime data
+        user: User,             # ← actual runtime data
+    ) -> None:
+        validator.validate(user)
+        repo.save(user)
+        logger.info(f"Created user {user.id}")
+```
+
+#### Good
+
+```python
+class UserService:
+    def __init__(
+        self,
+        repo: UserRepository,
+        logger: Logger,
+        validator: UserValidator,
+    ):
+        self._repo = repo
+        self._logger = logger
+        self._validator = validator
+
+    def create_user(self, user: User) -> None:   # only runtime data
+        self._validator.validate(user)
+        self._repo.save(user)
+        self._logger.info(f"Created user {user.id}")
+```
+
 ### Protocol Definition
 
 ```python
@@ -49,6 +92,46 @@ class UserService:
 - Clean separation: deps bound once, methods reusable
 
 ## 2. main.py Pattern (Composition Root)
+
+### RULE python-architecture/main-py-composition-root (SHOULD)
+
+**Owner**: python-architecture-assistant
+**Applies when**: a Python application instantiates service objects at module level (top of `repository.py`, `handler.py`, etc.) instead of wiring them inside `main()` / `main.py`.
+**Enforcement**: judgment (file-scope check: module-level `Service()` / `Repository()` calls outside `if __name__ == "__main__":` blocks)
+**Why**: Module-level instantiation runs at *import time* — order-dependent, hard to test, impossible to mock for unit tests. The composition root pattern says: configuration parsing, infrastructure setup, and service wiring all happen in one place (`main.py` → `main(argv)`), in a deterministic order, with explicit dependency edges. Tests can then construct their own composition root with mock infrastructure; production constructs the real one. Module-level state collapses this clean separation into spaghetti.
+
+#### Bad
+
+```python
+# user_service.py
+from infrastructure import database, api_client  # imports trigger connection!
+
+repo = SqlUserRepository(database)             # module-level — runs at import
+service = UserService(repo, api_client)         # module-level — runs at import
+```
+
+#### Good
+
+```python
+# main.py — composition root
+def main(argv):
+    logging.basicConfig(...)
+    db_url = os.getenv("DATABASE_URL")
+    api_key = os.getenv("API_KEY")
+
+    database = Database(db_url)               # infrastructure first
+    api_client = ApiClient(api_key)
+
+    repo = SqlUserRepository(database)        # services composed explicitly
+    service = UserService(repo, api_client)
+
+    handler = UserHandler(service)
+    HttpServer(8080, handler).run()
+
+# user_service.py — no module-level instantiation
+class UserService:
+    def __init__(self, repo: UserRepository, api: ApiClient): ...
+```
 
 The `main.py` is the **composition root** where all dependencies are wired together.
 

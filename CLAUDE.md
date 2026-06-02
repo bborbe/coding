@@ -39,6 +39,9 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-licensing-guide.md` | `license-assistant` |
 | `agent-command-development-guide.md` | `agent-auditor` + `slash-command-auditor` |
 | `claude-code-skill-writing-guide.md` | `skill-auditor` |
+| `python-architecture-patterns.md` | `python-architecture-assistant` |
+| `python-ioc-guide.md` | `python-architecture-assistant` |
+| `python-logging-guide.md` | `python-quality-assistant` |
 
 Reference-only docs (patterns, setup guides) don't need agents.
 

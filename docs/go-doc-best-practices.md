@@ -16,7 +16,7 @@ This guide describes the best practices for writing Go documentation comments (d
 ### RULE go-doc/exported-item-must-have-comment (MUST)
 
 **Owner**: godoc-assistant
-**Applies when**: a Go file defines an exported (capitalized) function, method, type, interface, struct, constant, or variable without a preceding `//` doc comment.
+**Applies when**: a Go file defines an exported (capitalized) function, method, type, interface, struct, struct field, constant, or variable without a preceding `//` doc comment.
 **Enforcement**: judgment (mechanical follow-up: enable `revive`'s `exported` rule or `golangci-lint`'s `revive` linter with `exported` enabled — these flag every exported identifier without a doc comment)
 **Why**: `pkg.go.dev` renders every exported identifier — undocumented items show up as bare signatures with no context. Consumers reading the API page can't tell what `func Process(*Order) error` does without reading the source. Doc comments are a contract surface; missing them shifts the burden from the author (who knows) to every reader (who doesn't).
 
@@ -52,7 +52,7 @@ func (o *Order) Apply(d Discount) Price { ... }
 
 **Owner**: godoc-assistant
 **Applies when**: an exported identifier has a doc comment whose first word does not match the identifier's name exactly (case-sensitive).
-**Enforcement**: judgment (mechanical follow-up: `revive`'s `exported` rule enforces this; can also be captured with an ast-grep pattern over `func_declaration` + adjacent comment text — see PR #11 recipe for the struct-literal pattern shape)
+**Enforcement**: judgment (mechanical follow-up: no standard linter catches this — `revive`'s `exported` rule only flags *missing* doc comments, not first-word mismatch. Best path is an ast-grep pattern over `func_declaration` / `type_declaration` + adjacent comment text, comparing the first whitespace-delimited word against the identifier name — see PR #11 recipe for the surrounding-comment pattern shape)
 **Why**: `godoc` and `pkg.go.dev` build the docs from the first sentence of each comment and key it by the identifier name. When the comment starts with a different word, the rendered docs read as "X creates a new …" attached to identifier `Y` — confusing and grep-hostile. Starting with the identifier's name also forces the author to think about what the thing *is*, not what they wish it did.
 
 #### Bad

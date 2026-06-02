@@ -75,14 +75,14 @@
     "anchor": "go-doc/comment-starts-with-name",
     "applies_when": "an exported identifier has a doc comment whose first word does not match the identifier's name exactly (case-sensitive).",
     "doc_path": "docs/go-doc-best-practices.md",
-    "enforcement": "judgment (mechanical follow-up: `revive`'s `exported` rule enforces this; can also be captured with an ast-grep pattern over `func_declaration` + adjacent comment text — see PR #11 recipe for the struct-literal pattern shape)",
+    "enforcement": "judgment (mechanical follow-up: no standard linter catches this — `revive`'s `exported` rule only flags *missing* doc comments, not first-word mismatch. Best path is an ast-grep pattern over `func_declaration` / `type_declaration` + adjacent comment text, comparing the first whitespace-delimited word against the identifier name — see PR #11 recipe for the surrounding-comment pattern shape)",
     "id": "go-doc/comment-starts-with-name",
     "level": "MUST",
     "owner": "godoc-assistant"
   },
   {
     "anchor": "go-doc/exported-item-must-have-comment",
-    "applies_when": "a Go file defines an exported (capitalized) function, method, type, interface, struct, constant, or variable without a preceding `//` doc comment.",
+    "applies_when": "a Go file defines an exported (capitalized) function, method, type, interface, struct, struct field, constant, or variable without a preceding `//` doc comment.",
     "doc_path": "docs/go-doc-best-practices.md",
     "enforcement": "judgment (mechanical follow-up: enable `revive`'s `exported` rule or `golangci-lint`'s `revive` linter with `exported` enabled — these flag every exported identifier without a doc comment)",
     "id": "go-doc/exported-item-must-have-comment",

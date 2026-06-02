@@ -16,6 +16,38 @@ This guide defines the canonical layout. Reference implementation: `~/Documents/
 
 **Why `--dirty`**: a `make buca` accidentally run from a worktree with uncommitted changes tags the image as `v0.52.7-dirty`, making it obvious in logs that the deployed binary isn't reproducible from the declared version. Catches mistakes like building from the dark-factory-active master branch while it's mid-commit.
 
+### RULE go-build-args/three-args-required (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go service's `Makefile.docker` / `Dockerfile` is missing any of the three canonical `--build-arg` values: `BUILD_GIT_VERSION` (`git describe --tags --always --dirty`), `BUILD_GIT_COMMIT` (`git rev-parse --short HEAD`), `BUILD_DATE` (`date -u +%Y-%m-%dT%H:%M:%SZ`). Equivalent: the `main.go` `var` block doesn't declare matching `buildGitVersion` / `buildGitCommit` / `buildDate` variables wired via `-ldflags "-X"`.
+**Enforcement**: judgment (file-grep across `Makefile.docker` for the three `--build-arg` lines + `Dockerfile` ARG/ENV declarations + `main.go` ldflag-wired var declarations)
+**Why**: All three answer different runtime questions. `BUILD_GIT_VERSION` answers "which release is running?" — friendly for operators when builds are tagged, falls back to short SHA when untagged, gains `-dirty` suffix when built from a tree with uncommitted changes (catching `make buca` accidents from mid-rebase worktrees). `BUILD_GIT_COMMIT` answers "exact source hash?" — unambiguous when tags get moved or shared across history. `BUILD_DATE` answers "when was this image built?" — separates dev/staging/prod builds with identical source. Omitting any one removes the answer to its specific question. The cost is three lines per file; the value is "what shipped?" being a one-line log read instead of a forensic investigation.
+
+#### Bad
+
+```makefile
+# Makefile.docker — missing BUILD_DATE; dev/staging/prod builds with same SHA
+# are indistinguishable in logs
+build:
+	docker build \
+	--build-arg BUILD_GIT_VERSION=$$(git describe --tags --always --dirty) \
+	--build-arg BUILD_GIT_COMMIT=$$(git rev-parse --short HEAD) \
+	-t $(REGISTRY)/$(SERVICE):$(BRANCH) -f Dockerfile .
+```
+
+#### Good
+
+```makefile
+# Makefile.docker — all three args, canonical order (operators read version first)
+build:
+	DOCKER_BUILDKIT=1 \
+	docker build \
+	--build-arg BUILD_GIT_VERSION=$$(git describe --tags --always --dirty) \
+	--build-arg BUILD_GIT_COMMIT=$$(git rev-parse --short HEAD) \
+	--build-arg BUILD_DATE=$$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+	-t $(REGISTRY)/$(SERVICE):$(BRANCH) -f Dockerfile .
+```
+
 ## Layout
 
 Four files per service participate.

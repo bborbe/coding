@@ -2,6 +2,69 @@
 
 Orchestrators compose small single-responsibility services. Never call package-level functions directly from business logic.
 
+### RULE go-composition/no-package-function-calls-in-business-logic (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go service method calls a top-level package function (`prompt.ListQueued(...)`, `git.CommitAndRelease(...)`) directly instead of receiving the equivalent capability through an injected interface declared in the same package as the consumer.
+**Enforcement**: judgment (ast-grep follow-up: `call_expression` of the form `<package>.<Function>(...)` inside method bodies, where `<package>` is a non-stdlib non-bborbe-library import; the agent rules out leaf packages whose functions are pure helpers).
+**Why**: Direct package-function calls are hidden dependencies. The constructor doesn't surface them, tests can't mock them, and replacing the implementation requires editing every call site instead of swapping one constructor argument. Wrapping each capability in a small interface (`PromptScanner`, `Releaser`) makes the dep graph explicit at the type signature, makes Counterfeiter-mockable points obvious, and lets factories swap real for fake without touching business logic. The cost is one interface declaration per wrapped capability; the value is testability + composability + Single Responsibility at the right granularity.
+
+#### Bad
+
+```go
+// runner calls package functions directly — untestable, uncomposable
+type runner struct {
+	dir      string
+	executor Executor // only this dep is visible at the constructor
+}
+
+func (r *runner) Run(ctx context.Context) error {
+	prompt.ResetExecuting(ctx, r.dir)            // hidden dep on package prompt
+	prompt.NormalizeFilenames(ctx, r.dir)        // hidden dep
+	queued, _ := prompt.ListQueued(ctx, r.dir)   // hidden dep
+	for _, p := range queued {
+		r.executor.Execute(ctx, p)
+	}
+	git.CommitAndRelease(ctx, "release")         // hidden dep on package git
+	return nil
+}
+```
+
+#### Good
+
+```go
+// Runner is the orchestration interface — small (1 method), drives the workflow
+// via injected dependencies declared as their own interfaces.
+type Runner interface {
+	Run(ctx context.Context) error
+}
+
+// PromptScanner returns the queued prompts that have not yet been executed.
+type PromptScanner interface {
+	ListQueued(ctx context.Context) ([]Prompt, error)
+}
+
+// Releaser commits and tags the most recent execution batch.
+type Releaser interface {
+	CommitAndRelease(ctx context.Context, title string) error
+}
+
+// runner is the canonical Runner implementation. All deps surfaced as
+// injected interfaces — constructor tells the full story.
+type runner struct {
+	scanner  PromptScanner
+	executor Executor
+	releaser Releaser
+}
+
+// NewRunner returns a Runner wired with the given scanner, executor, and
+// releaser. Each dep is a separate interface so factories can swap real for
+// fake without touching business logic.
+func NewRunner(scanner PromptScanner, executor Executor, releaser Releaser) Runner {
+	return &runner{scanner: scanner, executor: executor, releaser: releaser}
+}
+```
+
 ## Anti-Pattern: God Object
 
 ```go
@@ -58,10 +121,63 @@ func CreateRunner(promptsDir string) Runner {
 }
 ```
 
+### RULE go-composition/small-interfaces-1-2-methods (SHOULD)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go interface declares 3+ methods spanning more than one logical capability — i.e. consumers of the interface use a subset of methods, and the unused-by-this-consumer methods are inferred from method-count plus call-site analysis.
+**Enforcement**: judgment (ast-grep follow-up: `type_declaration` with `interface_type` body containing 3+ method specifications; the "one logical capability" check is semantic)
+**Why**: The Go convention is "the bigger the interface, the weaker the abstraction" (Rob Pike). A 5-method interface forces every consumer to depend on all 5 methods even when they only use 1 — Counterfeiter generates 5 stubs per test, refactors propagate everywhere, and Interface Segregation Principle violations breed. 1-2 method interfaces are easier to mock, easier to compose, and make each consumer's actual dep surface visible at the type signature. Existing standard library interfaces (`io.Reader`, `io.Writer`, `sort.Interface`, `error`) show the shape: small, focused, composable. SHOULD-level because composition cases (`io.ReadWriteCloser`) and certain framework interfaces legitimately bundle several methods.
+
+#### Bad
+
+```go
+// Fat interface — consumers that only need to log get the kitchen sink
+type Service interface {
+	Log(msg string)
+	Save(ctx context.Context, item Item) error
+	Load(ctx context.Context, id string) (Item, error)
+	Delete(ctx context.Context, id string) error
+	Notify(ctx context.Context, evt Event) error
+}
+```
+
+#### Good
+
+```go
+// Logger emits a single log line. Tiny interface — one method.
+type Logger interface {
+	Log(ctx context.Context, msg string)
+}
+
+// ItemStore is the CRUD-like persistence interface for Item entities.
+// Three methods because they form one coherent capability (item lifecycle).
+type ItemStore interface {
+	Save(ctx context.Context, item Item) error
+	Load(ctx context.Context, id string) (Item, error)
+	Delete(ctx context.Context, id string) error
+}
+
+// Notifier publishes an event to the downstream notification fabric.
+type Notifier interface {
+	Notify(ctx context.Context, evt Event) error
+}
+
+// Service composes the three focused interfaces above. Consumers that need
+// only one capability take only that one as a parameter — Service is the
+// type for the rare consumer that legitimately needs all three.
+// Embedded interfaces satisfy ISP: each focused interface is independently
+// mockable; Service just declares the union.
+type Service interface {
+	Logger
+	ItemStore
+	Notifier
+}
+```
+
 ## Rules
 
-1. **Small interfaces** — 1-2 methods per interface (SRP)
-2. **All deps via constructor** — never call `pkg.Function()` from business logic
+1. **Small interfaces** — 1-2 methods per interface (canonicalised as `go-composition/small-interfaces-1-2-methods`)
+2. **All deps via constructor** — never call `pkg.Function()` from business logic (canonicalised as `go-composition/no-package-function-calls-in-business-logic`)
 3. **Constructor shows intent** — reading `NewRunner(scanner, executor, releaser)` tells you exactly what it needs
 4. **Package functions → wrap in interface** — if you call `git.Push()` directly, extract a `Pusher` interface
 5. **Factory composes** — `CreateRunner()` wires all small services together

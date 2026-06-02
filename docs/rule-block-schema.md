@@ -4,7 +4,7 @@ Authoritative reference for the `### RULE` block contract in `docs/*.md` files a
 
 ## ### RULE Block Contract
 
-A rule block is a level-3 Markdown heading (`### RULE`) followed by three required field lines. The walker extracts these into `rules/index.json`.
+A rule block is a level-3 Markdown heading (`### RULE`) followed by three required field lines, a recommended `Why` paragraph, and Bad/Good code examples. The walker extracts the three required fields into `rules/index.json`.
 
 #### Heading Format
 
@@ -31,6 +31,21 @@ Immediately beneath the heading, three fields must appear, each on its own line:
 - **Owner**: The `coding:`-prefixed agent name that enforces this rule (e.g. `go-context-assistant`, `python-quality-assistant`).
 - **Applies when**: Describes the condition under which the rule fires.
 - **Enforcement**: Describes how the rule is enforced — typically a path to an ast-grep rules file plus any LLM-adjudication notes.
+
+### Recommended Field: `Why`
+
+Most rule blocks in this repo carry a `**Why**:` paragraph immediately after `**Enforcement**:`. The `Why` is not indexed (the walker ignores it) but is highly recommended as the *only* place the rule's rationale lives — it tells future authors, agents, and bot reviewers *what failure mode this rule prevents*, which is what makes the rule defensible during code review.
+
+```markdown
+**Why**: <one or two sentences explaining the failure mode this rule prevents
+and the cost of getting it wrong>
+```
+
+Omit `Why` only when the rule's rationale is genuinely self-evident from the rule ID and the Bad/Good examples — which is rare. Every rule shipped to date in this repo carries it.
+
+### Recommended Sections: Bad / Good Examples
+
+After the field block, every rule block in this repo carries `#### Bad` and `#### Good` code examples that show the violation and the fix. These are not indexed but are essential for human readers and bot review: they make the rule's intent unambiguous and give the bot something concrete to compare review findings against.
 
 ### Level Tokens
 

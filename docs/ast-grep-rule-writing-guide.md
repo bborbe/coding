@@ -72,6 +72,42 @@ rule:
 
 This matches a `for` loop whose body, anywhere down the tree, does NOT contain `<-ctx.Done()`. Canonical example: `rules/go/cancel-check-in-loop.yml`.
 
+### Struct-literal field matching
+
+For "field X inside struct literal Y must satisfy constraint Z" shapes — the common Go case is checking a single field of a `prometheus.CounterOpts{}` / `http.Cookie{}` / etc. Requires three composed pieces:
+
+1. **`pattern.context + selector`** to target the field as a structural sub-node. A bare `'Name: $X'` does NOT work — Go parses it as a `labeled_statement` (Name treated as a goto label), not as a struct `keyed_element`. The `context` supplies surrounding code that disambiguates the parse; `selector` picks the sub-node to report:
+
+   ```yaml
+   pattern:
+     context: 'prometheus.CounterOpts{Name: $V, $$$}'
+     selector: 'keyed_element'
+   ```
+
+2. **`inside` with `stopBy: end`** to re-anchor on the enclosing literal type so sibling types with the same field shape (e.g. `GaugeOpts`, `HistogramOpts`, `SummaryOpts` all carry a `Name:` field) do not false-flag through the context match:
+
+   ```yaml
+   inside:
+     pattern: 'prometheus.CounterOpts{$$$}'
+     stopBy: end
+   ```
+
+3. **`constraints` at rule-top-level**, sibling to `rule:` (NOT a child of `rule.pattern.constraints` — that form is rejected by the parser). `not.regex` works inside the metavariable spec:
+
+   ```yaml
+   constraints:
+     V:
+       not:
+         regex: '_total"$'
+   ```
+
+Canonical example: `rules/go/counter-total-suffix.yml`. Verified 4 TP / 0 FP across:
+
+- `NewCounterVec(CounterOpts{Name: "X"})` — matches if `X` missing `_total`
+- `NewCounter(CounterOpts{Name: "X"})` — same struct, also matches
+- Field-position-agnostic — flags regardless of whether `Name` is first, middle, or last
+- `GaugeOpts` / `HistogramOpts` with `Name:` — does NOT match (anchored to CounterOpts)
+
 ### Kind matchers
 
 When matching by AST node type rather than a literal pattern. Examples: `kind: for_statement`, `kind: field_declaration`, `kind: function_declaration`.
@@ -97,6 +133,9 @@ Reference for available node kinds: <https://ast-grep.github.io/reference/yaml.h
 - **Generated code in `mocks/`**. Counterfeiter outputs to `mocks/` by convention across bborbe Go projects. Always include `**/mocks/**` in `ignores` — generated mock files create false positives (trivial copy loops, unconventional patterns).
 - **`**/main.go` does NOT match the project's root `main.go`** in ast-grep's glob engine — `**/` requires at least one directory level, so `cmd/foo/main.go` matches but a repo-root `main.go` does not. Always include BOTH `main.go` (root) AND `**/main.go` (subdirs) in `ignores`. Verified on dark-factory: a single root-level `main.go` produced 11 false positives until the bare `main.go` pattern was added.
 - **`pattern: $NAME time.Time` matches field declarations specifically**, not arbitrary `time.Time` usage. ast-grep's pattern-with-metavariable shape requires both a placeholder and the literal type — it does not match a bare `time.Time` mention.
+- **Struct-field patterns parse as labeled statements.** A bare `pattern: 'Name: $X'` parses Go as a `labeled_statement` (Name = goto label), not a struct `keyed_element`. The match silently produces zero results. Wrap in a `pattern.context + selector` (see Struct-literal field matching above) to disambiguate.
+- **`pattern.context` alone leaks to sibling types.** Matching `'prometheus.CounterOpts{Name: $X, $$$}'` with `selector: keyed_element` will fire on `GaugeOpts` / `HistogramOpts` / `SummaryOpts` too because the selector reports the sub-node without enforcing the context's literal type. Anchor with `inside.pattern + stopBy: end` on the specific type.
+- **`constraints` placement matters.** It is a top-level sibling of `rule:`, not a child of `rule.pattern`. Embedding `constraints:` under `rule.pattern.constraints` is rejected by the YAML parser. `not.regex` is allowed inside `constraints.<metavar>.not`.
 
 ## Smoke Testing
 
@@ -149,5 +188,6 @@ If a rule is MUST-level but can't be mechanical, that is a smell. Either downgra
   - `rules/go/cancel-check-in-loop.yml` — `not.has` deep walk
   - `rules/go/no-time-now-direct.yml` — simple `pattern:` presence
   - `rules/go/no-time-time-in-fields.yml` — struct field detection via `any:` alternation
+  - `rules/go/counter-total-suffix.yml` — struct-literal field matching with `pattern.context + selector + inside.stopBy + constraints.not.regex`
 - ast-grep reference: <https://ast-grep.github.io/reference/yaml.html>
 - ast-grep playground (verify node kinds before committing): <https://ast-grep.github.io/playground.html>

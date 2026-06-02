@@ -71,8 +71,9 @@ type UserService interface {
 #### Bad
 
 ```go
-// Service-package construction site — should be New*
+// Service-package construction sites — should all be New*
 func MakeUserService(db bolt.DB, logger log.Logger) UserService { ... }
+func BuildUserService(db bolt.DB, logger log.Logger) UserService { ... }
 func UserSvc(db bolt.DB, logger log.Logger) UserService { ... }
 ```
 
@@ -576,7 +577,7 @@ func DoWork(ctx context.Context) error {
 
 ```go
 type UserService interface {
-	DoWork(ctx context.Context) error
+	Create(ctx context.Context, user User) error
 }
 
 func NewUserService(
@@ -587,8 +588,8 @@ func NewUserService(
 	return &userService{logger: logger, db: db, currentDateTime: currentDateTime}
 }
 
-func (u *userService) DoWork(ctx context.Context) error {
-	u.logger.Info("starting")  // explicit dep — caller controls
+func (u *userService) Create(ctx context.Context, user User) error {
+	u.logger.Info("creating user")  // explicit dep — caller controls
 	return u.db.Update(ctx, ...)
 }
 ```

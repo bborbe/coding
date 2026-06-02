@@ -8,6 +8,16 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## v0.14.0
+
+- feat(rules): grow `rules/index.json` from 27 to 124 entries (+97 rules across 44 doc families). Most enforceable conventions in `docs/` now carry canonical `### RULE <id> (LEVEL)` blocks consumable by `/coding:pr-review`.
+- feat(rules): new rule families bootstrapped — `go-architecture`, `go-prometheus`, `go-testing`, `go-licensing`, `go-doc`, `go-state-machine`, `go-linting`, `go-json-error-handler`, `go-service-impl`, `go-k8s-crd`, `go-functional-options`, `go-mod-replace`, `go-glog`, `go-concurrency`, `go-http-service`, `go-cqrs`, `go-cli`, `go-enum-type`, `go-composition`, `go-build-args`, `go-mod-dependency-fix`, `go-makefile`, `go-patterns`, `go-library`, `go-k8s-binary`, `go-filter`, `go-parse`, `go-validation`, `go-tools-versioning`, `go-boolean-combinator`, `go-mod-dependency-fix`, `agent-cmd`, `python-architecture`, `python-ioc`, `python-logging`, `python-pydantic`, `python-project-structure`, `python-makefile`, `python-factory`, `tdd`, `test-pyramid`, `changelog`, `git-workflow`, `markdown-todo`, `claude-md`, `readme`, `skill-writing`, `teamvault`, `k8s-manifest`, `adr`.
+- feat(rules): first mechanical ast-grep YAML for a bootstrapped rule — `rules/go/counter-total-suffix.yml` (enforces `go-prometheus/counter-total-suffix` at lint time). Recipe for struct-literal-field matching codified in `docs/ast-grep-rule-writing-guide.md` (PR #11 → #12).
+- feat(precommit): new `make check-index` target wired into the precommit chain — fails loudly when `rules/index.json` is stale relative to the walker output. Closes the gap that turned the PR #9 walker-regen miss into a retroactive PR #10 catch-up.
+- docs(trim): trim three oversized guides to rules-only form, moving comprehensive reference content to the maintainer's Obsidian KB so `coding/docs/` stays portable for any plugin installer — `go-prometheus-metrics-guide.md` 2399 → 379 lines, `go-testing-guide.md` 1207 → 428 lines, `agent-command-development-guide.md` 1750 → 347 lines.
+- docs(schema): `docs/rule-block-schema.md` now documents the recommended `**Why**:` paragraph and `#### Bad` / `#### Good` example sections — closes a gap where every existing rule block carried Why but the schema doc only described the three required fields.
+- chore(rules): CLAUDE.md doc-agent alignment table grew from 13 to 44 entries to match the new rule-family coverage.
+
 ## v0.13.0
 
 - docs(trim): trim `docs/go-prometheus-metrics-guide.md` 2399 → 379 lines (rules-only architecture; comprehensive reference moves to maintainer's Obsidian KB).

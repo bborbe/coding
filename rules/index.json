@@ -435,7 +435,7 @@
     "anchor": "go-glog/use-v-for-debug-not-info",
     "applies_when": "a Go file calls `glog.Info` / `glog.Infof` for debug, trace, internal-state, or developer-troubleshooting log lines that should be filtered out in production — instead of `glog.V(N).Info...` / `glog.V(N).Infof...` with an appropriate verbosity level (1 for sysop debug, 2 for dev default, 3+ for deep debug). Scope: applies across ALL V levels — V0 is reserved for production-default operator info; everything debug-shaped goes through `V(N)`.",
     "doc_path": "docs/go-glog-guide.md",
-    "enforcement": "judgment (ast-grep follow-up: `call_expression` matching `glog.Info(...)` / `glog.Infof(...)` outside startup/shutdown contexts; the agent rules in \"is this production-default-worthy?\" based on the log content)",
+    "enforcement": "`rules/go/glog-info-needs-v.yml` flags every `glog.Info(...)` / `glog.Infof(...)` call. The agent decides per-finding whether the call is V0-worthy production-operator info (startup, shutdown, health change, recovered panic) or debug-shaped content that should be gated behind `V(N)` — that distinction needs reading the log message intent, which ast-grep can't do.",
     "id": "go-glog/use-v-for-debug-not-info",
     "level": "MUST",
     "owner": "go-quality-assistant"

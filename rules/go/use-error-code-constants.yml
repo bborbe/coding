@@ -1,0 +1,40 @@
+id: go-json-error-handler/use-error-code-constants
+language: go
+severity: error
+message: |
+  HTTP error-code argument to `libhttp.WrapWithCode` /
+  `libhttp.WrapWithDetails` / `libhttp.NewJSONError` is a raw string
+  literal instead of a `libhttp.ErrorCodeXxx` constant. Typos in raw
+  strings ship silently — clients pattern-matching on the code
+  surface the wrong dispatch arm. Use the constants
+  (`libhttp.ErrorCodeValidation`, `ErrorCodeNotFound`, etc.) so
+  typos fail at compile time and grep finds every code from one
+  source of truth.
+  See docs/go-json-error-handler-guide.md
+  (RULE go-json-error-handler/use-error-code-constants).
+rule:
+  # ast-grep 0.43 shape (verified empirically):
+  #   - `constraints:` only applies at rule-top-level (not inside any/all
+  #     items). Shared $F (function name) and $CODE (third arg)
+  #     metavariables constrain both branches.
+  #   - any[0] covers the 3-arg variants `WrapWithCode` / `NewJSONError`
+  #     via regex on $F.
+  #   - any[1] covers the 4-arg `WrapWithDetails` explicitly. The two
+  #     can't share one pattern because $$$ alone isn't a reliable
+  #     positional binder for the metavar-constraint shape (see PR #29
+  #     learning on cobra-not-stdlib-flag's flag.* variants).
+  any:
+    - all:
+        - pattern: 'libhttp.$F($A, $B, $CODE)'
+    - all:
+        - pattern: 'libhttp.WrapWithDetails($A, $B, $CODE, $D)'
+constraints:
+  F:
+    regex: '^(WrapWithCode|NewJSONError)$'
+  CODE:
+    kind: interpreted_string_literal
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

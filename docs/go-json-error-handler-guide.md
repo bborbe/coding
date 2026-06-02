@@ -84,7 +84,7 @@ All JSON errors follow this structure:
 
 **Owner**: go-http-handler-assistant
 **Applies when**: a Go HTTP handler passes a raw string literal as the error-code argument to `libhttp.WrapWithCode` / `libhttp.NewJSONError` instead of the `libhttp.ErrorCodeXxx` constants.
-**Enforcement**: judgment (ast-grep follow-up: pattern over `libhttp.WrapWithCode($$, $$, $CODE)` / `WrapWithDetails($$, $$, $CODE, $$)` with `$CODE` constrained to be a `interpreted_string_literal` — see PR #11 recipe for the metavariable-constraint shape)
+**Enforcement**: `rules/go/use-error-code-constants.yml` flags `libhttp.WrapWithCode(...)` / `libhttp.NewJSONError(...)` / `libhttp.WrapWithDetails(...)` calls whose third argument is an `interpreted_string_literal` (raw string) instead of an `ErrorCodeXxx` constant selector_expression. Uses the metavariable-constraint shape (PR #11 recipe).
 **Why**: Error codes are the dispatch surface clients pattern-match on. A typo in `"VAIDATION_ERROR"` ships silently — the client's `if code == "VALIDATION_ERROR"` branch never fires, the error falls through to the generic handler, and the bug surfaces as "validation errors don't show the inline form-field highlight." Constants make typos fail at compile time, give grep a single source of truth for which codes exist, and let the constant's godoc anchor the HTTP-status / semantic contract per code.
 
 #### Bad

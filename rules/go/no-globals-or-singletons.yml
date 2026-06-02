@@ -20,6 +20,17 @@ rule:
   # appears on the RHS (or the call is just `New(...)` without an
   # uppercase suffix).
   kind: var_declaration
+  # Scope to PACKAGE-LEVEL vars only — function-local vars like
+  # `var validator = NewOrderValidator(...)` inside a method body are
+  # NOT global state and shouldn't fire. The not.inside clause filters
+  # out any var_declaration nested inside a function_declaration or
+  # method_declaration. (Added after PR #32 bot review.)
+  not:
+    inside:
+      any:
+        - kind: function_declaration
+        - kind: method_declaration
+      stopBy: end
   has:
     stopBy: end
     kind: call_expression

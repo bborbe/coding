@@ -118,10 +118,60 @@ go mod tidy
 
 ## Prevention
 
-1. **Always run `go mod tidy` after `go get -u`** — ensures graph consistency
-2. **Test compilation before committing** — `go build ./...` catches transitive breakage
-3. **Pin tool dependencies carefully** — tools in `tools.go` pull large dependency trees
-4. **Watch Go release notes** — stdlib type changes (like `os.FileInfo` → `io/fs.DirEntry`) break pre-release dependencies first
+### RULE go-mod-dependency-fix/tidy-after-get-update (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go project's CHANGELOG / git history shows a `go get -u <pkg>` or `go get <pkg>@<version>` operation that was committed without a subsequent `go mod tidy` (`go.sum` shows added entries but no removed-but-no-longer-needed entries; or `go.mod` has new `require` lines but `go.sum` has unused hashes).
+**Enforcement**: judgment (semantic — typically caught at PR review: the commit message says "update X" but the diff doesn't have the `go mod tidy` side effects)
+**Why**: `go get -u` and `go get @version` update individual modules but leave the dependency graph inconsistent — transitively required modules at older incompatible versions stay pinned, transitively-no-longer-needed modules linger in `go.sum`. The next contributor's `go build` fails with cryptic version-conflict errors. `go mod tidy` recalculates Minimum Version Selection (MVS) for the entire graph after every dep change — it's the canonical "leave the graph clean" step. Skipping it is the #1 cause of the broken-build-after-merge problem.
+
+#### Bad
+
+```bash
+go get -u github.com/some/lib@latest
+git add go.mod go.sum
+git commit -m "update some/lib"
+# next contributor: 'go build ./...' errors with transitive version conflicts
+```
+
+#### Good
+
+```bash
+go get -u github.com/some/lib@latest
+go mod tidy           # ← reconciles the graph
+go build ./...        # verify it still compiles
+git add go.mod go.sum
+git commit -m "update some/lib"
+```
+
+### RULE go-mod-dependency-fix/exclude-over-cross-repo-replace (SHOULD)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go project pins around a known-broken upstream transitive version by adding a `replace` directive that points at a different repo (forked code, pseudo-version on a different module path) instead of an `exclude` directive that lets MVS pick the next valid version.
+**Enforcement**: judgment (semantic — `replace` for known-broken-version-skip and `replace` for cross-repo-pinning look identical in `go.mod`; the intent is the differentiator)
+**Why**: `exclude` is the right primitive for "this specific version is broken; let MVS choose another." It says "skip version v0.4.6-..., pick the next valid one." `replace` is the right primitive for "redirect this module to a different source location" — fine for same-repo monorepo paths (see `go-mod-replace/no-cross-repo-replace`), wrong for "pin to an upstream fix that exists on main but isn't tagged." A `replace` to upstream-main hides the fact that the project requires an unreleased commit; an `exclude` of the broken version makes the skip explicit and lets the next valid upstream tag resolve normally.
+
+#### Bad
+
+```go
+// go.mod — pinning around a broken transitive via cross-repo replace
+replace github.com/broken/dep => github.com/myfork/dep v0.4.5-fixed
+// hides the fact that the upstream commit is broken; introduces a fork dependency
+```
+
+#### Good
+
+```go
+// go.mod — excluding the broken version lets MVS pick the next valid one
+exclude github.com/broken/dep v0.4.6-0.20260318175007-ec4239d68fb9
+// Then: go mod tidy → MVS picks v0.4.5 (the previous valid tag) or v0.4.7 if released
+```
+
+### Other prevention bullets (judgment-tier, not yet canonicalised as RULE blocks)
+
+1. **Test compilation before committing** — `make test` (NOT `go build ./...`) catches transitive breakage AND test failures
+2. **Pin tool dependencies carefully** — tools in `tools.go` pull large dependency trees
+3. **Watch Go release notes** — stdlib type changes (like `os.FileInfo` → `io/fs.DirEntry`) break pre-release dependencies first
 
 ## Real-World Example: osv-scalibr + Go 1.26
 

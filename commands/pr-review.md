@@ -74,21 +74,6 @@ Detect project type in `REVIEW_DIR`:
 - **Go**: `go.mod` exists
 - **Python**: `pyproject.toml` or `requirements.txt` exists
 
-### Step 2.5: Load Context-Specific Conventions
-
-Before running automated checks or agents, scan the diff for file types that demand a project-convention doc. Read each matching doc into context BEFORE Step 4 so agent prompts and the manual-review pass interpret findings against the right rules.
-
-| If diff touches… | Read first |
-|---|---|
-| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `~/Documents/workspaces/coding/docs/teamvault-conventions.md` (so secrets review does not flag teamvault LOOKUP KEYS — short alphanumeric values like `kLoejw` — as exposed credentials) |
-| `main.go` of a service deployed to k8s (HTTP server, StatefulSet, Deployment) | `~/Documents/workspaces/coding/docs/go-k8s-binary-conventions.md` |
-| `k8s/*.yaml` (non-secret) | `~/Documents/workspaces/coding/docs/k8s-manifest-guide.md` |
-| `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
-
-Load only the docs that apply — short reviews don't pay the cost when files aren't touched. Inside the YOLO container the docs are mounted at `/home/node/.claude/plugins/marketplaces/coding/docs/` — use that path instead of the host path when running container-side.
-
-Findings cross-referenced against these docs are stronger than generic guidance: the reviewer can say "teamvault lookup key per teamvault-conventions.md — not flagged" instead of speculating about secret exposure.
-
 ### Step 3: Run Automated Checks (All Modes)
 
 **3a. Check for LICENSE file** in `REVIEW_DIR` root.
@@ -102,35 +87,69 @@ coding:simple-bash-runner agent: "cd <REVIEW_DIR> && make precommit"
 
 Include failures in report. Continue regardless.
 
-### Step 4: Automated Agent Review
+### Step 4: Dispatcher — ast-grep funnel → per-Owner LLM adjudication
 
-All agent prompts MUST specify `REVIEW_DIR` as the working directory.
+The dispatcher replaces the previous hardcoded "load conventions + invoke fixed agent list" flow with a doc-driven pipeline backed by `rules/index.json`. Mechanical pre-filter via `coding:ast-grep-runner`; LLM-tier adjudication only for findings that survive, plus judgment-tier rules that have no mechanical YAML.
 
 **Short Mode**: No agents — skip to Step 5.
 
-**Standard Mode** (default):
+#### 4a: Mechanical funnel
 
-*Go projects:*
-1. **go-quality-assistant**: Idiomatic Go, error handling, context usage
-2. **go-factory-pattern-assistant**: Factory compliance, zero-business-logic (review only)
-3. **go-http-handler-assistant**: Handler organization, inline detection (review only)
-4. **go-test-coverage-assistant**: Coverage gaps (review only)
+```
+coding:ast-grep-runner agent: "TARGET_DIR=<REVIEW_DIR>. Run every ast-grep YAML in rules/<lang>/*.yml. Return findings grouped by Owner per the agent's documented JSON contract."
+```
 
-*Python projects:*
-1. **python-quality-assistant**: Style, type hints, error handling, async safety
+The runner emits `{stats, findings_by_owner: {<agent-name>: [...findings]}, errors}`.
 
-*Conditional:*
-- **license-assistant**: Only if LICENSE missing
+#### 4b: Per-Owner adjudication
 
-**Full Mode**:
+For each `<owner>` in `findings_by_owner` AND for each non-mechanical (judgment-tier) rule whose `owner` matches a per-language agent in `agents/`:
 
-*Go projects:*
-1-10: godoc, go-quality, go-test-quality, go-security, srp-checker, go-version-manager, go-tooling, go-factory-pattern, go-http-handler, go-test-coverage
+```
+coding:<owner> agent: "REVIEW_DIR=<REVIEW_DIR>.
 
-*All projects:*
-11-14: license, readme-quality, shellcheck, context7-library-checker
+Pre-filtered mechanical findings (from ast-grep-runner):
+<findings_by_owner[<owner>] JSON>
 
-Run agents concurrently.
+Judgment-tier rules you own (from rules/index.json):
+<list of rule ids with enforcement=judgment AND owner=<this agent>>
+
+Adjudicate: for each finding, assign severity (Critical / Important / Optional), add a fix suggestion that cites the rule by ID, and report findings citing only rule_ids that exist in rules/index.json. Drop any finding whose rule_id is not in the index — that's a stale-walker bug, not your concern.
+
+Also scan the diff for judgment-tier rules listed above and report violations you find there.
+
+Only review changed files from the diff. Exclude vendor/ and node_modules/."
+```
+
+Run these per-owner dispatches **concurrently** — they're independent.
+
+#### 4c: Context-specific conventions (kept from prior Step 2.5)
+
+Some review questions still benefit from a full-doc read even in dispatcher mode. Load these conventionally when the diff matches:
+
+| If diff touches… | Read first |
+|---|---|
+| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `~/Documents/workspaces/coding/docs/teamvault-conventions.md` (so secrets review does not flag teamvault LOOKUP KEYS — short alphanumeric values like `kLoejw` — as exposed credentials) |
+| `main.go` of a service deployed to k8s (HTTP server, StatefulSet, Deployment) | `~/Documents/workspaces/coding/docs/go-k8s-binary-conventions.md` |
+| `k8s/*.yaml` (non-secret) | `~/Documents/workspaces/coding/docs/k8s-manifest-guide.md` |
+| `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
+
+Inside the YOLO container the docs are mounted at `/home/node/.claude/plugins/marketplaces/coding/docs/`.
+
+#### 4d: Citation validation
+
+Before consolidating in Step 5, walk every finding from 4b's agent reports and verify its `rule_id` field exists in `rules/index.json`. Drop findings citing missing IDs — they're hallucinations or stale-walker references. Log dropped findings to stderr so the post-review smoke can detect drift.
+
+```bash
+coding:simple-bash-runner agent: "bash scripts/validate-citations.sh <findings.json>"
+```
+
+The script exits non-zero if any finding's `rule_id` is not in `rules/index.json`; the dispatcher logs the offenders and continues with the validated subset.
+
+#### Conditional agents (independent of rule-base)
+
+- **license-assistant**: Only if LICENSE missing (independent of rules/index.json — file-presence check)
+- **readme-quality-assistant** / **shellcheck-assistant** / **context7-library-checker**: Full Mode only; called as before
 
 ### Step 5: Consolidated Report
 

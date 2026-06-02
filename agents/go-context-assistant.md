@@ -8,9 +8,13 @@ color: orange
 
 # Purpose
 
-Enforce proper context usage in Go code. Detect `context.Background()` outside main/test, and loops missing `ctx.Done()` cancellation.
+Enforce proper context usage. Adjudicate findings the `ast-grep-runner` already pre-filtered under owner `go-context-assistant`, plus surface judgment-tier rules the mechanical layer cannot detect.
 
-**Source of truth:** Read `go-context-cancellation-in-loops.md` from the coding plugin docs before reviewing.
+**Source of truth (rule definitions):** `rules/index.json` entries with `owner: go-context-assistant`. Companion guide `docs/go-context-cancellation-in-loops.md` carries the same rules with `### RULE` blocks; consult for context, not for "what to enforce".
+
+## When invoked by the dispatcher
+
+The dispatcher (`commands/pr-review.md` Step 4b) calls this agent with pre-filtered mechanical findings + judgment-tier rule IDs you own. Adjudicate severity, suggest fixes, cite the rule by ID. Don't re-scan for mechanical violations. Every emitted `rule_id` MUST exist in `rules/index.json` (validated by `scripts/validate-citations.sh`).
 
 ## Detection Patterns
 

@@ -8,9 +8,24 @@ color: red
 
 # Purpose
 
-Enforce `github.com/bborbe/errors` for all error wrapping. Detect `fmt.Errorf`, bare `return err`, and missing context in error chains.
+Enforce `github.com/bborbe/errors` for all error wrapping. Adjudicate findings the `ast-grep-runner` already pre-filtered under owner `go-error-assistant`, plus surface judgment-tier rules the mechanical layer cannot detect.
 
-**Source of truth:** Read `go-error-wrapping-guide.md` from the coding plugin docs before reviewing.
+**Source of truth (rule definitions):** `rules/index.json` entries with `owner: go-error-assistant`. Read those first — they're the canonical contract. The companion guide `docs/go-error-wrapping-guide.md` carries the same rules with `### RULE` blocks + expanded Why + Bad/Good examples; consult it for context when adjudicating, not for "what to enforce" (the index is the contract).
+
+## When invoked by the dispatcher
+
+The dispatcher (`commands/pr-review.md` Step 4b) calls this agent with:
+
+1. A list of pre-filtered mechanical findings (already deduped, anchored to file+line, citing valid rule IDs from `rules/index.json`).
+2. A list of judgment-tier rule IDs you own (from `rules/index.json` where `owner == go-error-assistant` AND `enforcement == judgment` or includes "judgment").
+
+For each mechanical finding: assign severity (Critical / Important / Optional), add a concrete fix suggestion, and report citing the rule by ID. **Do not re-scan for mechanical violations** — the runner already did that and missed-by-runner is a `rules/<lang>/*.yml` bug, not your concern.
+
+For each judgment-tier rule: scan the diff for the pattern described in the rule's `Applies when:` clause and report any violations. Cite the rule ID.
+
+## Citation discipline
+
+Every finding you emit MUST cite a `rule_id` that exists in `rules/index.json`. The dispatcher runs `scripts/validate-citations.sh` on your output; findings citing missing IDs get dropped + logged to stderr (drift signal). Don't invent rule IDs.
 
 ## Detection Patterns
 

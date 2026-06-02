@@ -102,9 +102,86 @@ In normal error-handling paths, the only case where offsets do NOT commit is whe
 
 ## Rules
 
+### RULE go-cqrs/auto-tx-wrapper-no-manual-wrap (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go CQRS consumer in this framework manually wraps its command executor with `kv.NewTransactionMiddleware` / similar transaction-management code instead of using `RunCommandConsumerTx` (which auto-wraps).
+**Enforcement**: judgment (ast-grep partial: `call_expression` matching `NewTransactionMiddleware` / `Wrap...` patterns adjacent to a CQRS command consumer registration)
+**Why**: `RunCommandConsumerTx` is the framework's transaction-management entry point. It opens a kv transaction per command, hands the txn-bound store to the executor, commits on success, rolls back on error — exactly once per message, in the exact order the framework expects. Manual wrapping duplicates that logic and introduces subtle drift: the manual wrapper may rollback while the framework also rolls back (double-rollback panic on closed txn), or may commit while the framework expects rollback semantics on a downstream failure. The bug surfaces as "this CQRS consumer occasionally double-applies state changes" — hard to reproduce, harder to diagnose.
+
+#### Bad
+
+```go
+// Manual transaction wrapping — duplicates RunCommandConsumerTx's contract
+wrappedExecutor := kv.NewTransactionMiddleware(db, executor)
+err := cdb.RunCommandConsumerTx(saramaClientProvider, syncProducer, db,
+    schemaID, wrappedExecutor) // double-wrapping smell — Tx variant already wraps
+```
+
+#### Good
+
+```go
+// Tx auto-wrapped — framework owns the transaction lifecycle
+err := cdb.RunCommandConsumerTx(saramaClientProvider, syncProducer, db,
+    schemaID, executor)
+```
+
+### RULE go-cqrs/skipped-not-nil-for-non-retryable (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go CQRS executor handles a *non-retryable* condition (idempotent skip, command targets an already-terminal entity, duplicate detected, validation against immutable state failed) by returning `nil` or an arbitrary `err` instead of `ErrCommandObjectSkipped`.
+**Enforcement**: judgment (semantic — distinguishing "non-retryable skip" from "transient error worth a Failure result" requires reading the executor's intent)
+**Why**: Three different result-topic outcomes hinge on the executor's return:
+- `nil` → `ResultObjectSuccess` published. The publisher thinks the command succeeded.
+- `err` → `ResultObjectFailure` published, one per occurrence. Duplicate publisher emissions produce N Failure entries + N error log lines + N noisy alerts.
+- `ErrCommandObjectSkipped` → no result sent, offset commits silently.
+
+For non-retryable conditions (terminal state, duplicate, immutable-validation failure), only `Skipped` is correct: publishing `Success` lies to the publisher; publishing `Failure` spams the result topic. The classic bug: an order processor returns `InvalidStateError` for `Completed` orders. Publisher retries 50× on a network blip → result topic gets 50 Failure entries and the on-call sees 50 alerts for an idempotent no-op.
+
+#### Bad (variant A — `return err`)
+
+```go
+func (e *Executor) Execute(ctx context.Context, cmd Command) error {
+	order := e.store.Get(cmd.OrderID)
+	if order.Status == Completed {
+		// produces noisy Failure result; N duplicate commands → N Failure entries +
+		// N error log lines + N alerts on the on-call's pager
+		return errors.New("order already completed")
+	}
+	// ... real work
+}
+```
+
+#### Bad (variant B — `return nil`)
+
+```go
+func (e *Executor) Execute(ctx context.Context, cmd Command) error {
+	order := e.store.Get(cmd.OrderID)
+	if order.Status == Completed {
+		// publishes Success — lies to the publisher; downstream code thinks
+		// the command actually advanced the entity state
+		return nil
+	}
+	// ... real work
+}
+```
+
+#### Good
+
+```go
+func (e *Executor) Execute(ctx context.Context, cmd Command) error {
+	order := e.store.Get(cmd.OrderID)
+	if order.Status == Completed {
+		// silent idempotent skip, no result published, offset commits cleanly
+		return cdb.ErrCommandObjectSkipped
+	}
+	// ... real work
+}
+```
+
+### Other rules (judgment-tier, not yet canonicalised as RULE blocks)
+
 - Never consume event topic to wait for command results — use result topic
-- `RunCommandConsumerTx` wraps executors automatically — don't wrap manually
-- `ErrCommandObjectSkipped` skips silently (no result sent) — use for non-retryable situations
 - Normal `err` returns are NOT retried by the framework; they emit one Failure result and commit the offset — same offset behaviour as Skipped, different result-topic behaviour
 - `SendResultEnabled() == false` + no error → no result sent
 - Context timeout → `ResultFor()` returns `Success: false`

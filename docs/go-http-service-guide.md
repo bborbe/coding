@@ -49,6 +49,37 @@ func (a *application) createHTTPServer(
 }
 ```
 
+### RULE go-http-service/canonical-admin-endpoints (MUST)
+
+**Owner**: go-http-handler-assistant
+**Applies when**: a Go service's admin HTTP server (port 9090, mounted under `/admin/<svc>/...` by the gateway) is missing any of the five always-required endpoints: `/healthz`, `/readiness`, `/metrics`, `/setloglevel/{level}`, `/gc`.
+**Enforcement**: judgment (route-table inspection in `main.go` / handler factory; ast-grep partial: `router.Handle(...)` / `mux.Handle(...)` patterns checked against the five-endpoint set)
+**Why**: The five endpoints are the cross-service contract between every bborbe Go service and the supervisor (Kubernetes probes, Prometheus scrapes, on-call debugging, manual GC inspection). A service missing `/healthz` blocks Kubernetes liveness probes; missing `/readiness` breaks rollout coordination; missing `/setloglevel` forces a StatefulSet edit + pod restart for every debug session. The endpoints are cheap (a few lines each, factory-built) and the cost of omitting one shows up at the worst possible time — usually during an incident.
+
+#### Bad
+
+```go
+// main.go — admin server missing /setloglevel and /gc
+router := mux.NewRouter()
+router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/metrics").Handler(promhttp.Handler())
+// debug session means: edit StatefulSet -v=, restart pod, wait — every time
+```
+
+#### Good
+
+```go
+// main.go — all five canonical endpoints registered
+router := mux.NewRouter()
+router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/metrics").Handler(promhttp.Handler())
+router.Path("/setloglevel/{level}").
+    Handler(log.NewSetLoglevelHandler(ctx, log.NewLogLevelSetter(2, 5*time.Minute)))
+router.Path("/gc").Handler(libhttp.NewGarbageCollectorHandler())
+```
+
 ## Endpoint Catalog
 
 | Endpoint | Required | Purpose | Library |
@@ -65,6 +96,29 @@ func (a *application) createHTTPServer(
 | `/testloglevel` | conditional (debug) | Emit log lines at every level for verification | factory-built |
 
 ## Port Conventions
+
+### RULE go-http-service/admin-port-9090 (MUST)
+
+**Owner**: go-http-handler-assistant
+**Applies when**: a Go service's admin HTTP server (the one serving `/healthz`, `/metrics`, etc.) defaults to a port other than `9090` — either hardcoded or via a `--listen` flag/env-var whose default isn't `:9090`.
+**Enforcement**: judgment (config inspection in `main.go` / `application` struct; ast-grep partial: struct-tag `default:":9090"` on the Listen field)
+**Why**: 9090 is the cross-service contract for the admin endpoint. Prometheus scrape configs, the gateway's `admin/port: '9090'` annotation, the operator's muscle memory for `kubectl port-forward 9090`, and shared tooling all assume it. A custom port per service breaks scrape configs (Prometheus probes the wrong port → no metrics), breaks the gateway's auto-routing (admin URL doesn't resolve), and forces every operator to look up the per-service port before they can curl an endpoint at 3am. The deviation cost is real; the standardisation cost is zero.
+
+#### Bad
+
+```go
+type application struct {
+	Listen string `required:"false" arg:"listen" env:"LISTEN" default:":8080"` // custom port
+}
+```
+
+#### Good
+
+```go
+type application struct {
+	Listen string `required:"false" arg:"listen" env:"LISTEN" default:":9090"`
+}
+```
 
 - **Always `9090`** for the admin HTTP server. Mirrors the standard across all bborbe services and the Prometheus scrape annotations.
 - Listen address comes from a flag/env: `Listen string \`required:"false" arg:"listen" env:"LISTEN" default:":9090"\``.

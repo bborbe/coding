@@ -1,0 +1,28 @@
+id: go-patterns/bborbe-collection-ptr-not-helpers
+language: go
+severity: error
+message: |
+  Custom pointer helper (e.g. `func stringPtr(s string) *string { return &s }`)
+  duplicates `github.com/bborbe/collection.Ptr`. Every codebase needing
+  pointer values for optional struct fields ends up writing 3-5 of
+  these helpers under different names. Import `github.com/bborbe/collection`
+  and call `collection.Ptr(...)` — generic, single helper for every type.
+  EXEMPT: regular constructors that happen to be one-liners
+  (`func NewX(p T) *X { return &X{Field: p} }`). The agent decides
+  per-finding whether the function is a pointer-helper (return value
+  is `&param` where param is the single argument) vs a constructor
+  (return value is `&Type{...}` literal). This YAML matches the
+  canonical pointer-helper shape via `pattern:`.
+  See docs/go-patterns.md (RULE go-patterns/bborbe-collection-ptr-not-helpers).
+rule:
+  # ast-grep 0.43 Go grammar: function_declaration's name / params /
+  # result / body are positional children, not fields, so `kind +
+  # field: result` doesn't match (verified empirically). Use a
+  # `pattern:` shape instead — it walks the tree positionally and
+  # matches the exact canonical pointer-helper signature.
+  pattern: 'func $N($P $T) *$T { return &$P }'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -660,7 +660,7 @@
     "anchor": "go-patterns/bborbe-collection-ptr-not-helpers",
     "applies_when": "a Go file declares a custom pointer helper function (`func stringPtr(s string) *string { return &s }`, `func intPtr(...)`, etc.) instead of importing `github.com/bborbe/collection` and calling `collection.Ptr(...)`.",
     "doc_path": "docs/go-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: `function_declaration` returning a pointer-to-builtin with a body containing only `return &<param>`)",
+    "enforcement": "`rules/go/no-custom-ptr-helpers.yml` matches the canonical pointer-helper signature `func N(P T) *T { return &P }` (same param identifier on both sides). The agent decides per-finding whether the function is a real pointer-helper (one-arg, returns `&that_arg`) or a one-liner constructor that incidentally returns a pointer to a struct literal (`&Type{...}`) — the latter is exempt.",
     "id": "go-patterns/bborbe-collection-ptr-not-helpers",
     "level": "MUST",
     "owner": "go-quality-assistant"

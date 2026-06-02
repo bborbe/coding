@@ -113,15 +113,17 @@ In normal error-handling paths, the only case where offsets do NOT commit is whe
 
 ```go
 // Manual transaction wrapping — duplicates RunCommandConsumerTx's contract
-wrapped := kv.NewTransactionMiddleware(db, executor)
-err := cqrs.RunCommandConsumer(ctx, consumer, wrapped) // double-wrapping smell
+wrappedExecutor := kv.NewTransactionMiddleware(db, executor)
+err := cdb.RunCommandConsumerTx(saramaClientProvider, syncProducer, db,
+    schemaID, wrappedExecutor) // double-wrapping smell — Tx variant already wraps
 ```
 
 #### Good
 
 ```go
 // Tx auto-wrapped — framework owns the transaction lifecycle
-err := cqrs.RunCommandConsumerTx(ctx, consumer, executor)
+err := cdb.RunCommandConsumerTx(saramaClientProvider, syncProducer, db,
+    schemaID, executor)
 ```
 
 ### RULE go-cqrs/skipped-not-nil-for-non-retryable (MUST)
@@ -136,16 +138,29 @@ err := cqrs.RunCommandConsumerTx(ctx, consumer, executor)
 
 For non-retryable conditions (terminal state, duplicate, immutable-validation failure), only `Skipped` is correct: publishing `Success` lies to the publisher; publishing `Failure` spams the result topic. The classic bug: an order processor returns `InvalidStateError` for `Completed` orders. Publisher retries 50× on a network blip → result topic gets 50 Failure entries and the on-call sees 50 alerts for an idempotent no-op.
 
-#### Bad
+#### Bad (variant A — `return err`)
 
 ```go
 func (e *Executor) Execute(ctx context.Context, cmd Command) error {
 	order := e.store.Get(cmd.OrderID)
 	if order.Status == Completed {
-		return errors.New("order already completed") // wrong — produces noisy Failure result
+		// produces noisy Failure result; N duplicate commands → N Failure entries +
+		// N error log lines + N alerts on the on-call's pager
+		return errors.New("order already completed")
 	}
+	// ... real work
+}
+```
+
+#### Bad (variant B — `return nil`)
+
+```go
+func (e *Executor) Execute(ctx context.Context, cmd Command) error {
+	order := e.store.Get(cmd.OrderID)
 	if order.Status == Completed {
-		return nil // also wrong — publishes Success for something we didn't actually do
+		// publishes Success — lies to the publisher; downstream code thinks
+		// the command actually advanced the entity state
+		return nil
 	}
 	// ... real work
 }
@@ -157,7 +172,8 @@ func (e *Executor) Execute(ctx context.Context, cmd Command) error {
 func (e *Executor) Execute(ctx context.Context, cmd Command) error {
 	order := e.store.Get(cmd.OrderID)
 	if order.Status == Completed {
-		return cqrs.ErrCommandObjectSkipped // silent idempotent skip, no result published
+		// silent idempotent skip, no result published, offset commits cleanly
+		return cdb.ErrCommandObjectSkipped
 	}
 	// ... real work
 }

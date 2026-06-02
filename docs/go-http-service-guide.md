@@ -61,9 +61,9 @@ func (a *application) createHTTPServer(
 ```go
 // main.go — admin server missing /setloglevel and /gc
 router := mux.NewRouter()
-router.Handle("/healthz",   libhttp.NewPrintHandler("ok"))
-router.Handle("/readiness", libhttp.NewPrintHandler("ok"))
-router.Handle("/metrics",   promhttp.Handler())
+router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/metrics").Handler(promhttp.Handler())
 // debug session means: edit StatefulSet -v=, restart pod, wait — every time
 ```
 
@@ -72,11 +72,12 @@ router.Handle("/metrics",   promhttp.Handler())
 ```go
 // main.go — all five canonical endpoints registered
 router := mux.NewRouter()
-router.Handle("/healthz",                libhttp.NewPrintHandler("ok"))
-router.Handle("/readiness",              libhttp.NewPrintHandler("ok"))
-router.Handle("/metrics",                promhttp.Handler())
-router.Handle("/setloglevel/{level}",    log.NewSetLoglevelHandler(2, 5*time.Minute))
-router.Handle("/gc",                     libhttp.NewGarbageCollectorHandler())
+router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/metrics").Handler(promhttp.Handler())
+router.Path("/setloglevel/{level}").
+    Handler(log.NewSetLoglevelHandler(ctx, log.NewLogLevelSetter(2, 5*time.Minute)))
+router.Path("/gc").Handler(libhttp.NewGarbageCollectorHandler())
 ```
 
 ## Endpoint Catalog

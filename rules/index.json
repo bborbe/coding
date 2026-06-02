@@ -117,6 +117,24 @@
     "owner": "go-architecture-assistant"
   },
   {
+    "anchor": "go-cli/cobra-not-stdlib-flag",
+    "applies_when": "a Go CLI binary's `main.go` / `pkg/cli/...` imports `flag` (stdlib) and calls `flag.String` / `flag.Bool` / `flag.Parse`, instead of using `github.com/spf13/cobra` (with its `pflag` library).",
+    "doc_path": "docs/go-cli-guide.md",
+    "enforcement": "judgment (ast-grep follow-up: `import \"flag\"` in any `main` package + `call_expression` matching `flag.Parse` / `flag.String`. Test files exempt.)",
+    "id": "go-cli/cobra-not-stdlib-flag",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-cli/slog-not-glog-in-new-projects",
+    "applies_when": "a *new* Go CLI binary (created after Go 1.21 release; no prior glog usage in the same module) imports `github.com/golang/glog`. Existing glog-using projects are exempt — they should not introduce slog and glog side by side.",
+    "doc_path": "docs/go-cli-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"new project\" from \"existing project mid-migration\" requires checking git history / module age; ast-grep partial: `import \"github.com/golang/glog\"` in any main module without prior glog usage)",
+    "id": "go-cli/slog-not-glog-in-new-projects",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "go-concurrency/channel-closed-by-sender-only",
     "applies_when": "a Go file calls `close(ch)` on a channel that was passed in as a function parameter from elsewhere — i.e. closed by a consumer/receiver rather than by the goroutine that produces values into it.",
     "doc_path": "docs/go-concurrency-patterns.md",
@@ -142,6 +160,24 @@
     "id": "go-context/cancel-check-in-loop",
     "level": "SHOULD",
     "owner": "go-context-assistant"
+  },
+  {
+    "anchor": "go-cqrs/auto-tx-wrapper-no-manual-wrap",
+    "applies_when": "a Go CQRS consumer in this framework manually wraps its command executor with `kv.NewTransactionMiddleware` / similar transaction-management code instead of using `RunCommandConsumerTx` (which auto-wraps).",
+    "doc_path": "docs/go-cqrs.md",
+    "enforcement": "judgment (ast-grep partial: `call_expression` matching `NewTransactionMiddleware` / `Wrap...` patterns adjacent to a CQRS command consumer registration)",
+    "id": "go-cqrs/auto-tx-wrapper-no-manual-wrap",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-cqrs/skipped-not-nil-for-non-retryable",
+    "applies_when": "a Go CQRS executor handles a *non-retryable* condition (idempotent skip, command targets an already-terminal entity, duplicate detected, validation against immutable state failed) by returning `nil` or an arbitrary `err` instead of `ErrCommandObjectSkipped`.",
+    "doc_path": "docs/go-cqrs.md",
+    "enforcement": "judgment (semantic — distinguishing \"non-retryable skip\" from \"transient error worth a Failure result\" requires reading the executor's intent)",
+    "id": "go-cqrs/skipped-not-nil-for-non-retryable",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-doc/comment-starts-with-name",
@@ -320,6 +356,24 @@
     "doc_path": "docs/go-http-handler-refactoring-guide.md",
     "enforcement": "`rules/go/handler-no-inline-error-handler.yml`",
     "id": "go-http-handler/no-inline-error-handler",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant"
+  },
+  {
+    "anchor": "go-http-service/admin-port-9090",
+    "applies_when": "a Go service's admin HTTP server (the one serving `/healthz`, `/metrics`, etc.) defaults to a port other than `9090` — either hardcoded or via a `--listen` flag/env-var whose default isn't `:9090`.",
+    "doc_path": "docs/go-http-service-guide.md",
+    "enforcement": "judgment (config inspection in `main.go` / `application` struct; ast-grep partial: struct-tag `default:\":9090\"` on the Listen field)",
+    "id": "go-http-service/admin-port-9090",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant"
+  },
+  {
+    "anchor": "go-http-service/canonical-admin-endpoints",
+    "applies_when": "a Go service's admin HTTP server (port 9090, mounted under `/admin/<svc>/...` by the gateway) is missing any of the five always-required endpoints: `/healthz`, `/readiness`, `/metrics`, `/setloglevel/{level}`, `/gc`.",
+    "doc_path": "docs/go-http-service-guide.md",
+    "enforcement": "judgment (route-table inspection in `main.go` / handler factory; ast-grep partial: `router.Handle(...)` / `mux.Handle(...)` patterns checked against the five-endpoint set)",
+    "id": "go-http-service/canonical-admin-endpoints",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
   },

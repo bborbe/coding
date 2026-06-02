@@ -612,6 +612,60 @@
     "owner": "go-quality-assistant"
   },
   {
+    "anchor": "go-logging/external-call-logs-response",
+    "applies_when": "a Go function makes a call that crosses the process boundary (HTTP client, gRPC client, database query, message-bus publish, subprocess `exec`) without emitting a single log line summarising the call's outcome (method/op + status/result + latency, plus error message on failure).",
+    "doc_path": "docs/go-logging-guide.md",
+    "enforcement": "judgment (semantic — identifying \"this is a boundary call\" requires recognising the client package (`http.Client.Do`, `*sql.DB.Query`, `client.SomeRPC`, `kafka.Producer.Send`, `exec.Command`) and verifying no log statement follows; ast-grep partial: `call_expression` matching known boundary clients without a sibling glog/slog call in the same block)",
+    "id": "go-logging/external-call-logs-response",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-logging/lowercase-log-messages",
+    "applies_when": "a Go log call's message string starts with an uppercase letter (`glog.Infof(\"Service started ...\")`, `slog.Info(\"Failed to ...\")`).",
+    "doc_path": "docs/go-logging-guide.md",
+    "enforcement": "judgment (ast-grep follow-up: pattern over `glog.{Info,Warning,Error,Fatal}{,f}` / `slog.{Info,Warn,Error,Debug}` first-string-literal argument matching `^\"[A-Z]`)",
+    "id": "go-logging/lowercase-log-messages",
+    "level": "SHOULD",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-logging/no-log-and-return-error",
+    "applies_when": "a Go function logs an error (via `glog.Errorf` / `slog.Error` / `log.Printf` / similar) and then also returns the same error to the caller — meaning the error is reported twice: once at the inner site and again upstream when the caller (or its caller) logs the propagated error.",
+    "doc_path": "docs/go-logging-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"intentional inner log + return for diagnostic visibility\" from \"accidental double-log\" requires reading the caller's handling; ast-grep partial: `if err != nil { glog.Errorf(...); return ..., err }` pattern in any non-main, non-test Go file)",
+    "id": "go-logging/no-log-and-return-error",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-logging/no-mixing-slog-and-glog",
+    "applies_when": "a Go file in a project that already uses one logging library (`log/slog` OR `github.com/golang/glog`) imports the other one — meaning the codebase emits both stdlib structured logs and glog's V-leveled string logs from the same binary.",
+    "doc_path": "docs/go-logging-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"this binary already uses X; the new import of Y is wrong\" from \"this is a new binary that happens to coexist with X-using siblings in the monorepo\" requires checking which logger the rest of the same module uses; ast-grep partial: detect both `import \"log/slog\"` AND `import \"github.com/golang/glog\"` co-occurring in any single `.go` file)",
+    "id": "go-logging/no-mixing-slog-and-glog",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-logging/no-sensitive-data-in-logs",
+    "applies_when": "a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material (password, token, secret, key, PEM, JWT, raw request body containing credentials, full session cookie).",
+    "doc_path": "docs/go-logging-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"credential\" from \"credential-shaped name on a public value (e.g. `publicKey`)\" requires reading the source and intent; ast-grep partial: `call_expression` matching `glog.*` / `slog.*` with format args including identifiers matching `(?i)password|token|secret|.*Key|PEM|JWT|credential|authorization`)",
+    "id": "go-logging/no-sensitive-data-in-logs",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-logging/no-tight-loop-without-sampler",
+    "applies_when": "a Go log statement appears inside a `for` loop body that processes more than ~100 items per iteration without being gated by a `log.Sampler` / `IsSample()` check or a `glog.V(N)` verbosity guard.",
+    "doc_path": "docs/go-logging-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"tight inner loop\" from \"small bounded outer loop\" requires reading the loop bound; ast-grep partial: `call_expression` matching `glog.{Info,Warning}{,f}` / `slog.{Info,Warn}` inside a `for_statement` body without a sibling `if .IsSample()` / `glog.V(N)` guard)",
+    "id": "go-logging/no-tight-loop-without-sampler",
+    "level": "SHOULD",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "go-makefile/test-not-build-for-verification",
     "applies_when": "a Go project's CI script, contributor onboarding doc, or commit message references `go build ./...` as the verification step for \"this change compiles and is safe to merge\", instead of `make test` (which wraps Ginkgo + race detection + coverage thresholds).",
     "doc_path": "docs/go-makefile-commands.md",

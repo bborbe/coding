@@ -387,6 +387,15 @@
     "owner": "go-factory-pattern-assistant"
   },
   {
+    "anchor": "go-filter/document-filtered-semantics",
+    "applies_when": "a Go filter / predicate interface uses ambiguous method names like `Match(item)` / `Check(item)` / `Apply(item)` without doc-comment clarifying whether `true` means \"include\" or \"exclude\" — OR uses contradictory naming (`Filtered` returning true for \"passes the filter\" instead of \"filtered out\").",
+    "doc_path": "docs/go-filter-pattern.md",
+    "enforcement": "judgment (interface declaration check: method-name + doc-comment alignment for predicate methods returning bool)",
+    "id": "go-filter/document-filtered-semantics",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
     "anchor": "go-functional-options/singular-option-type",
     "applies_when": "a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.",
     "doc_path": "docs/go-functional-options-pattern.md",
@@ -617,6 +626,15 @@
     "doc_path": "docs/go-mod-replace-guide.md",
     "enforcement": "judgment (ast-grep follow-up: pattern over `go.mod` `replace` lines with right-hand side starting with `../` reaching above the repo root or starting with `/`. Same-repo `replace github.com/acme/monorepo/libs/shared => ../../libs/shared` is fine — the rule fires only when the destination escapes the repo)",
     "id": "go-mod-replace/no-cross-repo-replace",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-parse/paired-parse-and-parsedefault",
+    "applies_when": "a Go package adds a `ParseX(ctx, value)` function returning `(X, error)` without a paired `ParseXDefault(ctx, value, default) X` that suppresses the error and returns the default — OR vice versa (`ParseXDefault` without `ParseX`).",
+    "doc_path": "docs/go-parse-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `function_declaration` named `Parse*` with `error` return type; pair-check against same-named `*Default` function in the same package)",
+    "id": "go-parse/paired-parse-and-parsedefault",
     "level": "MUST",
     "owner": "go-quality-assistant"
   },
@@ -864,6 +882,24 @@
     "owner": "go-time-assistant"
   },
   {
+    "anchor": "go-tools-versioning/no-tools-go-for-clis",
+    "applies_when": "a Go project has a `tools.go` file with `//go:build tools` that imports CLI tools (`_ \"github.com/golangci/golangci-lint/v2/cmd/golangci-lint\"`, `_ \"github.com/google/osv-scanner/v2/cmd/osv-scanner\"`, etc.) — instead of declaring CLI versions in a separate `tools.env` consumed by the Makefile via `go run pkg@$(VERSION)`.",
+    "doc_path": "docs/go-tools-versioning-guide.md",
+    "enforcement": "judgment (file-presence check: `tools.go` with `//go:build tools` header + CLI tool imports)",
+    "id": "go-tools-versioning/no-tools-go-for-clis",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-validation/use-bborbe-validation-not-inline-checks",
+    "applies_when": "a Go service implements input validation via hand-rolled `if`/`if-else` chains in a `Validate(ctx context.Context) error` method or HTTP handler, instead of using `github.com/bborbe/validation` (`validation.All{...}` + `validation.Name(...)` + `validation.NotEmptyString(...)` etc.).",
+    "doc_path": "docs/go-validation-framework-guide.md",
+    "enforcement": "judgment (ast-grep follow-up: `method_declaration` named `Validate` whose body contains 3+ inline `if v == \"\" || v == \"\"` chains with manual `errors.Errorf` calls, in a package not importing `github.com/bborbe/validation`)",
+    "id": "go-validation/use-bborbe-validation-not-inline-checks",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "k8s-manifest/statefulset-pvc-via-volumeclaimtemplates",
     "applies_when": "a `StatefulSet` mounts persistent storage via a standalone `PersistentVolumeClaim` + `volumes[].persistentVolumeClaim.claimName`, instead of `spec.volumeClaimTemplates` (which generates one PVC per replica automatically).",
     "doc_path": "docs/k8s-manifest-guide.md",
@@ -997,6 +1033,15 @@
     "id": "python-pydantic/optional-needs-default",
     "level": "MUST",
     "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "readme/user-facing-not-agent-context",
+    "applies_when": "a project's README.md includes agent-operational content (build commands, architecture internals, ban lists, version-alignment requirements, structured constraints) instead of user-facing content (description, install, quick-start, usage).",
+    "doc_path": "docs/readme-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"user needs this to use it\" from \"agent needs this to change it\" requires reading the content; symptom: README has sections labelled \"Constraints\" / \"Hard Rules\" / \"Architecture\")",
+    "id": "readme/user-facing-not-agent-context",
+    "level": "MUST",
+    "owner": "agent-auditor"
   },
   {
     "anchor": "skill-writing/scripts-in-scripts-subdir",

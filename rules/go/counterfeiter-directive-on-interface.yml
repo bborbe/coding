@@ -1,0 +1,33 @@
+id: go-architecture/counterfeiter-directive-on-interface
+language: go
+severity: error
+message: |
+  Every Go interface in a service package needs a //counterfeiter:generate
+  directive so go generate regenerates the fake when the interface drifts.
+  Without it, hand-written mocks drift silently — tests pass against a
+  stale contract while the production code adds methods.
+  See docs/go-architecture-patterns.md (RULE go-architecture/counterfeiter-directive-on-interface).
+rule:
+  # ast-grep 0.43.0 shape: match a type_declaration that wraps a type_spec
+  # wrapping an interface_type, AND is NOT preceded (follows in tree-sitter
+  # 'previous-sibling' direction) by a comment containing 'counterfeiter:generate'.
+  #
+  # Verified the relation direction during smoke: 'not.follows' means
+  # "this node does NOT come after the matched sibling" — which for a
+  # type_declaration whose comment is the previous sibling is what we want.
+  kind: type_declaration
+  has:
+    kind: type_spec
+    has:
+      kind: interface_type
+  not:
+    follows:
+      kind: comment
+      regex: 'counterfeiter:generate'
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

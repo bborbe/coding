@@ -138,7 +138,7 @@
     "anchor": "go-architecture/counterfeiter-directive-on-interface",
     "applies_when": "an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests) has no preceding `//counterfeiter:generate` line. Concrete trigger: any package with `*_test.go` files that import a `mocks` package, plus every exported interface in that package.",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (ast-grep partial: pattern over `interface_declaration` with surrounding-comment context per the PR #11 struct-literal recipe — negative-precedes relations are awkward in ast-grep 0.43.0, so the agent does the absence check)",
+    "enforcement": "`rules/go/counterfeiter-directive-on-interface.yml`",
     "id": "go-architecture/counterfeiter-directive-on-interface",
     "level": "MUST",
     "owner": "go-architecture-assistant"

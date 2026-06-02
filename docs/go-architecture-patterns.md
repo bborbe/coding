@@ -17,7 +17,7 @@ The standard pattern for Go packages in the Services follows this structure:
 
 **Owner**: go-architecture-assistant
 **Applies when**: an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests) has no preceding `//counterfeiter:generate` line. Concrete trigger: any package with `*_test.go` files that import a `mocks` package, plus every exported interface in that package.
-**Enforcement**: judgment (ast-grep partial: pattern over `interface_declaration` with surrounding-comment context per the PR #11 struct-literal recipe — negative-precedes relations are awkward in ast-grep 0.43.0, so the agent does the absence check)
+**Enforcement**: `rules/go/counterfeiter-directive-on-interface.yml`
 **Why**: Hand-written mocks drift silently — when the interface gains a method, the mock keeps satisfying the old surface and tests pass against a stale contract. The `//counterfeiter:generate` directive forces `go generate ./...` to regenerate the fake, so any drift surfaces immediately at code-gen time. Missing the directive means the fake isn't regenerated, the test doesn't exercise the new method, and the bug ships.
 
 #### Bad

@@ -147,6 +147,41 @@ formatters:
 
 ## Complexity Limits
 
+### RULE go-linting/complexity-limits-enforced (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go project's `.golangci.yaml` (or `.golangci.yml`) does not enable `funlen`, `gocognit`, `nestif`, and `maintidx` with the bborbe standard thresholds (80 lines / 50 statements / 20 complexity / 4 nesting / 20 maintainability).
+**Enforcement**: judgment (config-file presence + threshold inspection; ast-grep does not parse YAML reliably for nested numeric thresholds)
+**Why**: Complexity is the silent killer of long-lived services. Without enforced caps, functions grow until they're untestable, cognitive load makes refactors fragile, and naive line-count-driven extractions (the kind `go-architecture-assistant` flags) appear only at the end of long change-lists. Catching this at lint time forces incremental hygiene — the diff stays bounded, the reviewer's attention stays on the change instead of the bloat.
+
+#### Bad
+
+```yaml
+# .golangci.yaml — no complexity gate
+linters:
+  enable:
+    - revive
+    - errcheck
+```
+
+#### Good
+
+```yaml
+linters:
+  enable:
+    - funlen
+    - gocognit
+    - nestif
+    - maintidx
+    - revive
+    - errcheck
+linters-settings:
+  funlen:    { lines: 80, statements: 50 }
+  gocognit:  { min-complexity: 20 }
+  nestif:    { min-complexity: 4 }
+  maintidx:  { under: 20 }
+```
+
 | Linter | Limit | Description |
 |--------|-------|-------------|
 | `funlen` | 80 lines / 50 statements | Max function length |
@@ -209,6 +244,40 @@ func (s *Service) processItem(ctx context.Context, item Item) error {
 ```
 
 ## Banned Packages (depguard)
+
+### RULE go-linting/banned-packages-via-depguard (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go project's `.golangci.yaml` does not configure `depguard` with the bborbe banned-package list (deprecated stdlib alternatives like `io/ioutil`, v1 of versioned packages where v2+ exists, `pkg/errors` superseded by `bborbe/errors`).
+**Enforcement**: judgment (config inspection; ast-grep does not parse golangci YAML structure)
+**Why**: Banned-package lists encode hard-won lessons that would otherwise re-surface in every PR review (`fmt.Errorf` vs `errors.Wrap` is its own rule via `go-errors/no-fmt-errorf`; here we close the depguard-level gap on full-package bans). Without depguard, deprecated imports silently land via "auto-import" tools and the codebase fragments — half the files use `io/ioutil`, half use `io+os`, refactors trip over both. Catching the import at lint time forces the right choice before the deprecated path takes root.
+
+#### Bad
+
+```yaml
+# .golangci.yaml — depguard not configured
+linters:
+  enable:
+    - revive
+    - errcheck
+```
+
+#### Good
+
+```yaml
+linters:
+  enable: [depguard, revive, errcheck]
+linters-settings:
+  depguard:
+    rules:
+      main:
+        deny:
+          - { pkg: "github.com/pkg/errors",          desc: "use github.com/bborbe/errors" }
+          - { pkg: "github.com/bborbe/argument",     desc: "use bborbe/argument/v2" }
+          - { pkg: "golang.org/x/net/context",       desc: "use stdlib context" }
+          - { pkg: "io/ioutil",                      desc: "deprecated; use io + os" }
+          - { pkg: "golang.org/x/lint/golint",       desc: "use revive or staticcheck" }
+```
 
 | Banned Package | Use Instead | Reason |
 |---------------|-------------|--------|

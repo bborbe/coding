@@ -279,6 +279,24 @@
     "owner": "go-http-handler-assistant"
   },
   {
+    "anchor": "go-json-error-handler/structured-response-shape",
+    "applies_when": "an HTTP handler in a Go service emits an error response that is not a JSON object with the canonical `{error: {code, message, details}}` shape — e.g. plain-text bodies, top-level `{message: ...}` without an `error` wrapper, or `details` as a string instead of a `map[string]string`.",
+    "doc_path": "docs/go-json-error-handler-guide.md",
+    "enforcement": "judgment (response-shape inspection; ast-grep can detect `http.Error` calls and inline JSON writes but the full contract needs request/response review)",
+    "id": "go-json-error-handler/structured-response-shape",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant"
+  },
+  {
+    "anchor": "go-json-error-handler/use-error-code-constants",
+    "applies_when": "a Go HTTP handler passes a raw string literal as the error-code argument to `libhttp.WrapWithCode` / `libhttp.NewJSONError` instead of the `libhttp.ErrorCodeXxx` constants.",
+    "doc_path": "docs/go-json-error-handler-guide.md",
+    "enforcement": "judgment (ast-grep follow-up: pattern over `libhttp.WrapWithCode($$, $$, $CODE, $$)` with `$CODE` constrained to be a `interpreted_string_literal` — see PR #11 recipe for the metavariable-constraint shape)",
+    "id": "go-json-error-handler/use-error-code-constants",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant"
+  },
+  {
     "anchor": "go-licensing/copyright-year-discipline",
     "applies_when": "a PR diff modifies copyright years in `*.go` source-file headers — either bulk-updating across many files or setting future / non-numeric years (`2099`, `present`, etc.).",
     "doc_path": "docs/go-licensing-guide.md",
@@ -313,6 +331,24 @@
     "id": "go-licensing/source-file-header-required",
     "level": "MUST",
     "owner": "license-assistant"
+  },
+  {
+    "anchor": "go-linting/banned-packages-via-depguard",
+    "applies_when": "a Go project's `.golangci.yaml` does not configure `depguard` with the bborbe banned-package list (deprecated stdlib alternatives like `io/ioutil`, v1 of versioned packages where v2+ exists, `pkg/errors` superseded by `bborbe/errors`).",
+    "doc_path": "docs/go-linting-guide.md",
+    "enforcement": "judgment (config inspection; ast-grep does not parse golangci YAML structure)",
+    "id": "go-linting/banned-packages-via-depguard",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-linting/complexity-limits-enforced",
+    "applies_when": "a Go project's `.golangci.yaml` (or `.golangci.yml`) does not enable `funlen`, `gocognit`, `nestif`, and `maintidx` with the bborbe standard thresholds (80 lines / 50 statements / 20 complexity / 4 nesting / 20 maintainability).",
+    "doc_path": "docs/go-linting-guide.md",
+    "enforcement": "judgment (config-file presence + threshold inspection; ast-grep does not parse YAML reliably for nested numeric thresholds)",
+    "id": "go-linting/complexity-limits-enforced",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
   },
   {
     "anchor": "go-prometheus/composed-metrics-interface",
@@ -403,6 +439,24 @@
     "id": "go-security/nosec-requires-reason",
     "level": "MUST",
     "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-state-machine/forward-only-by-default",
+    "applies_when": "a Go FSM worker emits `NextPhase` referring to an earlier phase in the workflow's declared order, without an explicit circuit-breaker `attempt` counter and a controller-side cap.",
+    "doc_path": "docs/go-state-machine-pattern.md",
+    "enforcement": "judgment (semantic — requires reading both the worker's NextPhase-emission logic and the controller's persist logic)",
+    "id": "go-state-machine/forward-only-by-default",
+    "level": "SHOULD",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-state-machine/status-phase-separation",
+    "applies_when": "a Go workflow / FSM controller persists a single field that conflates \"where in the workflow\" with \"how the last invocation ended\" — e.g. a `state` enum mixing `validating`/`charging`/`done`/`failed` together, or marking a task `completed` while `NextPhase` is still non-terminal.",
+    "doc_path": "docs/go-state-machine-pattern.md",
+    "enforcement": "judgment (semantic — requires reading the controller's persist logic)",
+    "id": "go-state-machine/status-phase-separation",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
   },
   {
     "anchor": "go-testing/counterfeiter-mocks-required",

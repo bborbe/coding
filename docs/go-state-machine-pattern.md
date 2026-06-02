@@ -132,6 +132,53 @@ func runShippingPhase(ctx context.Context) (*Result, error) {
 
 ## Status vs. Phase — the critical distinction
 
+### RULE go-state-machine/status-phase-separation (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go workflow / FSM controller persists a single field that conflates "where in the workflow" with "how the last invocation ended" — e.g. a `state` enum mixing `validating`/`charging`/`done`/`failed` together, or marking a task `completed` while `NextPhase` is still non-terminal.
+**Enforcement**: judgment (semantic — requires reading the controller's persist logic)
+**Why**: Status and phase are independent dimensions. Phase = WHERE; Status = HOW the last run ended. Collapsing them into one field produces the textbook workflow stall: the controller marks the task `completed` after the first phase, stops spawning, and the workflow halts with no error and no signal. The two-field shape makes the controller's transition logic explicit and the persisted state legible: a paused human-review task reads as `(phase=human_review, status=in_progress)` rather than the ambiguous `state=human_review` (does that mean blocked? completed? failed?).
+
+#### Bad
+
+```go
+// Single conflated field — the workflow stalls when the worker emits 'done'
+// for the first phase, even though NextPhase points at the next phase.
+type Task struct {
+	State string // "validating" / "charging" / "done" / "failed"
+}
+
+func persist(task *Task, result *Result) {
+	if result.Status == "done" {
+		task.State = "done" // wrong — should advance to NextPhase
+	}
+}
+```
+
+#### Good
+
+```go
+type Task struct {
+	Phase  string // WHERE: validating / charging / shipping / done
+	Status string // HOW the last invocation ended: in_progress / completed / failed
+}
+
+func persist(task *Task, result *Result) {
+	switch {
+	case result.Status == "done" && result.NextPhase == "" || result.NextPhase == PhaseDone:
+		task.Status = "completed" // workflow terminates
+	case result.Status == "done":
+		task.Phase = result.NextPhase
+		task.Status = "in_progress" // advance to next phase
+	case result.Status == "needs_input":
+		task.Phase = "human_review"
+		task.Status = "in_progress"
+	case result.Status == "failed":
+		task.Status = "failed"
+	}
+}
+```
+
 These are **two independent dimensions**:
 
 - **Phase** = WHERE in the workflow we are
@@ -212,6 +259,46 @@ Typical controller loop:
 ```
 
 ## Loops and backward edges
+
+### RULE go-state-machine/forward-only-by-default (SHOULD)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go FSM worker emits `NextPhase` referring to an earlier phase in the workflow's declared order, without an explicit circuit-breaker `attempt` counter and a controller-side cap.
+**Enforcement**: judgment (semantic — requires reading both the worker's NextPhase-emission logic and the controller's persist logic)
+**Why**: Backward edges are how long-running agents accidentally burn unbounded budgets. A re-planning loop that emits `NextPhase=draft` from `review` looks reasonable in isolation; in production it spins for hours until someone notices. Forward-only-by-default makes the rare backward edge the conspicuous choice — when it's needed (re-planning, retries, operator-driven requeues), the worker explicitly tracks an `attempts` counter and the controller fails the workflow when it exceeds the cap. Four legitimate patterns: interventional reset (operator flips state), phase unrolling (bounded loop linearised into distinct phases), sub-phase loops (iteration in-memory inside one worker), controlled loop with circuit breaker (worker emits backward + attempts counter).
+
+#### Bad
+
+```go
+// Worker emits a backward edge unconditionally — no attempt counter, no cap
+func runReviewingPhase(ctx context.Context) (*Result, error) {
+	if !approved {
+		return &Result{Status: "done", NextPhase: PhaseDrafting}, nil
+		// ← will loop forever if drafting never produces an approvable result
+	}
+	return &Result{Status: "done", NextPhase: PhaseFinalized}, nil
+}
+```
+
+#### Good
+
+```go
+// Backward edge with circuit breaker — attempts counter + controller cap
+func runReviewingPhase(ctx context.Context, attempts int) (*Result, error) {
+	if attempts >= 3 {
+		return &Result{Status: "failed"}, errors.Errorf(ctx,
+			"reviewing exceeded %d attempts", 3)
+	}
+	if !approved {
+		return &Result{
+			Status:    "done",
+			NextPhase: PhaseDrafting, // backward edge — circuit breaker exists above
+			Metadata:  map[string]string{"attempts": fmt.Sprint(attempts + 1)},
+		}, nil
+	}
+	return &Result{Status: "done", NextPhase: PhaseFinalized}, nil
+}
+```
 
 The pattern is **forward-only by default**: a worker emits `NextPhase` referring to a *later* phase, never an earlier one. This prevents autonomous infinite loops in long-running agents and bounds total work per task.
 

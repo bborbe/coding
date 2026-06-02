@@ -207,7 +207,7 @@ Guidelines:
 
 **Owner**: go-metrics-assistant
 **Applies when**: a `prometheus.CounterOpts` struct literal sets a `Name:` field whose string value does not end with `_total`.
-**Enforcement**: judgment (ast-grep follow-up)
+**Enforcement**: `rules/go/counter-total-suffix.yml`
 **Why**: Prometheus naming convention; newer `client_golang` versions enforce this at registration time (panic). Counters without `_total` also fail the OpenMetrics spec and confuse Grafana auto-completion.
 
 #### Bad

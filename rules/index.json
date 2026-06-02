@@ -1,5 +1,14 @@
 [
   {
+    "anchor": "adr/required-for-irreversible-architecture-decisions",
+    "applies_when": "a PR introduces an irreversible architectural change (database technology choice, message-bus selection, framework swap, major topology change like blue-green vs canary) without a corresponding ADR document under `docs/adr/NNNN-<title>.md` capturing the decision, alternatives considered, rationale, and consequences.",
+    "doc_path": "docs/adr-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"irreversible architectural decision\" from \"tactical implementation choice\" requires reading the change scope; symptom: PR introduces new top-level package or external dependency without ADR reference)",
+    "id": "adr/required-for-irreversible-architecture-decisions",
+    "level": "SHOULD",
+    "owner": "go-architecture-assistant"
+  },
+  {
     "anchor": "agent-cmd/agent-frontmatter",
     "applies_when": "any `agents/*.md` file is created.",
     "doc_path": "docs/agent-command-development-guide.md",
@@ -159,6 +168,15 @@
     "enforcement": "judgment (paired-declaration scan: for each exported interface, find structs with matching method sets in the same package and check name correspondence — single-implementation packages only)",
     "id": "go-architecture/private-struct-matches-interface",
     "level": "SHOULD",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-boolean-combinator/result-with-description-not-naked-bool",
+    "applies_when": "a Go boolean-combinator / decision interface's method returns a bare `bool` instead of a `Result` type carrying both the boolean decision AND a human-readable `Description() string` explaining the reason.",
+    "doc_path": "docs/go-boolean-combinator-pattern.md",
+    "enforcement": "judgment (interface declaration check: decision-style interfaces (`Check`, `IsTrusted`, `Filtered`, `Allowed`, `Matches`) returning naked `bool`)",
+    "id": "go-boolean-combinator/result-with-description-not-naked-bool",
+    "level": "MUST",
     "owner": "go-architecture-assistant"
   },
   {
@@ -942,6 +960,15 @@
     "enforcement": "judgment (file-scope check: module-level `Service()` / `Repository()` calls outside `if __name__ == \"__main__\":` blocks)",
     "id": "python-architecture/main-py-composition-root",
     "level": "SHOULD",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-factory/zero-business-logic-in-factories",
+    "applies_when": "a Python factory function (in `factory.py` or named `create_*` / `make_*`) contains business logic — loops over domain data, conditional dispatch on runtime state, inline function implementations, validation logic, etc. — instead of pure dependency-wiring calls (constructor invocations and object-tree composition only).",
+    "doc_path": "docs/python-factory-pattern.md",
+    "enforcement": "judgment (ast-grep partial: `function_definition` in `factory.py` whose body contains `for_statement` / `if_statement` over non-config values, or inline `lambda` / nested `def`)",
+    "id": "python-factory/zero-business-logic-in-factories",
+    "level": "MUST",
     "owner": "python-architecture-assistant"
   },
   {

@@ -1,107 +1,71 @@
 # Go Testing Guide
 
-This comprehensive guide covers **how to write tests** using the Go testing framework. For understanding **what type of test to write** and **when**, see [go-test-types-guide.md](go-test-types-guide.md). For **mocking strategies**, see [go-mocking-guide.md](go-mocking-guide.md).
+Rules-only version. Captures the enforceable testing conventions that `coding:go-test-quality-assistant`, `coding:go-test-writer-assistant`, and `coding:go-test-coverage-assistant` check during `/coding:pr-review`. For deeper background (database patterns, JSON/serialization, integration setups, full Ginkgo/Gomega API), consult the official documentation linked at the end of this file.
 
-The testing framework is built on **Ginkgo v2** (BDD) with **Gomega** matchers, focusing on readable, maintainable, and comprehensive tests.
+## Framework
 
-## Table of Contents
+Built on **[Ginkgo v2](https://onsi.github.io/ginkgo/)** (BDD) + **[Gomega](https://onsi.github.io/gomega/)** (matchers) + **[Counterfeiter](https://github.com/maxbrunsfeld/counterfeiter)** (mocks).
 
-1. [Framework Overview](#framework-overview)
-2. [Test Suite Setup](#test-suite-setup)
-3. [Basic Test Structure](#basic-test-structure)
-4. [Mock Generation & Usage](#mock-generation--usage)
-5. [Database Testing Patterns](#database-testing-patterns)
-6. [Time Handling in Tests](#time-handling-in-tests)
-7. [Error Testing Strategies](#error-testing-strategies)
-8. [JSON & Serialization Testing](#json--serialization-testing)
-9. [Integration Test Patterns](#integration-test-patterns)
-10. [Test Organization & Naming](#test-organization--naming)
-11. [Common Testing Utilities](#common-testing-utilities)
-12. [Best Practices & Anti-patterns](#best-practices--anti-patterns)
+Key principles:
 
-## Framework Overview
+- BDD: tests describe behavior, not implementation.
+- Tests are independent and idempotent.
+- Mocks at interface boundaries; real implementations for internal utilities.
+- All time handling uses UTC (`time.Local = time.UTC` in suite setup).
 
-### Core Technologies
-- **[Ginkgo v2](https://onsi.github.io/ginkgo/)**: BDD-style testing framework
-- **[Gomega](https://onsi.github.io/gomega/)**: Matcher/assertion library
-- **[Counterfeiter](https://github.com/maxbrunsfeld/counterfeiter)**: Mock generation
-- **BoltDB**: Database testing with temporary instances
-- **github.com/bborbe/* Libraries**: 
-  - **[time](https://github.com/bborbe/time)**: Time utilities with dependency injection
-  - **[errors](https://github.com/bborbe/errors)**: Enhanced error handling with context
-  - **[collection](https://github.com/bborbe/collection)**: Collection utilities (Ptr, etc.)
-  - **[validation](https://github.com/bborbe/validation)**: Validation framework
-  - **[run](https://github.com/bborbe/run)**: Concurrent execution patterns
-  - **[log](https://github.com/bborbe/log)**: Structured logging
-  - **[kv](https://github.com/bborbe/kv)**: Key-value store abstractions  
-  - **[boltkv](https://github.com/bborbe/boltkv)**: BoltDB key-value implementation
-  - **[kafka](https://github.com/bborbe/kafka)**: Kafka client utilities
-  - **[http](https://github.com/bborbe/http)**: HTTP server/client utilities
-  - **[sentry](https://github.com/bborbe/sentry)**: Sentry error reporting integration
-  - **[cron](https://github.com/bborbe/cron)**: Cron job utilities
-  - **[service](https://github.com/bborbe/service)**: Service framework for CLI applications
-  - **[k8s](https://github.com/bborbe/k8s)**: Kubernetes utilities
-  - **[math](https://github.com/bborbe/math)**: Mathematical utilities
-  - **[parse](https://github.com/bborbe/parse)**: Parsing utilities
+## Critical Rules
 
-### Key Testing Principles
-- **Behavior-Driven Development (BDD)**: Tests describe behavior, not implementation
-- **Descriptive Test Names**: Clear intent and expected outcomes
-- **Test Isolation**: Each test is independent and idempotent
-- **Mock-First Approach**: Use mocks for external dependencies
-- **UTC Timezone**: Consistent time handling across all tests
-
-### Critical Rules
-- **Never use stdlib `testing` table-driven tests** (`[]struct` loops with `t.Run`). Always use Ginkgo `DescribeTable`/`Entry` for table-driven tests. If a `*_suite_test.go` with Ginkgo imports exists in the package, all tests must use Ginkgo.
-- **Never use `testing.T` directly** in packages that have a Ginkgo test suite. Use `Describe`/`Context`/`It`/`DescribeTable`/`Entry` blocks instead.
-- **Never call an error-returning function bare in an `It` block** — `errcheck` (run by `make precommit`) will fail. Wrap with the matcher that documents intent:
-  - Expecting success: `Expect(someFunc(ctx)).To(Succeed())`
-  - Expecting failure: `Expect(someFunc(ctx)).To(HaveOccurred())`
-  - Need the error for assertions: `err := someFunc(ctx); Expect(err).To(MatchError(...))`
+**MUST NOT use stdlib `testing` table-driven tests.** Always use Ginkgo `DescribeTable`/`Entry`. If a `*_suite_test.go` with Ginkgo imports exists in the package, all tests must use Ginkgo.
 
 ```go
-// ❌ WRONG — errcheck fails: "Error return value not checked"
-It("calls Save exactly twice when the rollback path is exercised", func() {
-    service.Process(ctx)
-    Expect(store.SaveCallCount()).To(Equal(2))
-})
-
-// ✅ CORRECT — error explicitly accounted for
-It("calls Save exactly twice when the rollback path is exercised", func() {
-    Expect(service.Process(ctx)).To(HaveOccurred())
-    Expect(store.SaveCallCount()).To(Equal(2))
-})
-```
-
-```go
-// ❌ WRONG — stdlib table-driven test
+// BAD — stdlib table-driven test
 func TestFoo(t *testing.T) {
-    tests := []struct{ input, want string }{ ... }
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) { ... })
-    }
+	tests := []struct{ input, want string }{ ... }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) { ... })
+	}
 }
 
-// ✅ CORRECT — Ginkgo DescribeTable
+// GOOD — Ginkgo DescribeTable
 var _ = DescribeTable("foo",
-    func(input, expected string) {
-        Expect(foo(input)).To(Equal(expected))
-    },
-    Entry("case A", "in1", "out1"),
-    Entry("case B", "in2", "out2"),
+	func(input, expected string) {
+		Expect(foo(input)).To(Equal(expected))
+	},
+	Entry("case A", "in1", "out1"),
+	Entry("case B", "in2", "out2"),
 )
+```
+
+**MUST NOT use `testing.T` directly** in packages that have a Ginkgo test suite. Use `Describe`/`Context`/`It`/`DescribeTable`/`Entry` instead.
+
+**MUST NOT call an error-returning function bare in an `It` block.** `errcheck` (run by `make precommit`) will fail. Wrap with a matcher that documents intent:
+
+- Expecting success: `Expect(someFunc(ctx)).To(Succeed())`
+- Expecting failure: `Expect(someFunc(ctx)).To(HaveOccurred())`
+- Need the error: `err := someFunc(ctx); Expect(err).To(MatchError(...))`
+
+```go
+// BAD — errcheck: "Error return value not checked"
+It("calls Save exactly twice", func() {
+	service.Process(ctx)
+	Expect(store.SaveCallCount()).To(Equal(2))
+})
+
+// GOOD — error explicitly accounted for
+It("calls Save exactly twice", func() {
+	Expect(service.Process(ctx)).To(HaveOccurred())
+	Expect(store.SaveCallCount()).To(Equal(2))
+})
 ```
 
 ## Test Suite Setup
 
-Every Go package with tests requires a `*_suite_test.go` file. There are two patterns depending on whether the package is `main` or a regular package.
+**MUST provide a `*_suite_test.go` file in every package with tests.** Without it, Ginkgo specs are not discovered and `make test` silently misses coverage.
 
-### Standard Package Test Suite
-
-**Every non-main package** must have this test suite structure:
+### Standard Package Suite
 
 ```go
-// Copyright (c) 2025 Benjamin Borbe All rights reserved.
+// Copyright (c) 2026 Benjamin Borbe All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -127,17 +91,17 @@ func TestSuite(t *testing.T) {
 }
 ```
 
-**Key requirements:**
-- **Copyright Header**: BSD-style license header with current year
-- **External Test Package**: Use `package_test` suffix (e.g., `pkg_test`, `user_test`)
-- **UTC Timezone**: `time.Local = time.UTC` ensures consistent time handling across all tests
-- **Full Diffs**: `format.TruncatedDiff = false` shows complete comparison failures
-- **Mock Generation**: `//go:generate` directive enables `go generate ./...` to create mocks
-- **Simple Suite Name**: Use descriptive name like "Test Suite", "Package Test Suite", etc.
+Requirements:
 
-### Main Package Test Suite (Special Case)
+- **External test package**: `package_test` suffix (e.g. `pkg_test`, `user_test`) — keeps tests honest about exported surface.
+- **UTC timezone**: `time.Local = time.UTC` — eliminates locale flakiness.
+- **Full diffs**: `format.TruncatedDiff = false` — never hide assertion failures.
+- **Suite timeout**: `suiteConfig.Timeout` — safety net against hanging tests.
+- **`//go:generate`**: enables `go generate ./...` for Counterfeiter mocks.
 
-**Main packages** use a different pattern focused on compilation verification:
+### Main Package Suite (special case)
+
+**MUST include `main_test.go` for every binary project.** Without it, build failures are not caught by `make test`.
 
 ```go
 // Copyright (c) 2026 Benjamin Borbe All rights reserved.
@@ -176,762 +140,218 @@ func TestSuite(t *testing.T) {
 }
 ```
 
-**Key differences for main packages:**
-- **External Test Package**: Use `main_test` package name
-- **Compilation Test**: Include `Compiles` test using `gexec.Build` with `-buildvcs=false` to verify buildability
-- **Simplified Suite**: Minimal test suite focused on build verification
+The `Compiles` test verifies buildability via `gexec.Build` with `-buildvcs=false`. Main is the **only** exception to the standard pattern — all other packages (internal, pkg, cmd subpackages) use the standard form.
 
-### Critical Notes
-- **Main package is the ONLY exception** to the standard test suite pattern
-- All other packages (including internal, pkg, cmd subpackages) use the standard pattern
-- The compilation test ensures the main package builds correctly as part of test execution
-- **Every binary project MUST have `main_test.go`** — missing it means build failures are not caught by `make test`
+## AAA Pattern + Lifecycle
 
-### Stdlib Preferences
+Tests follow **Arrange / Act / Assert** via Ginkgo lifecycle hooks:
 
-Use `slices.Contains` instead of manual loops for slice membership checks — the `slicescontains` linter enforces this:
-```go
-// BAD — linter will reject
-func contains(s []string, v string) bool {
-    for _, item := range s {
-        if item == v { return true }
-    }
-    return false
-}
-
-// GOOD
-import "slices"
-slices.Contains(s, v)
-```
-- Main packages typically have minimal logic; business logic belongs in testable packages
-
-## Basic Test Structure
-
-### AAA Pattern with Ginkgo
-Tests follow **Arrange**, **Act**, **Assert** pattern using Ginkgo lifecycle hooks:
+- `BeforeEach` — setup before each `It` (Arrange)
+- `JustBeforeEach` — action just before each `It`, after all `BeforeEach` (Act)
+- `AfterEach` — cleanup after each `It`
+- `Context` — groups related scenarios
+- `It` — individual assertions
 
 ```go
 var _ = Describe("Product", func() {
 	var ctx context.Context
-	var err error
 	var product domain.Product
 	var result domain.Price
 
-	// ARRANGE: Set up test data
 	BeforeEach(func() {
 		ctx = context.Background()
-		product = domain.Product{
-			Name:     "Example Product",
-			Price:    99.99,
-			Quantity: 10,
-		}
+		product = domain.Product{Name: "Example", Price: 99.99}
 	})
 
 	Context("CalculateDiscount", func() {
-		// ACT: Execute the method under test
 		JustBeforeEach(func() {
-			result = product.CalculateDiscount(0.1) // 10% discount
+			result = product.CalculateDiscount(0.1)
 		})
 
-		Context("with valid discount", func() {
-			// ASSERT: Verify expectations
-			It("returns correct discounted price", func() {
-				Expect(result).To(Equal(domain.Price(89.99)))
-			})
-		})
-
-		Context("with maximum discount", func() {
-			BeforeEach(func() {
-				product.Price = 100.0
-			})
-
-			It("applies discount correctly", func() {
-				result = product.CalculateDiscount(0.5) // 50% discount
-				Expect(result).To(Equal(domain.Price(50.0)))
-			})
+		It("returns correct discounted price", func() {
+			Expect(result).To(Equal(domain.Price(89.99)))
 		})
 	})
 })
 ```
 
-### Lifecycle Hooks
-- **`BeforeEach`**: Setup executed before each `It` block
-- **`JustBeforeEach`**: Action executed just before each `It` block (after all `BeforeEach`)
-- **`AfterEach`**: Cleanup executed after each `It` block
-- **`Context`**: Groups related test scenarios
-- **`It`**: Individual test assertions
+## Test Timeouts
 
-### Test Timeouts
+**MUST set a suite-level timeout.** Every suite file includes `suiteConfig.Timeout` as a safety net against hanging tests.
 
-#### Suite-Level Timeout (Recommended Default)
-
-Set a default timeout for the entire suite to prevent stuck tests from running indefinitely:
-
-```go
-func TestSuite(t *testing.T) {
-	time.Local = time.UTC
-	format.TruncatedDiff = false
-	RegisterFailHandler(Fail)
-	suiteConfig, reporterConfig := GinkgoConfiguration()
-	suiteConfig.Timeout = 60 * time.Second
-	RunSpecs(t, "Test Suite", suiteConfig, reporterConfig)
-}
-```
-
-**Every suite file should include `suiteConfig.Timeout`** as a safety net against hanging tests.
-
-#### Per-Spec Timeout
-
-Each Ginkgo `It` block can have its own timeout using `SpecTimeout`:
+Per-spec timeout:
 
 ```go
 It("does something within 2s", func(ctx context.Context) {
-    // test code
+	// test body
 }, SpecTimeout(2*time.Second))
 ```
 
-If the test body takes longer than the specified timeout, Ginkgo automatically aborts the spec.
-
-#### Per-Node Timeout
-
-Use `NodeTimeout` on `Describe`/`Context`/`It` nodes to limit individual nodes:
+Per-node timeout for `Describe`/`Context`/`It`:
 
 ```go
 Describe("slow subsystem", func() {
-    It("completes within 5s", func(ctx SpecContext) {
-        // use ctx for cancellation-aware operations
-        Eventually(ctx, func() bool { return ready }).Should(BeTrue())
-    }, NodeTimeout(5*time.Second))
-}, NodeTimeout(30*time.Second))
-```
-
-#### CLI Flag
-
-Override the suite timeout from the command line:
-```bash
-ginkgo --timeout=120s ./...
-```
-
-### Nested Contexts
-Use nested `Context` blocks to organize test scenarios:
-
-```go
-Context("Validate", func() {
-	JustBeforeEach(func() {
-		err = product.Validate(ctx)
-	})
-
-	Context("success cases", func() {
-		It("returns no error", func() {
-			Expect(err).To(BeNil())
-		})
-	})
-
-	Context("error cases", func() {
-		Context("name missing", func() {
-			BeforeEach(func() {
-				product.Name = ""
-			})
-
-			It("returns error", func() {
-				Expect(err).NotTo(BeNil())
-			})
-		})
-
-		Context("negative price", func() {
-			BeforeEach(func() {
-				product.Price = -10.0
-			})
-
-			It("returns error", func() {
-				Expect(err).NotTo(BeNil())
-			})
-		})
-	})
+	It("completes within 5s", func(ctx SpecContext) {
+		Eventually(ctx, func() bool { return ready }).Should(BeTrue())
+	}, NodeTimeout(5*time.Second))
 })
 ```
 
-## Mock Generation & Usage
+## Mock Generation
 
-For comprehensive mocking patterns, mock discovery, and best practices, see **[go-mocking-guide.md](go-mocking-guide.md)**.
+**MUST use Counterfeiter-generated mocks.** Never hand-write mocks — they drift from the interface and break silently.
 
-For understanding when to use mocks vs real implementations, see **[go-test-types-guide.md](go-test-types-guide.md)**.
+### Generate Directive
 
-**Quick Reference:**
-```bash
-# Generate mocks
-go generate ./...
+Place a `//counterfeiter:generate` line above each interface that needs a mock, then `go generate ./...` produces the fake.
 
-# Mock setup in tests
+```go
+//counterfeiter:generate -o mocks/user-service.go --fake-name UserService . Service
+type Service interface {
+	Create(ctx context.Context, user User) error
+	Get(ctx context.Context, id string) (*User, error)
+}
+```
+
+Conventions:
+
+- **`-o mocks/<file>.go`** — mocks live in a `mocks/` subpackage, never alongside production code.
+- **`--fake-name <Name>`** — drop the `Fake` prefix; Counterfeiter's default `FakeService` becomes `UserService` for cleaner test code.
+- **One mock per file** — never bundle multiple fakes in one generated file.
+
+### Mock Usage
+
+```go
 mockService := &mocks.UserService{}
 mockService.CreateReturns(nil)
+
+err := caller.DoSomething(ctx, mockService)
+Expect(err).To(Succeed())
+
+// Verify call count + args
+Expect(mockService.CreateCallCount()).To(Equal(1))
+actualCtx, actualUser := mockService.CreateArgsForCall(0)
+Expect(actualCtx).To(Equal(ctx))
+Expect(actualUser.Name).To(Equal("test"))
 ```
 
-**Key Principle**: Mock external dependencies at interface boundaries, use real implementations for internal utilities.
+## Time Handling
 
-## Database Testing Patterns
-
-### BoltDB Testing Setup
+**MUST inject time via `libtime.CurrentDateTimeGetter` from `github.com/bborbe/time`.** Never call `time.Now()` directly in business logic — tests cannot control it.
 
 ```go
-var _ = Describe("UserStore", func() {
-	var ctx context.Context
-	var err error
-	var db libboltkv.DB
-	var store domain.UserStore
+import libtime "github.com/bborbe/time"
 
-	BeforeEach(func() {
-		ctx = context.Background()
-		
-		// Create temporary database
-		db, err = libboltkv.OpenTemp(ctx)
-		Expect(err).To(BeNil())
-		
-		store = domain.NewUserStore(db)
-	})
-
-	AfterEach(func() {
-		// Always clean up database
-		_ = db.Close()
-		_ = db.Remove()
-	})
-
-	Context("Save and Get", func() {
-		var user domain.User
-		var retrieved *domain.User
-
-		BeforeEach(func() {
-			user = domain.User{
-				ID:    "user-123",
-				Name:  "John Doe",
-				Email: "john@example.com",
-			}
-		})
-
-		JustBeforeEach(func() {
-			err = store.Save(ctx, user)
-			Expect(err).To(BeNil())
-			
-			retrieved, err = store.Get(ctx, user.ID)
-		})
-
-		It("returns no error", func() {
-			Expect(err).To(BeNil())
-		})
-
-		It("returns correct user", func() {
-			Expect(retrieved).NotTo(BeNil())
-			Expect(retrieved.ID).To(Equal(user.ID))
-			Expect(retrieved.Name).To(Equal(user.Name))
-		})
-	})
-})
-```
-
-### Transaction Testing
-
-```go
-var _ = Describe("TransactionalService", func() {
-	var ctx context.Context
-	var db libboltkv.DB
-	var service TransactionalService
-
-	BeforeEach(func() {
-		ctx = context.Background()
-		db, _ = libboltkv.OpenTemp(ctx)
-		service = NewTransactionalService(db)
-	})
-
-	AfterEach(func() {
-		_ = db.Close()
-		_ = db.Remove()
-	})
-
-	Context("transaction rollback on error", func() {
-		It("does not persist changes when error occurs", func() {
-			err := service.ProcessWithError(ctx, "test-id")
-			Expect(err).NotTo(BeNil())
-
-			// Verify no data was persisted
-			_, err = service.Get(ctx, "test-id")
-			Expect(err).To(MatchError(ContainSubstring("not found")))
-		})
-	})
-})
-```
-
-## Time Handling in Tests
-
-### Fixed Time Setup
-
-```go
-var _ = Describe("TimeService", func() {
-	var ctx context.Context
+var _ = Describe("Service", func() {
 	var currentDateTime libtime.CurrentDateTime
-	var service TimeService
+	var service Service
 	var fixedTime time.Time
 
 	BeforeEach(func() {
-		ctx = context.Background()
-		fixedTime = time.Date(2023, 12, 25, 12, 0, 0, 0, time.UTC)
-		
-		// Create controllable time
+		fixedTime = time.Date(2026, 6, 2, 12, 0, 0, 0, time.UTC)
 		currentDateTime = libtime.NewCurrentDateTime()
 		currentDateTime.SetNow(fixedTime)
-		
-		service = NewTimeService(currentDateTime)
+		service = NewService(currentDateTime)
 	})
 
-	Context("timestamp generation", func() {
-		var result time.Time
-
-		JustBeforeEach(func() {
-			result = service.GetCurrentTime()
-		})
-
-		It("returns fixed time", func() {
-			Expect(result).To(Equal(fixedTime))
-		})
-	})
-
-	Context("time progression", func() {
-		It("advances time when updated", func() {
-			initial := service.GetCurrentTime()
-			
-			// Advance time by 1 hour
-			newTime := fixedTime.Add(time.Hour)
-			currentDateTime.SetNow(newTime)
-			
-			advanced := service.GetCurrentTime()
-			Expect(advanced).To(Equal(newTime))
-			Expect(advanced).To(BeTemporally(">", initial))
-		})
+	It("uses the injected time", func() {
+		Expect(service.GetTimestamp()).To(Equal(fixedTime))
 	})
 })
 ```
 
-### Time Utilities for Tests
+Helpers:
 
 ```go
 import libtimetest "github.com/bborbe/time/test"
 
-// Parsing helper
-fixedTime := libtimetest.ParseDateTime("2023-12-25T00:00:00Z")
+fixedTime := libtimetest.ParseDateTime("2026-06-02T00:00:00Z")
 
-// Time comparisons
 Expect(actualTime).To(BeTemporally("~", expectedTime, time.Second))
 Expect(actualTime).To(BeTemporally(">", beforeTime))
 Expect(actualTime).To(BeTemporally("<=", afterTime))
 ```
 
-## Error Testing Strategies
+## Error Testing
 
-### Comprehensive Error Testing
+Prefer matchers that document intent over manual `err != nil` checks.
 
-```go
-var _ = Describe("ValidationService", func() {
-	var ctx context.Context
-	var service ValidationService
-	var input Input
-
-	BeforeEach(func() {
-		ctx = context.Background()
-		service = NewValidationService()
-		input = Input{Value: "valid"}
-	})
-
-	Context("Validate", func() {
-		var err error
-
-		JustBeforeEach(func() {
-			err = service.Validate(ctx, input)
-		})
-
-		Context("valid input", func() {
-			It("returns no error", func() {
-				Expect(err).To(BeNil())
-			})
-		})
-
-		Context("invalid input", func() {
-			Context("empty value", func() {
-				BeforeEach(func() {
-					input.Value = ""
-				})
-
-				It("returns validation error", func() {
-					Expect(err).NotTo(BeNil())
-					Expect(err.Error()).To(ContainSubstring("value cannot be empty"))
-				})
-			})
-
-			Context("value too long", func() {
-				BeforeEach(func() {
-					input.Value = strings.Repeat("a", 1000)
-				})
-
-				It("returns length error", func() {
-					Expect(err).NotTo(BeNil())
-					Expect(err.Error()).To(ContainSubstring("value too long"))
-				})
-			})
-		})
-
-		Context("external dependency failure", func() {
-			var mockValidator *mocks.ExternalValidator
-
-			BeforeEach(func() {
-				mockValidator = &mocks.ExternalValidator{}
-				service = NewValidationServiceWithValidator(mockValidator)
-				
-				mockValidator.ValidateReturns(errors.New("external service down"))
-			})
-
-			It("wraps external error", func() {
-				Expect(err).NotTo(BeNil())
-				Expect(err.Error()).To(ContainSubstring("external service down"))
-			})
-		})
-	})
-})
-```
-
-### Error Type Testing
+| Use case | Matcher |
+|---|---|
+| Function should succeed | `Expect(fn()).To(Succeed())` |
+| Function should fail | `Expect(fn()).To(HaveOccurred())` |
+| Specific error value | `Expect(err).To(MatchError(target))` |
+| Substring in message | `Expect(err).To(MatchError(ContainSubstring("not found")))` |
+| Specific error type | `var target *MyErr; Expect(errors.As(err, &target)).To(BeTrue())` |
 
 ```go
-Context("specific error types", func() {
-	It("returns NotFoundError for missing items", func() {
-		_, err := service.Get(ctx, "nonexistent")
-		Expect(err).To(MatchError(&NotFoundError{}))
-	})
-
-	It("returns ValidationError for invalid data", func() {
-		err := service.Create(ctx, InvalidData{})
-		var validationErr *ValidationError
-		Expect(errors.As(err, &validationErr)).To(BeTrue())
-		Expect(validationErr.Field).To(Equal("name"))
-	})
-})
-```
-
-## JSON & Serialization Testing
-
-### JSON Marshaling/Unmarshaling
-
-```go
-var _ = Describe("User JSON", func() {
-	var user domain.User
-	var jsonBytes []byte
+Context("Validate", func() {
 	var err error
 
-	BeforeEach(func() {
-		user = domain.User{
-			ID:    "user-123",
-			Name:  "John Doe",
-			Email: "john@example.com",
-		}
+	JustBeforeEach(func() {
+		err = service.Validate(ctx, input)
 	})
 
-	Context("Marshal", func() {
-		JustBeforeEach(func() {
-			jsonBytes, err = json.Marshal(user)
-		})
-
+	Context("valid input", func() {
 		It("returns no error", func() {
-			Expect(err).To(BeNil())
-		})
-
-		It("produces correct JSON", func() {
-			expected := `{"id":"user-123","name":"John Doe","email":"john@example.com"}`
-			Expect(string(jsonBytes)).To(Equal(expected))
+			Expect(err).To(Succeed())
 		})
 	})
 
-	Context("Unmarshal", func() {
-		var unmarshaled domain.User
-
-		JustBeforeEach(func() {
-			jsonStr := `{"id":"user-123","name":"John Doe","email":"john@example.com"}`
-			err = json.Unmarshal([]byte(jsonStr), &unmarshaled)
-		})
-
-		It("returns no error", func() {
-			Expect(err).To(BeNil())
-		})
-
-		It("recreates correct object", func() {
-			Expect(unmarshaled).To(Equal(user))
-		})
-	})
-
-	Context("round trip", func() {
-		It("preserves data through marshal/unmarshal", func() {
-			jsonBytes, err := json.Marshal(user)
-			Expect(err).To(BeNil())
-
-			var restored domain.User
-			err = json.Unmarshal(jsonBytes, &restored)
-			Expect(err).To(BeNil())
-
-			Expect(restored).To(Equal(user))
-		})
-	})
-})
-```
-
-## Integration Test Patterns
-
-### Service Integration Testing
-
-```go
-var _ = Describe("OrderProcessor Integration", func() {
-	var ctx context.Context
-	var processor OrderProcessor
-	var mockPayment *mocks.PaymentAPI
-	var mockNotifier *mocks.NotificationService
-	var db libboltkv.DB
-
-	BeforeEach(func() {
-		ctx = context.Background()
-		
-		// Setup real database
-		db, _ = libboltkv.OpenTemp(ctx)
-		
-		// Setup mocks for external dependencies
-		mockPayment = &mocks.PaymentAPI{}
-		mockNotifier = &mocks.NotificationService{}
-		
-		// Create service with mix of real and mock dependencies
-		processor = NewOrderProcessor(
-			domain.NewOrderStore(db), // Real store
-			mockPayment,              // Mock payment service
-			mockNotifier,             // Mock notifier
-		)
-	})
-
-	AfterEach(func() {
-		_ = db.Close()
-		_ = db.Remove()
-	})
-
-	Context("process order end-to-end", func() {
-		var order domain.OrderRequest
-		var result *domain.Order
-
+	Context("empty value", func() {
 		BeforeEach(func() {
-			order = domain.OrderRequest{
-				ID:       "order-123",
-				Product:  "laptop",
-				Quantity: 2,
-				Amount:   2500.00,
-			}
-
-			// Mock successful payment response
-			mockPayment.ProcessPaymentReturns(&PaymentResult{
-				ID:     "payment-123",
-				Status: "success",
-			}, nil)
+			input.Value = ""
 		})
 
-		JustBeforeEach(func() {
-			result, err = processor.ProcessOrder(ctx, order)
-		})
-
-		It("processes successfully", func() {
-			Expect(err).To(BeNil())
-			Expect(result).NotTo(BeNil())
-		})
-
-		It("stores order in database", func() {
-			stored, err := processor.store.Get(ctx, result.ID)
-			Expect(err).To(BeNil())
-			Expect(stored.Product).To(Equal(order.Product))
-		})
-
-		It("calls payment service with correct parameters", func() {
-			Expect(mockPayment.ProcessPaymentCallCount()).To(Equal(1))
-			// Verify payment call parameters...
-		})
-
-		It("sends notification", func() {
-			Expect(mockNotifier.NotifyCallCount()).To(Equal(1))
+		It("returns validation error", func() {
+			Expect(err).To(MatchError(ContainSubstring("value cannot be empty")))
 		})
 	})
 })
 ```
 
-### Label-Based Test Organization (Optional)
-
-Ginkgo v2 supports labels for categorizing tests, enabling selective test execution. While not widely used in the ecosystem (less than 1% of tests), labels can be useful for separating unit and integration tests.
-
-#### Applying Labels to Tests
+Error-type assertions:
 
 ```go
-var _ = Describe("UserService", func() {
-	// Unit test with label
-	Context("Validate", Label("unit"), func() {
-		It("returns error for invalid email", func() {
-			err := service.Validate(ctx, "not-an-email")
-			Expect(err).NotTo(BeNil())
-		})
-	})
+It("returns NotFoundError for missing items", func() {
+	_, err := service.Get(ctx, "nonexistent")
+	Expect(err).To(MatchError(&NotFoundError{}))
+})
 
-	// Integration test with label and real database
-	Context("Create", Label("integration"), func() {
-		var db libboltkv.DB
-
-		BeforeEach(func() {
-			db, _ = libboltkv.OpenTemp(ctx)
-		})
-
-		AfterEach(func() {
-			_ = db.Close()
-			_ = db.Remove()
-		})
-
-		It("creates user in database", func() {
-			user := domain.User{
-				ID:    "user-123",
-				Email: "john@example.com",
-			}
-			err := service.Create(ctx, user)
-			Expect(err).To(BeNil())
-
-			retrieved, err := service.Get(ctx, user.ID)
-			Expect(err).To(BeNil())
-			Expect(retrieved.Email).To(Equal(user.Email))
-		})
-	})
+It("returns ValidationError for invalid data", func() {
+	err := service.Create(ctx, InvalidData{})
+	var validationErr *ValidationError
+	Expect(errors.As(err, &validationErr)).To(BeTrue())
+	Expect(validationErr.Field).To(Equal("name"))
 })
 ```
-
-#### Running Tests by Label
-
-```bash
-# Run all tests (default)
-ginkgo run ./...
-
-# Run only unit tests
-ginkgo run --label-filter="unit" ./...
-
-# Run only integration tests
-ginkgo run --label-filter="integration" ./...
-
-# Run tests excluding integration
-ginkgo run --label-filter="!integration" ./...
-
-# Combine label filters
-ginkgo run --label-filter="unit && !slow" ./...
-```
-
-#### Standard Label Conventions
-
-| Label | Purpose | Typical Speed |
-|-------|---------|---------------|
-| `unit` | Tests single components with mocks | Fast (milliseconds) |
-| `integration` | Tests multiple components together (internal only) | Medium (seconds) |
-| `e2e` | Tests with external dependencies (databases, APIs, etc.) | Slow (seconds to minutes) |
-| `slow` | Long-running tests (large datasets, timeouts, etc.) | Very slow (minutes) |
-
-**Key points:**
-- Labels are optional - most tests in the ecosystem don't use them
-- Consistent labeling enables fast feedback loops in CI/CD
-- Use `Label("integration")` for tests with real databases or file I/O
-- Use `Label("unit")` for fast tests with mocks only
-- Multiple labels can be applied: `Label("integration", "slow")`
-- Standard test files remain `*_test.go` (no separate `*_integration_test.go` files)
-
-### Testing Fire-and-Forget Handlers (Background Goroutines)
-
-When the SUT (system under test) launches a goroutine and returns immediately — HTTP handlers wrapped with background-run helpers, queue producers, async dispatchers — the test must reason about three concurrent timelines: the caller, the goroutine, and the assertion. Two failure modes show up:
-
-**1. The "called exactly once" stub panics.** A naive stub that does `close(done)` will panic with `close of closed channel` if scheduler delay lets a second goroutine call the stub after the first finishes. Mutex-based single-flight wrappers (e.g. a `sync.Mutex`-guarded "skip if in-flight" decorator) only block **concurrent** entry — a goroutine scheduled later, after the lock is released, will still invoke the stub. Make stubs idempotent:
-
-```go
-// ❌ WRONG — panics if the stub is invoked more times than expected
-fakeJobRunner.RunStub = func(ctx context.Context) error {
-    close(done)
-    return nil
-}
-
-// ✅ CORRECT — first call wins, later calls are no-ops
-var fired atomic.Bool
-fakeJobRunner.RunStub = func(ctx context.Context) error {
-    if fired.CompareAndSwap(false, true) {
-        close(done)
-    }
-    return nil
-}
-```
-
-**2. The "did NOT happen" assertion races the goroutine.** Asserting "second invocation was skipped" with `Eventually(callCount).Should(Equal(1))` only proves the count was 1 at *some* moment — a delayed goroutine may bump it to 2 right after. Pair `Eventually` (something happened) with `Consistently` (nothing more is going to happen) **while the gating condition still holds**:
-
-```go
-// First request fires the job runner; runner blocks on `unblock`
-h.ServeHTTP(httptest.NewRecorder(), req)
-Eventually(callStarted).Should(BeClosed())   // first goroutine entered stub
-
-// Second request — should be single-flight skipped
-h.ServeHTTP(httptest.NewRecorder(), req)
-
-// While the first call is STILL BLOCKED, the count MUST stay at 1.
-// A buggy single-flight would push it to 2 inside this window.
-Consistently(fakeJobRunner.RunCallCount, "200ms", "20ms").Should(Equal(1))
-
-close(unblock)                                // release the first call
-Eventually(fakeJobRunner.RunCallCount).Should(Equal(1))  // still 1 after release
-```
-
-**Cleanup**: always unblock the gating channel before the `It` ends, even on assertion failure. Leaked goroutines pile up across the suite and mask real bugs:
-
-```go
-defer close(unblock)  // top of It block
-```
-
-See also: [go-concurrency-patterns.md](go-concurrency-patterns.md) for the broader goroutine-lifecycle context.
-
-Or use Ginkgo's `DeferCleanup` to guarantee teardown.
 
 ## Test Organization & Naming
 
-### File Naming Conventions
-- **Test Files**: `feature_test.go` (e.g., `user-service_test.go`)
-- **Suite Files**: `package_suite_test.go` (e.g., `pkg_suite_test.go`)
-- **Package**: `package_test` (separate from implementation package)
+**File naming conventions:**
 
-### Test Naming Patterns
+- Test files: `feature_test.go` (kebab-case: `user-service_test.go`)
+- Suite file: `<pkg>_suite_test.go` (e.g. `pkg_suite_test.go`)
+- Package: `<pkg>_test` — external test package, separate from implementation
+
+**Test naming pattern** — descriptive hierarchy that reads as a sentence:
 
 ```go
-// Good: Descriptive hierarchy
 var _ = Describe("UserService", func() {
 	Context("Create", func() {
 		Context("with valid data", func() {
-			It("creates user successfully", func() {
-				// Test implementation
-			})
+			It("creates user successfully", func() { ... })
 		})
-		
-		Context("with invalid email", func() {
-			It("returns validation error", func() {
-				// Test implementation
-			})
-		})
-	})
-})
 
-// Good: Specific behavior description
-var _ = Describe("Order", func() {
-	Context("CalculateTotal", func() {
-		Context("order with discount applied", func() {
-			It("returns correct total amount", func() {
-				// Test implementation
-			})
+		Context("with invalid email", func() {
+			It("returns validation error", func() { ... })
 		})
 	})
 })
 ```
 
-### Directory Structure
+**Directory layout:**
+
 ```
 pkg/
 ├── user-service.go
@@ -939,64 +359,10 @@ pkg/
 ├── pkg_suite_test.go
 └── mocks/
     ├── user-repository.go
-    ├── email-service.go
-    └── generated_mocks.go
+    └── email-service.go
 ```
 
-## Common Testing Utilities
-
-### Custom Matchers
-
-```go
-// Custom matcher for testing value equality with tolerance
-func BeWithinTolerance(expected domain.Value, tolerance domain.Value) types.GomegaMatcher {
-	return &withinToleranceMatcher{
-		expected:  expected,
-		tolerance: tolerance,
-	}
-}
-
-// Usage in tests
-Expect(actualValue).To(BeWithinTolerance(domain.Value(100.50), domain.Value(0.01)))
-```
-
-### Test Data Builders
-
-```go
-// Builder pattern for test data
-func NewTestOrder() *OrderBuilder {
-	return &OrderBuilder{
-		order: domain.Order{
-			ID:       "test-order",
-			Product:  "laptop",
-			Quantity: 2,
-			Price:    999.99,
-		},
-	}
-}
-
-func (b *OrderBuilder) WithProduct(product string) *OrderBuilder {
-	b.order.Product = product
-	return b
-}
-
-func (b *OrderBuilder) WithDiscount(discount float64) *OrderBuilder {
-	b.order.Discount = domain.Price(discount).Ptr()
-	return b
-}
-
-func (b *OrderBuilder) Build() domain.Order {
-	return b.order
-}
-
-// Usage in tests
-order := NewTestOrder().
-	WithProduct("smartphone").
-	WithDiscount(50.00).
-	Build()
-```
-
-### Table-Driven Tests with Ginkgo
+## Table-Driven Tests
 
 ```go
 var _ = Describe("UnitConverter", func() {
@@ -1009,200 +375,54 @@ var _ = Describe("UnitConverter", func() {
 	DescribeTable("unit conversions",
 		func(from, to string, value, expected float64) {
 			result, err := converter.Convert(from, to, value)
-			Expect(err).To(BeNil())
+			Expect(err).To(Succeed())
 			Expect(result).To(BeNumerically("~", expected, 0.001))
 		},
 		Entry("meters to feet", "m", "ft", 1.0, 3.281),
 		Entry("feet to meters", "ft", "m", 3.281, 1.0),
 		Entry("celsius to fahrenheit", "C", "F", 0.0, 32.0),
-		Entry("same unit", "m", "m", 100.0, 100.0),
 	)
 })
 ```
 
-## Best Practices & Anti-patterns
+## Stdlib Preferences
 
-### ✅ Best Practices
+Use `slices.Contains` instead of manual loops — the `slicescontains` linter enforces this:
 
-**1. Clear Test Organization**
 ```go
-// Good: Clear hierarchy and descriptive names
-var _ = Describe("InputValidator", func() {
-	Context("ValidateInput", func() {
-		Context("when input is valid", func() {
-			It("returns no error", func() {
-				// Test valid input
-			})
-		})
-		
-		Context("when input format is invalid", func() {
-			It("returns format validation error", func() {
-				// Test invalid format
-			})
-		})
-	})
-})
+// BAD — linter will reject
+func contains(s []string, v string) bool {
+	for _, item := range s {
+		if item == v {
+			return true
+		}
+	}
+	return false
+}
+
+// GOOD
+import "slices"
+slices.Contains(s, v)
 ```
 
-**2. Proper Mock Usage**
-```go
-// Good: Verify both behavior and calls
-BeforeEach(func() {
-	mockService.ProcessReturns(expectedResult, nil)
-})
+## Best Practices
 
-It("calls service with correct parameters", func() {
-	Expect(mockService.ProcessCallCount()).To(Equal(1))
-	actualCtx, actualData := mockService.ProcessArgsForCall(0)
-	Expect(actualCtx).To(Equal(ctx))
-	Expect(actualData).To(Equal(testData))
-})
-```
+1. **Clear hierarchy** — `Describe` (unit under test) → `Context` (scenario) → `It` (single assertion or tightly coupled set).
+2. **Verify both behavior and calls** — assert return value plus mock call count + args for the right side of the contract.
+3. **Independent tests** — fresh setup in `BeforeEach`; never share state across `It` blocks via package-level vars.
+4. **Comprehensive error paths** — happy path + every distinct failure mode (invalid input, dependency error, timeout) gets its own `Context`.
 
-**3. Independent Tests**
-```go
-// Good: Each test is isolated
-BeforeEach(func() {
-	// Fresh setup for each test
-	ctx = context.Background()
-	service = NewTestService()
-})
-```
+## Anti-Patterns
 
-**4. Comprehensive Error Testing**
-```go
-// Good: Test both success and failure paths
-Context("success case", func() {
-	It("returns expected result", func() {
-		// Test success
-	})
-})
+1. **Testing implementation details** — assert behavior (return value, observable side effect), not which helper method was called internally.
+2. **Large, unfocused `It` blocks** — one `It` per behavior; if a test exercises create + update + delete, split into three `Context`s.
+3. **Only happy-path coverage** — every error-returning function needs a failure-path `Context`.
+4. **Test data dependencies** — never `var globalTestData TestData` shared across tests. Build fresh data in `BeforeEach`.
 
-Context("error cases", func() {
-	Context("invalid input", func() {
-		It("returns validation error", func() {
-			// Test validation error
-		})
-	})
-	
-	Context("external service failure", func() {
-		It("handles service error gracefully", func() {
-			// Test external error handling
-		})
-	})
-})
-```
+## Further Reading
 
-### ❌ Anti-patterns
-
-**1. Testing Implementation Details**
-```go
-// Bad: Testing internal implementation
-It("calls helper method twice", func() {
-	result := service.Process(data)
-	// This test is too coupled to implementation
-})
-
-// Good: Testing behavior
-It("processes data correctly", func() {
-	result := service.Process(data)
-	Expect(result.Status).To(Equal(ProcessedStatus))
-})
-```
-
-**2. Large, Unfocused Tests**
-```go
-// Bad: One test doing too much
-It("handles entire user lifecycle", func() {
-	// Creates user
-	// Updates user
-	// Deletes user
-	// Tests multiple unrelated behaviors
-})
-
-// Good: Separate focused tests
-Context("Create", func() {
-	It("creates user with valid data", func() {
-		// Test only creation
-	})
-})
-
-Context("Update", func() {
-	It("updates user information", func() {
-		// Test only update
-	})
-})
-```
-
-**3. Missing Error Cases**
-```go
-// Bad: Only testing happy path
-It("processes request", func() {
-	result := service.Process(validInput)
-	Expect(result).NotTo(BeNil())
-})
-
-// Good: Testing both success and failure
-Context("with valid input", func() {
-	It("processes successfully", func() {
-		// Test success
-	})
-})
-
-Context("with invalid input", func() {
-	It("returns validation error", func() {
-		// Test error handling
-	})
-})
-```
-
-**4. Test Data Dependencies**
-```go
-// Bad: Tests depend on each other
-var globalTestData TestData
-
-It("creates data", func() {
-	globalTestData = service.Create(input)
-})
-
-It("uses created data", func() {
-	result := service.Process(globalTestData) // Depends on previous test
-})
-
-// Good: Independent test data
-BeforeEach(func() {
-	testData = CreateTestData() // Fresh data for each test
-})
-```
-
-## Running Tests
-
-### Make Commands
-```bash
-# Run all tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Run specific package tests
-ginkgo run pkg/
-
-# Run tests matching pattern
-ginkgo -focus="Order" pkg/
-
-# Generate mocks
-go generate ./...
-
-# Run quality checks (includes tests)
-make precommit
-```
-
-### CI/CD Integration
-Tests are automatically run as part of the precommit process and must pass before code can be committed. The make precommit command runs:
-- Test execution with coverage requirements
-- Mock generation verification
-- Static analysis and linting
-- Code formatting validation
-
-This comprehensive testing approach ensures reliable, maintainable code throughout any Go application, with clear patterns that all developers can follow for consistent, high-quality tests.
+- [Ginkgo v2](https://onsi.github.io/ginkgo/) — BDD test framework reference.
+- [Gomega](https://onsi.github.io/gomega/) — matcher reference.
+- [Counterfeiter](https://github.com/maxbrunsfeld/counterfeiter) — mock generator.
+- [`github.com/bborbe/time`](https://github.com/bborbe/time) — injectable time utilities.
+- [`github.com/bborbe/errors`](https://github.com/bborbe/errors) — error wrapping utilities used in test assertions.

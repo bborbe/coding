@@ -126,6 +126,60 @@
     "owner": "go-http-handler-assistant"
   },
   {
+    "anchor": "go-prometheus/composed-metrics-interface",
+    "applies_when": "a single `Metrics` interface aggregates methods spanning two or more distinct functional domains (handlers + senders + schedulers + …), forcing consumers to depend on methods they don't use.",
+    "doc_path": "docs/go-prometheus-metrics-guide.md",
+    "enforcement": "judgment",
+    "id": "go-prometheus/composed-metrics-interface",
+    "level": "SHOULD",
+    "owner": "go-metrics-assistant"
+  },
+  {
+    "anchor": "go-prometheus/counter-pre-initialization",
+    "applies_when": "a CounterVec is registered for a label set whose value domain is small, bounded, and known at compile time (typically < 20 combinations — enum, fixed slice of strings, etc.). For large or unbounded domains, prefer `absent()` checks in alerting rules instead.",
+    "doc_path": "docs/go-prometheus-metrics-guide.md",
+    "enforcement": "judgment",
+    "id": "go-prometheus/counter-pre-initialization",
+    "level": "MUST",
+    "owner": "go-metrics-assistant"
+  },
+  {
+    "anchor": "go-prometheus/counter-total-suffix",
+    "applies_when": "a `prometheus.CounterOpts` struct literal sets a `Name:` field whose string value does not end with `_total`.",
+    "doc_path": "docs/go-prometheus-metrics-guide.md",
+    "enforcement": "judgment (ast-grep follow-up)",
+    "id": "go-prometheus/counter-total-suffix",
+    "level": "MUST",
+    "owner": "go-metrics-assistant"
+  },
+  {
+    "anchor": "go-prometheus/help-string-quality",
+    "applies_when": "any `prometheus.{Counter,Gauge,Histogram,Summary}Opts` struct literal sets a `Help:` field that (a) is empty, (b) duplicates another metric's Help verbatim, or (c) describes a different metric (copy-paste residue).",
+    "doc_path": "docs/go-prometheus-metrics-guide.md",
+    "enforcement": "judgment",
+    "id": "go-prometheus/help-string-quality",
+    "level": "MUST",
+    "owner": "go-metrics-assistant"
+  },
+  {
+    "anchor": "go-prometheus/label-naming-consistency",
+    "applies_when": "two or more metrics in the same project reference the same conceptual entity using different label names (e.g. `product` vs `item` for product ID; `tenant` vs `customer` vs `org`).",
+    "doc_path": "docs/go-prometheus-metrics-guide.md",
+    "enforcement": "judgment",
+    "id": "go-prometheus/label-naming-consistency",
+    "level": "MUST",
+    "owner": "go-metrics-assistant"
+  },
+  {
+    "anchor": "go-prometheus/no-gauge-for-monotonic",
+    "applies_when": "a `prometheus.NewGaugeVec` / `prometheus.NewGauge` registers a metric the code only ever increments (only `.Inc()` / `.Add(positive)` call sites, never `.Set()` / `.Dec()` / `.Sub()`).",
+    "doc_path": "docs/go-prometheus-metrics-guide.md",
+    "enforcement": "judgment",
+    "id": "go-prometheus/no-gauge-for-monotonic",
+    "level": "MUST",
+    "owner": "go-metrics-assistant"
+  },
+  {
     "anchor": "go-security/chmod-return-checked",
     "applies_when": "an `os.Chmod($PATH, $PERM)` call in a `*.go` file outside `*_test.go` and `vendor/` whose return value is discarded (no `if err := os.Chmod(...); err != nil` wrapper, no `_ = os.Chmod(...)` with an explanatory comment). Detecting \"return value used in error check\" requires reading the surrounding statement — pure ast-grep cannot reliably distinguish a checked `os.Chmod(...)` from an unchecked one without false positives.",
     "doc_path": "docs/go-security-linting.md",

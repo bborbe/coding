@@ -19,11 +19,13 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context) error {
-	prompt.ResetExecuting(ctx, r.dir)         // hidden dep on package prompt
-	prompt.NormalizeFilenames(ctx, r.dir)     // hidden dep
-	queued := prompt.ListQueued(ctx, r.dir)   // hidden dep
-	r.executor.Execute(ctx, ...)
-	git.CommitAndRelease(ctx, "release")      // hidden dep on package git
+	prompt.ResetExecuting(ctx, r.dir)            // hidden dep on package prompt
+	prompt.NormalizeFilenames(ctx, r.dir)        // hidden dep
+	queued, _ := prompt.ListQueued(ctx, r.dir)   // hidden dep
+	for _, p := range queued {
+		r.executor.Execute(ctx, p)
+	}
+	git.CommitAndRelease(ctx, "release")         // hidden dep on package git
 	return nil
 }
 ```
@@ -31,21 +33,33 @@ func (r *runner) Run(ctx context.Context) error {
 #### Good
 
 ```go
-// All deps surfaced as injected interfaces — constructor tells the full story
+// Runner is the orchestration interface — small (1 method), drives the workflow
+// via injected dependencies declared as their own interfaces.
+type Runner interface {
+	Run(ctx context.Context) error
+}
+
+// PromptScanner returns the queued prompts that have not yet been executed.
 type PromptScanner interface {
 	ListQueued(ctx context.Context) ([]Prompt, error)
 }
 
+// Releaser commits and tags the most recent execution batch.
 type Releaser interface {
 	CommitAndRelease(ctx context.Context, title string) error
 }
 
+// runner is the canonical Runner implementation. All deps surfaced as
+// injected interfaces — constructor tells the full story.
 type runner struct {
 	scanner  PromptScanner
 	executor Executor
 	releaser Releaser
 }
 
+// NewRunner returns a Runner wired with the given scanner, executor, and
+// releaser. Each dep is a separate interface so factories can swap real for
+// fake without touching business logic.
 func NewRunner(scanner PromptScanner, executor Executor, releaser Releaser) Runner {
 	return &runner{scanner: scanner, executor: executor, releaser: releaser}
 }
@@ -130,22 +144,29 @@ type Service interface {
 #### Good
 
 ```go
-// Focused interfaces — each consumer takes only what it uses
+// Logger emits a single log line. Tiny interface — one method.
 type Logger interface {
-	Log(msg string)
+	Log(ctx context.Context, msg string)
 }
 
+// ItemStore is the CRUD-like persistence interface for Item entities.
+// Three methods because they form one coherent capability (item lifecycle).
 type ItemStore interface {
 	Save(ctx context.Context, item Item) error
 	Load(ctx context.Context, id string) (Item, error)
 	Delete(ctx context.Context, id string) error
 }
 
+// Notifier publishes an event to the downstream notification fabric.
 type Notifier interface {
 	Notify(ctx context.Context, evt Event) error
 }
 
-// Composition is explicit when needed
+// Service composes the three focused interfaces above. Consumers that need
+// only one capability take only that one as a parameter — Service is the
+// type for the rare consumer that legitimately needs all three.
+// Embedded interfaces satisfy ISP: each focused interface is independently
+// mockable; Service just declares the union.
 type Service interface {
 	Logger
 	ItemStore

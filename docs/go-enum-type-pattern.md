@@ -40,8 +40,11 @@ func Process(status string) error { // accepts any string; typo silent
 #### Good
 
 ```go
+// OrderStatus is the closed set of lifecycle states an Order may occupy.
 type OrderStatus string
 
+// Recognised OrderStatus values. The Available* collection below mirrors
+// this set — keep both in sync.
 const (
 	PendingOrderStatus    OrderStatus = "pending"
 	ProcessingOrderStatus OrderStatus = "processing"
@@ -49,8 +52,12 @@ const (
 	FailedOrderStatus     OrderStatus = "failed"
 )
 
+// OrderStatuses is a collection of OrderStatus values, used by Validate to
+// check membership in the closed set.
 type OrderStatuses []OrderStatus
 
+// AvailableOrderStatuses lists every OrderStatus value the system accepts.
+// Validate() ranges over this collection; tests and dispatchers iterate it.
 var AvailableOrderStatuses = OrderStatuses{
 	PendingOrderStatus,
 	ProcessingOrderStatus,
@@ -58,7 +65,9 @@ var AvailableOrderStatuses = OrderStatuses{
 	FailedOrderStatus,
 }
 
-func Process(status OrderStatus) error { // type-checked at call site
+// Process advances an order to the next state for the given status.
+// Returns an error if the status is unknown or the order is in a terminal state.
+func Process(ctx context.Context, status OrderStatus) error { // type-checked at call site
 	// ...
 }
 ```

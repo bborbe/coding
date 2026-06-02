@@ -39,6 +39,7 @@ rule:
     - pattern: 'flag.Float64Var($$$ARGS)'
     - pattern: 'flag.DurationVar($$$ARGS)'
     - pattern: 'flag.Var($$$ARGS)'
+    - pattern: 'flag.Func($$$ARGS)'
     - pattern: 'flag.NewFlagSet($$$ARGS)'
     - pattern: 'flag.CommandLine'
 ignores:

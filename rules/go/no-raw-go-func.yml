@@ -18,6 +18,13 @@ ignores:
   - "**/main.go"
   - "cmd/**"
   - "**/cmd/**"
+  # pkg/cli/** exempted because the canonical Execute() shape in
+  # go-cli-guide.md uses 'go func() { <-sigCh; cancel() }()' for
+  # signal-listener wiring — that's the documented correct pattern
+  # for that location. Subcommand RunE goroutines that don't fit
+  # run.* primitives are rare enough that the false-negative cost
+  # is lower than the false-positive cost of catching every
+  # signal-listener bootstrap.
   - "pkg/cli/**"
   - "**/pkg/cli/**"
   - "**/*_test.go"

@@ -5,7 +5,7 @@
 ### RULE go-cli/cobra-not-stdlib-flag (MUST)
 
 **Owner**: go-quality-assistant
-**Applies when**: a Go CLI binary's `main.go` / `pkg/cli/...` imports `flag` (stdlib) and calls `flag.String` / `flag.Bool` / `flag.Parse`, instead of using `github.com/spf13/cobra` (with its `pflag` library).
+**Applies when**: any non-test Go file imports the stdlib `flag` package or calls `flag.*` functions (Parse / String / Bool / Int / Float64 / Duration + all *Var variants + Var / Func / NewFlagSet / CommandLine). Scope is intentionally broader than "CLI binaries only" because the Why this rule prevents is **transitive `flag.init()` pollution** — a library calling `flag.String()` in its `init()` adds flags to every binary that imports it, which is the actual failure mode this rule guards against. Test files are exempt.
 **Enforcement**: `rules/go/cobra-not-stdlib-flag.yml`
 **Why**: Stdlib `flag` uses a process-global `flag.CommandLine` FlagSet. Any transitive dependency that calls `flag.String(...)` in its `init()` adds flags to this global set — and `github.com/golang/glog` is the most common offender, adding 8+ flags (`-alsologtostderr`, `-log_dir`, `-log_backtrace_at`, `-stderrthreshold`, `-v`, `-vmodule`, …) to every binary that transitively imports it. The result: `my-tool --help` displays a wall of irrelevant glog flags before your three actual flags, and the binary accepts those flags at runtime even though no one wanted them. Cobra uses `pflag` which is isolated from `flag.CommandLine` — the global pollution can't reach it, `--help` shows only your flags, and your flag namespace stays under your control.
 

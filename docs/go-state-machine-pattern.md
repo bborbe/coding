@@ -293,8 +293,9 @@ func runReviewingPhase(ctx context.Context, attempts int) (*Result, error) {
 		return &Result{
 			Status:    "done",
 			NextPhase: PhaseDrafting, // backward edge — circuit breaker exists above
-			Metadata:  map[string]string{"attempts": fmt.Sprint(attempts + 1)},
 		}, nil
+		// Controller increments the persisted attempts counter on each backward edge
+		// and passes it back as the attempts argument on the next invocation.
 	}
 	return &Result{Status: "done", NextPhase: PhaseFinalized}, nil
 }

@@ -1,6 +1,6 @@
 # Go Linting Guide
 
-Comprehensive guide for golangci-lint v2 configuration, linter rules, and fix strategies used across all Go projects. The canonical config lives in [go-skeleton/.golangci.yml](https://github.com/bborbe/go-skeleton).
+Comprehensive guide for golangci-lint v2 configuration, linter rules, and fix strategies used across all Go projects. The canonical config lives in `templates/.golangci.yml` within this plugin.
 
 ## Table of Contents
 
@@ -167,19 +167,14 @@ linters:
 #### Good
 
 ```yaml
+version: "2"
 linters:
-  enable:
-    - funlen
-    - gocognit
-    - nestif
-    - maintidx
-    - revive
-    - errcheck
-linters-settings:
-  funlen:    { lines: 80, statements: 50 }
-  gocognit:  { min-complexity: 20 }
-  nestif:    { min-complexity: 4 }
-  maintidx:  { min-maintainability-index: 20 }
+  enable: [funlen, gocognit, nestif, maintidx, revive, errcheck]
+  settings:
+    funlen:    { lines: 80, statements: 50 }
+    gocognit:  { min-complexity: 20 }
+    nestif:    { min-complexity: 4 }
+    maintidx:  { min-maintainability-index: 20 }
 ```
 
 | Linter | Limit | Description |
@@ -265,18 +260,24 @@ linters:
 #### Good
 
 ```yaml
+version: "2"
 linters:
   enable: [depguard, revive, errcheck]
-linters-settings:
-  depguard:
-    rules:
-      main:
-        deny:
-          - { pkg: "github.com/pkg/errors",          desc: "use github.com/bborbe/errors" }
-          - { pkg: "github.com/bborbe/argument",     desc: "use bborbe/argument/v2" }
-          - { pkg: "golang.org/x/net/context",       desc: "use stdlib context" }
-          - { pkg: "io/ioutil",                      desc: "deprecated; use io + os" }
-          - { pkg: "golang.org/x/lint/golint",       desc: "use revive or staticcheck" }
+  settings:
+    depguard:
+      rules:
+        Main:
+          deny:
+            - pkg: "github.com/pkg/errors"
+              desc: "use github.com/bborbe/errors"
+            - pkg: "github.com/bborbe/argument"
+              desc: "use bborbe/argument/v2"
+            - pkg: "golang.org/x/net/context"
+              desc: "use stdlib context"
+            - pkg: "io/ioutil"
+              desc: "deprecated; use io + os"
+            - pkg: "golang.org/x/lint/golint"
+              desc: "use revive or staticcheck"
 ```
 
 | Banned Package | Use Instead | Reason |

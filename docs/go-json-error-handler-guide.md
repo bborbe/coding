@@ -38,8 +38,10 @@ http.Error(w, "columnGroup '' is unknown", http.StatusBadRequest)
 #### Good
 
 ```go
-// Canonical JSON shape via libhttp.NewJSONErrorHandler
-return libhttp.WrapWithCode(
+// Canonical JSON shape via libhttp.NewJSONErrorHandler.
+// Use WrapWithDetails when adding a structured details map; WrapWithCode is
+// for the simpler (err, status, code) shape without details.
+return libhttp.WrapWithDetails(
 	errors.Errorf(ctx, "columnGroup '%s' is unknown", g),
 	http.StatusBadRequest,
 	libhttp.ErrorCodeValidation,
@@ -82,7 +84,7 @@ All JSON errors follow this structure:
 
 **Owner**: go-http-handler-assistant
 **Applies when**: a Go HTTP handler passes a raw string literal as the error-code argument to `libhttp.WrapWithCode` / `libhttp.NewJSONError` instead of the `libhttp.ErrorCodeXxx` constants.
-**Enforcement**: judgment (ast-grep follow-up: pattern over `libhttp.WrapWithCode($$, $$, $CODE, $$)` with `$CODE` constrained to be a `interpreted_string_literal` — see PR #11 recipe for the metavariable-constraint shape)
+**Enforcement**: judgment (ast-grep follow-up: pattern over `libhttp.WrapWithCode($$, $$, $CODE)` / `WrapWithDetails($$, $$, $CODE, $$)` with `$CODE` constrained to be a `interpreted_string_literal` — see PR #11 recipe for the metavariable-constraint shape)
 **Why**: Error codes are the dispatch surface clients pattern-match on. A typo in `"VAIDATION_ERROR"` ships silently — the client's `if code == "VALIDATION_ERROR"` branch never fires, the error falls through to the generic handler, and the bug surfaces as "validation errors don't show the inline form-field highlight." Constants make typos fail at compile time, give grep a single source of truth for which codes exist, and let the constant's godoc anchor the HTTP-status / semantic contract per code.
 
 #### Bad
@@ -92,7 +94,6 @@ return libhttp.WrapWithCode(
 	errors.Errorf(ctx, "invalid input"),
 	http.StatusBadRequest,
 	"VAIDATION_ERROR", // typo — client dispatch silently misses this
-	nil,
 )
 ```
 
@@ -103,7 +104,6 @@ return libhttp.WrapWithCode(
 	errors.Errorf(ctx, "invalid input"),
 	http.StatusBadRequest,
 	libhttp.ErrorCodeValidation, // typo fails at compile time
-	nil,
 )
 ```
 
@@ -413,7 +413,7 @@ func TestSearchHandler_ValidationError(t *testing.T) {
     var errResp libhttp.ErrorResponse
     json.NewDecoder(resp.Body).Decode(&errResp)
 
-    g.Expect(errResp.Error.Code).To(Equal("VALIDATION_ERROR"))
+    g.Expect(errResp.Error.Code).To(Equal(libhttp.ErrorCodeValidation))
     g.Expect(errResp.Error.Details["field"]).To(Equal("q"))
 }
 ```

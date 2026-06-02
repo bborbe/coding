@@ -291,7 +291,7 @@
     "anchor": "go-json-error-handler/use-error-code-constants",
     "applies_when": "a Go HTTP handler passes a raw string literal as the error-code argument to `libhttp.WrapWithCode` / `libhttp.NewJSONError` instead of the `libhttp.ErrorCodeXxx` constants.",
     "doc_path": "docs/go-json-error-handler-guide.md",
-    "enforcement": "judgment (ast-grep follow-up: pattern over `libhttp.WrapWithCode($$, $$, $CODE, $$)` with `$CODE` constrained to be a `interpreted_string_literal` — see PR #11 recipe for the metavariable-constraint shape)",
+    "enforcement": "judgment (ast-grep follow-up: pattern over `libhttp.WrapWithCode($$, $$, $CODE)` / `WrapWithDetails($$, $$, $CODE, $$)` with `$CODE` constrained to be a `interpreted_string_literal` — see PR #11 recipe for the metavariable-constraint shape)",
     "id": "go-json-error-handler/use-error-code-constants",
     "level": "MUST",
     "owner": "go-http-handler-assistant"

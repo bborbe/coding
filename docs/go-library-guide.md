@@ -94,6 +94,13 @@ ginkgo -v
 
 ## 📦 Versioning
 
+### RULE go-library/semver-vprefix-tag-required (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a public Go library repo cuts a release without a `git tag` matching `v<MAJOR>.<MINOR>.<PATCH>` (e.g. `v1.0.0`, `v0.12.3`) — either tagless commits, date-based tags (`2026-06-03`), or non-prefixed semver (`1.0.0` without the leading `v`).
+**Enforcement**: judgment (git-tag inspection: `git tag --list` filtered against `^v[0-9]+\.[0-9]+\.[0-9]+$`)
+**Why**: Go's module system parses tags as `vMAJOR.MINOR.PATCH` — consumers pin to versions via `go get github.com/x/y@v1.2.3`. A tag without the `v` prefix doesn't resolve as a module version; a date-tag doesn't either. Untagged commits force consumers to depend on pseudo-versions (`v0.0.0-20260403114524-913de8870914`), which work but are unreadable and don't survive Go's MVS upgrade logic predictably. The `v` prefix is a hard requirement of `go.mod`'s grammar; semver is the convention Go's module proxy is built on.
+
 Tag releases using semantic versioning:
 
 ```bash

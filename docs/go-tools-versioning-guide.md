@@ -9,6 +9,13 @@ How to version-pin CLI tools (linters, scanners, code generators) used by Go pro
 - **Do** invoke tools via `go run pkg@$(VERSION)` in the Makefile
 - **Do** invoke `//go:generate` directives with `go run pkg@version` (hardcoded version per directive)
 
+### RULE go-tools-versioning/no-tools-go-for-clis (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go project has a `tools.go` file with `//go:build tools` that imports CLI tools (`_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"`, `_ "github.com/google/osv-scanner/v2/cmd/osv-scanner"`, etc.) — instead of declaring CLI versions in a separate `tools.env` consumed by the Makefile via `go run pkg@$(VERSION)`.
+**Enforcement**: judgment (file-presence check: `tools.go` with `//go:build tools` header + CLI tool imports)
+**Why**: `tools.go` pulls every transitive dependency of every CLI tool into your project's `go.mod`. A typical library ends up with 400+ indirect requires, most of which are lint-tool internals nobody uses at runtime. The cascade gets worse: downstream services depending on the library inherit the tool deps, conflicts produce permanent `replace` workarounds, and version conflicts force every developer to maintain the same broken workaround set. `tools.env` + `go run pkg@$(VERSION)` keeps tool versions pinned + reproducible without polluting `go.mod` — the tool runs in its own module space, your project stays clean.
+
 ## Why Not `tools.go`?
 
 The historical pattern was a `tools.go` file with `//go:build tools` that imports each CLI tool:

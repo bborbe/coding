@@ -14,6 +14,13 @@ ADRs provide:
 
 **Critical for AI assistants:** ADRs enable AI to understand not just WHAT the architecture is, but WHY it is that way, preventing inappropriate suggestions that conflict with documented decisions.
 
+### RULE adr/required-for-irreversible-architecture-decisions (SHOULD)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a PR introduces an irreversible architectural change (database technology choice, message-bus selection, framework swap, major topology change like blue-green vs canary) without a corresponding ADR document under `docs/adr/NNNN-<title>.md` capturing the decision, alternatives considered, rationale, and consequences.
+**Enforcement**: judgment (semantic — distinguishing "irreversible architectural decision" from "tactical implementation choice" requires reading the change scope; symptom: PR introduces new top-level package or external dependency without ADR reference)
+**Why**: Six months from now, the next contributor will read the code and ask "why did we pick X over Y?" — and the answer needs to be already-written, not "ask Alice, she remembers." ADRs make the decision durable: they capture the alternatives the team rejected, the trade-offs at the time, the constraints that made one option preferable. Without the ADR, future contributors either rediscover the same constraints (waste effort) or quietly revert to the rejected option (waste effort + the original problem reappears). SHOULD because the line between "irreversible" and "tactical" is judgment.
+
 ## When to Create an ADR
 
 Create an ADR when:

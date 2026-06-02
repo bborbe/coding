@@ -71,6 +71,13 @@ export WATCHER_GITHUB_PR_APP_ID=3798945       # NOT a teamvault key (numeric ID)
 export GIT_SSH_KEY=9qNBoq                     # teamvault key → SSH deploy key
 ```
 
+### RULE teamvault/short-alphanumeric-is-lookup-key-not-secret (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: a code-review agent or security-lint pass flags a 6-12 char alphanumeric value in a `.env` file / k8s manifest / config file as an exposed credential, when the corresponding k8s manifest uses `teamvaultFileBase64` / `teamvaultPassword` / `teamvaultConfig` template functions to resolve the value.
+**Enforcement**: judgment (semantic — distinguishing a lookup key from a real short token requires reading the k8s manifest the env var feeds into)
+**Why**: Teamvault lookup keys are `[A-Za-z0-9]{6,12}` identifiers, NOT secrets. The real secret material lives in teamvault; the lookup key resolves to it at `kubectl apply` time. Flagging lookup keys as credentials produces noisy false positives, delays releases, and trains reviewers to ignore "this looks like an exposed secret" warnings — which is the opposite of what credential-leak detection should do. The trigger is "short alphanumeric AND value consumed by a teamvault function downstream"; real secrets are 100+ chars of PEM / base64 / hex.
+
 ## Reviewer guidance
 
 **Do NOT flag as exposed credentials:**

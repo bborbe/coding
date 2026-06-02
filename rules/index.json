@@ -1,5 +1,14 @@
 [
   {
+    "anchor": "adr/required-for-irreversible-architecture-decisions",
+    "applies_when": "a PR introduces an irreversible architectural change (database technology choice, message-bus selection, framework swap, major topology change like blue-green vs canary) without a corresponding ADR document under `docs/adr/NNNN-<title>.md` capturing the decision, alternatives considered, rationale, and consequences.",
+    "doc_path": "docs/adr-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"irreversible architectural decision\" from \"tactical implementation choice\" requires reading the change scope; symptom: PR introduces new top-level package or external dependency without ADR reference)",
+    "id": "adr/required-for-irreversible-architecture-decisions",
+    "level": "SHOULD",
+    "owner": "go-architecture-assistant"
+  },
+  {
     "anchor": "agent-cmd/agent-frontmatter",
     "applies_when": "any `agents/*.md` file is created.",
     "doc_path": "docs/agent-command-development-guide.md",
@@ -63,6 +72,51 @@
     "owner": "agent-auditor"
   },
   {
+    "anchor": "changelog/conventional-prefix-required",
+    "applies_when": "a bullet under `## Unreleased` in CHANGELOG.md does not start with one of the recognised conventional prefixes (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`).",
+    "doc_path": "docs/changelog-guide.md",
+    "enforcement": "judgment (regex over `## Unreleased` bullets: `^- ([a-z]+:)` first token must be in the allowed prefix set)",
+    "id": "changelog/conventional-prefix-required",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "changelog/preamble-frozen",
+    "applies_when": "a CHANGELOG.md edit inserts content above the `# Changelog` title, modifies the SemVer preamble bullets (MAJOR/MINOR/PATCH), or places a `## Unreleased` / `## vX.Y.Z` section inside (rather than after) the preamble block.",
+    "doc_path": "docs/changelog-guide.md",
+    "enforcement": "judgment (markdown-structure inspection: every CHANGELOG.md must have the canonical preamble first, then sections in `## Unreleased` → `## vX.Y.Z` order)",
+    "id": "changelog/preamble-frozen",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "claude-md/agent-context-not-user-docs",
+    "applies_when": "a project's CLAUDE.md duplicates README.md user-facing content (install instructions, feature marketing, usage tutorials) instead of serving as terse agent-operational context (build commands, architecture map, constraints).",
+    "doc_path": "docs/claude-md-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"agent needs this to change the code\" from \"user needs this to use it\" requires reading the content)",
+    "id": "claude-md/agent-context-not-user-docs",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "git-workflow/never-direct-commit-to-master",
+    "applies_when": "a git commit lands directly on `master` / `main` without going through a feature branch + PR — typically caught by `pre-push` hook rejecting cross-name pushes to the default branch, or by GitHub's `master-protection` ruleset.",
+    "doc_path": "docs/git-workflow.md",
+    "enforcement": "judgment + tooling (`~/.git-hooks/pre-push` rejects feature-branch-to-master pushes; GitHub ruleset enforces required PR). Release commits (`release vX.Y.Z`) are the documented exception.",
+    "id": "git-workflow/never-direct-commit-to-master",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "git-workflow/no-ai-attribution-in-commits",
+    "applies_when": "a git commit message body or trailer contains \"Co-Authored-By: Claude\", \"Generated with Claude Code\", \"Co-Authored-By: GitHub Copilot\", or any other AI-attribution line.",
+    "doc_path": "docs/git-workflow.md",
+    "enforcement": "judgment (commit-message grep at PR-review time; can be a `commit-msg` hook reject)",
+    "id": "git-workflow/no-ai-attribution-in-commits",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
     "anchor": "go-architecture/business-logic-not-in-main",
     "applies_when": "`main.go` (production code only — `main_test.go` is exempt) or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.",
     "doc_path": "docs/go-architecture-patterns.md",
@@ -114,6 +168,15 @@
     "enforcement": "judgment (paired-declaration scan: for each exported interface, find structs with matching method sets in the same package and check name correspondence — single-implementation packages only)",
     "id": "go-architecture/private-struct-matches-interface",
     "level": "SHOULD",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-boolean-combinator/result-with-description-not-naked-bool",
+    "applies_when": "a Go boolean-combinator / decision interface's method returns a bare `bool` instead of a `Result` type carrying both the boolean decision AND a human-readable `Description() string` explaining the reason.",
+    "doc_path": "docs/go-boolean-combinator-pattern.md",
+    "enforcement": "judgment (interface declaration check: decision-style interfaces (`Check`, `IsTrusted`, `Filtered`, `Allowed`, `Matches`) returning naked `bool`)",
+    "id": "go-boolean-combinator/result-with-description-not-naked-bool",
+    "level": "MUST",
     "owner": "go-architecture-assistant"
   },
   {
@@ -342,6 +405,15 @@
     "owner": "go-factory-pattern-assistant"
   },
   {
+    "anchor": "go-filter/document-filtered-semantics",
+    "applies_when": "a Go filter / predicate interface uses ambiguous method names like `Match(item)` / `Check(item)` / `Apply(item)` without doc-comment clarifying whether `true` means \"include\" or \"exclude\" — OR uses contradictory naming (`Filtered` returning true for \"passes the filter\" instead of \"filtered out\").",
+    "doc_path": "docs/go-filter-pattern.md",
+    "enforcement": "judgment (interface declaration check: method-name + doc-comment alignment for predicate methods returning bool)",
+    "id": "go-filter/document-filtered-semantics",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
     "anchor": "go-functional-options/singular-option-type",
     "applies_when": "a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.",
     "doc_path": "docs/go-functional-options-pattern.md",
@@ -441,6 +513,24 @@
     "owner": "go-http-handler-assistant"
   },
   {
+    "anchor": "go-k8s-binary/argument-struct-not-os-getenv",
+    "applies_when": "a Go k8s-deployed binary calls `os.Getenv(\"FOO\")` to read a config / auth value that's already declared as an `application` struct field bound via `argument` tags.",
+    "doc_path": "docs/go-k8s-binary-conventions.md",
+    "enforcement": "judgment (ast-grep partial: `call_expression` matching `os.Getenv(...)` outside `main.go` early bootstrap)",
+    "id": "go-k8s-binary/argument-struct-not-os-getenv",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-k8s-binary/secret-fields-need-display-length",
+    "applies_when": "an `application` struct field in a Go k8s-deployed binary holds secret material (PEM key, OAuth token, password, API key, JWT signing secret) without the `display:\"length\"` tag — meaning glog / structured-logging dumps of the application config will print the secret value.",
+    "doc_path": "docs/go-k8s-binary-conventions.md",
+    "enforcement": "judgment (ast-grep follow-up: `struct_field_declaration` with name matching `PEM*` / `*Token*` / `*Secret*` / `*Password*` / `*Key` outside `display:\"length\"` tag)",
+    "id": "go-k8s-binary/secret-fields-need-display-length",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
     "anchor": "go-k8s-crd/generated-client-not-dynamic",
     "applies_when": "a Go consumer service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of the typed clientset generated via `hack/update-codegen.sh`.",
     "doc_path": "docs/go-kubernetes-crd-controller-guide.md",
@@ -457,6 +547,15 @@
     "id": "go-k8s-crd/use-bborbe-k8s",
     "level": "SHOULD",
     "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "go-library/semver-vprefix-tag-required",
+    "applies_when": "a public Go library repo cuts a release without a `git tag` matching `v<MAJOR>.<MINOR>.<PATCH>` (e.g. `v1.0.0`, `v0.12.3`) — either tagless commits, date-based tags (`2026-06-03`), or non-prefixed semver (`1.0.0` without the leading `v`).",
+    "doc_path": "docs/go-library-guide.md",
+    "enforcement": "judgment (git-tag inspection: `git tag --list` filtered against `^v[0-9]+\\.[0-9]+\\.[0-9]+$`)",
+    "id": "go-library/semver-vprefix-tag-required",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
   },
   {
     "anchor": "go-licensing/copyright-year-discipline",
@@ -545,6 +644,15 @@
     "doc_path": "docs/go-mod-replace-guide.md",
     "enforcement": "judgment (ast-grep follow-up: pattern over `go.mod` `replace` lines with right-hand side starting with `../` reaching above the repo root or starting with `/`. Same-repo `replace github.com/acme/monorepo/libs/shared => ../../libs/shared` is fine — the rule fires only when the destination escapes the repo)",
     "id": "go-mod-replace/no-cross-repo-replace",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-parse/paired-parse-and-parsedefault",
+    "applies_when": "a Go package adds a `ParseX(ctx, value)` function returning `(X, error)` without a paired `ParseXDefault(ctx, value, default) X` that suppresses the error and returns the default — OR vice versa (`ParseXDefault` without `ParseX`).",
+    "doc_path": "docs/go-parse-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `function_declaration` named `Parse*` with `error` return type; pair-check against same-named `*Default` function in the same package)",
+    "id": "go-parse/paired-parse-and-parsedefault",
     "level": "MUST",
     "owner": "go-quality-assistant"
   },
@@ -792,6 +900,51 @@
     "owner": "go-time-assistant"
   },
   {
+    "anchor": "go-tools-versioning/no-tools-go-for-clis",
+    "applies_when": "a Go project has a `tools.go` file with `//go:build tools` that imports CLI tools (`_ \"github.com/golangci/golangci-lint/v2/cmd/golangci-lint\"`, `_ \"github.com/google/osv-scanner/v2/cmd/osv-scanner\"`, etc.) — instead of declaring CLI versions in a separate `tools.env` consumed by the Makefile via `go run pkg@$(VERSION)`.",
+    "doc_path": "docs/go-tools-versioning-guide.md",
+    "enforcement": "judgment (file-presence check: `tools.go` with `//go:build tools` header + CLI tool imports)",
+    "id": "go-tools-versioning/no-tools-go-for-clis",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-validation/use-bborbe-validation-not-inline-checks",
+    "applies_when": "a Go service implements input validation via hand-rolled `if`/`if-else` chains in a `Validate(ctx context.Context) error` method or HTTP handler, instead of using `github.com/bborbe/validation` (`validation.All{...}` + `validation.Name(...)` + `validation.NotEmptyString(...)` etc.).",
+    "doc_path": "docs/go-validation-framework-guide.md",
+    "enforcement": "judgment (ast-grep follow-up: `method_declaration` named `Validate` whose body contains 3+ inline `if v == \"\" || v == \"\"` chains with manual `errors.Errorf` calls, in a package not importing `github.com/bborbe/validation`)",
+    "id": "go-validation/use-bborbe-validation-not-inline-checks",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "k8s-manifest/statefulset-pvc-via-volumeclaimtemplates",
+    "applies_when": "a `StatefulSet` mounts persistent storage via a standalone `PersistentVolumeClaim` + `volumes[].persistentVolumeClaim.claimName`, instead of `spec.volumeClaimTemplates` (which generates one PVC per replica automatically).",
+    "doc_path": "docs/k8s-manifest-guide.md",
+    "enforcement": "judgment (YAML inspection: `kind: StatefulSet` with `spec.template.spec.volumes` containing a `persistentVolumeClaim` — should be in `volumeClaimTemplates` instead)",
+    "id": "k8s-manifest/statefulset-pvc-via-volumeclaimtemplates",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "k8s-manifest/workload-kind-matches-semantics",
+    "applies_when": "a Kubernetes manifest uses `kind: Deployment` for a workload with per-replica disk state, stable network identity needs, or ordered start/stop semantics — instead of `kind: StatefulSet`. Equivalent: using `Deployment` for a workload that runs to completion (should be `Job` / `CronJob`) or runs on every node (should be `DaemonSet`).",
+    "doc_path": "docs/k8s-manifest-guide.md",
+    "enforcement": "judgment (semantic — the workload's actual lifecycle semantics aren't visible in the YAML itself, requires reading the corresponding Go binary + understanding the data-persistence requirements)",
+    "id": "k8s-manifest/workload-kind-matches-semantics",
+    "level": "MUST",
+    "owner": "go-architecture-assistant"
+  },
+  {
+    "anchor": "markdown-todo/lowercase-x-for-complete",
+    "applies_when": "a markdown checkbox uses `[X]` (uppercase) or any other variant (`[v]`, `[*]`, `[/]`) to mark a task complete instead of `[x]` (lowercase).",
+    "doc_path": "docs/markdown-todo-guide.md",
+    "enforcement": "judgment (regex over `^- \\[.\\]` markdown bullets: only `[ ]` (incomplete) and `[x]` (complete) are recognised by GitHub-flavoured markdown renderers and most checkbox parsers)",
+    "id": "markdown-todo/lowercase-x-for-complete",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
     "anchor": "python-architecture/constructor-injection-only",
     "applies_when": "a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a *method parameter* instead of through `__init__`. Related but distinct anti-patterns covered by other rules: dependency from a global module variable (see `python-architecture/main-py-composition-root`); post-construction `self.foo = bar.foo` mutation (see `python-ioc/dependencies-as-private-fields`, which mandates private-field storage that makes mutation socially difficult).",
     "doc_path": "docs/python-architecture-patterns.md",
@@ -807,6 +960,15 @@
     "enforcement": "judgment (file-scope check: module-level `Service()` / `Repository()` calls outside `if __name__ == \"__main__\":` blocks)",
     "id": "python-architecture/main-py-composition-root",
     "level": "SHOULD",
+    "owner": "python-architecture-assistant"
+  },
+  {
+    "anchor": "python-factory/zero-business-logic-in-factories",
+    "applies_when": "a Python factory function (in `factory.py` or named `create_*` / `make_*`) contains business logic — loops over domain data, conditional dispatch on runtime state, inline function implementations, validation logic, etc. — instead of pure dependency-wiring calls (constructor invocations and object-tree composition only).",
+    "doc_path": "docs/python-factory-pattern.md",
+    "enforcement": "judgment (ast-grep partial: `function_definition` in `factory.py` whose body contains `for_statement` / `if_statement` over non-config values, or inline `lambda` / nested `def`)",
+    "id": "python-factory/zero-business-logic-in-factories",
+    "level": "MUST",
     "owner": "python-architecture-assistant"
   },
   {
@@ -898,5 +1060,59 @@
     "id": "python-pydantic/optional-needs-default",
     "level": "MUST",
     "owner": "python-quality-assistant"
+  },
+  {
+    "anchor": "readme/user-facing-not-agent-context",
+    "applies_when": "a project's README.md includes agent-operational content (build commands, architecture internals, ban lists, version-alignment requirements, structured constraints) instead of user-facing content (description, install, quick-start, usage).",
+    "doc_path": "docs/readme-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"user needs this to use it\" from \"agent needs this to change it\" requires reading the content; symptom: README has sections labelled \"Constraints\" / \"Hard Rules\" / \"Architecture\")",
+    "id": "readme/user-facing-not-agent-context",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "skill-writing/scripts-in-scripts-subdir",
+    "applies_when": "a Claude Code skill places executable scripts (`*.sh`, `*.py`) directly alongside `SKILL.md` instead of in a `scripts/` subdirectory.",
+    "doc_path": "docs/claude-code-skill-writing-guide.md",
+    "enforcement": "judgment (file-layout check on `skills/<name>/` — only `SKILL.md` at top-level; scripts under `scripts/`)",
+    "id": "skill-writing/scripts-in-scripts-subdir",
+    "level": "MUST",
+    "owner": "skill-auditor"
+  },
+  {
+    "anchor": "skill-writing/skill-md-frontmatter-required",
+    "applies_when": "a `skills/<name>/SKILL.md` file is missing the required frontmatter fields — `name:` (must match the directory name) and `description:` (Claude's discovery signal).",
+    "doc_path": "docs/claude-code-skill-writing-guide.md",
+    "enforcement": "judgment (YAML-frontmatter inspection: presence of `name` + `description` at the top of every SKILL.md)",
+    "id": "skill-writing/skill-md-frontmatter-required",
+    "level": "MUST",
+    "owner": "skill-auditor"
+  },
+  {
+    "anchor": "tdd/failing-test-before-implementation",
+    "applies_when": "a PR introduces new functionality (new file, new function, new branch) without a corresponding test-file change that demonstrates the new behavior failing before the implementation lands.",
+    "doc_path": "docs/tdd-guide.md",
+    "enforcement": "judgment (commit-ordering inspection; ast-grep can flag new exported functions without adjacent test additions as a first-pass filter)",
+    "id": "tdd/failing-test-before-implementation",
+    "level": "SHOULD",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "teamvault/short-alphanumeric-is-lookup-key-not-secret",
+    "applies_when": "a code-review agent or security-lint pass flags a 6-12 char alphanumeric value in a `.env` file / k8s manifest / config file as an exposed credential, when the corresponding k8s manifest uses `teamvaultFileBase64` / `teamvaultPassword` / `teamvaultConfig` template functions to resolve the value.",
+    "doc_path": "docs/teamvault-conventions.md",
+    "enforcement": "judgment (semantic — distinguishing a lookup key from a real short token requires reading the k8s manifest the env var feeds into)",
+    "id": "teamvault/short-alphanumeric-is-lookup-key-not-secret",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "test-pyramid/push-down-when-unsure",
+    "applies_when": "a new test is written at a higher layer (E2E, integration) when an equivalent assertion could be made at a lower layer (integration → unit, E2E → integration). Specifically: the test exercises pure business logic via a full HTTP/DB round-trip, or it tests 5+ input combinations via E2E browser automation.",
+    "doc_path": "docs/test-pyramid-triggers.md",
+    "enforcement": "judgment (semantic — distinguishing \"this needs the real boundary\" from \"I just defaulted to the higher layer\" requires reading test intent)",
+    "id": "test-pyramid/push-down-when-unsure",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
   }
 ]

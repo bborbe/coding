@@ -57,6 +57,24 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-mod-dependency-fix-guide.md` | `go-quality-assistant` |
 | `go-makefile-commands.md` | `go-quality-assistant` |
 | `go-patterns.md` | `go-quality-assistant` |
+| `tdd-guide.md` | `go-test-quality-assistant` |
+| `changelog-guide.md` | `agent-auditor` |
+| `git-workflow.md` | `agent-auditor` |
+| `teamvault-conventions.md` | `go-security-specialist` |
+| `go-library-guide.md` | `go-quality-assistant` |
+| `test-pyramid-triggers.md` | `go-test-quality-assistant` |
+| `go-k8s-binary-conventions.md` | `go-security-specialist` (secret-handling) + `go-quality-assistant` (struct conventions) |
+| `markdown-todo-guide.md` | `agent-auditor` |
+| `claude-md-guide.md` | `agent-auditor` |
+| `k8s-manifest-guide.md` | `go-architecture-assistant` |
+| `go-filter-pattern.md` | `go-architecture-assistant` |
+| `go-parse-pattern.md` | `go-quality-assistant` |
+| `go-validation-framework-guide.md` | `go-quality-assistant` |
+| `go-tools-versioning-guide.md` | `go-quality-assistant` |
+| `readme-guide.md` | `agent-auditor` |
+| `go-boolean-combinator-pattern.md` | `go-architecture-assistant` |
+| `python-factory-pattern.md` | `python-architecture-assistant` |
+| `adr-guide.md` | `go-architecture-assistant` |
 
 Reference-only docs (patterns, setup guides) don't need agents.
 

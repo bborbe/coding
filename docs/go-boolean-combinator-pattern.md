@@ -19,6 +19,13 @@ Skip this pattern when:
 - Decisions need to share state during evaluation (use Chain of Responsibility instead)
 - The "decision" returns a value, not a bool (use Strategy or pipeline patterns)
 
+### RULE go-boolean-combinator/result-with-description-not-naked-bool (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go boolean-combinator / decision interface's method returns a bare `bool` instead of a `Result` type carrying both the boolean decision AND a human-readable `Description() string` explaining the reason.
+**Enforcement**: judgment (interface declaration check: decision-style interfaces (`Check`, `IsTrusted`, `Filtered`, `Allowed`, `Matches`) returning naked `bool`)
+**Why**: Combinator decisions show up in audit logs, error messages, and UI tooltips — and "why did this evaluate to false?" is the question every consumer eventually asks. A naked `bool` answers "yes/no"; a `Result` with `Description()` answers "yes/no AND why". `And{}` compositions concatenate child descriptions ("requires X AND requires Y AND not Z"); `Or{}` reports which branch carried the decision. Without the description, debugging "why is this user blocked?" requires reproducing the full decision tree by hand. The cost is one extra method per interface; the value is decisions that explain themselves.
+
 ## Components
 
 A boolean combinator pattern has five parts:

@@ -1,5 +1,68 @@
 [
   {
+    "anchor": "agent-cmd/agent-frontmatter",
+    "applies_when": "any `agents/*.md` file is created.",
+    "doc_path": "docs/agent-command-development-guide.md",
+    "enforcement": "judgment",
+    "id": "agent-cmd/agent-frontmatter",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "agent-cmd/command-frontmatter",
+    "applies_when": "any `commands/*.md` file is created.",
+    "doc_path": "docs/agent-command-development-guide.md",
+    "enforcement": "judgment",
+    "id": "agent-cmd/command-frontmatter",
+    "level": "MUST",
+    "owner": "slash-command-auditor"
+  },
+  {
+    "anchor": "agent-cmd/command-thin",
+    "applies_when": "any new `commands/*.md` file is added or substantially changed.",
+    "doc_path": "docs/agent-command-development-guide.md",
+    "enforcement": "judgment",
+    "id": "agent-cmd/command-thin",
+    "level": "MUST",
+    "owner": "slash-command-auditor"
+  },
+  {
+    "anchor": "agent-cmd/gap-driven-feedback",
+    "applies_when": "an agent depends on documented information that may be incomplete.",
+    "doc_path": "docs/agent-command-development-guide.md",
+    "enforcement": "judgment",
+    "id": "agent-cmd/gap-driven-feedback",
+    "level": "SHOULD",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "agent-cmd/no-user-prompts",
+    "applies_when": "any agent or command performs work that could prompt the user (writing to `/tmp/`, requesting permissions, asking confirmation) during normal execution.",
+    "doc_path": "docs/agent-command-development-guide.md",
+    "enforcement": "judgment",
+    "id": "agent-cmd/no-user-prompts",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "agent-cmd/scripts-in-claude-dir",
+    "applies_when": "an agent depends on executable scripts (Python, shell) to do real work.",
+    "doc_path": "docs/agent-command-development-guide.md",
+    "enforcement": "judgment",
+    "id": "agent-cmd/scripts-in-claude-dir",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "agent-cmd/single-source-of-truth",
+    "applies_when": "an agent's domain has multiple potential data sources (config files, APIs, generated artifacts, documentation) and one of them is the authoritative, human-maintained source.",
+    "doc_path": "docs/agent-command-development-guide.md",
+    "enforcement": "judgment",
+    "id": "agent-cmd/single-source-of-truth",
+    "level": "SHOULD",
+    "owner": "agent-auditor"
+  },
+  {
     "anchor": "go-context/cancel-check-in-loop",
     "applies_when": "Go `for` loop body lacks a non-blocking `select { case <-ctx.Done(): ...; default: }` check, outside `*_test.go` and `vendor/`.",
     "doc_path": "docs/go-context-cancellation-in-loops.md",
@@ -214,6 +277,78 @@
     "id": "go-security/nosec-requires-reason",
     "level": "MUST",
     "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-testing/counterfeiter-mocks-required",
+    "applies_when": "a test file declares a hand-written struct that satisfies a production interface and is used in place of a real implementation under test, instead of importing a `mocks/<Name>` fake produced by Counterfeiter.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "judgment (presence of `//counterfeiter:generate` directive + hand-written fake detection; ast-grep follow-up)",
+    "id": "go-testing/counterfeiter-mocks-required",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "go-testing/libtime-injection-required",
+    "applies_when": "a Go business-logic file (outside `main.go`, `cmd/**`, `*_test.go`, `vendor/`) reads the current time. Tests cannot control `time.Now()` directly, so dependent code is unverifiable.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "cross-rule — overlaps with `go-time/no-time-now-direct` (already in `rules/index.json`). This rule scopes the same constraint to test-coverage assessments: a service that doesn't inject time has no testable time-dependent paths.",
+    "id": "go-testing/libtime-injection-required",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "go-testing/main-test-with-compiles",
+    "applies_when": "a Go binary project (package `main` with `main.go`) does not have a `main_test.go` containing a `Compiles` It-block backed by `gexec.Build`.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "judgment (file-existence + body check; ast-grep follow-up)",
+    "id": "go-testing/main-test-with-compiles",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "go-testing/no-bare-error-call",
+    "applies_when": "a Go test file inside an `It` / `BeforeEach` / `JustBeforeEach` / `AfterEach` block calls an error-returning function whose return value is discarded.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "judgment (ast-grep follow-up — errcheck-equivalent scoped to Ginkgo blocks)",
+    "id": "go-testing/no-bare-error-call",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "go-testing/no-stdlib-table-tests",
+    "applies_when": "a Go test file in a package that has a Ginkgo `*_suite_test.go` uses `t.Run` inside a `for _, tt := range tests` loop instead of `DescribeTable`/`Entry`.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "judgment (ast-grep follow-up)",
+    "id": "go-testing/no-stdlib-table-tests",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "go-testing/no-testing-t-direct",
+    "applies_when": "a Go file in a package that has a Ginkgo `TestSuite` entry-point uses `*testing.T` directly inside test functions other than the suite entry-point itself.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "judgment (ast-grep follow-up)",
+    "id": "go-testing/no-testing-t-direct",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "go-testing/suite-test-file-required",
+    "applies_when": "a Go package contains test files (`*_test.go`) but no `*_suite_test.go` file with a `TestSuite` entry-point and `RunSpecs`.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "judgment (file-existence check; ast-grep follow-up)",
+    "id": "go-testing/suite-test-file-required",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
+  },
+  {
+    "anchor": "go-testing/suite-timeout-required",
+    "applies_when": "a `*_suite_test.go` file calls `GinkgoConfiguration()` without setting `suiteConfig.Timeout` before `RunSpecs`.",
+    "doc_path": "docs/go-testing-guide.md",
+    "enforcement": "judgment (ast-grep follow-up — pattern over suite body)",
+    "id": "go-testing/suite-timeout-required",
+    "level": "MUST",
+    "owner": "go-test-quality-assistant"
   },
   {
     "anchor": "go-time/inject-getter-not-create",

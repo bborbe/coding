@@ -487,7 +487,7 @@
   },
   {
     "anchor": "go-service-impl/provider-vs-registry-choice",
-    "applies_when": "a Go service needs to dispatch to one of several implementations and the code uses the wrong dispatch shape for the set size: a `map[string]Creator` registry for a fixed compile-time set (< ~10 types) or a compiled `switch` for a runtime-extensible set.",
+    "applies_when": "a Go service needs to dispatch to one of several implementations and the code uses the wrong dispatch shape for the set's openness: a `map[string]Creator` registry for a closed compile-time set, or a compiled `switch` for an open runtime-extensible set.",
     "doc_path": "docs/go-service-implementation-patterns.md",
     "enforcement": "judgment (semantic — depends on whether the implementation set is closed or open)",
     "id": "go-service-impl/provider-vs-registry-choice",

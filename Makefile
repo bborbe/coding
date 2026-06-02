@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-json check-index
+precommit: check-links check-json check-index check-coverage
 
 .PHONY: release-check
 release-check: precommit check-versions
@@ -26,6 +26,10 @@ check-versions:
 build-index:
 	@python3 scripts/build-index.py > rules/index.json
 	@echo "rules/index.json updated"
+
+.PHONY: check-coverage
+check-coverage:
+	@bash scripts/check-coverage.sh
 
 .PHONY: check-index
 check-index:

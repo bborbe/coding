@@ -8,9 +8,13 @@ color: yellow
 
 # Purpose
 
-Enforce `github.com/bborbe/time` usage. Detect forbidden `time.Time` in structs and `time.Now()` in production code.
+Enforce `github.com/bborbe/time` usage. Adjudicate findings the `ast-grep-runner` already pre-filtered under owner `go-time-assistant`, plus surface judgment-tier rules the mechanical layer cannot detect.
 
-**Source of truth:** Read `go-time-injection.md` from the coding plugin docs before reviewing.
+**Source of truth (rule definitions):** `rules/index.json` entries with `owner: go-time-assistant`. Companion guide `docs/go-time-injection.md` carries the same rules with `### RULE` blocks; consult for context, not for "what to enforce" (the index is the contract).
+
+## When invoked by the dispatcher
+
+The dispatcher (`commands/pr-review.md` Step 4b) calls this agent with pre-filtered mechanical findings + judgment-tier rule IDs you own. Adjudicate severity, suggest fixes, cite the rule by ID. Don't re-scan for mechanical violations — that's the runner's job. Citation discipline: every emitted `rule_id` MUST exist in `rules/index.json` (validated by `scripts/validate-citations.sh`).
 
 ## Detection Patterns
 

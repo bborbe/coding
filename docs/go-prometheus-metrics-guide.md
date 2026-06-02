@@ -17,15 +17,29 @@ Key principles:
 - Use interfaces for testability.
 - Pre-initialize counters with `.Add(0)` so absent series don't silently break alerts.
 
-## Counter Pre-Initialization Pattern
+### RULE go-prometheus/counter-pre-initialization (MUST)
 
-**MUST pre-initialize counters with `.Add(0)` for all known label combinations.** This ensures metrics exist in Prometheus even when no events have occurred, preventing `absent()` alert false negatives.
+**Owner**: go-metrics-assistant
+**Applies when**: a CounterVec is registered for a label set whose value domain is known at compile time (enum, fixed slice of strings, etc.).
+**Enforcement**: judgment
+**Why**: Without pre-initialization, `rate(metric[5m])` returns *no data* (not zero) for unseen label combos. Alert expressions like `rate(errors_total[5m]) > 0.1` silently skip absent series instead of evaluating to false — so the alert never fires when the system is fine *and never fires when the system is broken either*. `absent()` checks don't save you because the series literally doesn't exist yet.
+
+#### Bad
 
 ```go
 func init() {
-	prometheus.MustRegister(
-		requestErrorTotal,
-	)
+	prometheus.MustRegister(requestErrorTotal)
+	// No pre-init — "timeout" / "validation" / "internal" series don't exist
+	// until the first error of each type occurs. `absent(requestErrorTotal{reason="timeout"})`
+	// fires forever; `rate(requestErrorTotal[5m]) > 0.1` never fires.
+}
+```
+
+#### Good
+
+```go
+func init() {
+	prometheus.MustRegister(requestErrorTotal)
 
 	// Pre-initialize all known label combinations to 0
 	for _, reason := range []string{"timeout", "validation", "internal"} {
@@ -36,11 +50,27 @@ func init() {
 }
 ```
 
-**Why:** Without pre-initialization, `rate(metric[5m])` returns no data (not zero) for unseen label combos. Alert expressions like `rate(errors_total[5m]) > 0.1` silently skip absent series instead of evaluating to false.
+### RULE go-prometheus/composed-metrics-interface (SHOULD)
 
-## Composed Metrics Interface Pattern
+**Owner**: go-metrics-assistant
+**Applies when**: a service exposes a single `Metrics` interface aggregating more than ~6 methods across distinct functional domains (handlers, senders, schedulers, etc.).
+**Enforcement**: judgment
+**Why**: Interface Segregation Principle. Components that only send notifications should depend on `MetricsNotificationSender`, not the full `Metrics` interface. Narrow interfaces produce smaller Counterfeiter mocks, clearer test setup, and make accidental coupling visible at the type signature.
 
-**MUST split large Metrics interfaces into focused sub-interfaces when a service has distinct metric domains.** Compose them into a single Metrics interface for the factory.
+#### Bad
+
+```go
+// One fat interface — every consumer pulls every method
+type Metrics interface {
+	OrderHandleTotalCounterInc(tenant core.TenantID, product core.ProductID)
+	OrderHandleFailureCounterInc(tenant core.TenantID, product core.ProductID)
+	OrderHandleSuccessCounterInc(tenant core.TenantID, product core.ProductID)
+	NotificationSendTotalCounterInc(tenant core.TenantID, product core.ProductID, channel core.ChannelID)
+	NotificationSendFailureCounterInc(tenant core.TenantID, product core.ProductID, channel core.ChannelID)
+}
+```
+
+#### Good
 
 ```go
 //counterfeiter:generate -o ../mocks/api-metrics.go --fake-name ApiMetrics . Metrics
@@ -61,8 +91,6 @@ type MetricsNotificationSender interface {
 }
 ```
 
-**Why:** Components that only send notifications should depend on `MetricsNotificationSender`, not the full `Metrics` interface. Follows Interface Segregation Principle.
-
 ## Metric Types & Design
 
 ### Choosing the Right Type
@@ -74,18 +102,29 @@ type MetricsNotificationSender interface {
 | Need distribution / percentiles? | Histogram | — |
 | Need exact quantiles, can't define buckets? | Summary | Histogram |
 
-**MUST NOT use GaugeVec for values that only increase.** If a metric only calls `.Inc()`, it MUST be a `CounterVec`. Using Gauge for monotonically increasing values breaks `rate()` and `increase()` queries.
+### RULE go-prometheus/no-gauge-for-monotonic (MUST)
+
+**Owner**: go-metrics-assistant
+**Applies when**: a `prometheus.NewGaugeVec` / `prometheus.NewGauge` registers a metric the code only ever increments (only `.Inc()` / `.Add(positive)` call sites, never `.Set()` / `.Dec()` / `.Sub()`).
+**Enforcement**: judgment
+**Why**: Using Gauge for monotonically increasing values breaks `rate()` and `increase()` queries — they assume the underlying type is a counter that can reset to zero on process restart, and they treat any decrease as a counter reset rather than an actual decrease. Dashboards silently produce nonsense.
+
+#### Bad
 
 ```go
-// BAD: Gauge for counter-like metric
-candleHandleTotalCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+// Gauge for counter-like metric — rate() and increase() return nonsense
+orderHandleTotalCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "total_counter",
-}, []string{"broker"})
+}, []string{"tenant"})
+```
 
-// GOOD: Counter for values that only increase
-candleHandleTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+#### Good
+
+```go
+// Counter for values that only increase
+orderHandleTotalCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "total",
-}, []string{"broker"})
+}, []string{"tenant"})
 ```
 
 ### Counter — Monotonically Increasing
@@ -164,53 +203,78 @@ Guidelines:
 - Be descriptive but concise.
 - Use consistent namespace/subsystem across related metrics.
 
-### Counter `_total` Suffix Rule
+### RULE go-prometheus/counter-total-suffix (MUST)
 
-**MUST end counter metric names with `_total`.** Prometheus naming convention enforced by newer client versions.
+**Owner**: go-metrics-assistant
+**Applies when**: a `prometheus.CounterOpts` struct literal sets a `Name:` field whose string value does not end with `_total`.
+**Enforcement**: judgment (mechanical ast-grep YAML tracked as follow-up; CounterOpts struct-literal traversal in ast-grep 0.43.0 needs further investigation)
+**Why**: Prometheus naming convention; newer `client_golang` versions enforce this at registration time (panic). Counters without `_total` also fail the OpenMetrics spec and confuse Grafana auto-completion.
+
+#### Bad
 
 ```go
-// BAD
-Name: "requests_processed",
-Name: "errors_count",
-
-// GOOD
-Name: "requests_processed_total",
-Name: "errors_total",
+prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "requests_processed", // missing _total
+	Help: "...",
+}, []string{"method"})
 ```
 
-### Help String Quality Rule
-
-**MUST write unique, accurate Help strings for every metric.** Never copy-paste Help from another metric. Help strings appear in `/metrics` output and Grafana metric explorer — wrong descriptions cause confusion during incidents.
+#### Good
 
 ```go
-// BAD: Copy-pasted Help
+prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "requests_processed_total",
+	Help: "...",
+}, []string{"method"})
+```
+
+### RULE go-prometheus/help-string-quality (MUST)
+
+**Owner**: go-metrics-assistant
+**Applies when**: any `prometheus.{Counter,Gauge,Histogram,Summary}Opts` struct literal sets a `Help:` field that (a) is empty, (b) duplicates another metric's Help verbatim, or (c) describes a different metric (copy-paste residue).
+**Enforcement**: judgment
+**Why**: Help strings appear in `/metrics` output and the Grafana metric explorer. Wrong descriptions cause real confusion during incidents — the on-call sees a Help string that contradicts the metric name, can't tell which is wrong, and burns minutes verifying. Empty Help strings make alert ownership ambiguous.
+
+#### Bad
+
+```go
 notificationSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "success_total",
 	Help: "Order Handle Total Counter", // Wrong! This is the notification sender
 })
+```
 
-// GOOD
+#### Good
+
+```go
 notificationSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "success_total",
 	Help: "Total number of successfully sent notifications",
 })
 ```
 
-### Label Naming Consistency
+### RULE go-prometheus/label-naming-consistency (MUST)
 
-**MUST use the same label name for the same concept across all metrics in a project.** Inconsistent label names break dashboards and PromQL joins.
+**Owner**: go-metrics-assistant
+**Applies when**: two or more metrics in the same project reference the same conceptual entity using different label names (e.g. `product` vs `item` for product ID; `tenant` vs `customer` vs `org`).
+**Enforcement**: judgment
+**Why**: Inconsistent label names silently break PromQL joins (`on(product)` only joins series that share the label) and Grafana dashboards (variable interpolation can't unify across panels). The cost shows up at 3am when a dashboard is half-empty and no one knows why.
+
+#### Bad
 
 ```go
-// BAD
 orderHandleCounter.With(prometheus.Labels{"product": product.String()})
-notificationSendCounter.With(prometheus.Labels{"item": product.String()})
+notificationSendCounter.With(prometheus.Labels{"item": product.String()}) // same concept, different label
+```
 
-// GOOD
+#### Good
+
+```go
 orderHandleCounter.With(prometheus.Labels{"product": product.String()})
 notificationSendCounter.With(prometheus.Labels{"product": product.String()})
 ```
 
-Define label-name constants to enforce consistency:
+Define label-name constants to enforce consistency at compile time:
 
 ```go
 const (

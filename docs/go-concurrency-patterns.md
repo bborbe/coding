@@ -4,14 +4,39 @@
 
 ## Core Rule: `go func()` Is a Smell
 
-Raw goroutines leak, race, and are hard to test. Use `run.CancelOnFirstErrorWait` instead.
+### RULE go-concurrency/no-raw-go-func (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go file uses the raw `go func() { ... }()` / `go someMethod(...)` syntax outside `main.go` / top-level entry points — instead of one of the `github.com/bborbe/run` strategies (`CancelOnFirstErrorWait`, `CancelOnFirstFinishWait`, `All`, `Sequential`).
+**Enforcement**: judgment (ast-grep partial: `go_statement` outside `main.go` / `cmd/**`. Test files exempt; `main` entry-point goroutine spawners exempt by path filter)
+**Why**: Raw goroutines have three failure modes the `run` package solves: (1) they leak when the parent context is cancelled but the goroutine doesn't observe it; (2) they race when the parent function returns before the goroutine writes its result; (3) error propagation requires hand-rolled channels + `sync.WaitGroup` that drift toward subtle deadlocks. `run.CancelOnFirstErrorWait` wires context cancellation, error aggregation, and synchronization in one call — every consumer learns the same primitives, refactors stay safe, and goroutine lifetimes are explicit at the type signature.
+
+#### Bad
 
 ```go
-// Bad — goroutine leaks on error
+// Goroutine leaks on error — no cancellation, no wait, no error propagation
 go func() { results <- doWork(ctx) }()
 
-// Good
+// And worse — multiple raw goroutines with hand-rolled sync.WaitGroup
+var wg sync.WaitGroup
+for _, item := range items {
+	wg.Add(1)
+	go func(it Item) {
+		defer wg.Done()
+		_ = process(ctx, it) // error swallowed
+	}(item)
+}
+wg.Wait()
+```
+
+#### Good
+
+```go
+// run.CancelOnFirstErrorWait — context cancellation, error propagation, deterministic wait
 return run.CancelOnFirstErrorWait(ctx, producer, consumer)
+
+// For parallel processing of a slice, use run.All
+return run.All(ctx, fns...)
 ```
 
 ## `run` Package
@@ -80,6 +105,49 @@ func process(ctx context.Context) error {
 ```
 
 ## Channel Ownership
+
+### RULE go-concurrency/channel-closed-by-sender-only (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go file calls `close(ch)` on a channel that was passed in as a function parameter from elsewhere — i.e. closed by a consumer/receiver rather than by the goroutine that produces values into it.
+**Enforcement**: judgment (ast-grep partial: `close(X)` where `X` is a parameter type `chan T` or `chan<- T`; the agent rules in whether the function is the producer or consumer based on whether it sends into `X`)
+**Why**: Closing a channel from the receiver side is a textbook race — the sender may still be writing when the close happens, producing `send on closed channel` panic. The Go convention is: **the producer owns the channel and is the only one allowed to close it.** Receivers learn of "no more values" via `for v := range ch` or the `comma-ok` idiom (`v, ok := <-ch`), never by closing themselves. Multi-producer cases use `sync.WaitGroup` + a single dedicated closer goroutine, not concurrent closes (which also panic).
+
+#### Bad
+
+```go
+// Consumer closes the channel — race against the producer's still-pending send
+func consume(items <-chan Item) {
+	for item := range items {
+		process(item)
+	}
+	close(items) // ← wrong direction; would also be a compile error on `<-chan`
+}
+```
+
+#### Good
+
+```go
+// Producer closes; consumer ranges and exits naturally when the channel closes
+func produce(ctx context.Context, out chan<- Item) error {
+	defer close(out) // ← producer owns the close
+	for _, raw := range source {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case out <- transform(raw):
+		}
+	}
+	return nil
+}
+
+func consume(in <-chan Item) {
+	for item := range in {
+		process(item)
+	}
+}
+```
+
 
 **Caller creates and owns the channel. Pass `chan<- T` into producer.**
 

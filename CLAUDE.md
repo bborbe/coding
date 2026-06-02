@@ -45,6 +45,9 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `python-pydantic-guide.md` | `python-quality-assistant` |
 | `python-project-structure.md` | `python-architecture-assistant` |
 | `python-makefile-commands.md` | `python-quality-assistant` |
+| `go-mod-replace-guide.md` | `go-quality-assistant` |
+| `go-glog-guide.md` | `go-quality-assistant` |
+| `go-concurrency-patterns.md` | `go-architecture-assistant` |
 
 Reference-only docs (patterns, setup guides) don't need agents.
 

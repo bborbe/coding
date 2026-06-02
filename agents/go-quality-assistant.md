@@ -126,13 +126,7 @@ Code review categories:
 - WaitGroup patterns
 - Infinite loops must handle context cancellation
 
-**Logging (glog)**:
-- `glog.Error()` - genuine errors requiring immediate attention
-- `glog.Warning()` - unexpected conditions that don't break functionality
-- `glog.V(0).Info()` - production default, operator info only
-- `glog.V(1).Info()` - operator debug, production troubleshooting
-- `glog.V(2).Info()` - external communication, developer default
-- `glog.V(3+).Info()` - developer debug, deep troubleshooting
+**Logging (glog)**: See `docs/go-glog-guide.md` for level semantics. Canonical rule: `go-glog/use-v-for-debug-not-info` (V0 is production-default only; debug-shaped logs use `V(N)` with N≥1). Do not duplicate the level table here — the doc is the source of truth.
 
 **External-call logging (boundary rule)**:
 - Every call crossing the process boundary (HTTP, gRPC, DB, message bus, subprocess) MUST emit a log line on response. Without it, runtime debugging — "did the call go out? what was the status? did the response match what we expected?" — becomes guesswork.

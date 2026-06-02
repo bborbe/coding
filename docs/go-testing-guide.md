@@ -15,18 +15,29 @@ Key principles:
 
 ## Critical Rules
 
-**MUST NOT use stdlib `testing` table-driven tests.** Always use Ginkgo `DescribeTable`/`Entry`. If a `*_suite_test.go` with Ginkgo imports exists in the package, all tests must use Ginkgo.
+### RULE go-testing/no-stdlib-table-tests (MUST)
+
+**Owner**: go-test-quality-assistant
+**Applies when**: a Go test file in a package that has a Ginkgo `*_suite_test.go` uses `t.Run` inside a `for _, tt := range tests` loop instead of `DescribeTable`/`Entry`.
+**Enforcement**: judgment (ast-grep follow-up)
+**Why**: Mixed Ginkgo + stdlib tables produce inconsistent reporter output, fragmented runs, and surprises with `--focus` / `--label-filter`. Single-framework enforcement keeps test runs predictable.
+
+#### Bad
 
 ```go
-// BAD — stdlib table-driven test
+// stdlib table-driven test in a Ginkgo-suite package
 func TestFoo(t *testing.T) {
 	tests := []struct{ input, want string }{ ... }
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) { ... })
 	}
 }
+```
 
-// GOOD — Ginkgo DescribeTable
+#### Good
+
+```go
+// Ginkgo DescribeTable
 var _ = DescribeTable("foo",
 	func(input, expected string) {
 		Expect(foo(input)).To(Equal(expected))
@@ -36,22 +47,60 @@ var _ = DescribeTable("foo",
 )
 ```
 
-**MUST NOT use `testing.T` directly** in packages that have a Ginkgo test suite. Use `Describe`/`Context`/`It`/`DescribeTable`/`Entry` instead.
+### RULE go-testing/no-testing-t-direct (MUST)
 
-**MUST NOT call an error-returning function bare in an `It` block.** `errcheck` (run by `make precommit`) will fail. Wrap with a matcher that documents intent:
+**Owner**: go-test-quality-assistant
+**Applies when**: a Go file in a package that has a Ginkgo `TestSuite` entry-point uses `*testing.T` directly inside test functions other than the suite entry-point itself.
+**Enforcement**: judgment (ast-grep follow-up)
+**Why**: Direct `testing.T` use bypasses the Ginkgo lifecycle (`BeforeEach`/`AfterEach`/`JustBeforeEach`), produces flaky setup ordering, and breaks `--focus` filtering. Use `Describe`/`Context`/`It`/`DescribeTable`/`Entry` so the suite runs as one coherent test plan.
 
-- Expecting success: `Expect(someFunc(ctx)).To(Succeed())`
-- Expecting failure: `Expect(someFunc(ctx)).To(HaveOccurred())`
-- Need the error: `err := someFunc(ctx); Expect(err).To(MatchError(...))`
+#### Bad
 
 ```go
-// BAD — errcheck: "Error return value not checked"
+func TestUserService(t *testing.T) { // direct testing.T in a Ginkgo-suite package
+	t.Run("Create", func(t *testing.T) {
+		// ...
+	})
+}
+```
+
+#### Good
+
+```go
+var _ = Describe("UserService", func() {
+	Context("Create", func() {
+		It("creates a user with valid data", func() {
+			// ...
+		})
+	})
+})
+```
+
+### RULE go-testing/no-bare-error-call (MUST)
+
+**Owner**: go-test-quality-assistant
+**Applies when**: a Go test file inside an `It` / `BeforeEach` / `JustBeforeEach` / `AfterEach` block calls an error-returning function whose return value is discarded.
+**Enforcement**: judgment (ast-grep follow-up — errcheck-equivalent scoped to Ginkgo blocks)
+**Why**: `errcheck` (run by `make precommit`) flags discarded errors and breaks the build. Wrapping every error-returning call in a Gomega matcher (`Succeed()` / `HaveOccurred()` / `MatchError(...)`) documents the test's intent at the assertion site instead of relying on silent fall-through.
+
+Matcher choice by intent:
+- Expecting success: `Expect(fn(ctx)).To(Succeed())`
+- Expecting failure: `Expect(fn(ctx)).To(HaveOccurred())`
+- Need the error for further assertions: `err := fn(ctx); Expect(err).To(MatchError(...))`
+
+#### Bad
+
+```go
+// errcheck: "Error return value not checked"
 It("calls Save exactly twice", func() {
 	service.Process(ctx)
 	Expect(store.SaveCallCount()).To(Equal(2))
 })
+```
 
-// GOOD — error explicitly accounted for
+#### Good
+
+```go
 It("calls Save exactly twice", func() {
 	Expect(service.Process(ctx)).To(HaveOccurred())
 	Expect(store.SaveCallCount()).To(Equal(2))
@@ -60,7 +109,12 @@ It("calls Save exactly twice", func() {
 
 ## Test Suite Setup
 
-**MUST provide a `*_suite_test.go` file in every package with tests.** Without it, Ginkgo specs are not discovered and `make test` silently misses coverage.
+### RULE go-testing/suite-test-file-required (MUST)
+
+**Owner**: go-test-quality-assistant
+**Applies when**: a Go package contains test files (`*_test.go`) but no `*_suite_test.go` file with a `TestSuite` entry-point and `RunSpecs`.
+**Enforcement**: judgment (file-existence check; ast-grep follow-up)
+**Why**: Without a suite file, Ginkgo specs are not discovered. `make test` exits 0 even though no specs ran — silent coverage loss. The suite file is the single entry-point Go's `testing` package invokes.
 
 ### Standard Package Suite
 
@@ -101,7 +155,12 @@ Requirements:
 
 ### Main Package Suite (special case)
 
-**MUST include `main_test.go` for every binary project.** Without it, build failures are not caught by `make test`.
+### RULE go-testing/main-test-with-compiles (MUST)
+
+**Owner**: go-test-quality-assistant
+**Applies when**: a Go binary project (package `main` with `main.go`) does not have a `main_test.go` containing a `Compiles` It-block backed by `gexec.Build`.
+**Enforcement**: judgment (file-existence + body check; ast-grep follow-up)
+**Why**: Without `main_test.go` + a `Compiles` check, build failures in `main.go` are not caught by `make test`. The CI greenlight then deploys a binary that doesn't link.
 
 ```go
 // Copyright (c) 2026 Benjamin Borbe All rights reserved.
@@ -177,7 +236,12 @@ var _ = Describe("Product", func() {
 
 ## Test Timeouts
 
-**MUST set a suite-level timeout.** Every suite file includes `suiteConfig.Timeout` as a safety net against hanging tests.
+### RULE go-testing/suite-timeout-required (MUST)
+
+**Owner**: go-test-quality-assistant
+**Applies when**: a `*_suite_test.go` file calls `GinkgoConfiguration()` without setting `suiteConfig.Timeout` before `RunSpecs`.
+**Enforcement**: judgment (ast-grep follow-up — pattern over suite body)
+**Why**: Without a suite-level timeout, a hung test holds the test runner indefinitely. CI eventually kills the job — but only after the job-level timeout (often 30+ minutes), wasting CI minutes and delaying feedback. Suite-level timeout is the safety net that fails fast.
 
 Per-spec timeout:
 
@@ -199,7 +263,12 @@ Describe("slow subsystem", func() {
 
 ## Mock Generation
 
-**MUST use Counterfeiter-generated mocks.** Never hand-write mocks — they drift from the interface and break silently.
+### RULE go-testing/counterfeiter-mocks-required (MUST)
+
+**Owner**: go-test-quality-assistant
+**Applies when**: a test file declares a hand-written struct that satisfies a production interface and is used in place of a real implementation under test, instead of importing a `mocks/<Name>` fake produced by Counterfeiter.
+**Enforcement**: judgment (presence of `//counterfeiter:generate` directive + hand-written fake detection; ast-grep follow-up)
+**Why**: Hand-written mocks drift from the interface — when the production interface gains a method, the hand-written mock silently keeps satisfying the old surface (test still compiles, doesn't exercise the new contract). Counterfeiter-generated fakes regenerate from the interface, so any drift surfaces at `go generate` time.
 
 ### Generate Directive
 
@@ -237,7 +306,12 @@ Expect(actualUser.Name).To(Equal("test"))
 
 ## Time Handling
 
-**MUST inject time via `libtime.CurrentDateTimeGetter` from `github.com/bborbe/time`.** Never call `time.Now()` directly in business logic — tests cannot control it.
+### RULE go-testing/libtime-injection-required (MUST)
+
+**Owner**: go-test-quality-assistant
+**Applies when**: a Go business-logic file (outside `main.go`, `cmd/**`, `*_test.go`, `vendor/`) reads the current time. Tests cannot control `time.Now()` directly, so dependent code is unverifiable.
+**Enforcement**: cross-rule — overlaps with `go-time/no-time-now-direct` (already in `rules/index.json`). This rule scopes the same constraint to test-coverage assessments: a service that doesn't inject time has no testable time-dependent paths.
+**Why**: Without `libtime.CurrentDateTimeGetter` injection, every test that depends on time becomes flaky or impossible. `libtime.NewCurrentDateTime()` + `SetNow(fixedTime)` produces deterministic, fast tests for date math, expiry windows, scheduling, etc.
 
 ```go
 import libtime "github.com/bborbe/time"

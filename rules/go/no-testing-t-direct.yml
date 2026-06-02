@@ -1,0 +1,51 @@
+id: go-testing/no-testing-t-direct
+language: go
+severity: error
+message: |
+  Direct `*testing.T` use bypasses the Ginkgo lifecycle
+  (BeforeEach/AfterEach/JustBeforeEach), produces flaky setup
+  ordering, and breaks --focus filtering. Use Describe/Context/It/
+  DescribeTable/Entry instead.
+  EXEMPT: the Ginkgo suite entry-point itself
+  (`func TestXxx(t *testing.T) { RegisterFailHandler(Fail); RunSpecs(t, "Suite") }`).
+  The agent decides per-finding whether the function is the legit
+  suite entry-point or a stdlib-style test that should be ported
+  to Ginkgo — this YAML flags every `func TestXxx(t *testing.T)`
+  in a _test.go file.
+  See docs/go-testing-guide.md (RULE go-testing/no-testing-t-direct).
+rule:
+  # `function_declaration` whose name starts with `Test` (Go test
+  # convention) and which has a parameter typed `*testing.T`.
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        kind: identifier
+        regex: '^Test'
+    - has:
+        field: parameters
+        kind: parameter_list
+        has:
+          stopBy: end
+          kind: pointer_type
+          has:
+            stopBy: end
+            kind: qualified_type
+            all:
+              - has:
+                  field: package
+                  kind: package_identifier
+                  regex: '^testing$'
+              - has:
+                  field: name
+                  kind: type_identifier
+                  regex: '^T$'
+ignores:
+  # Convention: `func TestXxx(t *testing.T)` is only meaningful inside
+  # `_test.go` files (go test only picks those up). ast-grep YAML at
+  # 0.43 has no `files:` include filter, so we exclude the common
+  # non-test code paths and accept that the rare non-test file with
+  # this shape will be flagged for the agent to dismiss.
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

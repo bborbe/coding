@@ -513,12 +513,57 @@
     "owner": "go-quality-assistant"
   },
   {
+    "anchor": "go-makefile/test-not-build-for-verification",
+    "applies_when": "a Go project's CI script, contributor onboarding doc, or commit message references `go build ./...` as the verification step for \"this change compiles and is safe to merge\", instead of `make test` (which wraps Ginkgo + race detection + coverage thresholds).",
+    "doc_path": "docs/go-makefile-commands.md",
+    "enforcement": "judgment (semantic — distinguishing \"this is the canonical verification step\" from \"this is one of several build sanity checks\" requires reading the context. `go build ./...` is fine as one signal; it's wrong as THE signal)",
+    "id": "go-makefile/test-not-build-for-verification",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-mod-dependency-fix/exclude-over-cross-repo-replace",
+    "applies_when": "a Go project pins around a known-broken upstream transitive version by adding a `replace` directive that points at a different repo (forked code, pseudo-version on a different module path) instead of an `exclude` directive that lets MVS pick the next valid version.",
+    "doc_path": "docs/go-mod-dependency-fix-guide.md",
+    "enforcement": "judgment (semantic — `replace` for known-broken-version-skip and `replace` for cross-repo-pinning look identical in `go.mod`; the intent is the differentiator)",
+    "id": "go-mod-dependency-fix/exclude-over-cross-repo-replace",
+    "level": "SHOULD",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-mod-dependency-fix/tidy-after-get-update",
+    "applies_when": "a Go project's CHANGELOG / git history shows a `go get -u <pkg>` or `go get <pkg>@<version>` operation that was committed without a subsequent `go mod tidy` (`go.sum` shows added entries but no removed-but-no-longer-needed entries; or `go.mod` has new `require` lines but `go.sum` has unused hashes).",
+    "doc_path": "docs/go-mod-dependency-fix-guide.md",
+    "enforcement": "judgment (semantic — typically caught at PR review: the commit message says \"update X\" but the diff doesn't have the `go mod tidy` side effects)",
+    "id": "go-mod-dependency-fix/tidy-after-get-update",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "go-mod-replace/no-cross-repo-replace",
     "applies_when": "a Go project's `go.mod` contains a `replace` directive whose right-hand side path points outside the current repo's working tree — relative paths that escape the repo root (`../../other-repo/lib`), absolute filesystem paths (`/Users/<name>/work/...`), or any other off-repo location.",
     "doc_path": "docs/go-mod-replace-guide.md",
     "enforcement": "judgment (ast-grep follow-up: pattern over `go.mod` `replace` lines with right-hand side starting with `../` reaching above the repo root or starting with `/`. Same-repo `replace github.com/acme/monorepo/libs/shared => ../../libs/shared` is fine — the rule fires only when the destination escapes the repo)",
     "id": "go-mod-replace/no-cross-repo-replace",
     "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-patterns/bborbe-collection-ptr-not-helpers",
+    "applies_when": "a Go file declares a custom pointer helper function (`func stringPtr(s string) *string { return &s }`, `func intPtr(...)`, etc.) instead of importing `github.com/bborbe/collection` and calling `collection.Ptr(...)`.",
+    "doc_path": "docs/go-patterns.md",
+    "enforcement": "judgment (ast-grep follow-up: `function_declaration` returning a pointer-to-builtin with a body containing only `return &<param>`)",
+    "id": "go-patterns/bborbe-collection-ptr-not-helpers",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-patterns/switch-over-if-chain-for-dispatch",
+    "applies_when": "a Go file dispatches behaviour on an enum-typed value (`OrderStatus`, `WorkflowMode`, `Phase`) using an `if/else if/else` chain over equality comparisons, instead of a `switch` statement with explicit cases + a `default` arm returning an error for unknown values.",
+    "doc_path": "docs/go-patterns.md",
+    "enforcement": "judgment (ast-grep follow-up: `if_statement` chains with 3+ branches comparing the same expression to enum-typed constants; the agent rules in the \"this is dispatch, not coincidental equality checks\" case)",
+    "id": "go-patterns/switch-over-if-chain-for-dispatch",
+    "level": "SHOULD",
     "owner": "go-quality-assistant"
   },
   {

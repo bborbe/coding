@@ -55,6 +55,78 @@ func (s *myService) Process(ctx context.Context, ...) error { ... }
 
 **NEVER** use `//go:generate counterfeiter ...` — it calls a globally installed binary which may be built with the wrong Go version. Always use the two-part pattern above: `//counterfeiter:generate` on the interface + `//go:generate go run -mod=mod ...` in suite_test.go.
 
+### RULE go-patterns/bborbe-collection-ptr-not-helpers (MUST)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go file declares a custom pointer helper function (`func stringPtr(s string) *string { return &s }`, `func intPtr(...)`, etc.) instead of importing `github.com/bborbe/collection` and calling `collection.Ptr(...)`.
+**Enforcement**: judgment (ast-grep follow-up: `function_declaration` returning a pointer-to-builtin with a body containing only `return &<param>`)
+**Why**: Every codebase that needs pointer values for optional struct fields ends up writing 3-5 of these helpers. They proliferate across packages, each one slightly differently named (`strPtr` vs `stringPtr` vs `pStr`), and tests do their own (`stringPtr("test")` in test A, `&[]string{"test"}[0]` in test B). `github.com/bborbe/collection.Ptr` is a generic single helper that handles every type. Adopting it everywhere collapses the proliferation to one import line per package and lets refactors find every usage with `grep collection.Ptr`.
+
+#### Bad
+
+```go
+// Custom helpers — proliferate across packages
+func stringPtr(s string) *string { return &s }
+func intPtr(i int) *int          { return &i }
+func boolPtr(b bool) *bool       { return &b }
+
+req := APIRequest{
+	Name: stringPtr("alice"),
+	Age:  intPtr(30),
+}
+```
+
+#### Good
+
+```go
+import libcollection "github.com/bborbe/collection"
+
+req := APIRequest{
+	Name: libcollection.Ptr("alice"),  // generic — works for every type
+	Age:  libcollection.Ptr(30),
+}
+```
+
+### RULE go-patterns/switch-over-if-chain-for-dispatch (SHOULD)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go file dispatches behaviour on an enum-typed value (`OrderStatus`, `WorkflowMode`, `Phase`) using an `if/else if/else` chain over equality comparisons, instead of a `switch` statement with explicit cases + a `default` arm returning an error for unknown values.
+**Enforcement**: judgment (ast-grep follow-up: `if_statement` chains with 3+ branches comparing the same expression to enum-typed constants; the agent rules in the "this is dispatch, not coincidental equality checks" case)
+**Why**: A `switch` over an enum with explicit cases + `default: return errors.Errorf(ctx, "unknown X: %s", v)` makes three things visible: (1) every recognised value is named in its own case, so `grep` finds dispatch sites; (2) the `default` arm catches "we added a new enum value but forgot to handle it here" — surfaces as a real error at runtime instead of silent fallthrough; (3) the structure documents the closed set the function understands. `if/else` chains hide all three: dispatch sites look like arbitrary conditionals, missing-case is silent, and reading the function doesn't surface the value space.
+
+#### Bad
+
+```go
+// if/else chain over 3+ enum values — silent fallthrough,
+// new enum value silently runs handleDirect
+if w.mode == config.WorkflowPR {
+	return w.handlePR(ctx)
+} else if w.mode == config.WorkflowMerge {
+	return w.handleMerge(ctx)
+} else if w.mode == config.WorkflowRebase {
+	return w.handleRebase(ctx)
+}
+return w.handleDirect(ctx) // ← also runs when mode is the new WorkflowDarkFactory we forgot to handle
+```
+
+#### Good
+
+```go
+// switch with explicit cases + default — new enum value triggers default error
+switch w.mode {
+case config.WorkflowDirect:
+	return w.handleDirect(ctx)
+case config.WorkflowPR:
+	return w.handlePR(ctx)
+case config.WorkflowMerge:
+	return w.handleMerge(ctx)
+case config.WorkflowRebase:
+	return w.handleRebase(ctx)
+default:
+	return errors.Errorf(ctx, "unknown workflow: %s", w.mode)
+}
+```
+
 **Pointer utilities** — use `github.com/bborbe/collection`:
 ```go
 val := libcollection.Ptr("hello")  // not func strPtr(s string) *string

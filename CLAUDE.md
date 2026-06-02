@@ -54,6 +54,9 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-enum-type-pattern.md` | `go-architecture-assistant` |
 | `go-composition.md` | `go-architecture-assistant` |
 | `go-build-args-guide.md` | `go-quality-assistant` |
+| `go-mod-dependency-fix-guide.md` | `go-quality-assistant` |
+| `go-makefile-commands.md` | `go-quality-assistant` |
+| `go-patterns.md` | `go-quality-assistant` |
 
 Reference-only docs (patterns, setup guides) don't need agents.
 

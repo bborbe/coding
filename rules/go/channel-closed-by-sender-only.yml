@@ -1,0 +1,27 @@
+id: go-concurrency/channel-closed-by-sender-only
+language: go
+severity: error
+message: |
+  `close(ch)` call needs a producer-only owner. Closing a channel
+  from the receiver side races against any still-pending send and
+  panics `send on closed channel`. The Go convention is: producer
+  owns the channel and is the only one allowed to close it;
+  receivers use `for v := range ch` or the comma-ok idiom.
+  The agent decides per-finding whether the enclosing function is
+  the producer (sends into the channel — close is correct, often
+  `defer close(ch)`) or a consumer (only receives — `close(ch)` is
+  the bug). The agent also clears multi-producer cases that route
+  through a single dedicated closer goroutine + sync.WaitGroup.
+  See docs/go-concurrency-patterns.md
+  (RULE go-concurrency/channel-closed-by-sender-only).
+rule:
+  # Match every `close($X)` call. The producer-vs-consumer
+  # adjudication needs reading the enclosing function body's
+  # send/receive direction on $X — exactly the cross-context
+  # reasoning ast-grep can't do reliably.
+  pattern: 'close($X)'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

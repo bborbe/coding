@@ -210,7 +210,7 @@
     "anchor": "go-prometheus/counter-total-suffix",
     "applies_when": "a `prometheus.CounterOpts` struct literal sets a `Name:` field whose string value does not end with `_total`.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
-    "enforcement": "judgment (ast-grep follow-up)",
+    "enforcement": "`rules/go/counter-total-suffix.yml`",
     "id": "go-prometheus/counter-total-suffix",
     "level": "MUST",
     "owner": "go-metrics-assistant"

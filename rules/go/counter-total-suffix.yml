@@ -1,0 +1,34 @@
+id: go-prometheus/counter-total-suffix
+language: go
+severity: error
+message: |
+  Counter metric Name must end with "_total".
+  Prometheus naming convention; newer client_golang versions panic at registration without it.
+  See docs/go-prometheus-metrics-guide.md (RULE go-prometheus/counter-total-suffix).
+rule:
+  # ast-grep 0.43.0 shape (verified against /tmp test fixtures):
+  #   - pattern.context binds a structural match anchored on prometheus.CounterOpts
+  #     so the `selector: keyed_element` only fires inside Counter literals.
+  #   - inside.pattern + stopBy: end re-anchors on CounterOpts to avoid false
+  #     positives on GaugeOpts / HistogramOpts / SummaryOpts which share the
+  #     `Name: "..."` field shape.
+  #   - constraints.V.not.regex rejects values ending in `_total"` (the closing
+  #     quote of an interpreted_string_literal). Name field position-agnostic —
+  #     works whether Name comes first, middle, or last in the struct literal.
+  pattern:
+    context: 'prometheus.CounterOpts{Name: $V, $$$}'
+    selector: 'keyed_element'
+  inside:
+    pattern: 'prometheus.CounterOpts{$$$}'
+    stopBy: end
+constraints:
+  V:
+    not:
+      regex: '_total"$'
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -195,6 +195,43 @@ if failures > 0 {
 }
 ```
 
+### RULE go-logging/skip-empty-v2-heartbeats (SHOULD)
+
+**Owner**: go-quality-assistant
+**Applies when**: a Go function emits a `glog.V(2).Infof(...)` heartbeat log line unconditionally — meaning the line runs every iteration / cycle / poll regardless of whether anything observable happened (zero items processed, no state change, no signal worth recording).
+**Enforcement**: judgment (semantic — distinguishing "this V(2) heartbeat carries real signal every iteration" from "this fires every loop body and contributes nothing" requires reading the surrounding code; ast-grep partial: `call_expression` matching `glog.V(2).Info*(...)` inside a `for_statement` body without a preceding guard `if N > 0` / `if changed` / sampler check)
+**Why**: V(2) is the production-heartbeat level (default `LOGLEVEL=2`). Unconditional V(2) heartbeats produce log volume proportional to iteration frequency, even when nothing happened — `scan cycle: 0 changed` lines drowning the actual state changes that V(2) exists to surface. Guard each V(2) heartbeat with a "something happened" check (`if changed > 0`, `if n > 0`) or wrap it in a sampler (`log.NewSampleTime(10s)`). Operators reading V(2) want to know what changed, not that the loop ran.
+
+#### Bad
+
+```go
+for {
+	changed, err := scanForUpdates(ctx)
+	if err != nil {
+		glog.Errorf("scan failed: %v", err)
+		continue
+	}
+	glog.V(2).Infof("scan cycle: %d changed", changed) // fires even when changed=0
+	time.Sleep(interval)
+}
+```
+
+#### Good
+
+```go
+for {
+	changed, err := scanForUpdates(ctx)
+	if err != nil {
+		glog.Errorf("scan failed: %v", err)
+		continue
+	}
+	if changed > 0 {
+		glog.V(2).Infof("scan cycle: %d changed", changed) // only when there's something to report
+	}
+	time.Sleep(interval)
+}
+```
+
 ## slog (New Projects)
 
 ```go

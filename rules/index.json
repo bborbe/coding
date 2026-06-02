@@ -666,6 +666,15 @@
     "owner": "go-quality-assistant"
   },
   {
+    "anchor": "go-logging/skip-empty-v2-heartbeats",
+    "applies_when": "a Go function emits a `glog.V(2).Infof(...)` heartbeat log line unconditionally — meaning the line runs every iteration / cycle / poll regardless of whether anything observable happened (zero items processed, no state change, no signal worth recording).",
+    "doc_path": "docs/go-logging-guide.md",
+    "enforcement": "judgment (semantic — distinguishing \"this V(2) heartbeat carries real signal every iteration\" from \"this fires every loop body and contributes nothing\" requires reading the surrounding code; ast-grep partial: `call_expression` matching `glog.V(2).Info*(...)` inside a `for_statement` body without a preceding guard `if N > 0` / `if changed` / sampler check)",
+    "id": "go-logging/skip-empty-v2-heartbeats",
+    "level": "SHOULD",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "go-makefile/test-not-build-for-verification",
     "applies_when": "a Go project's CI script, contributor onboarding doc, or commit message references `go build ./...` as the verification step for \"this change compiles and is safe to merge\", instead of `make test` (which wraps Ginkgo + race detection + coverage thresholds).",
     "doc_path": "docs/go-makefile-commands.md",

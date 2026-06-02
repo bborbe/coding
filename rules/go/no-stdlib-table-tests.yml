@@ -1,0 +1,28 @@
+id: go-testing/no-stdlib-table-tests
+language: go
+severity: error
+message: |
+  stdlib table-driven tests (for/t.Run loops) must not be used in
+  Ginkgo-suite packages. Use Ginkgo's DescribeTable/Entry instead.
+  Mixed Ginkgo + stdlib tables produce inconsistent reporter output,
+  fragmented runs, and break --focus filtering.
+  See docs/go-testing-guide.md (RULE go-testing/no-stdlib-table-tests).
+rule:
+  # ast-grep 0.43.0 shape: match the canonical stdlib table-driven
+  # test shape — a for-range loop over a slice, body containing a
+  # t.Run() call. The for_statement node wraps the whole construct;
+  # the has-clause walks the body for t.Run. t.Run is always 2-arg
+  # (name string + func(t *testing.T)) so the explicit ($A, $B)
+  # shape catches it (the $$$ARGS ellipsis form requires non-zero
+  # args in ast-grep 0.43.0 and doesn't reliably bind here).
+  kind: for_statement
+  has:
+    stopBy: end
+    pattern: 't.Run($A, $B)'
+ignores:
+  # Test files only — this rule fires on _test.go files specifically.
+  # Production code doesn't use t.Run, so the rule is effectively
+  # scoped to tests by content. Vendor + mocks excluded as elsewhere.
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

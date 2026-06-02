@@ -15,8 +15,8 @@ The standard pattern for Python services follows this structure:
 ### RULE python-architecture/constructor-injection-only (MUST)
 
 **Owner**: python-architecture-assistant
-**Applies when**: a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a method parameter, a global module variable, or `self.foo = bar.foo` mutation after construction — instead of through `__init__`.
-**Enforcement**: judgment (semantic — requires distinguishing dependency injection from runtime parameter passing)
+**Applies when**: a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a *method parameter* instead of through `__init__`. Related but distinct anti-patterns covered by other rules: dependency from a global module variable (see `python-architecture/main-py-composition-root`); post-construction `self.foo = bar.foo` mutation (see `python-ioc/dependencies-as-private-fields`, which mandates private-field storage that makes mutation socially difficult).
+**Enforcement**: judgment (semantic — requires distinguishing dependency injection from runtime parameter passing. The other two related anti-patterns have their own rules and enforcement paths.)
 **Why**: Mixing dependency injection with runtime parameter passing breaks the contract Python's type system relies on. Constructor injection makes the dep set visible at `__init__`, immutable after construction, and self-documenting at the type signature. Method-level injection means tests have to construct the full dep graph for every call site; global injection means tests are order-dependent. Methods should receive only the data needed to do their job — `create_user(user: User)`, not `create_user(repo, logger, validator, user)`.
 
 #### Bad
@@ -55,41 +55,11 @@ class UserService:
         self._logger.info(f"Created user {user.id}")
 ```
 
-### Protocol Definition
+**Key points** (the RULE above shows the canonical Bad/Good shape; below are the orthogonal supporting conventions):
 
-```python
-from typing import Protocol
-
-class UserRepository(Protocol):
-    def save(self, user: User) -> None: ...
-    def find_by_id(self, user_id: int) -> User | None: ...
-```
-
-### Service Implementation
-
-```python
-class UserService:
-    def __init__(
-        self,
-        repo: UserRepository,
-        logger: Logger,
-        validator: UserValidator,
-    ):
-        self._repo = repo           # Static dependency
-        self._logger = logger       # Static dependency
-        self._validator = validator # Static dependency
-
-    def create_user(self, user: User) -> None:  # Runtime param only
-        self._validator.validate(user)
-        self._repo.save(user)
-        self._logger.info(f"Created user {user.id}")
-```
-
-**Key points:**
-- Constructor receives ALL dependencies (static, mockable)
-- Methods receive ONLY runtime data (request params, user input)
-- Dependencies stored as private fields (`self._dep`)
-- Clean separation: deps bound once, methods reusable
+- Constructor receives ALL dependencies (static, mockable); methods receive ONLY runtime data.
+- Dependencies stored as private fields (`self._dep`) — see [`python-ioc/dependencies-as-private-fields`](python-ioc-guide.md).
+- Dependency interfaces use `Protocol` — see [`python-ioc/protocol-not-abc-for-dependencies`](python-ioc-guide.md).
 
 ## 2. main.py Pattern (Composition Root)
 

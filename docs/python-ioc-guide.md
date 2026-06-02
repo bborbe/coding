@@ -60,28 +60,26 @@ class UserValidator(Protocol):
 **Enforcement**: judgment (ast-grep partial: detect `class X(ABC):` declarations that only contain `@abstractmethod` methods — but the "no shared impl needed" trigger is semantic)
 **Why**: Protocol gives you structural typing — any class with the right method shape satisfies it, without inheritance. That's the right primitive for dependency interfaces: mocks don't need to inherit from anything, tests don't fake an `ABC` hierarchy, and you avoid the "every protocol class has both an ABC and a Protocol declaration" duplication that ABC-first projects accrete. ABC is the right primitive when concrete implementations share code via `super()` — that's the actual reason ABCs exist. For dependency interfaces (which are pure contracts), Protocol is shorter, lighter, and friendlier to mocks.
 
-### Use Protocol for Dependency Interfaces
+#### Bad
 
-**Constraint:** MUST use `Protocol` for defining dependency interfaces unless shared implementation is required.
-
-**Rationale:** Protocol enables structural typing and works seamlessly with mocks without inheritance overhead.
-
-**Examples:**
 ```python
-# [GOOD]
-from typing import Protocol
-
-class UserRepository(Protocol):
-    def save(self, user: User) -> None: ...
-    def find_by_id(self, user_id: int) -> User | None: ...
-
-# [BAD] - Using ABC when no shared implementation needed
+# Using ABC when no shared implementation needed
 from abc import ABC, abstractmethod
 
 class UserRepository(ABC):
     @abstractmethod
     def save(self, user: User) -> None:
         pass
+```
+
+#### Good
+
+```python
+from typing import Protocol
+
+class UserRepository(Protocol):
+    def save(self, user: User) -> None: ...
+    def find_by_id(self, user_id: int) -> User | None: ...
 ```
 
 **Protocol vs ABC Decision:**
@@ -131,7 +129,7 @@ class UserService:
 
 **Owner**: python-architecture-assistant
 **Applies when**: a Python service class stores an injected dependency on `self.<name>` (public attribute) instead of `self._<name>` (single-underscore private convention).
-**Enforcement**: judgment (ast-grep follow-up: `assignment` inside `__init__` with left-hand side `self.X` where `X` does not start with `_` and right-hand side is a parameter typed as a `Protocol` / `ABC` interface)
+**Enforcement**: judgment (ast-grep first-pass filter: any `assignment` inside `__init__` with left-hand side `self.X` where `X` does not start with `_`. Type-annotation resolution to distinguish service deps from public data fields cannot be done in ast-grep — the agent makes the final call. Overinclusive first-pass is acceptable: most public `self.X` assignments in service classes ARE the smell.)
 **Why**: Public attribute storage invites external mutation — `user_service.repo = MockRepository()` — which breaks the immutability contract that makes constructor injection safe in the first place. Tests that mutate inject-time fields hide behavior that production never exercises. Single-underscore prefix is Python's universal "internal, don't touch" convention; following it forces test code to compose deps the same way production does (through the constructor) and keeps the dep set observable only at `__init__`.
 
 #### Bad
@@ -151,25 +149,6 @@ user_service.repo = SomeOtherRepo()      # silent contract violation
 class UserService:
     def __init__(self, repo: UserRepository):
         self._repo = repo                # private — single-underscore convention
-```
-
-### Store Dependencies as Private Fields
-
-**Constraint:** MUST store injected dependencies as private fields with underscore prefix (`self._repo`).
-
-**Rationale:** Prevents external mutation and clearly indicates internal implementation details.
-
-**Examples:**
-```python
-# [GOOD]
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self._repo = repo  # Private field
-
-# [BAD]
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self.repo = repo  # Public field allows external mutation
 ```
 
 ### Never Return Values from Constructors

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.15.1
 
 - fix(rules): `go-errors/no-fmt-errorf.yml` rewritten as a structural rule. The original `pattern: fmt.Errorf($$$ARGS)` was parsed by tree-sitter Go grammar as a `type_conversion_expression` (because `Type(arg)` is a valid Go type cast at pattern-compile time), so the rule matched no real call sites — silently emitting zero findings since the YAML shipped. Replaced with `kind: call_expression` + structural `selector_expression` match on `fmt.Errorf`. Verified against scenario 004's fixture (`pkg/scenarios-test-fixture/violations.go` on bborbe/maintainer#2): the `Boom` function's `fmt.Errorf` now fires. Scenario 004's `findings_count` floor lifted ≥4 → ≥5.
 

@@ -6,7 +6,19 @@ message: |
   Bare suppressions give no audit trail for the next reviewer.
   See docs/go-security-linting.md (RULE go-security/nosec-requires-reason).
 rule:
-  pattern-regex: '//\s*#nosec\b(?!.*--)'
+  # ast-grep 0.43 shape: match `comment` nodes containing `#nosec`
+  # without a trailing `-- <reason>`. Rust regex (used by ast-grep)
+  # does NOT support lookaround, so the negation cannot live in a
+  # single `(?!.*--)` pattern. Use positive regex on `#nosec\b`
+  # combined with `not.regex` on `--` inside the same comment node.
+  # Previously this YAML used `pattern-regex:` which is not a valid
+  # ast-grep 0.43 field — surfaced 2026-06-03 during scenario 002's
+  # walk (the YAML parse error blocked the funnel for this rule).
+  kind: comment
+  all:
+    - regex: '#nosec\b'
+    - not:
+        regex: '--'
 ignores:
   - "main.go"
   - "**/main.go"

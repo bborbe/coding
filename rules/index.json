@@ -1011,7 +1011,7 @@
     "anchor": "go-testing/suite-timeout-required",
     "applies_when": "a `*_suite_test.go` file calls `GinkgoConfiguration()` without setting `suiteConfig.Timeout` before `RunSpecs`.",
     "doc_path": "docs/go-testing-guide.md",
-    "enforcement": "judgment (ast-grep follow-up — pattern over suite body)",
+    "enforcement": "`rules/go/suite-timeout-required.yml` flags `func TestXxx(t *testing.T)` bodies that contain a `GinkgoConfiguration()` call but NO assignment to `suiteConfig.Timeout`. The agent decides per-finding whether the timeout is actually set via a helper, via per-spec `SpecTimeout` decorators that effectively cap suite runtime, or via an external test-runner config (in which case the rule is satisfied semantically even though the structural pattern fires).",
     "id": "go-testing/suite-timeout-required",
     "level": "MUST",
     "owner": "go-test-quality-assistant"

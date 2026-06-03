@@ -240,7 +240,7 @@ var _ = Describe("Product", func() {
 
 **Owner**: go-test-quality-assistant
 **Applies when**: a `*_suite_test.go` file calls `GinkgoConfiguration()` without setting `suiteConfig.Timeout` before `RunSpecs`.
-**Enforcement**: judgment (ast-grep follow-up — pattern over suite body)
+**Enforcement**: `rules/go/suite-timeout-required.yml` flags `func TestXxx(t *testing.T)` bodies that contain a `GinkgoConfiguration()` call but NO assignment to `suiteConfig.Timeout`. The agent decides per-finding whether the timeout is actually set via a helper, via per-spec `SpecTimeout` decorators that effectively cap suite runtime, or via an external test-runner config (in which case the rule is satisfied semantically even though the structural pattern fires).
 **Why**: Without a suite-level timeout, a hung test holds the test runner indefinitely. CI eventually kills the job — but only after the job-level timeout (often 30+ minutes), wasting CI minutes and delaying feedback. Suite-level timeout is the safety net that fails fast.
 
 Per-spec timeout:

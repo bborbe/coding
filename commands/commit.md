@@ -139,7 +139,6 @@ See [[GitHub Auto-Release Guide]] for the full bot release flow, opt-in config, 
 A change is **pipeline-only** if ALL changed/added/deleted files (committed since last tag + uncommitted) are inside these directories:
 - `prompts/` (including `prompts/in-progress/`, `prompts/completed/`, `prompts/log/`)
 - `specs/` (including `specs/in-progress/`, `specs/completed/`, `specs/log/`)
-- `scenarios/`
 
 ```bash
 # Check uncommitted changes
@@ -148,9 +147,9 @@ git status --porcelain | awk '{print $2}'
 git diff --name-only $(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~100")..HEAD
 ```
 
-If EVERY file path starts with `prompts/`, `specs/`, or `scenarios/`, this is pipeline-only → route to Workflow E.
+If EVERY file path starts with `prompts/` or `specs/`, this is pipeline-only → route to Workflow E.
 
-**Rationale:** Prompts, specs, and scenarios are pipeline metadata, not code. They don't warrant a version bump or changelog entry.
+**Rationale:** Prompts and specs are dark-factory runtime state (queued work, daemon inboxes). They don't warrant a version bump or changelog entry. **Scenarios are NOT pipeline metadata** even when they live next to prompts/specs — they're shipped acceptance contracts that users (or operators) invoke via `/dark-factory:run-scenario` to validate behavior. A new scenario adds a new acceptance contract to the project's surface; that IS a versioned change and belongs in the changelog. Treat `scenarios/` the same as `docs/` or `rules/` — release-relevant content, not pipeline state.
 
 ### 4. Detect Trivial Changes
 

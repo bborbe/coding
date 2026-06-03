@@ -127,11 +127,14 @@ echo "{\"event\":\"per_owner_adjudication\",\"owner\":\"<owner>\",\"findings_in\
 Roll-up summary after all owners return:
 
 ```bash
-total_ms=$(jq -s 'map(.wall_ms) | add' /tmp/code-review-timing.jsonl)
-echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$(wc -l < /tmp/code-review-timing.jsonl),\"total_ms\":$total_ms}" >> /tmp/code-review-timing.jsonl
+# Filter to per_owner_adjudication events only — wc -l over-counts when the
+# file has stale lines from a prior unclean run or the summary line itself.
+total_ms=$(jq -s 'map(select(.event == "per_owner_adjudication") | .wall_ms) | add' /tmp/code-review-timing.jsonl)
+owners_invoked=$(grep -c '"event":"per_owner_adjudication"' /tmp/code-review-timing.jsonl)
+echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"total_ms\":$total_ms}" >> /tmp/code-review-timing.jsonl
 ```
 
-Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report.
+Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report. Include `/tmp/code-review-timing.jsonl` in the cleanup step so the file is removed after the review and doesn't accumulate stale lines across runs.
 
 #### 4c: Context-specific conventions
 

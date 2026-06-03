@@ -146,8 +146,11 @@ echo "{\"event\":\"per_owner_adjudication\",\"owner\":\"<owner>\",\"findings_in\
 After all per-Owner dispatches return, append a roll-up summary line:
 
 ```bash
-total_ms=$(jq -s 'map(.wall_ms) | add' /tmp/pr-review-timing.jsonl)
-echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$(wc -l < /tmp/pr-review-timing.jsonl),\"total_ms\":$total_ms}" >> /tmp/pr-review-timing.jsonl
+# Filter to per_owner_adjudication events only — wc -l over-counts when the
+# file has stale lines from a prior unclean run or the summary line itself.
+total_ms=$(jq -s 'map(select(.event == "per_owner_adjudication") | .wall_ms) | add' /tmp/pr-review-timing.jsonl)
+owners_invoked=$(grep -c '"event":"per_owner_adjudication"' /tmp/pr-review-timing.jsonl)
+echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"total_ms\":$total_ms}" >> /tmp/pr-review-timing.jsonl
 ```
 
 The timing file `/tmp/pr-review-timing.jsonl` is purely diagnostic — it lets operators answer "is Owner X worth dispatching?" with data instead of intuition. Not part of the Step 5 user-facing report; include it in the cleanup step for the review worktree so it gets removed after Step 6.

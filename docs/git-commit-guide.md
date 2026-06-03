@@ -8,7 +8,7 @@ Comprehensive guide for git commit workflow covering feature branch development,
 
 **Owner**: agent-auditor
 **Applies when**: a git commit message's subject line starts with a non-imperative verb form — past tense (`added`, `fixed`, `updated`), gerund (`adding`, `fixing`), or 3rd-person singular (`adds`, `fixes`, `updates`) — instead of the bare imperative form (`add`, `fix`, `update`).
-**Enforcement**: judgment (PR/commit-message check; the agent reads commit subjects via `git log --format=%s` and flags non-imperative verbs against the known imperative-verb list: add, fix, update, remove, refactor, docs, test, chore, feat, style, build, ci, perf)
+**Enforcement**: judgment (PR/commit-message check; the agent reads commit subjects via `git log --format=%s` and flags non-imperative verbs against the prose `Common Imperative Verbs` table below)
 **Why**: Imperative mood matches Git's own convention (every internal `git` command produces an imperative message: "Merge branch X", "Revert commit Y") so the project history reads as one consistent voice. Past-tense and gerund forms also make `git log --grep "^add"` lossy — searching for added features finds 30% of them. The bare-imperative form is one fewer keystroke, one shorter subject line, and grep-friendly.
 
 #### Bad
@@ -27,27 +27,7 @@ fix payment processor crash
 update README with installation steps
 ```
 
-### RULE git-commit/no-ai-attribution (MUST)
-
-**Owner**: agent-auditor
-**Applies when**: a git commit message contains an attribution line referencing an AI tool — `Generated with Claude`, `Co-Authored-By: Claude`, `🤖 Generated`, `Authored by Codex`, or equivalent.
-**Enforcement**: judgment (PR/commit-message check; the agent reads commit messages via `git log --format=%B` and flags any AI-attribution string)
-**Why**: AI attribution clutters the history with information that doesn't help future readers (the commit's content is what matters, not the tool used to write it), invites attribution drift over time (every model upgrade prompts an attribution edit), and erodes the project's authorship surface (`git shortlog -sne` becomes "Benjamin Borbe / Claude / Codex / GPT" instead of a clean contributor list). The user/author owns the commit content; the AI is a tool, not a co-author.
-
-#### Bad
-
-```
-add user authentication endpoint
-
-Generated with Claude Code.
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-#### Good
-
-```
-add user authentication endpoint
-```
+**No-AI-attribution rule lives in [git-workflow.md](git-workflow.md)** as `git-workflow/no-ai-attribution-in-commits` (canonical). This guide intentionally does not duplicate it — both would produce double-findings at PR review time, same owner (`agent-auditor`), same trigger surface. Treat the git-workflow rule as the single source of truth for AI-attribution enforcement on commits.
 
 ### RULE git-commit/subject-under-50-chars (SHOULD)
 
@@ -59,13 +39,13 @@ add user authentication endpoint
 #### Bad
 
 ```
-add comprehensive user authentication endpoint with OAuth2 PKCE flow support  (74 chars)
+add comprehensive user authentication endpoint with OAuth2 PKCE flow support
 ```
 
 #### Good
 
 ```
-add OAuth2 PKCE auth endpoint  (29 chars)
+add OAuth2 PKCE auth endpoint
 ```
 
 ### RULE git-commit/feature-branch-no-tag (MUST)
@@ -73,7 +53,7 @@ add OAuth2 PKCE auth endpoint  (29 chars)
 **Owner**: agent-auditor
 **Applies when**: a `git tag vX.Y.Z` command runs on a feature branch (any branch that is not `master` / `main`). Tags landing on a feature branch attach to a non-canonical commit; after PR merge the master-branch merge commit lacks the tag, and `git describe` returns a misleading version.
 **Enforcement**: judgment (PR/CI check; `git for-each-ref --contains <feature-branch-tip> 'refs/tags/*'` returning any tag = violation. The agent verifies the tagged commit is reachable from master, not just from the feature branch)
-**Why**: Tags represent **released versions** that users consume via `git checkout vX.Y.Z` or `claude plugin install pkg@vX.Y.Z`. A tag on a feature branch points at a commit that may differ from what landed on master (rebase, squash, amendment during review), so users who fetch the tag get pre-merge code that nobody actually reviewed. Only master-branch commits — the merge commits CI tested and reviewers approved — should carry release tags. The release procedure: merge first, tag second. See [[Development Guide]] release section and the autoRelease bot workflow for the canonical flow.
+**Why**: Tags represent **released versions** that users consume via `git checkout vX.Y.Z` or `claude plugin install pkg@vX.Y.Z`. A tag on a feature branch points at a commit that may differ from what landed on master (rebase, squash, amendment during review), so users who fetch the tag get pre-merge code that nobody actually reviewed. Only master-branch commits — the merge commits CI tested and reviewers approved — should carry release tags. The release procedure: merge first, tag second. See [releasing-coding.md](releasing-coding.md) for the canonical flow when `.maintainer.yaml` has `release.autoRelease: true`.
 
 #### Bad
 

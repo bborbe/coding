@@ -111,17 +111,8 @@
     "anchor": "git-commit/imperative-mood",
     "applies_when": "a git commit message's subject line starts with a non-imperative verb form — past tense (`added`, `fixed`, `updated`), gerund (`adding`, `fixing`), or 3rd-person singular (`adds`, `fixes`, `updates`) — instead of the bare imperative form (`add`, `fix`, `update`).",
     "doc_path": "docs/git-commit-guide.md",
-    "enforcement": "judgment (PR/commit-message check; the agent reads commit subjects via `git log --format=%s` and flags non-imperative verbs against the known imperative-verb list: add, fix, update, remove, refactor, docs, test, chore, feat, style, build, ci, perf)",
+    "enforcement": "judgment (PR/commit-message check; the agent reads commit subjects via `git log --format=%s` and flags non-imperative verbs against the prose `Common Imperative Verbs` table below)",
     "id": "git-commit/imperative-mood",
-    "level": "MUST",
-    "owner": "agent-auditor"
-  },
-  {
-    "anchor": "git-commit/no-ai-attribution",
-    "applies_when": "a git commit message contains an attribution line referencing an AI tool — `Generated with Claude`, `Co-Authored-By: Claude`, `🤖 Generated`, `Authored by Codex`, or equivalent.",
-    "doc_path": "docs/git-commit-guide.md",
-    "enforcement": "judgment (PR/commit-message check; the agent reads commit messages via `git log --format=%B` and flags any AI-attribution string)",
-    "id": "git-commit/no-ai-attribution",
     "level": "MUST",
     "owner": "agent-auditor"
   },

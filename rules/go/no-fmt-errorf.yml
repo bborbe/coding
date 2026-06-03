@@ -6,7 +6,34 @@ message: |
   Use errors.Wrapf (wrapping) or errors.Errorf (new error) from github.com/bborbe/errors instead.
   See docs/go-error-wrapping-guide.md (RULE go-errors/no-fmt-errorf).
 rule:
-  pattern: fmt.Errorf($$$ARGS)
+  # ast-grep 0.43 + Go tree-sitter grammar parses bare
+  # `fmt.Errorf($A)` / `fmt.Errorf($$$ARGS)` as a
+  # `type_conversion_expression`, because `Type(arg)` is a valid Go
+  # type cast at pattern-compile time (no surrounding expression
+  # context disambiguates). Real call sites like
+  # `return fmt.Errorf(...)` parse as `call_expression` because the
+  # surrounding context fixes the parse. Net effect: the unanchored
+  # pattern matches NOTHING in real code — verified empirically.
+  # `kind: call_expression` alone does NOT fix it (kind filters
+  # output; pattern still mis-parses). Use a fully structural rule
+  # instead: match `call_expression` whose function field is a
+  # `selector_expression` with operand `fmt` and field `Errorf`.
+  # Surfaced 2026-06-03 during scenario 004's walk — the YAML had
+  # been silently emitting zero findings since the rule shipped.
+  # See [[ast-grep - Structural Code Search]] (Gotchas) for the family.
+  kind: call_expression
+  has:
+    field: function
+    kind: selector_expression
+    all:
+      - has:
+          field: operand
+          kind: identifier
+          regex: '^fmt$'
+      - has:
+          field: field
+          kind: field_identifier
+          regex: '^Errorf$'
 ignores:
   - "main.go"
   - "**/main.go"

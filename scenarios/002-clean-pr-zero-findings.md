@@ -1,5 +1,5 @@
 ---
-status: draft
+status: active
 ---
 
 # Scenario 002: Zero-violation PR in standard mode produces empty findings, no false positives

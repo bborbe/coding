@@ -115,6 +115,24 @@ Review changed code only."
 
 Run per-Owner dispatches **concurrently** — they're independent.
 
+**Timing instrumentation** (mirror of `commands/pr-review.md` Step 4b): record wall-time of each per-Owner dispatch as a structured event so the funnel's per-Owner ROI is measurable, not anecdotal:
+
+```bash
+ts_start=$(date +%s%3N)
+# ... invoke coding:<owner> agent ...
+ts_end=$(date +%s%3N)
+echo "{\"event\":\"per_owner_adjudication\",\"owner\":\"<owner>\",\"findings_in\":<count>,\"wall_ms\":$((ts_end - ts_start))}" >> /tmp/code-review-timing.jsonl
+```
+
+Roll-up summary after all owners return:
+
+```bash
+total_ms=$(jq -s 'map(.wall_ms) | add' /tmp/code-review-timing.jsonl)
+echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$(wc -l < /tmp/code-review-timing.jsonl),\"total_ms\":$total_ms}" >> /tmp/code-review-timing.jsonl
+```
+
+Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report.
+
 #### 4c: Context-specific conventions
 
 Load these conventionally when the diff matches:

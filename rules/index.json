@@ -99,6 +99,42 @@
     "owner": "agent-auditor"
   },
   {
+    "anchor": "git-commit/feature-branch-no-tag",
+    "applies_when": "a `git tag vX.Y.Z` command runs on a feature branch (any branch that is not `master` / `main`). Tags landing on a feature branch attach to a non-canonical commit; after PR merge the master-branch merge commit lacks the tag, and `git describe` returns a misleading version.",
+    "doc_path": "docs/git-commit-guide.md",
+    "enforcement": "judgment (PR/CI check; `git for-each-ref --contains <feature-branch-tip> 'refs/tags/*'` returning any tag = violation. The agent verifies the tagged commit is reachable from master, not just from the feature branch)",
+    "id": "git-commit/feature-branch-no-tag",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "git-commit/imperative-mood",
+    "applies_when": "a git commit message's subject line starts with a non-imperative verb form — past tense (`added`, `fixed`, `updated`), gerund (`adding`, `fixing`), or 3rd-person singular (`adds`, `fixes`, `updates`) — instead of the bare imperative form (`add`, `fix`, `update`).",
+    "doc_path": "docs/git-commit-guide.md",
+    "enforcement": "judgment (PR/commit-message check; the agent reads commit subjects via `git log --format=%s` and flags non-imperative verbs against the known imperative-verb list: add, fix, update, remove, refactor, docs, test, chore, feat, style, build, ci, perf)",
+    "id": "git-commit/imperative-mood",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "git-commit/no-ai-attribution",
+    "applies_when": "a git commit message contains an attribution line referencing an AI tool — `Generated with Claude`, `Co-Authored-By: Claude`, `🤖 Generated`, `Authored by Codex`, or equivalent.",
+    "doc_path": "docs/git-commit-guide.md",
+    "enforcement": "judgment (PR/commit-message check; the agent reads commit messages via `git log --format=%B` and flags any AI-attribution string)",
+    "id": "git-commit/no-ai-attribution",
+    "level": "MUST",
+    "owner": "agent-auditor"
+  },
+  {
+    "anchor": "git-commit/subject-under-50-chars",
+    "applies_when": "a git commit subject line exceeds 50 characters. Body lines may be longer (wrap at 72 per the broader convention) but the subject is the single line that has to fit GitHub's PR list view, `git log --oneline`, and 80-column terminals without wrapping.",
+    "doc_path": "docs/git-commit-guide.md",
+    "enforcement": "judgment (PR/commit-message check; `git log --format=%s | awk '{ if (length($0) > 50) print length($0)\" chars: \"$0 }'` surfaces violators)",
+    "id": "git-commit/subject-under-50-chars",
+    "level": "SHOULD",
+    "owner": "agent-auditor"
+  },
+  {
     "anchor": "git-workflow/never-direct-commit-to-master",
     "applies_when": "a git commit lands directly on `master` / `main` without going through a feature branch + PR — typically caught by `pre-push` hook rejecting cross-name pushes to the default branch, or by GitHub's `master-protection` ruleset.",
     "doc_path": "docs/git-workflow.md",

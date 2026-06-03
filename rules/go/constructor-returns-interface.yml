@@ -1,0 +1,36 @@
+id: go-architecture/constructor-returns-interface
+language: go
+severity: error
+message: |
+  `New*` constructor returns a pointer type (`*concreteStruct`)
+  instead of the interface the struct implements. Returning the
+  concrete pointer leaks implementation: callers can reach for
+  non-interface methods, type-assert downstream, depend on private
+  struct fields via reflection.
+  Return the interface (`UserService`) — consumers see only the
+  contract surface.
+  EXEMPT: data-holder structs without a corresponding interface
+  (e.g. config / DTO records). The agent decides per-finding by
+  checking whether the same package declares an interface that the
+  returned concrete type implements.
+  See docs/go-architecture-patterns.md
+  (RULE go-architecture/constructor-returns-interface).
+rule:
+  # `func NewXxx(...) *ConcreteStruct { ... }` — function_declaration
+  # with name starting with `New` and result a `pointer_type`. The
+  # interface-vs-data-holder check stays on the agent (needs same-
+  # package interface lookup).
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        kind: identifier
+        regex: '^New[A-Z]'
+    - has:
+        field: result
+        kind: pointer_type
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

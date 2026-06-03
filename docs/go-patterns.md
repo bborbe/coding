@@ -59,7 +59,7 @@ func (s *myService) Process(ctx context.Context, ...) error { ... }
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go file declares a custom pointer helper function (`func stringPtr(s string) *string { return &s }`, `func intPtr(...)`, etc.) instead of importing `github.com/bborbe/collection` and calling `collection.Ptr(...)`.
-**Enforcement**: judgment (ast-grep follow-up: `function_declaration` returning a pointer-to-builtin with a body containing only `return &<param>`)
+**Enforcement**: `rules/go/no-custom-ptr-helpers.yml` matches the canonical pointer-helper signature `func N(P T) *T { return &P }` (same param identifier on both sides). The agent decides per-finding whether the function is a real pointer-helper (one-arg, returns `&that_arg`) or a one-liner constructor that incidentally returns a pointer to a struct literal (`&Type{...}`) — the latter is exempt.
 **Why**: Every codebase that needs pointer values for optional struct fields ends up writing 3-5 of these helpers. They proliferate across packages, each one slightly differently named (`strPtr` vs `stringPtr` vs `pStr`), and tests do their own (`stringPtr("test")` in test A, `&[]string{"test"}[0]` in test B). `github.com/bborbe/collection.Ptr` is a generic single helper that handles every type. Adopting it everywhere collapses the proliferation to one import line per package and lets refactors find every usage with `grep collection.Ptr`.
 
 #### Bad

@@ -173,7 +173,7 @@ func Run(ctx context.Context, args []string) error {
 
 **Owner**: go-quality-assistant
 **Applies when**: a *new* Go CLI binary (created after Go 1.21 release; no prior glog usage in the same module) imports `github.com/golang/glog`. Existing glog-using projects are exempt — they should not introduce slog and glog side by side.
-**Enforcement**: judgment (semantic — distinguishing "new project" from "existing project mid-migration" requires checking git history / module age; ast-grep partial: `import "github.com/golang/glog"` in any main module without prior glog usage)
+**Enforcement**: `rules/go/slog-not-glog-in-new-projects.yml` flags every `import "github.com/golang/glog"`. The agent decides whether each finding is a real violation (new project introducing glog) or an exempt case (existing project mid-migration with prior glog usage) — that distinction needs git-history / module-age reasoning ast-grep can't do.
 **Why**: glog has two structural problems slog doesn't: (1) it registers 8+ flags via stdlib `flag.init()` which pollutes every binary's `--help` output (see `go-cli/cobra-not-stdlib-flag`); (2) it predates structured logging — every log line is a free-form string, so log aggregators can't reliably parse `user_id=<X>` / `request_id=<Y>` fields. `log/slog` (stdlib Go 1.21+) emits structured key-value logs, integrates with `context.Context` for request-scoped fields, and has no `flag` pollution. For *existing* glog projects, the migration cost is real and not always worth it — but new projects should not pay the glog tax.
 
 #### Bad

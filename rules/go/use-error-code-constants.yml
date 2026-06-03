@@ -1,0 +1,37 @@
+id: go-json-error-handler/use-error-code-constants
+language: go
+severity: error
+message: |
+  HTTP error-code argument to `libhttp.WrapWithCode` /
+  `libhttp.WrapWithDetails` is a raw string literal instead of a
+  `libhttp.ErrorCodeXxx` constant. Typos in raw strings ship
+  silently — clients pattern-matching on the code surface the wrong
+  dispatch arm. Use the constants (`libhttp.ErrorCodeValidation`,
+  `ErrorCodeNotFound`, etc.) so typos fail at compile time and
+  grep finds every code from one source of truth.
+  See docs/go-json-error-handler-guide.md
+  (RULE go-json-error-handler/use-error-code-constants).
+rule:
+  # libhttp signatures (verified against
+  # ~/Documents/workspaces/http/http_error-handler.go):
+  #   WrapWithCode(err error, code string, statusCode int)              — code is arg #2
+  #   WrapWithDetails(err error, code string, statusCode int, details)  — code is arg #2
+  # `NewJSONError` is NOT a real libhttp function (the doc text mis-named
+  # `NewJSONErrorHandler`, which is a handler factory and not an error
+  # constructor — different surface entirely). Drop it from the regex.
+  #
+  # `constraints:` only applies at rule-top-level (not inside any/all
+  # items). Shared $CODE metavariable in position #2 across both arities.
+  any:
+    - all:
+        - pattern: 'libhttp.WrapWithCode($A, $CODE, $C)'
+    - all:
+        - pattern: 'libhttp.WrapWithDetails($A, $CODE, $C, $D)'
+constraints:
+  CODE:
+    kind: interpreted_string_literal
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

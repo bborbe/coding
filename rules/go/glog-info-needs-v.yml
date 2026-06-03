@@ -1,0 +1,49 @@
+id: go-glog/use-v-for-debug-not-info
+language: go
+severity: error
+message: |
+  Bare `glog.Info` / `glog.Infof` runs at V0 (always-on production
+  logging). V0 is reserved for production-default operator info
+  (startup, shutdown, health changes, recovered panics).
+  Use `glog.V(N).Info...` / `glog.V(N).Infof...` for debug, trace,
+  internal-state, or developer-troubleshooting lines (V1 sysop debug,
+  V2 dev default, V3+ deep debug).
+  The agent decides which calls are V0-worthy operator info vs
+  debug-shaped — this YAML flags every glog.Info(f) for review.
+  See docs/go-glog-guide.md (RULE go-glog/use-v-for-debug-not-info).
+rule:
+  any:
+    # `glog.Info(...)` — call_expression with selector_expression operand
+    # operand=glog, field=Info.
+    - kind: call_expression
+      has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: operand
+              kind: identifier
+              regex: '^glog$'
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^Info$'
+    - kind: call_expression
+      has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: operand
+              kind: identifier
+              regex: '^glog$'
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^Infof$'
+ignores:
+  # Test files exempt — test setup/teardown logs at V0 are fine.
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

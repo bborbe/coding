@@ -1,0 +1,26 @@
+id: go-cli/slog-not-glog-in-new-projects
+language: go
+severity: error
+message: |
+  New Go projects should use 'log/slog' (Go 1.21+ stdlib) instead of
+  'github.com/golang/glog'. glog registers 8+ flags via init() that
+  pollute every binary's --help output and emits unstructured strings
+  that log aggregators can't parse reliably.
+  EXEMPT: existing projects mid-migration. The agent decides 'is this
+  a new project?' based on whether the module already uses glog
+  elsewhere — this YAML flags every glog import for review.
+  See docs/go-cli-guide.md (RULE go-cli/slog-not-glog-in-new-projects).
+rule:
+  # ast-grep 0.43.0 shape: match `import_spec` nodes whose path text
+  # equals "github.com/golang/glog". Same shape as the cobra-not-stdlib-flag
+  # YAML's import-detection branch (PR #29).
+  kind: import_spec
+  has:
+    field: path
+    regex: '^"github\.com/golang/glog"$'
+ignores:
+  # Test files exempt — legacy test helpers may keep glog.
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

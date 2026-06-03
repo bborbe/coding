@@ -20,7 +20,7 @@ Every Go binary that runs in a k8s pod (StatefulSet, Deployment, CronJob, epheme
 
 **Owner**: go-security-specialist
 **Applies when**: an `application` struct field in a Go k8s-deployed binary holds secret material (PEM key, OAuth token, password, API key, JWT signing secret) without the `display:"length"` tag — meaning glog / structured-logging dumps of the application config will print the secret value.
-**Enforcement**: judgment (ast-grep follow-up: `struct_field_declaration` with name matching `PEM*` / `*Token*` / `*Secret*` / `*Password*` / `*Key` outside `display:"length"` tag)
+**Enforcement**: `rules/go/secret-fields-need-display-length.yml` flags `field_declaration` whose name contains `PEM` / `Token` / `Secret` / `Password` / `Key` / `Credential` and whose tag either lacks `display:"length"` or is absent entirely. The agent dismisses incidental name matches (e.g. `MasterKey` for a non-credential master record).
 **Why**: `argument.Parse()` prints the application config at startup. Without `display:"length"`, the secret value lands in stdout / glog / log aggregators — searchable, indexed, and impossible to redact retroactively once the log batch has shipped. `display:"length"` substitutes `length=42` for the value, preserving the "is it set?" signal without the leak. The tag costs zero runtime; the leak costs a credential rotation.
 
 ### RULE go-k8s-binary/argument-struct-not-os-getenv (MUST)

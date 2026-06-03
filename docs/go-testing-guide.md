@@ -51,7 +51,7 @@ var _ = DescribeTable("foo",
 
 **Owner**: go-test-quality-assistant
 **Applies when**: a Go file in a package that has a Ginkgo `TestSuite` entry-point uses `*testing.T` directly inside test functions other than the suite entry-point itself.
-**Enforcement**: judgment (ast-grep follow-up)
+**Enforcement**: `rules/go/no-testing-t-direct.yml` flags every `func TestXxx(t *testing.T)` declaration. The agent decides per-finding whether the function is the legitimate Ginkgo suite entry-point (`RegisterFailHandler(Fail); RunSpecs(t, "Suite")`) or a stdlib-style test that needs to be ported to Ginkgo — that distinction needs reading the function body's intent, which ast-grep can't do reliably.
 **Why**: Direct `testing.T` use bypasses the Ginkgo lifecycle (`BeforeEach`/`AfterEach`/`JustBeforeEach`), produces flaky setup ordering, and breaks `--focus` filtering. Use `Describe`/`Context`/`It`/`DescribeTable`/`Entry` so the suite runs as one coherent test plan.
 
 #### Bad

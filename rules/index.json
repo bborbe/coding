@@ -129,7 +129,7 @@
     "anchor": "go-architecture/constructor-returns-interface",
     "applies_when": "a Go `New*` constructor returns the concrete struct type (`*userService`) instead of the interface it implements (`UserService`).",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: `function_declaration` with name `^New` and result containing the concrete struct, paired with the corresponding interface declaration in the same package)",
+    "enforcement": "`rules/go/constructor-returns-interface.yml` flags every `func NewXxx(...) *ConcreteStruct` declaration. The agent decides per-finding whether the returned concrete type has a corresponding interface in the same package (real violation) or is a data-holder / config / DTO struct without an interface (exempt) — the same-package interface lookup needs cross-file reasoning ast-grep can't do in a single rule.",
     "id": "go-architecture/constructor-returns-interface",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -201,7 +201,7 @@
     "anchor": "go-cli/slog-not-glog-in-new-projects",
     "applies_when": "a *new* Go CLI binary (created after Go 1.21 release; no prior glog usage in the same module) imports `github.com/golang/glog`. Existing glog-using projects are exempt — they should not introduce slog and glog side by side.",
     "doc_path": "docs/go-cli-guide.md",
-    "enforcement": "judgment (semantic — distinguishing \"new project\" from \"existing project mid-migration\" requires checking git history / module age; ast-grep partial: `import \"github.com/golang/glog\"` in any main module without prior glog usage)",
+    "enforcement": "`rules/go/slog-not-glog-in-new-projects.yml` flags every `import \"github.com/golang/glog\"`. The agent decides whether each finding is a real violation (new project introducing glog) or an exempt case (existing project mid-migration with prior glog usage) — that distinction needs git-history / module-age reasoning ast-grep can't do.",
     "id": "go-cli/slog-not-glog-in-new-projects",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -435,7 +435,7 @@
     "anchor": "go-glog/use-v-for-debug-not-info",
     "applies_when": "a Go file calls `glog.Info` / `glog.Infof` for debug, trace, internal-state, or developer-troubleshooting log lines that should be filtered out in production — instead of `glog.V(N).Info...` / `glog.V(N).Infof...` with an appropriate verbosity level (1 for sysop debug, 2 for dev default, 3+ for deep debug). Scope: applies across ALL V levels — V0 is reserved for production-default operator info; everything debug-shaped goes through `V(N)`.",
     "doc_path": "docs/go-glog-guide.md",
-    "enforcement": "judgment (ast-grep follow-up: `call_expression` matching `glog.Info(...)` / `glog.Infof(...)` outside startup/shutdown contexts; the agent rules in \"is this production-default-worthy?\" based on the log content)",
+    "enforcement": "`rules/go/glog-info-needs-v.yml` flags every `glog.Info(...)` / `glog.Infof(...)` call. The agent decides per-finding whether the call is V0-worthy production-operator info (startup, shutdown, health change, recovered panic) or debug-shaped content that should be gated behind `V(N)` — that distinction needs reading the log message intent, which ast-grep can't do.",
     "id": "go-glog/use-v-for-debug-not-info",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -505,9 +505,9 @@
   },
   {
     "anchor": "go-json-error-handler/use-error-code-constants",
-    "applies_when": "a Go HTTP handler passes a raw string literal as the error-code argument to `libhttp.WrapWithCode` / `libhttp.NewJSONError` instead of the `libhttp.ErrorCodeXxx` constants.",
+    "applies_when": "a Go HTTP handler passes a raw string literal as the error-code argument to `libhttp.WrapWithCode` / `libhttp.WrapWithDetails` instead of the `libhttp.ErrorCodeXxx` constants.",
     "doc_path": "docs/go-json-error-handler-guide.md",
-    "enforcement": "judgment (ast-grep follow-up: pattern over `libhttp.WrapWithCode($$, $$, $CODE)` / `WrapWithDetails($$, $$, $CODE, $$)` with `$CODE` constrained to be a `interpreted_string_literal` — see PR #11 recipe for the metavariable-constraint shape)",
+    "enforcement": "`rules/go/use-error-code-constants.yml` flags `libhttp.WrapWithCode(err, $CODE, statusCode)` / `libhttp.WrapWithDetails(err, $CODE, statusCode, details)` calls whose `$CODE` argument (position #2 per the libhttp signature) is an `interpreted_string_literal` (raw string) instead of an `ErrorCodeXxx` constant selector_expression. Uses the metavariable-constraint shape (PR #11 recipe).",
     "id": "go-json-error-handler/use-error-code-constants",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
@@ -525,7 +525,7 @@
     "anchor": "go-k8s-binary/secret-fields-need-display-length",
     "applies_when": "an `application` struct field in a Go k8s-deployed binary holds secret material (PEM key, OAuth token, password, API key, JWT signing secret) without the `display:\"length\"` tag — meaning glog / structured-logging dumps of the application config will print the secret value.",
     "doc_path": "docs/go-k8s-binary-conventions.md",
-    "enforcement": "judgment (ast-grep follow-up: `struct_field_declaration` with name matching `PEM*` / `*Token*` / `*Secret*` / `*Password*` / `*Key` outside `display:\"length\"` tag)",
+    "enforcement": "`rules/go/secret-fields-need-display-length.yml` flags `field_declaration` whose name contains `PEM` / `Token` / `Secret` / `Password` / `Key` / `Credential` and whose tag either lacks `display:\"length\"` or is absent entirely. The agent dismisses incidental name matches (e.g. `MasterKey` for a non-credential master record).",
     "id": "go-k8s-binary/secret-fields-need-display-length",
     "level": "MUST",
     "owner": "go-security-specialist"
@@ -723,7 +723,7 @@
     "anchor": "go-patterns/bborbe-collection-ptr-not-helpers",
     "applies_when": "a Go file declares a custom pointer helper function (`func stringPtr(s string) *string { return &s }`, `func intPtr(...)`, etc.) instead of importing `github.com/bborbe/collection` and calling `collection.Ptr(...)`.",
     "doc_path": "docs/go-patterns.md",
-    "enforcement": "judgment (ast-grep follow-up: `function_declaration` returning a pointer-to-builtin with a body containing only `return &<param>`)",
+    "enforcement": "`rules/go/no-custom-ptr-helpers.yml` matches the canonical pointer-helper signature `func N(P T) *T { return &P }` (same param identifier on both sides). The agent decides per-finding whether the function is a real pointer-helper (one-arg, returns `&that_arg`) or a one-liner constructor that incidentally returns a pointer to a struct literal (`&Type{...}`) — the latter is exempt.",
     "id": "go-patterns/bborbe-collection-ptr-not-helpers",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -912,7 +912,7 @@
     "anchor": "go-testing/no-testing-t-direct",
     "applies_when": "a Go file in a package that has a Ginkgo `TestSuite` entry-point uses `*testing.T` directly inside test functions other than the suite entry-point itself.",
     "doc_path": "docs/go-testing-guide.md",
-    "enforcement": "judgment (ast-grep follow-up)",
+    "enforcement": "`rules/go/no-testing-t-direct.yml` flags every `func TestXxx(t *testing.T)` declaration. The agent decides per-finding whether the function is the legitimate Ginkgo suite entry-point (`RegisterFailHandler(Fail); RunSpecs(t, \"Suite\")`) or a stdlib-style test that needs to be ported to Ginkgo — that distinction needs reading the function body's intent, which ast-grep can't do reliably.",
     "id": "go-testing/no-testing-t-direct",
     "level": "MUST",
     "owner": "go-test-quality-assistant"

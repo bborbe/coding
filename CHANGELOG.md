@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat(rules): bootstrap `docs/go-functional-composition-pattern.md` with 5 `### RULE` blocks (`go-functional-composition/func-type-name`, `list-type-name`, `list-checks-ctx-done`, `list-wraps-errors-with-ctx`, `multi-method-func-explicit-delegate`). Covers the four load-bearing conventions of the pattern (Func/List naming, ctx-aware iteration, error wrapping with caller context, multi-method nil-safe delegation). All judgment-tier with ast-grep partial hints — the structural shapes are tractable but rely on cross-file interface lookup the dispatcher's per-Owner agent does better than a single YAML. Total rules: 131 → 136.
+
 ## v0.15.1
 
 - feat(scripts): new `scripts/acceptance.sh` + `make check-acceptance` Makefile target — 12 fast assertions covering the dispatcher contract that doesn't need an E2E scenario walk: mode coverage (short/standard/full), per-Owner routing + index-to-agent integrity, Step 2.5 context-glob mappings, broken-YAML isolation. Wired into `make precommit` so CI catches dispatcher drift. Closes the 4 acceptance items listed on `[[Refactor coding pr-review to doc-driven rules pipeline]]` task page that were left over from the scenario-cut.

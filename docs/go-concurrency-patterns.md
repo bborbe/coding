@@ -110,7 +110,7 @@ func process(ctx context.Context) error {
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go file calls `close(ch)` on a channel that was passed in as a function parameter from elsewhere — i.e. closed by a consumer/receiver rather than by the goroutine that produces values into it.
-**Enforcement**: judgment (ast-grep follow-up: `close(X)` where `X` is a parameter type `chan T` or `chan<- T`; the agent rules in whether the function is the producer or consumer based on whether it sends into `X`)
+**Enforcement**: `rules/go/channel-closed-by-sender-only.yml` flags every `close($X)` call. The agent decides per-finding whether the enclosing function is the producer (sends into the channel — close correct, often `defer close(ch)`) or a consumer (only receives — `close(ch)` is the bug), and clears multi-producer cases routed through a dedicated closer goroutine + sync.WaitGroup. The producer-vs-consumer judgment needs reading the function body's send/receive direction — exactly the cross-context reasoning ast-grep can't do reliably.
 **Why**: Closing a channel from the receiver side is a textbook race — the sender may still be writing when the close happens, producing `send on closed channel` panic. The Go convention is: **the producer owns the channel and is the only one allowed to close it.** Receivers learn of "no more values" via `for v := range ch` or the `comma-ok` idiom (`v, ok := <-ch`), never by closing themselves. Multi-producer cases use `sync.WaitGroup` + a single dedicated closer goroutine, not concurrent closes (which also panic).
 
 #### Bad

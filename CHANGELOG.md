@@ -8,6 +8,18 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat(pipeline): dispatcher refactor for `/coding:pr-review` + `/coding:code-review` — Step 4 replaced with `ast-grep-runner` (mechanical funnel) → per-Owner LLM-tier adjudication → citation validation. Decouples LLM-call count from PR file count; small PR-size now equals small LLM-call count for the same rule coverage. Migrated 13 rule-enforcer agents to the dispatcher contract.
+- feat(pipeline): citation validator (`scripts/validate-citations.sh`) — rejects findings whose `rule_id` is not present in `rules/index.json`. Smoke-tested against synthetic hallucination payload.
+- feat(pipeline): coverage lint (`scripts/check-coverage.sh`) wired into `make precommit` — fails on dangling enforcement references, orphan YAMLs, and rule-id mismatches between docs and the index.
+- feat(dispatcher): fail-fast preflight when `ast-grep` / `sg` binary is missing — both `commands/pr-review.md` Step 4.0 and `agents/ast-grep-runner.md` Step 0 emit a documented error and exit 1 instead of silently looping on `sg --version` (the failure mode observed on coding#34).
+- feat(rules): mechanical ast-grep YAML count 20 → 28 across batches 5–6: `go-cli/slog-not-glog-in-new-projects`, `go-glog/use-v-for-debug-not-info`, `go-testing/no-testing-t-direct`, `go-testing/no-stdlib-table-tests`, `go-architecture/constructor-returns-interface`, `go-architecture/no-globals-or-singletons`, `go-architecture/counterfeiter-directive-on-interface`, `go-patterns/bborbe-collection-ptr-not-helpers`, `go-json-error-handler/use-error-code-constants`, `go-k8s-binary/secret-fields-need-display-length`, `go-concurrency/no-raw-go-func`, `go-concurrency/channel-closed-by-sender-only`, `go-cli/cobra-not-stdlib-flag`.
+- fix(rules): `nosec-requires-reason.yml` — `pattern-regex` is not a valid ast-grep 0.43 field. Rewritten as `kind: comment` + `all: [regex: '#nosec\b', not.regex: '--']`. The original YAML had been silently parse-failing on every PR review since the rule shipped.
+- feat(rules): bootstrap `docs/go-logging-guide.md` with 7 `### RULE` blocks (`no-mixing-slog-and-glog`, `no-log-and-return-error`, `external-call-logs-response`, `no-sensitive-data-in-logs`, `lowercase-log-messages`, `no-tight-loop-without-sampler`, `skip-empty-v2-heartbeats`). Total rules in index: 124 → 131.
+- feat(scenarios): new `scenarios/` directory with 4 active E2E acceptance scenarios following the dark-factory scenario writing guide. Each scenario is a manually-walked checklist operators run from any terminal: `001-toolchain-preflight` (dispatcher fail-fasts when ast-grep is absent), `002-clean-pr-zero-findings` (README-only diff emits empty severity sections), `003-scaling-funnel-100-files` (mechanical funnel ≤30s, distinct Owners ≤30), `004-findings-exist-path` (`/coding:pr-review` against the perpetual test PR [bborbe/maintainer#2](https://github.com/bborbe/maintainer/pull/2) surfaces ≥4 findings with valid citations).
+- docs: README + `llms.txt` index the 4 active scenarios alongside guides and agents.
+
 ## v0.14.0
 
 - feat(rules): grow `rules/index.json` from 27 to 124 entries (+97 rules across 44 doc families). Most enforceable conventions in `docs/` now carry canonical `### RULE <id> (LEVEL)` blocks consumable by `/coding:pr-review`.

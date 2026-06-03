@@ -1,0 +1,72 @@
+id: go-testing/suite-timeout-required
+language: go
+severity: error
+message: |
+  TestSuite entry-point calls GinkgoConfiguration() but does not
+  set `suiteConfig.Timeout` before `RunSpecs(...)`. Without a
+  suite-level timeout, a hung test holds the test runner
+  indefinitely — the only safety net is the CI job-level timeout
+  (often 30+ minutes), which wastes CI minutes and delays feedback.
+  Set `suiteConfig.Timeout = 60 * time.Second` (or a fixture-shape-
+  appropriate value) between the GinkgoConfiguration call and
+  RunSpecs. The agent decides per-finding whether the timeout is
+  set elsewhere (e.g. via a helper, or via per-spec SpecTimeout
+  decorators that effectively cap suite runtime).
+  See docs/go-testing-guide.md (RULE go-testing/suite-timeout-required).
+rule:
+  # Match TestSuite-shaped function (parameter list has *testing.T)
+  # whose body contains a call to GinkgoConfiguration but NOT an
+  # assignment to suiteConfig.Timeout. ast-grep 0.43 grammar: the
+  # function_declaration's children are positional; use `has` with
+  # stopBy:end to walk the body tree.
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        kind: identifier
+        regex: '^Test'
+    - has:
+        field: parameters
+        kind: parameter_list
+        has:
+          stopBy: end
+          kind: pointer_type
+          has:
+            stopBy: end
+            kind: qualified_type
+            all:
+              - has:
+                  field: package
+                  kind: package_identifier
+                  regex: '^testing$'
+              - has:
+                  field: name
+                  kind: type_identifier
+                  regex: '^T$'
+    - has:
+        stopBy: end
+        kind: call_expression
+        has:
+          field: function
+          kind: identifier
+          regex: '^GinkgoConfiguration$'
+    - not:
+        has:
+          stopBy: end
+          kind: assignment_statement
+          has:
+            stopBy: end
+            kind: selector_expression
+            all:
+              - has:
+                  field: operand
+                  kind: identifier
+                  regex: '^suiteConfig$'
+              - has:
+                  field: field
+                  kind: field_identifier
+                  regex: '^Timeout$'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -134,6 +134,27 @@ Only review changed files from the diff. Exclude vendor/ and node_modules/."
 
 Run these per-owner dispatches **concurrently** — they're independent.
 
+**Timing instrumentation**: record the wall-time of each per-Owner dispatch as a structured event. Recommended shape — one log line per Owner before and after the agent runs:
+
+```bash
+ts_start=$(date +%s%3N)
+# ... invoke coding:<owner> agent ...
+ts_end=$(date +%s%3N)
+echo "{\"event\":\"per_owner_adjudication\",\"owner\":\"<owner>\",\"findings_in\":<count>,\"wall_ms\":$((ts_end - ts_start))}" >> /tmp/pr-review-timing.jsonl
+```
+
+After all per-Owner dispatches return, append a roll-up summary line:
+
+```bash
+# Filter to per_owner_adjudication events only — wc -l over-counts when the
+# file has stale lines from a prior unclean run or the summary line itself.
+total_ms=$(jq -s 'map(select(.event == "per_owner_adjudication") | .wall_ms) | add' /tmp/pr-review-timing.jsonl)
+owners_invoked=$(grep -c '"event":"per_owner_adjudication"' /tmp/pr-review-timing.jsonl)
+echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"total_ms\":$total_ms}" >> /tmp/pr-review-timing.jsonl
+```
+
+The timing file `/tmp/pr-review-timing.jsonl` is purely diagnostic — it lets operators answer "is Owner X worth dispatching?" with data instead of intuition. Not part of the Step 5 user-facing report; include it in the cleanup step for the review worktree so it gets removed after Step 6.
+
 #### 4c: Context-specific conventions (kept from prior Step 2.5)
 
 Some review questions still benefit from a full-doc read even in dispatcher mode. Load these conventionally when the diff matches:

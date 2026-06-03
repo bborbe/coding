@@ -115,6 +115,27 @@ Review changed code only."
 
 Run per-Owner dispatches **concurrently** — they're independent.
 
+**Timing instrumentation** (mirror of `commands/pr-review.md` Step 4b): record wall-time of each per-Owner dispatch as a structured event so the funnel's per-Owner ROI is measurable, not anecdotal:
+
+```bash
+ts_start=$(date +%s%3N)
+# ... invoke coding:<owner> agent ...
+ts_end=$(date +%s%3N)
+echo "{\"event\":\"per_owner_adjudication\",\"owner\":\"<owner>\",\"findings_in\":<count>,\"wall_ms\":$((ts_end - ts_start))}" >> /tmp/code-review-timing.jsonl
+```
+
+Roll-up summary after all owners return:
+
+```bash
+# Filter to per_owner_adjudication events only — wc -l over-counts when the
+# file has stale lines from a prior unclean run or the summary line itself.
+total_ms=$(jq -s 'map(select(.event == "per_owner_adjudication") | .wall_ms) | add' /tmp/code-review-timing.jsonl)
+owners_invoked=$(grep -c '"event":"per_owner_adjudication"' /tmp/code-review-timing.jsonl)
+echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"total_ms\":$total_ms}" >> /tmp/code-review-timing.jsonl
+```
+
+Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report. `code-review.md` has no formal cleanup step (the command works against the current branch in-place; there is no review-worktree to remove), so end the run with `rm -f /tmp/code-review-timing.jsonl` to keep the file from accumulating stale lines across reviews.
+
 #### 4c: Context-specific conventions
 
 Load these conventionally when the diff matches:

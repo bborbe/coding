@@ -134,7 +134,7 @@ owners_invoked=$(grep -c '"event":"per_owner_adjudication"' /tmp/code-review-tim
 echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"total_ms\":$total_ms}" >> /tmp/code-review-timing.jsonl
 ```
 
-Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report. Include `/tmp/code-review-timing.jsonl` in the cleanup step so the file is removed after the review and doesn't accumulate stale lines across runs.
+Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report. `code-review.md` has no formal cleanup step (the command works against the current branch in-place; there is no review-worktree to remove), so end the run with `rm -f /tmp/code-review-timing.jsonl` to keep the file from accumulating stale lines across reviews.
 
 #### 4c: Context-specific conventions
 

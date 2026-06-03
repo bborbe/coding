@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.15.0
 
 - feat(pipeline): dispatcher refactor for `/coding:pr-review` + `/coding:code-review` — Step 4 replaced with `ast-grep-runner` (mechanical funnel) → per-Owner LLM-tier adjudication → citation validation. Decouples LLM-call count from PR file count; small PR-size now equals small LLM-call count for the same rule coverage. Migrated 13 rule-enforcer agents to the dispatcher contract.
 - feat(pipeline): citation validator (`scripts/validate-citations.sh`) — rejects findings whose `rule_id` is not present in `rules/index.json`. Smoke-tested against synthetic hallucination payload.

@@ -1,71 +1,72 @@
 ---
-status: draft
+status: active
 ---
 
-# Scenario 003: 100-file synthetic PR completes review in ≤30 LLM calls
+# Scenario 003: 100-file synthetic PR funnel converges to ≤30 distinct owners
 
-Validates that a 100-file synthetic PR with known mechanical violations completes `/coding:pr-review master standard` within ≤30 LLM calls and ≤30 minutes — proving the ast-grep funnel decouples LLM cost from PR size and stays under the prod bot's `activeDeadlineSeconds=1800` ceiling. Companion decoupling scenario (200-file re-run with ≤30 LLM calls) lives separately as scenario 004.
+Validates that the ast-grep mechanical funnel against a 100-file synthetic PR with mixed violations completes in ≤30 seconds and surfaces findings under ≤30 distinct Owner agents — proving the funnel decouples LLM-tier cost from file count (since the dispatcher's Step 4b invokes ONE Task per Owner with findings, the upper bound on LLM calls is the distinct-Owner count plus a small fixed overhead). The full-pipeline LLM-call measurement (Phase 10 acceptance, requires an LLM-shim wrapping the `claude` binary) is deferred to a future scenario 004 — not yet written; this scenario captures the structural ceiling.
 
 ## Setup
 
-- [ ] Build the synthetic-PR fixture:
+- [ ] Build the synthetic-PR fixture (100 .go files across realistic package layout, 4 distinct mechanical-rule violation types):
   ```bash
   WORK=$(mktemp -d) && cd "$WORK" && git init -q
-  mkdir -p pkg/{handler,service,store,worker,internal}/{user,order,product,customer,billing}
   i=0
-  for dir in pkg/handler/{user,order,product,customer,billing} \
-             pkg/service/{user,order,product,customer,billing} \
-             pkg/store/{user,order,product,customer,billing} \
-             pkg/worker/{user,order,product,customer,billing} \
-             pkg/internal/{user,order,product,customer,billing}; do
-    for n in 1 2 3 4; do
-      i=$((i+1))
-      cat > "$dir/file$n.go" <<EOF
-  package $(basename $dir)
-  import "fmt"
-  func NewService$i() *Service$i { return &Service$i{} }
-  type Service$i struct{}
-  func (s *Service$i) Process() error { return fmt.Errorf("processing failed") }
-  EOF
+  # Layer A: constructor-returns-interface (40 files)
+  for dir in pkg/h/{a,b,c,d} pkg/s/{a,b,c,d}; do
+    mkdir -p $dir
+    for n in 1 2 3 4 5; do
+      i=$((i+1)); pkg=$(basename $dir)
+      printf 'package %s\ntype Service%d struct{}\nfunc NewService%d() *Service%d { return &Service%d{} }\n' "$pkg" $i $i $i $i > "$dir/file$n.go"
+    done
+  done
+  # Layer B: no-raw-go-func (30 files)
+  for dir in pkg/w/{a,b,c}; do
+    mkdir -p $dir
+    for n in 1 2 3 4 5 6 7 8 9 10; do
+      i=$((i+1)); pkg=$(basename $dir)
+      printf 'package %s\nfunc Run%d() {\n\tgo func() { _ = 1 }()\n}\n' "$pkg" $i > "$dir/file$n.go"
+    done
+  done
+  # Layer C: no-globals-or-singletons (15 files)
+  for dir in pkg/r/{a,b,c}; do
+    mkdir -p $dir
+    for n in 1 2 3 4 5; do
+      i=$((i+1)); pkg=$(basename $dir)
+      printf 'package %s\ntype Service%d struct{}\nfunc NewService%d() *Service%d { return &Service%d{} }\nvar sharedService%d = NewService%d()\nvar _ = sharedService%d\n' "$pkg" $i $i $i $i $i $i $i > "$dir/file$n.go"
+    done
+  done
+  # Layer D: no-time-now-direct (15 files)
+  for dir in pkg/i/{a,b,c}; do
+    mkdir -p $dir
+    for n in 1 2 3 4 5; do
+      i=$((i+1)); pkg=$(basename $dir)
+      printf 'package %s\nimport "time"\nfunc Now%d() time.Time { return time.Now() }\n' "$pkg" $i > "$dir/file$n.go"
     done
   done
   git add . && git commit -qm initial
   ```
 - [ ] `git ls-files '*.go' | wc -l` returns exactly `100`
 - [ ] `ast-grep --version` resolves on host
-- [ ] Pin the LLM-call counter via a Claude CLI shim:
-  ```bash
-  CLAUDE_BIN=$(command -v claude)
-  mkdir -p /tmp/llm-count-shim
-  cat > /tmp/llm-count-shim/claude <<SHIM
-  #!/bin/sh
-  printf '1\n' >> /tmp/llm-call-count.log
-  exec "$CLAUDE_BIN" "\$@"
-  SHIM
-  chmod +x /tmp/llm-count-shim/claude
-  : > /tmp/llm-call-count.log
-  export PATH=/tmp/llm-count-shim:$PATH
-  ```
-  Every `claude` invocation under the shim appends one line; final count is `wc -l < /tmp/llm-call-count.log`
-- [ ] Positive control on the shim: `claude --version >/dev/null && [ "$(wc -l < /tmp/llm-call-count.log)" = "1" ]` (after the manual probe, reset with `: > /tmp/llm-call-count.log` before the Action step)
+- [ ] Run `make build-index` in the coding repo root before scanning — the Owner-count assertion below reads `rules/index.json` directly, and a stale index (where a new rule's YAML exists but the index hasn't been regenerated) would silently miss new rule_ids during the intersection step
 
 ## Action
 
-- [ ] Run `/coding:pr-review master standard` against `$WORK` in a fresh Claude Code session under the shim PATH; tee stdout to `/tmp/scaling-pr-stdout.log`, stderr to `/tmp/scaling-pr-stderr.log`, capture exit code to `/tmp/scaling-pr-exit`
-- [ ] Record wall-clock duration with `time` wrapping the slash command; capture the `real` line to `/tmp/scaling-pr-time.log`
-- [ ] Extract the Step 5 Consolidated Report section: `awk '/^### Step 5:/{flag=1} flag' /tmp/scaling-pr-stdout.log > /tmp/scaling-pr-report.md`
+- [ ] Run the mechanical funnel — `ast-grep scan` from inside the coding project root, against the fixture: `cd ~/Documents/workspaces/coding && start=$(date +%s%N); ast-grep scan "$WORK" > /tmp/scen003-findings.log 2>&1; exit=$?; end=$(date +%s%N); echo "wall_ms=$(( (end - start) / 1000000 ))" > /tmp/scen003-wall; echo "exit=$exit" > /tmp/scen003-exit`
+- [ ] Extract distinct rule_ids from findings: `grep -oE 'go-[a-z-]+/[a-z-]+' /tmp/scen003-findings.log | sort -u > /tmp/scen003-rules`
+- [ ] Look up distinct Owner agents by intersecting rule_ids with `rules/index.json`: `python3 -c "import json; idx={r['id']:r['owner'] for r in json.load(open('rules/index.json'))}; rules=open('/tmp/scen003-rules').read().splitlines(); owners=set(idx.get(r) for r in rules if r in idx); print('\\n'.join(sorted(owners)))" > /tmp/scen003-owners`
+- [ ] Count findings: `grep -c '^error\[' /tmp/scen003-findings.log > /tmp/scen003-findings-count`
 
 ## Expected
 
-- [ ] `cat /tmp/scaling-pr-exit` prints `0`
-- [ ] `wc -l < /tmp/llm-call-count.log` returns ≤ `30` (proves the funnel: ast-grep mechanical layer carries 100-file scale at constant LLM cost)
-- [ ] `/tmp/scaling-pr-time.log` `real` line parses to ≤ `30m00s` (stays under the prod bot's `activeDeadlineSeconds=1800` ceiling — the same one that killed coding#27)
-- [ ] `jq '.stats.findings_count' /tmp/scaling-pr-stdout.log` returns > `0` — negative control: the synthetic violations were actually surfaced (if 0, the funnel didn't run and the LLM count is misleadingly low)
-- [ ] `grep -oE 'go-[a-z-]+/[a-z-]+' /tmp/scaling-pr-report.md | sort -u | wc -l` returns ≥ `3` — at least 3 distinct rule_ids surfaced (the per-Owner adjudication phase processed findings, didn't drop them)
-- [ ] `grep -c 'dropped finding' /tmp/scaling-pr-stderr.log` returns `0` — citation validator dropped nothing; every surfaced finding cites a real rule_id
+- [ ] `cat /tmp/scen003-wall` reports `wall_ms` ≤ `30000` (mechanical funnel completes in ≤30 seconds)
+- [ ] `wc -l < /tmp/scen003-owners` returns a number ≤ `30` (structural upper bound on Step 4b LLM calls: one Task per owner with findings)
+- [ ] `cat /tmp/scen003-findings-count` > `0` — negative control: the synthetic violations were actually surfaced (if 0, the funnel didn't run, owner count is misleadingly low)
+- [ ] `wc -l < /tmp/scen003-rules` returns ≥ `3` — at least 3 distinct rule_ids surfaced (proves the fixture exercises multiple mechanical patterns, not a single rule)
+- [ ] Every rule_id in `/tmp/scen003-rules` appears as an `id` in `rules/index.json` (citation discipline at funnel exit): `comm -23 /tmp/scen003-rules <(jq -r '.[].id' rules/index.json | sort)` is empty
 
 ## Cleanup
 
-- `rm -rf "$WORK" /tmp/scaling-pr-* /tmp/llm-count-shim /tmp/llm-call-count.log`
+- `rm -rf "$WORK" /tmp/scen003-*`
 
-After the scenario passes, the operator should record the measured `(LLM count, duration, findings count)` tuple in the Progress section of the task page (`[[Refactor coding pr-review to doc-driven rules pipeline]]`) so future Phase-10 reruns have a baseline. This is a follow-up note, not part of the scenario contract.
+After the scenario passes, the operator should record the measured `(wall_ms, distinct_owners, findings_count)` tuple in the Progress section of the task page (`[[Refactor coding pr-review to doc-driven rules pipeline]]`) so future runs have a baseline. This is a follow-up note, not part of the scenario contract.

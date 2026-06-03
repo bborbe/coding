@@ -93,6 +93,17 @@ The dispatcher replaces the previous hardcoded "load conventions + invoke fixed 
 
 **Short Mode**: No agents — skip to Step 5.
 
+#### 4.0: Toolchain preflight (fail-fast)
+
+Before invoking the runner, verify `ast-grep` is available in PATH. The runner itself fail-fasts on the same check (`agents/ast-grep-runner.md` Step 0), but doing it here too keeps the failure surface close to the dispatcher so the user sees a single clear error rather than the runner's JSON envelope:
+
+```bash
+cd <REVIEW_DIR> && (command -v ast-grep >/dev/null 2>&1 || command -v sg >/dev/null 2>&1) \
+  || { echo "ERROR: ast-grep/sg not in PATH. Install via 'npm install -g @ast-grep/cli' (or 'apk add ast-grep' in alpine). pr-reviewer container fix: bborbe/maintainer agent/pr-reviewer/Dockerfile commit 1de083f." >&2; exit 1; }
+```
+
+If preflight fails, report the toolchain gap in Step 5 (Must Fix) and skip Step 4 entirely — a review without the mechanical funnel would silently miss every MUST-tier YAML finding.
+
 #### 4a: Mechanical funnel
 
 ```

@@ -74,6 +74,17 @@ Mirrors `commands/pr-review.md` Step 4 (PR #27). Mechanical pre-filter via `codi
   - "Missing LICENSE file"
   - "README missing license section" (check with Grep for `## License` in README.md)
 
+#### 4.0: Toolchain preflight (fail-fast)
+
+Mirror of `commands/pr-review.md` Step 4.0. Verify `ast-grep` is in PATH before invoking the runner; the runner fail-fasts on the same check (`agents/ast-grep-runner.md` Step 0), but doing it here too keeps the failure surface close to the dispatcher:
+
+```bash
+cd <directory> && (command -v ast-grep >/dev/null 2>&1 || command -v sg >/dev/null 2>&1) \
+  || { echo "ERROR: ast-grep/sg not in PATH. Install via 'npm install -g @ast-grep/cli' (or 'apk add ast-grep' in alpine). pr-reviewer container fix: bborbe/maintainer agent/pr-reviewer/Dockerfile commit 1de083f." >&2; exit 1; }
+```
+
+If preflight fails, report the toolchain gap in Step 5 (Must Fix) and skip Step 4 entirely.
+
 #### 4a: Mechanical funnel
 
 ```

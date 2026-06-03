@@ -54,6 +54,31 @@ If `ast-grep` itself fails on a YAML (syntax error, missing file), include the e
 
 ## Process
 
+### 0. Preflight: verify ast-grep binary (fail-fast)
+
+**Always run this first, before any scan or inventory step.** Without the binary, every subsequent `ast-grep scan` call returns empty `tool_result`, the LLM loops on the verification check, and the job hits `activeDeadlineSeconds` 30 min later with no review posted. Observed end-to-end on bborbe/coding#34 (admin-merged after the loop).
+
+```bash
+if ! command -v ast-grep >/dev/null 2>&1 && ! command -v sg >/dev/null 2>&1; then
+  cat <<'EOF' >&2
+ERROR: ast-grep / sg binary not found in PATH.
+This funnel cannot run without it.
+
+Install (host):     npm install -g @ast-grep/cli
+Install (alpine):   apk --no-cache add ast-grep
+Install (debian):   curl -fsSL https://github.com/ast-grep/ast-grep/releases/latest/download/ast-grep-linux-x86_64.tar.gz | tar xz -C /usr/local/bin
+Container fix:      ensure pr-reviewer image has ast-grep — see
+                    bborbe/maintainer agent/pr-reviewer/Dockerfile (commit 1de083f
+                    added 'ast-grep' to the alpine apk line).
+Runbook:            [[Agent - Debug Missing PR Reviewer Review]] gate 5.
+EOF
+  printf '{"stats":{"yamls_run":0,"findings_count":0,"elapsed_ms":0},"findings_by_owner":{},"errors":[{"kind":"missing-tool","tool":"ast-grep","detail":"binary not in PATH"}]}\n'
+  exit 1
+fi
+```
+
+**Why exit 1, not "continue with errors":** the dispatcher's per-Owner adjudication phase reads from `findings_by_owner` only. A missing-tool error in `errors[]` would be invisible to the LLM tier — the review would post as APPROVED with no comments, masking that the mechanical layer never ran. Exit 1 surfaces the gap to the dispatcher (which aborts the review with an actionable error) instead of producing a silently-empty review.
+
 ### 1. Resolve rule inventory
 
 ```bash
@@ -117,7 +142,7 @@ Write the structured output to stdout. The dispatcher reads stdout, slices `find
 
 | Symptom | Cause | Handling |
 |---|---|---|
-| ast-grep binary missing | toolchain gap | emit `{"errors": [{"kind": "missing-tool", "tool": "ast-grep"}]}`, exit non-zero |
+| ast-grep binary missing | toolchain gap (e.g. pr-reviewer image regression — see bborbe/coding#34) | preflight Step 0 catches this BEFORE any scan; emit the missing-tool JSON skeleton, exit 1, dispatcher surfaces actionable error rather than posting an empty review |
 | YAML rejected by ast-grep | rule syntax bug (PR #4 / #8 trap) | append to `errors[]`, continue |
 | Rule ID not in index | stale walker output | append to `errors[]`, continue |
 | Owner from index missing in `agents/` | stale rule entry | append to `errors[]` with `kind: missing-owner-agent`, drop finding |

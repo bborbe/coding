@@ -1,7 +1,11 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-json check-index check-coverage
+precommit: check-links check-json check-index check-coverage check-acceptance
+
+.PHONY: check-acceptance
+check-acceptance:
+	@bash scripts/acceptance.sh
 
 .PHONY: release-check
 release-check: precommit check-versions

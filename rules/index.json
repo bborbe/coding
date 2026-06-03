@@ -414,6 +414,51 @@
     "owner": "go-architecture-assistant"
   },
   {
+    "anchor": "go-functional-composition/func-type-name",
+    "applies_when": "a Go file introduces a function type that implements an interface `X` for the functional-composition pattern but names the type something other than `XFunc`.",
+    "doc_path": "docs/go-functional-composition-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `type_declaration` of `func` type where same package declares `type X interface` and the func type's signature matches X's method signature; the agent rules out unrelated func types that aren't pattern implementations)",
+    "id": "go-functional-composition/func-type-name",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-functional-composition/list-checks-ctx-done",
+    "applies_when": "a `XList` method that accepts a `context.Context` iterates over its members without checking `ctx.Done()` between iterations — so a cancelled context cannot stop the chain mid-way.",
+    "doc_path": "docs/go-functional-composition-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `method_declaration` on a `[]X` receiver type whose body is a `for_statement` containing a call to the wrapped interface method but no `<-ctx.Done()` select case; the agent rules in/out based on whether iteration is bounded and cheap enough that ctx-check overhead is unjustified)",
+    "id": "go-functional-composition/list-checks-ctx-done",
+    "level": "MUST",
+    "owner": "go-context-assistant"
+  },
+  {
+    "anchor": "go-functional-composition/list-type-name",
+    "applies_when": "a Go file introduces a slice type that implements an interface `X` for the functional-composition pattern but names the type something other than `XList`.",
+    "doc_path": "docs/go-functional-composition-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `type_declaration` of `[]X` slice where same package declares `type X interface`; the agent rules out generic slice aliases that aren't pattern implementations)",
+    "id": "go-functional-composition/list-type-name",
+    "level": "MUST",
+    "owner": "go-quality-assistant"
+  },
+  {
+    "anchor": "go-functional-composition/list-wraps-errors-with-ctx",
+    "applies_when": "a `XList` method returns an error from a wrapped member's call directly (`return err`) instead of wrapping with `errors.Wrapf(ctx, err, \"<member-identifying context>\")` from `github.com/bborbe/errors`.",
+    "doc_path": "docs/go-functional-composition-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `method_declaration` on a `[]X` receiver containing `return err` immediately after a wrapped-member call; the agent rules out cases where the call site is a single-member iteration that adds no context)",
+    "id": "go-functional-composition/list-wraps-errors-with-ctx",
+    "level": "MUST",
+    "owner": "go-error-assistant"
+  },
+  {
+    "anchor": "go-functional-composition/multi-method-func-explicit-delegate",
+    "applies_when": "a multi-method interface `X` has a `XFunc` struct adapter, but the adapter omits a field for one or more of the interface's methods OR delegates without a `nil`-check + sane default, so calling the missing/zero field panics.",
+    "doc_path": "docs/go-functional-composition-pattern.md",
+    "enforcement": "judgment (ast-grep follow-up: `struct_type` whose name matches `[A-Z][a-zA-Z]*Func` paired with a same-package interface; the agent verifies each interface method has a matching field + receiver method that nil-checks and returns a sane zero)",
+    "id": "go-functional-composition/multi-method-func-explicit-delegate",
+    "level": "SHOULD",
+    "owner": "go-quality-assistant"
+  },
+  {
     "anchor": "go-functional-options/singular-option-type",
     "applies_when": "a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.",
     "doc_path": "docs/go-functional-options-pattern.md",

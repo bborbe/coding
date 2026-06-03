@@ -243,6 +243,17 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 
 </details>
 
+## Acceptance Scenarios
+
+End-to-end acceptance walks for the doc-driven review pipeline, following the [dark-factory scenario writing guide](https://github.com/bborbe/dark-factory/blob/master/docs/rules/scenario-writing.md). Each scenario file under [`scenarios/`](scenarios/) is a manually-walked checklist; promote `draft → active` after the first successful walk.
+
+| # | Scenario | Validates |
+|---|---|---|
+| 001 | [toolchain-preflight](scenarios/001-toolchain-preflight.md) | Step 4.0 / Step 0 preflight blocks exit 1 with documented stderr when `ast-grep` / `sg` is absent from PATH |
+| 002 | [clean-pr-zero-findings](scenarios/002-clean-pr-zero-findings.md) | `/coding:code-review master` against a zero-violation diff produces empty Must Fix / Should Fix / Nice to Have (no LLM hallucination) |
+| 003 | [scaling-funnel-100-files](scenarios/003-scaling-funnel-100-files.md) | 100-file synthetic fixture: mechanical funnel ≤30s, distinct Owners ≤30 (structural ceiling on Step 4b LLM calls) |
+| 004 | [findings-exist-path](scenarios/004-findings-exist-path.md) | `/coding:pr-review` against the stable test PR [bborbe/maintainer#2](https://github.com/bborbe/maintainer/pull/2): Step 4a surfaces ≥4 findings, every Owner has an agent file, citation discipline holds |
+
 ## Contributing
 
 Issues and pull requests welcome at [github.com/bborbe/coding](https://github.com/bborbe/coding).

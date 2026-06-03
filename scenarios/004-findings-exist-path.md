@@ -16,7 +16,7 @@ The stable fixture is [bborbe/maintainer#2](https://github.com/bborbe/maintainer
 - `go-concurrency/no-raw-go-func` (bare `go func(){...}()`)
 - `go-errors/no-fmt-errorf` (`fmt.Errorf` in production code)
 
-The PR stays open in perpetuity — the title says so. Walking 004 = re-pointing the dispatcher at the same SHA and verifying the funnel still surfaces all 5 violations.
+All 5 violations now fire after the no-fmt-errorf YAML's structural rewrite (was silently parsing as `type_conversion_expression` until the 2026-06-03 fix). The PR stays open in perpetuity — the title says so. Walking 004 = re-pointing the dispatcher at the same SHA and verifying the funnel still surfaces all 5 violations.
 
 ## Setup
 
@@ -39,7 +39,7 @@ The PR stays open in perpetuity — the title says so. Walking 004 = re-pointing
 
 ## Expected
 
-- [ ] `cat /tmp/scen004-findings-count` returns ≥ `4` — at least 4 of the 5 deliberate violations surface. The 5th violation (`fmt.Errorf` flagged by `go-errors/no-fmt-errorf`) does not currently fire because the YAML pattern `fmt.Errorf($$$ARGS)` is parsed by tree-sitter Go grammar as a `type_conversion_expression` rather than a `call_expression`, so the pattern matches no real call sites. Tracked as a separate rule bug; the scenario's contract accepts the current 4-of-5 baseline so it can promote to `active` independent of that fix. When the YAML is corrected, lift this floor to `≥ 5`.
+- [ ] `cat /tmp/scen004-findings-count` returns ≥ `5` — all 5 deliberate violations surface. The fmt.Errorf violation now fires after `rules/go/no-fmt-errorf.yml` was rewritten as a structural rule (`kind: call_expression` + selector match on `fmt.Errorf`) — the original `pattern: fmt.Errorf($$$ARGS)` was parsed as `type_conversion_expression` and matched nothing.
 - [ ] `wc -l < /tmp/scen004-rules` returns ≥ `3` — multiple distinct rule_ids surfaced (negative control: if the fixture parses to zero, the funnel didn't run)
 - [ ] `wc -l < /tmp/scen004-owners` returns ≥ `1` — at least one Owner has findings to adjudicate
 - [ ] Every line in `/tmp/scen004-agent-presence` ends with `AGENT_PRESENT` — Step 4b can resolve every Owner's agent file (regression risk: a renamed agent file silently no-ops that owner's findings; this catches it)

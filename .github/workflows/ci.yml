@@ -11,5 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install ast-grep
+        # ast-grep is the mechanical-funnel layer for the doc-driven review pipeline.
+        # scripts/acceptance.sh section 4 invokes `ast-grep scan` to verify
+        # broken-YAML isolation. Without it, the check fails with
+        # "ast-grep: command not found". Apt does not ship it; install via npm.
+        run: |
+          sudo npm install -g @ast-grep/cli
+          ast-grep --version
       - name: Run make precommit
         run: make precommit

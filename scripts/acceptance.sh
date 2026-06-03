@@ -19,6 +19,18 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# Preflight — fail fast if a required binary is missing rather than letting
+# downstream checks silently no-op (e.g. jq absent → cross-language leak check
+# silently reports PASS, hiding real coverage gaps).
+for bin in jq ast-grep; do
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    echo "ERROR: $bin is required by scripts/acceptance.sh but not in PATH." >&2
+    echo "  jq:       brew install jq      | apt-get install -y jq" >&2
+    echo "  ast-grep: npm install -g @ast-grep/cli  | brew install ast-grep" >&2
+    exit 1
+  fi
+done
+
 ACCEPTANCE_PASS=0
 ACCEPTANCE_FAIL=0
 
@@ -81,12 +93,14 @@ else
   fail "$missing_owner_agents owner(s) in rules/index.json have no matching agent file — Step 4b would silently no-op for these"
 fi
 
-# Go-language YAMLs must own go-*-assistant agents; Python YAMLs must own python-*-assistant.
-# Detect cross-language leaks (e.g. a rules/go/*.yml owned by a python-*-assistant).
-go_python_leak=$(jq -r '.[] | select(.language == "go") | .owner' rules/index.json | grep -cE '^python-' || true)
-python_go_leak=$(jq -r '.[] | select(.language == "python") | .owner' rules/index.json | grep -cE '^go-' || true)
+# Cross-language leak: rule IDs encode language by prefix (`go-*`, `python-*`).
+# rules/index.json does NOT carry an explicit `language` field, so the rule_id
+# prefix is the source of truth. A `go-*` rule must be owned by a `go-*` agent
+# (or a shared owner that doesn't start with `python-`), and vice versa.
+go_python_leak=$(jq -r '.[] | select(.id | startswith("go-")) | .owner' rules/index.json | grep -cE '^python-' || true)
+python_go_leak=$(jq -r '.[] | select(.id | startswith("python-")) | .owner' rules/index.json | grep -cE '^go-' || true)
 if [ "$go_python_leak" -eq 0 ] && [ "$python_go_leak" -eq 0 ]; then
-  ok "no cross-language owner leak: go YAMLs → go-* agents, python YAMLs → python-* agents"
+  ok "no cross-language owner leak: go-* rules → non-python owners, python-* rules → non-go owners"
 else
   fail "cross-language owner leak: go→python=$go_python_leak, python→go=$python_go_leak"
 fi

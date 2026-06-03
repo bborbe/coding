@@ -129,7 +129,7 @@
     "anchor": "go-architecture/constructor-returns-interface",
     "applies_when": "a Go `New*` constructor returns the concrete struct type (`*userService`) instead of the interface it implements (`UserService`).",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "`rules/go/constructor-returns-pointer-not-interface.yml` flags every `func NewXxx(...) *ConcreteStruct` declaration. The agent decides per-finding whether the returned concrete type has a corresponding interface in the same package (real violation) or is a data-holder / config / DTO struct without an interface (exempt) — the same-package interface lookup needs cross-file reasoning ast-grep can't do in a single rule.",
+    "enforcement": "`rules/go/constructor-returns-interface.yml` flags every `func NewXxx(...) *ConcreteStruct` declaration. The agent decides per-finding whether the returned concrete type has a corresponding interface in the same package (real violation) or is a data-holder / config / DTO struct without an interface (exempt) — the same-package interface lookup needs cross-file reasoning ast-grep can't do in a single rule.",
     "id": "go-architecture/constructor-returns-interface",
     "level": "MUST",
     "owner": "go-architecture-assistant"

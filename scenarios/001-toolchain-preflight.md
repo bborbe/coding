@@ -16,8 +16,8 @@ Validates that the Step 4.0 preflight block in `commands/pr-review.md` and `comm
   ```
 - [ ] `PATH=$PATH_MASKED command -v ast-grep; echo "exit=$?"` prints `exit=1`
 - [ ] `PATH=$PATH_MASKED command -v sg; echo "exit=$?"` prints `exit=1`
-- [ ] Extract the Step 4.0 bash block verbatim from `commands/pr-review.md` and `commands/code-review.md` (search for `#### 4.0:` and pick the fenced `bash` block beneath it). Keep them as `$PRREVIEW_STEP40` and `$CODEREVIEW_STEP40` shell variables.
-- [ ] Extract the Step 0 preflight bash block from `agents/ast-grep-runner.md` (search for `### 0. Preflight:`, pick the fenced `bash` block). Keep as `$RUNNER_STEP0`.
+- [ ] Extract the Step 4.0 bash block verbatim from `commands/pr-review.md` and `commands/code-review.md` (search for `#### 4.0:` and pick the fenced `bash` block beneath it). Keep them as `$PRREVIEW_STEP40` and `$CODEREVIEW_STEP40` shell variables. **Fragility note**: the extraction relies on the literal section header `#### 4.0:`. If a future refactor renames or renumbers the heading, the extraction silently picks up the wrong block; bump this scenario's brittleness by re-anchoring on the new heading text.
+- [ ] Extract the Step 0 preflight bash block from `agents/ast-grep-runner.md` (search for `### 0. Preflight:`, pick the fenced `bash` block). Keep as `$RUNNER_STEP0`. Same fragility caveat: anchored on the literal `### 0. Preflight:` heading.
 
 ## Action
 
@@ -38,7 +38,7 @@ Validates that the Step 4.0 preflight block in `commands/pr-review.md` and `comm
 - [ ] `cat /tmp/scen001-runner.exit` prints `1`
 - [ ] `jq -e '.errors[] | select(.kind == "missing-tool" and .tool == "ast-grep")' /tmp/scen001-runner.stdout` exits `0`
 - [ ] `jq '.stats.yamls_run' /tmp/scen001-runner.stdout` returns `0` and `jq '.findings_by_owner' /tmp/scen001-runner.stdout` returns `{}`
-- [ ] Each block's wall-clock under 1 second (regression risk: `sg --version` loop on coding#34 took 30 min; immediate exit is the contract)
+- [ ] Each block's wall-clock under 1 second (each block is a single `command -v` check that returns immediately — 1s is generous even on CI environments with slow disk I/O; the regression risk is the `sg --version` loop on coding#34 which took 30 min, so any threshold below the 30-min `activeDeadlineSeconds` ceiling proves the contract, and 1s catches the loop with 1800× margin)
 - [ ] Host shell `command -v ast-grep` (after all subshells) still resolves a path
 
 ## Cleanup

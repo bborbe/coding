@@ -4,7 +4,7 @@ status: active
 
 # Scenario 003: 100-file synthetic PR funnel converges to ≤30 distinct owners
 
-Validates that the ast-grep mechanical funnel against a 100-file synthetic PR with mixed violations completes in ≤30 seconds and surfaces findings under ≤30 distinct Owner agents — proving the funnel decouples LLM-tier cost from file count (since the dispatcher's Step 4b invokes ONE Task per Owner with findings, the upper bound on LLM calls is the distinct-Owner count plus a small fixed overhead). The full-pipeline LLM-call measurement (Phase 10 acceptance) lives in [companion scenario 004](004-funnel-decoupling-doubled-fixture.md) — that one requires a real `/coding:pr-review` invocation; this one measures the mechanical-layer ceiling structurally.
+Validates that the ast-grep mechanical funnel against a 100-file synthetic PR with mixed violations completes in ≤30 seconds and surfaces findings under ≤30 distinct Owner agents — proving the funnel decouples LLM-tier cost from file count (since the dispatcher's Step 4b invokes ONE Task per Owner with findings, the upper bound on LLM calls is the distinct-Owner count plus a small fixed overhead). The full-pipeline LLM-call measurement (Phase 10 acceptance, requires an LLM-shim wrapping the `claude` binary) is deferred to a future scenario 004 — not yet written; this scenario captures the structural ceiling.
 
 ## Setup
 
@@ -48,6 +48,7 @@ Validates that the ast-grep mechanical funnel against a 100-file synthetic PR wi
   ```
 - [ ] `git ls-files '*.go' | wc -l` returns exactly `100`
 - [ ] `ast-grep --version` resolves on host
+- [ ] Run `make build-index` in the coding repo root before scanning — the Owner-count assertion below reads `rules/index.json` directly, and a stale index (where a new rule's YAML exists but the index hasn't been regenerated) would silently miss new rule_ids during the intersection step
 
 ## Action
 

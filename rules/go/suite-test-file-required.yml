@@ -1,0 +1,29 @@
+id: go-testing/suite-test-file-required
+language: go
+severity: error
+message: |
+  This test file contains Ginkgo Describe/Context/DescribeTable specs but
+  may be missing a companion *_suite_test.go with a TestSuite entry-point
+  and RunSpecs call. Without a suite file, Ginkgo specs are not discovered —
+  `make test` exits 0 even though no specs ran (silent coverage loss).
+  Create `<pkg>_suite_test.go` with the standard TestSuite template.
+  EXEMPT: files that ARE the suite file (contain TestSuite + RunSpecs).
+  The agent checks whether a *_suite_test.go exists in the same directory.
+  See docs/go-testing-guide.md (RULE go-testing/suite-test-file-required).
+rule:
+  # Over-inclusive first-pass: flag every top-level `var _ = Describe(...)`
+  # declaration (the standard Ginkgo spec anchor). This fires on all spec
+  # files — the LLM then checks if a *_suite_test.go with RunSpecs exists
+  # in the same package directory.
+  kind: var_declaration
+  has:
+    stopBy: end
+    kind: call_expression
+    has:
+      field: function
+      kind: identifier
+      regex: '^(Describe|Context|When|DescribeTable)$'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

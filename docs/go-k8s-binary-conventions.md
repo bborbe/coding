@@ -27,7 +27,7 @@ Every Go binary that runs in a k8s pod (StatefulSet, Deployment, CronJob, epheme
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go k8s-deployed binary calls `os.Getenv("FOO")` to read a config / auth value that's already declared as an `application` struct field bound via `argument` tags.
-**Enforcement**: judgment (ast-grep partial: `call_expression` matching `os.Getenv(...)` outside `main.go` early bootstrap)
+**Enforcement**: `rules/go/argument-struct-not-os-getenv.yml` flags any `os.Getenv(...)` call expression. `main.go` and `cmd/**` are excluded (early bootstrap is permitted). The agent confirms whether the matching call site duplicates an already-bound struct field.
 **Why**: `argument.Parse()` already populates the struct field with the right precedence (CLI flag > env var > default), validates `required:"true"` fields at startup, and redacts via `display:"length"`. Calling `os.Getenv` directly duplicates the env-read, skips the validation, and bypasses the redaction (`os.Getenv("PEM_KEY")` returns the raw secret with no `display:"length"` involvement). Use `a.PEMKey` etc.
 
 ## Application struct shape

@@ -1,0 +1,34 @@
+id: go-k8s-binary/argument-struct-not-os-getenv
+language: go
+severity: error
+message: |
+  os.Getenv() must not be used to read config values in k8s binaries.
+  Bind all config as fields on the application struct (argument tags); read via a.FieldName.
+  Direct os.Getenv calls bypass validation, defaults, and display:"length" secret redaction.
+  See docs/go-k8s-binary-conventions.md (RULE go-k8s-binary/argument-struct-not-os-getenv).
+rule:
+  # Match any os.Getenv call expression. Files in main.go / cmd/ are excluded via ignores
+  # since main() bootstrap (e.g. reading SENTRY_DSN before argument.Parse) is permitted.
+  # The agent confirms whether a matching call site duplicates an already-bound struct field.
+  kind: call_expression
+  has:
+    field: function
+    kind: selector_expression
+    all:
+      - has:
+          field: operand
+          kind: identifier
+          regex: '^os$'
+      - has:
+          field: field
+          kind: field_identifier
+          regex: '^Getenv$'
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "cmd/**"
+  - "**/cmd/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

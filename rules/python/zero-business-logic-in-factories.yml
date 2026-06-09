@@ -1,0 +1,33 @@
+id: python-factory/zero-business-logic-in-factories
+language: python
+severity: error
+message: |
+  Factory functions (create_* / make_* / functions in factory.py) must contain
+  zero business logic — no loops, conditionals, lambdas, or nested function definitions.
+  Factories are pure composition: only constructor calls and object-tree wiring.
+  See docs/python-factory-pattern.md (RULE python-factory/zero-business-logic-in-factories).
+rule:
+  # Over-inclusive first-pass: flag any create_*/make_* function whose body contains
+  # a for_statement, if_statement, lambda, or nested function_definition.
+  # Config-level conditionals (if config.stage == "prod") also fire — the agent
+  # distinguishes config-driven branching from domain business logic.
+  # False negatives (business logic expressed as comprehensions) are accepted;
+  # the full judgment-tier review covers those.
+  kind: function_definition
+  all:
+    - has:
+        field: name
+        regex: '^(create|make)_'
+    - has:
+        stopBy: end
+        any:
+          - kind: for_statement
+          - kind: if_statement
+          - kind: lambda
+          - kind: function_definition
+ignores:
+  - "**/*_test.py"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"

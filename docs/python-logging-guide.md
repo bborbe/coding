@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 **Owner**: python-quality-assistant
 **Applies when**: a Python file in *library code* (modules imported by application code, intended for reuse across applications) calls `logging.basicConfig()` or adds handlers to the root logger. **Exempt**: the application entry point (`main.py` / `__main__.py` / `cli.py`) AND application-private helper modules wired from the entry point exclusively for configuration (e.g. `logging_setup.py` — see the next section), since those are part of the entry-point configuration surface, not library code.
 **Enforcement**: judgment (semantic — distinguishing library code from application-private configuration helpers requires reading the import graph; ast-grep can flag every non-entry-point `logging.basicConfig` call as a first-pass filter, but the agent must rule out the helper-module exemption case)
+**Trigger**: **/*.py
 **Why**: `basicConfig` is a one-shot global root-logger setup. Calling it from library code produces three failure modes: (1) first import wins, so the library's config silently overrides the application's choice depending on import order; (2) repeated calls add duplicate handlers, doubling every log line; (3) applications can't change log level without code edits in libraries they don't control. Libraries call `logging.getLogger(__name__)` and emit; configuration is the application's responsibility, and the application does it exactly once.
 
 #### Bad
@@ -386,7 +387,7 @@ logger.warning("Failed to connect: %s", connection_error)
 
 **Owner**: python-quality-assistant
 **Applies when**: a Python `logger.debug(...)` / `logger.log(logging.DEBUG, ...)` call passes an f-string whose interpolation calls an expensive function (serializer, JSON dump, network fetch, large-collection traversal) instead of using `%s` placeholders with deferred arguments.
-**Enforcement**: judgment (ast-grep is a first-pass filter only: `call_expression` named `logger.debug` with an `interpreted_string_literal` first argument matching `f"..."`. Trivial f-string interpolations like `logger.debug(f"count={count}")` are NOT violations — the rule targets *expensive* interpolations (serializers, JSON dumps, network fetches, large-collection traversals). The agent makes the expensive-vs-trivial judgment after the mechanical filter.)
+**Enforcement**: `rules/python/lazy-evaluation-for-debug.yml` flags any `logger.debug(...)` call whose argument list contains an f-string (first-pass filter). Trivial f-strings like `logger.debug(f"count={count}")` fire — the agent makes the expensive-vs-trivial judgment and dismisses cheap interpolations.
 **Why**: F-strings interpolate immediately at function-call time. With `logger.debug(f"...{expensive(x)}...")`, `expensive(x)` runs every call, even when DEBUG is filtered out and the message is discarded. `logger.debug("... %s ...", expensive(x))` defers `expensive(x)` to the logging library, which only evaluates arguments when the level is enabled. In hot paths with DEBUG-by-default-off production, the difference between "free" and "this expensive call runs millions of times for log lines no one sees" is measurable. The `isEnabledFor(logging.DEBUG)` guard is the explicit alternative; `%s` is the implicit-defer pattern that scales.
 
 #### Bad

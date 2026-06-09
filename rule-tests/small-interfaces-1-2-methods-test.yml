@@ -1,0 +1,35 @@
+id: go-composition/small-interfaces-1-2-methods
+valid:
+  # 1-method interface — fine
+  - |
+    package p
+    type Logger interface{ Log(msg string) }
+  # 2-method interface — fine
+  - |
+    package p
+    import "context"
+    type ItemStore interface {
+        Save(ctx context.Context) error
+        Load(ctx context.Context) error
+    }
+invalid:
+  # 3-method interface — flagged
+  - |
+    package p
+    import "context"
+    type Service interface {
+        Log(msg string)
+        Save(ctx context.Context) error
+        Load(ctx context.Context) error
+    }
+  # 5-method fat interface
+  - |
+    package p
+    import "context"
+    type Service interface {
+        Log(msg string)
+        Save(ctx context.Context) error
+        Load(ctx context.Context) error
+        Delete(ctx context.Context) error
+        Notify(ctx context.Context) error
+    }

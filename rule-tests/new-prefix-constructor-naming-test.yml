@@ -1,0 +1,24 @@
+id: go-architecture/new-prefix-constructor-naming
+valid:
+  # Correct: starts with New
+  - |
+    package p
+    type UserService interface{ GetUser() string }
+    func NewUserService() UserService { return nil }
+  # Correct: Create* is exempt in factory packages (ignores handles that)
+  # For this test, lowercase function is not exported — not flagged
+  - |
+    package p
+    type userService struct{}
+    func newUserService() *userService { return nil }
+invalid:
+  # Make* prefix
+  - |
+    package p
+    type UserService interface{ GetUser() string }
+    func MakeUserService() UserService { return nil }
+  # Build* prefix
+  - |
+    package p
+    type UserService interface{ GetUser() string }
+    func BuildUserService() UserService { return nil }

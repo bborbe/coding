@@ -1,0 +1,38 @@
+id: python-logging/lazy-evaluation-for-debug
+language: python
+severity: error
+message: |
+  logger.debug() must not receive an f-string argument.
+  F-strings interpolate eagerly at call time — expensive calls run even when DEBUG is filtered.
+  Use %s placeholders (lazy evaluation) or an explicit isEnabledFor(logging.DEBUG) guard.
+  See docs/python-logging-guide.md (RULE python-logging/lazy-evaluation-for-debug).
+rule:
+  # Over-inclusive first-pass: any logger.debug(...) call whose argument_list contains
+  # an f-string (kind: string, regex: ^f). Trivial f-strings like logger.debug(f"count={n}")
+  # will fire — the agent distinguishes cheap from expensive interpolations.
+  kind: call
+  all:
+    - has:
+        field: function
+        kind: attribute
+        all:
+          - has:
+              field: object
+              kind: identifier
+              regex: '^logger$'
+          - has:
+              field: attribute
+              kind: identifier
+              regex: '^debug$'
+    - has:
+        field: arguments
+        kind: argument_list
+        has:
+          kind: string
+          regex: '^f'
+ignores:
+  - "**/*_test.py"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"

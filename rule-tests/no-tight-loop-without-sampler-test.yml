@@ -1,0 +1,44 @@
+id: go-logging/no-tight-loop-without-sampler
+valid:
+  # Log after loop (aggregate count — correct)
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func process(items []string) {
+      var failures int
+      for _, item := range items {
+        if err := doWork(item); err != nil { failures++ }
+      }
+      if failures > 0 { glog.Warningf("processed %d, %d failures", len(items), failures) }
+    }
+  # Log outside loop
+  - |
+    package pkg
+    import "log/slog"
+    func run(items []string) {
+      for _, item := range items { doWork(item) }
+      slog.Info("done", "count", len(items))
+    }
+invalid:
+  # glog.Warningf inside for-range loop — no sampler
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func process(items []string) {
+      for _, item := range items {
+        if err := doWork(item); err != nil {
+          glog.Warningf("process %s failed: %v", item, err)
+        }
+      }
+    }
+  # slog.Warn inside for loop
+  - |
+    package pkg
+    import "log/slog"
+    func consume(msgs []Message) {
+      for _, msg := range msgs {
+        if err := handle(msg); err != nil {
+          slog.Warn("message handling failed", "error", err)
+        }
+      }
+    }

@@ -18,6 +18,7 @@ This guide captures practical decision-making patterns and implementation choice
 **Owner**: go-architecture-assistant
 **Applies when**: a Go service needs to dispatch to one of several implementations and the code uses the wrong dispatch shape for the set's openness: a `map[string]Creator` registry for a closed compile-time set, or a compiled `switch` for an open runtime-extensible set.
 **Enforcement**: judgment (semantic — depends on whether the implementation set is closed or open)
+**Trigger**: **/*.go
 **Why**: Static `switch` is faster (compiled jump table vs. map lookup + indirect call), trivially exhaustive (compiler-checked via `default:` + `errors.Errorf`), and refactor-friendly (renames propagate). Dynamic map-based registries are necessary when implementations register themselves at runtime (plugin systems, third-party extensions) but the cost — lost compile-time exhaustiveness, harder-to-test, registration-order sensitivity — is real. Match the shape to the problem: closed set → switch; open set → registry. Defaulting to one or the other regardless of context produces both unnecessary overhead and brittle systems.
 
 #### Bad
@@ -200,7 +201,7 @@ type PaymentHandler interface {   // Focuses on technical aspect
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go service method receives a struct (by value OR by pointer) named `Context` / `ServiceContext` / `Deps` / etc. that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.
-**Enforcement**: judgment (ast-grep follow-up: method signature with a parameter type matching `<Name>Context` or `*<Name>Context` / `<Name>Deps` or `*<Name>Deps` where the struct contains 2+ service-interface fields — value and pointer shapes share the anti-pattern)
+**Enforcement**: `rules/go/no-context-object-injection.yml` flags `method_declaration` nodes whose parameter list contains a `type_identifier` or pointer thereof matching `*Context$`, `*Deps$`, or `*Dependencies$` (excluding `context.Context` which is a `qualified_type`). The agent confirms the matched type is a bundle struct with 2+ service-interface fields.
 **Why**: Context-object injection is the rebrand of global state — every method becomes "give me everything, I'll pick what I need." Three failure modes: (1) compile-time can't tell which deps a method actually uses, so refactors and dead-code detection break; (2) tests need to construct a full context object for every call site, even for methods that touch one dependency; (3) the context grows over time (the "we'll just add one more field" trap), and unused fields linger forever. Constructor injection forces the dep set to be minimal and visible at the type signature.
 
 #### Bad

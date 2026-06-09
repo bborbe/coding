@@ -1,0 +1,31 @@
+id: python-ioc/dependencies-as-private-fields
+valid:
+  - |
+    class UserService:
+        def __init__(self, repo, logger):
+            self._repo = repo
+            self._logger = logger
+  - |
+    # All fields use single-underscore prefix
+    class OrderService:
+        def __init__(self, repo, validator, notifier):
+            self._repo = repo
+            self._validator = validator
+            self._notifier = notifier
+invalid:
+  - |
+    class UserService:
+        def __init__(self, repo):
+            self.repo = repo
+  - |
+    # Multiple public assignments — multiple violations
+    class OrderService:
+        def __init__(self, repo, logger):
+            self.repo = repo
+            self.logger = logger
+  - |
+    # Mixed — only public ones should fire
+    class MixedService:
+        def __init__(self, repo, logger):
+            self.repo = repo
+            self._logger = logger

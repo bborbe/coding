@@ -1,0 +1,31 @@
+id: go-service-impl/no-context-object-injection
+valid:
+  - |
+    package main
+    func (e *emailService) Send(ctx context.Context, msg Message) error {
+        e.logger.Info("sending")
+        return e.smtpClient.Send(ctx, msg)
+    }
+  - |
+    package main
+    // context.Context is a qualified_type — not a context-object struct
+    func (s *service) Process(ctx context.Context, input Input) error {
+        return s.repo.Save(ctx, input)
+    }
+invalid:
+  - |
+    package main
+    func (e *EmailService) Send(ctx context.Context, msg Message, svcCtx ServiceContext) error {
+        svcCtx.Logger.Info("sending")
+        return svcCtx.SMTPClient.Send(ctx, msg)
+    }
+  - |
+    package main
+    func (e *EmailService) Process(ctx context.Context, svcCtx *ServiceContext) error {
+        return svcCtx.SMTPClient.Send(ctx, Message{})
+    }
+  - |
+    package main
+    func (h *handler) Handle(ctx context.Context, deps ServiceDeps) error {
+        return deps.Repo.Save(ctx, Entity{})
+    }

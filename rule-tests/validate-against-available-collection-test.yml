@@ -1,0 +1,51 @@
+id: go-enum-type/validate-against-available-collection
+valid:
+  # Good: uses Contains against Available* collection
+  - |
+    package p
+    import "context"
+    type OrderStatus string
+    func (o OrderStatus) Validate(ctx context.Context) error {
+        if !AvailableOrderStatuses.Contains(o) {
+            return errors.Wrapf(ctx, validation.Error, "unknown: %s", o)
+        }
+        return nil
+    }
+  # Validate method without switch (returns error directly)
+  - |
+    package p
+    import "context"
+    type MyType string
+    func (m MyType) Validate(ctx context.Context) error {
+        if m == "" {
+            return errors.Errorf(ctx, "empty value")
+        }
+        return nil
+    }
+invalid:
+  # Inline switch for validation
+  - |
+    package p
+    import "context"
+    type OrderStatus string
+    func (o OrderStatus) Validate(ctx context.Context) error {
+        switch o {
+        case "pending", "processing", "completed":
+            return nil
+        default:
+            return fmt.Errorf("unknown: %s", o)
+        }
+    }
+  # Another enum type using switch
+  - |
+    package p
+    import "context"
+    type Mode string
+    func (m Mode) Validate(ctx context.Context) error {
+        switch m {
+        case "fast", "slow":
+            return nil
+        default:
+            return fmt.Errorf("unknown mode: %s", m)
+        }
+    }

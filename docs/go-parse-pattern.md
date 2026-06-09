@@ -15,7 +15,7 @@ Use this pattern when you need:
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go package adds a `ParseX(ctx, value)` function returning `(X, error)` without a paired `ParseXDefault(ctx, value, default) X` that suppresses the error and returns the default — OR vice versa (`ParseXDefault` without `ParseX`).
-**Enforcement**: judgment (ast-grep follow-up: `function_declaration` named `Parse*` with `error` return type; pair-check against same-named `*Default` function in the same package)
+**Enforcement**: `rules/go/paired-parse-and-parsedefault.yml` (mechanical first-pass — flags `Parse*` function declarations with an error return type that lack a `Default` suffix) + judgment-tier LLM adjudication for whether the matching `Parse*Default` counterpart exists in the same package
 **Why**: Two call sites consume parsed values: ones where parse failure is a real error worth bubbling (config validation, request parsing) and ones where it's a "fall back to default" condition (optional fields, legacy data with missing keys). Shipping only `ParseX` forces every default-using call site to `if err != nil { use default }` boilerplate; shipping only `ParseXDefault` hides real errors from call sites that need to know. The paired-API convention makes both call patterns one line at the call site and shares the actual parse implementation under the hood.
 
 ## Core Pattern Structure

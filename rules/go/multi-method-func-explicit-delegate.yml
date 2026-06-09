@@ -1,0 +1,25 @@
+id: go-functional-composition/multi-method-func-explicit-delegate
+language: go
+severity: warning
+message: |
+  Struct named *Func (multi-method adapter) may be missing nil-checked fields for interface methods.
+  Every interface method must have a matching function field; each receiver method must nil-check
+  the field and return a sane zero — otherwise calling an unset method panics.
+  See docs/go-functional-composition-pattern.md (RULE go-functional-composition/multi-method-func-explicit-delegate).
+rule:
+  # Anchor: any struct type whose name ends with "Func" — the canonical multi-method adapter shape.
+  # The LLM adjudicates: verifies each interface method has a matching field + nil-check + sane default.
+  kind: type_spec
+  all:
+    - has:
+        field: name
+        kind: type_identifier
+        regex: 'Func$'
+    - has:
+        field: type
+        kind: struct_type
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

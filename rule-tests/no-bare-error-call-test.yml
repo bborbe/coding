@@ -1,0 +1,42 @@
+id: go-testing/no-bare-error-call
+valid:
+  # Wrapped in Expect().To() — correct
+  - |
+    package pkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      It("saves correctly", func() {
+        Expect(service.Process(ctx)).To(Succeed())
+      })
+    })
+  # Assigned to err and then asserted — correct
+  - |
+    package pkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      It("fails correctly", func() {
+        err := service.Process(ctx)
+        Expect(err).To(HaveOccurred())
+      })
+    })
+invalid:
+  # Bare method call inside It — error return discarded
+  - |
+    package pkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      It("calls Save", func() {
+        service.Process(ctx)
+        Expect(store.SaveCallCount()).To(Equal(2))
+      })
+    })
+  # Bare method call inside BeforeEach
+  - |
+    package pkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      BeforeEach(func() {
+        store.Reset()
+        service.Initialize(ctx)
+      })
+    })

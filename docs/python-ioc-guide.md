@@ -57,7 +57,7 @@ class UserValidator(Protocol):
 
 **Owner**: python-architecture-assistant
 **Applies when**: a Python service interface (dependency surface, e.g. `UserRepository`, `Logger`) is declared with `abc.ABC` + `@abstractmethod` decorators instead of `typing.Protocol`, AND no shared implementation across concrete types motivates the ABC.
-**Enforcement**: judgment (ast-grep partial: detect `class X(ABC):` declarations that only contain `@abstractmethod` methods — but the "no shared impl needed" trigger is semantic)
+**Enforcement**: `rules/python/protocol-not-abc-for-dependencies.yml` flags all `class X(ABC): ...` declarations as a first-pass filter. The "no shared implementation needed" trigger is semantic — the agent examines whether any method body provides shared behavior via `super()` and passes those through.
 **Why**: Protocol gives you structural typing — any class with the right method shape satisfies it, without inheritance. That's the right primitive for dependency interfaces: mocks don't need to inherit from anything, tests don't fake an `ABC` hierarchy, and you avoid the "every protocol class has both an ABC and a Protocol declaration" duplication that ABC-first projects accrete. ABC is the right primitive when concrete implementations share code via `super()` — that's the actual reason ABCs exist. For dependency interfaces (which are pure contracts), Protocol is shorter, lighter, and friendlier to mocks.
 
 #### Bad
@@ -129,7 +129,7 @@ class UserService:
 
 **Owner**: python-architecture-assistant
 **Applies when**: a Python service class stores an injected dependency on `self.<name>` (public attribute) instead of `self._<name>` (single-underscore private convention).
-**Enforcement**: judgment (ast-grep first-pass filter: any `assignment` inside `__init__` with left-hand side `self.X` where `X` does not start with `_`. Type-annotation resolution to distinguish service deps from public data fields cannot be done in ast-grep — the agent makes the final call. Overinclusive first-pass is acceptable: most public `self.X` assignments in service classes ARE the smell.)
+**Enforcement**: `rules/python/dependencies-as-private-fields.yml` flags any `self.X = Y` assignment inside `__init__` where `X` does not start with `_`. Type-annotation resolution to distinguish service deps from public data fields cannot be done in ast-grep — the agent makes the final call. Overinclusive first-pass is acceptable: most public `self.X` assignments in service classes ARE the smell.
 **Why**: Public attribute storage invites external mutation — `user_service.repo = MockRepository()` — which breaks the immutability contract that makes constructor injection safe in the first place. Tests that mutate inject-time fields hide behavior that production never exercises. Single-underscore prefix is Python's universal "internal, don't touch" convention; following it forces test code to compose deps the same way production does (through the constructor) and keeps the dep set observable only at `__init__`.
 
 #### Bad

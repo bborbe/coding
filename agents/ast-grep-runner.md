@@ -1,166 +1,27 @@
 ---
 name: ast-grep-runner
-description: Mechanical rule funnel. Runs all ast-grep YAMLs in rules/ against a target file set, parses findings, groups by Owner agent per rules/index.json. Returns structured JSON findings ready for per-language agent adjudication. Use as Step 1 of /coding:pr-review's dispatcher refactor.
+description: DEPRECATED — superseded by scripts/ast-grep-runner.sh
 model: sonnet
-tools: Read, Grep, Glob, Bash
-color: cyan
+tools: Bash
+color: gray
 ---
 
-# Purpose
+# DEPRECATED
 
-Run every ast-grep YAML in `rules/<lang>/*.yml` against the target file set, produce structured findings grouped by the rule's `Owner:` agent. This is the **mechanical layer** of the doc-driven review pipeline — it gates the much smaller set of findings that LLM-tier per-language agents then adjudicate.
+This agent is superseded by `scripts/ast-grep-runner.sh`, which produces the
+same JSON contract deterministically without an LLM invocation.
 
-**Source of truth:** Reads `rules/index.json` (the deterministic walker output) for rule metadata: `id`, `level`, `owner`, `enforcement` path. Never reads individual `### RULE` blocks — that's the dispatcher's job for judgment-tier rules.
+**Do not invoke this agent.** If you have a reference to `coding:ast-grep-runner`,
+replace it with a `Bash` call to `scripts/ast-grep-runner.sh <target-dir> [changed-file ...]`.
 
-## Inputs
-
-| Param | Source | Notes |
-|---|---|---|
-| `TARGET_DIR` | dispatcher arg | The PR-review worktree path (e.g. `/tmp/pr-review-<repo>-<branch>`) |
-| `FILE_GLOBS` | dispatcher arg | Optional file include globs, e.g. `**/*.go`. Default: respect each YAML's `ignores`. |
-
-## Output Format
-
-Emit one JSON object to stdout:
+## JSON contract (unchanged)
 
 ```json
 {
-  "stats": {
-    "yamls_run": 15,
-    "findings_count": 12,
-    "elapsed_ms": 1240
-  },
-  "findings_by_owner": {
-    "go-error-assistant": [
-      {
-        "rule_id": "go-errors/no-fmt-errorf",
-        "rule_level": "MUST",
-        "file": "pkg/handler/user.go",
-        "line": 47,
-        "column": 5,
-        "matched_text": "fmt.Errorf(\"fetch failed: %w\", err)",
-        "message": "fmt.Errorf must not be used in production code..."
-      }
-    ],
-    "go-time-assistant": [
-      { "rule_id": "go-time/no-time-now-direct", ... }
-    ]
-  },
+  "stats": { "yamls_run": N, "findings_count": N, "elapsed_ms": N },
+  "findings_by_owner": { "<owner-agent>": [ { "rule_id", "rule_level", "file", "line", "column", "matched_text", "message" } ] },
   "errors": []
 }
 ```
 
-If `ast-grep` itself fails on a YAML (syntax error, missing file), include the error in `errors[]` and continue with remaining YAMLs. **Never silently drop findings.**
-
-## Process
-
-### 0. Preflight: verify ast-grep binary (fail-fast)
-
-**Always run this first, before any scan or inventory step.** Without the binary, every subsequent `ast-grep scan` call returns empty `tool_result`, the LLM loops on the verification check, and the job hits `activeDeadlineSeconds` 30 min later with no review posted. Observed end-to-end on bborbe/coding#34 (admin-merged after the loop).
-
-```bash
-if ! command -v ast-grep >/dev/null 2>&1 && ! command -v sg >/dev/null 2>&1; then
-  cat <<'EOF' >&2
-ERROR: ast-grep / sg binary not found in PATH.
-This funnel cannot run without it.
-
-Install (host):     npm install -g @ast-grep/cli
-Install (alpine):   apk --no-cache add ast-grep
-Install (debian):   curl -fsSL https://github.com/ast-grep/ast-grep/releases/latest/download/ast-grep-linux-x86_64.tar.gz | tar xz -C /usr/local/bin
-Container fix:      ensure pr-reviewer image has ast-grep — see
-                    bborbe/maintainer agent/pr-reviewer/Dockerfile (commit 1de083f
-                    added 'ast-grep' to the alpine apk line).
-Runbook:            [[Agent - Debug Missing PR Reviewer Review]] gate 5.
-EOF
-  printf '{"stats":{"yamls_run":0,"findings_count":0,"elapsed_ms":0},"findings_by_owner":{},"errors":[{"kind":"missing-tool","tool":"ast-grep","detail":"binary not in PATH"}]}\n'
-  exit 1
-fi
-```
-
-**Why exit 1, not "continue with errors":** the dispatcher's per-Owner adjudication phase reads from `findings_by_owner` only. A missing-tool error in `errors[]` would be invisible to the LLM tier — the review would post as APPROVED with no comments, masking that the mechanical layer never ran. Exit 1 surfaces the gap to the dispatcher (which aborts the review with an actionable error) instead of producing a silently-empty review.
-
-### 1. Resolve rule inventory
-
-```bash
-cd $TARGET_DIR
-# Build a map of rule_id → (yaml_path, owner, level) from rules/index.json
-python3 -c "
-import json, sys
-idx = json.load(open('rules/index.json'))
-for r in idx:
-    enf = r.get('enforcement', '')
-    if 'rules/' in enf and '.yml' in enf:
-        # extract yaml path from enforcement field (may be wrapped in backticks)
-        yml = enf.replace('\`', '').strip()
-        print(f\"{r['id']}\t{yml}\t{r['owner']}\t{r['level']}\")
-"
-```
-
-This yields the active mechanical-rule set. Rules with `enforcement: judgment` are skipped — the dispatcher's LLM-tier path handles them.
-
-### 2. Run ast-grep per YAML
-
-For each `(rule_id, yml_path, owner, level)`:
-
-```bash
-cd $TARGET_DIR && ast-grep scan \
-  --rule "$yml_path" \
-  --json=stream \
-  ${FILE_GLOBS:+--globs "$FILE_GLOBS"} \
-  . 2>&1
-```
-
-**Why per-YAML and not bulk:** ast-grep's `--rule rules/` bulk mode is faster but conflates errors — one broken YAML aborts the whole scan. Per-YAML keeps a single broken rule from masking the rest.
-
-Parse the streaming JSON output (`{"text": "...", "range": {...}, "file": "...", "metadata": {...}}` per match).
-
-### 3. Group findings by Owner
-
-For each match emitted by ast-grep, look up the rule_id's `owner` from step 1 and append the finding to `findings_by_owner[owner]`.
-
-Use the rule's `message` from the YAML (ast-grep echoes it in the match output) as the human-readable description.
-
-### 4. Emit JSON
-
-Write the structured output to stdout. The dispatcher reads stdout, slices `findings_by_owner[<agent>]` for each agent dispatch.
-
-## Constraints
-
-- **NEVER modify files** — read-only scan.
-- **NEVER call LLM tools** — this agent's whole point is to be the cheap pre-filter. No `Task` dispatching from inside.
-- **NEVER skip a YAML silently** — every YAML in `rules/<lang>/` MUST appear in either `findings_by_owner` (with 0+ findings) or `errors[]`.
-- **NEVER emit findings for a rule whose `enforcement` field doesn't point at a YAML** — those are judgment-tier; not this agent's concern.
-
-## Self-Check Before Returning
-
-- [ ] `stats.yamls_run` matches `wc -l < <inventory>` (every active YAML was attempted)
-- [ ] Every `owner` in `findings_by_owner` exists as an agent file in `agents/<owner>.md`
-- [ ] No finding has a `rule_id` missing from `rules/index.json` (impossible if step 1 was followed; sanity check)
-- [ ] All findings have non-empty `file`, `line`, and `matched_text`
-
-## Failure Modes
-
-| Symptom | Cause | Handling |
-|---|---|---|
-| ast-grep binary missing | toolchain gap (e.g. pr-reviewer image regression — see bborbe/coding#34) | preflight Step 0 catches this BEFORE any scan; emit the missing-tool JSON skeleton, exit 1, dispatcher surfaces actionable error rather than posting an empty review |
-| YAML rejected by ast-grep | rule syntax bug (PR #4 / #8 trap) | append to `errors[]`, continue |
-| Rule ID not in index | stale walker output | append to `errors[]`, continue |
-| Owner from index missing in `agents/` | stale rule entry | append to `errors[]` with `kind: missing-owner-agent`, drop finding |
-
-## Smoke Test
-
-Run against the current repo (no changes) to confirm zero findings:
-
-```bash
-cd $TARGET_DIR && ast-grep scan --rule rules/ . | jq length
-# Expect: 0 (the rule-base repo's own code is clean against its own rules)
-```
-
-Run against a known-bad fixture (e.g. an old PR pre-rule):
-
-```bash
-cd /tmp/pr-review-<repo>-<old-branch>
-# Should produce findings for the rules the PR was the first to violate
-```
-
-Verify the `findings_by_owner` groups match expectations — every finding should land under the agent whose name matches its rule's `owner` field.
+See `scripts/ast-grep-runner.sh` for exit codes and diff-scoping behaviour.

@@ -1,0 +1,50 @@
+id: go-logging/external-call-logs-response
+valid:
+  # Function call that is not a boundary call — not flagged
+  - |
+    package pkg
+    func process() {
+      result := compute(42)
+      _ = result
+    }
+  # Regular method call without Do/QueryContext — not flagged
+  - |
+    package pkg
+    func run() {
+      svc.DoSomething()
+    }
+invalid:
+  # HTTP client.Do call — flagged for audit
+  - |
+    package pkg
+    import "net/http"
+    func callAPI(client *http.Client, req *http.Request) (*http.Response, error) {
+      resp, err := client.Do(req)
+      return resp, err
+    }
+  # DB QueryContext call — flagged
+  - |
+    package pkg
+    import "database/sql"
+    func query(db *sql.DB) {
+      rows, err := db.QueryContext(ctx, "SELECT * FROM users")
+      _ = rows
+      _ = err
+    }
+  # exec.Command — flagged
+  - |
+    package pkg
+    import "os/exec"
+    func runCmd() {
+      out, err := exec.Command("git", "status").Output()
+      _ = out
+      _ = err
+    }
+  # DB ExecContext — flagged
+  - |
+    package pkg
+    import "database/sql"
+    func insert(db *sql.DB) {
+      _, err := db.ExecContext(ctx, "INSERT INTO users VALUES ($1)", "foo")
+      _ = err
+    }

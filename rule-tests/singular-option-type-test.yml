@@ -1,0 +1,19 @@
+id: go-functional-options/singular-option-type
+valid:
+  # Correct: function type uses singular "Option"
+  - |
+    package p
+    type ConsumerOption func(*ConsumerOptions)
+  # Correct: struct uses plural "Options"
+  - |
+    package p
+    type ConsumerOptions struct{ BatchSize int }
+invalid:
+  # Wrong: function type uses plural "Options"
+  - |
+    package p
+    type ConsumerOptions func(*ConsumerConfig)
+  # Wrong: another plural function type
+  - |
+    package p
+    type ServerOptions func(*ServerConfig)

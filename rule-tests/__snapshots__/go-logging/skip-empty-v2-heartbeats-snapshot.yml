@@ -1,0 +1,98 @@
+id: go-logging/skip-empty-v2-heartbeats
+snapshots:
+  ? |
+    package pkg
+    import "github.com/golang/glog"
+    func poll() {
+      for {
+        n, _ := poll()
+        if n > 0 {
+          glog.V(2).Infof("polled %d items", n)
+        }
+      }
+    }
+  : labels:
+    - source: |-
+        for {
+            n, _ := poll()
+            if n > 0 {
+              glog.V(2).Infof("polled %d items", n)
+            }
+          }
+      style: primary
+      start: 60
+      end: 153
+    - source: glog
+      style: secondary
+      start: 106
+      end: 110
+    - source: V
+      style: secondary
+      start: 111
+      end: 112
+    - source: glog.V
+      style: secondary
+      start: 106
+      end: 112
+    - source: glog.V(2)
+      style: secondary
+      start: 106
+      end: 115
+    - source: Infof
+      style: secondary
+      start: 116
+      end: 121
+    - source: glog.V(2).Infof
+      style: secondary
+      start: 106
+      end: 121
+    - source: glog.V(2).Infof("polled %d items", n)
+      style: secondary
+      start: 106
+      end: 143
+  ? |
+    package pkg
+    import "github.com/golang/glog"
+    func scan() {
+      for {
+        changed, _ := scanForUpdates()
+        glog.V(2).Infof("scan cycle: %d changed", changed)
+      }
+    }
+  : labels:
+    - source: |-
+        for {
+            changed, _ := scanForUpdates()
+            glog.V(2).Infof("scan cycle: %d changed", changed)
+          }
+      style: primary
+      start: 60
+      end: 159
+    - source: glog
+      style: secondary
+      start: 105
+      end: 109
+    - source: V
+      style: secondary
+      start: 110
+      end: 111
+    - source: glog.V
+      style: secondary
+      start: 105
+      end: 111
+    - source: glog.V(2)
+      style: secondary
+      start: 105
+      end: 114
+    - source: Infof
+      style: secondary
+      start: 115
+      end: 120
+    - source: glog.V(2).Infof
+      style: secondary
+      start: 105
+      end: 120
+    - source: 'glog.V(2).Infof("scan cycle: %d changed", changed)'
+      style: secondary
+      start: 105
+      end: 155

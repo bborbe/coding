@@ -1,0 +1,42 @@
+id: go-parse/paired-parse-and-parsedefault
+language: go
+severity: error
+message: |
+  A `Parse*` function with an error return was found but its paired
+  `Parse*Default` function may be missing (or vice versa). Ship both:
+  `ParseX(ctx, value) (*X, error)` for call sites that need to handle
+  errors, and `ParseXDefault(ctx, value, default) X` for call sites that
+  fall back on failure — both sharing the same core parse logic.
+  EXEMPT: functions in packages that explicitly only need one variant
+  (e.g. internal parsing never exposed with a default). The agent checks
+  whether the matching *Default counterpart exists in the same package.
+  See docs/go-parse-pattern.md (RULE go-parse/paired-parse-and-parsedefault).
+rule:
+  # Anchor: function_declaration whose name matches Parse<X> (PascalCase
+  # after Parse) but NOT Parse<X>Default — i.e., the error-returning half.
+  # The LLM checks whether a Parse<X>Default with the same prefix exists
+  # in the same file or package. Also fires on ParseDefault-without-Parse
+  # when the agent finds the inverse gap.
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        kind: identifier
+        regex: '^Parse[A-Z]'
+    - not:
+        has:
+          field: name
+          kind: identifier
+          regex: 'Default$'
+    - has:
+        field: result
+        kind: parameter_list
+        has:
+          stopBy: end
+          kind: type_identifier
+          regex: '^error$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

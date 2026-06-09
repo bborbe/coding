@@ -1,0 +1,29 @@
+id: python-pydantic/boundary-validation-only
+valid:
+  - |
+    from dataclasses import dataclass
+    @dataclass
+    class User:
+        id: int
+        name: str
+  - |
+    # Plain class, no BaseModel
+    class UserEntity:
+        def __init__(self, id: int, name: str):
+            self.id = id
+            self.name = name
+invalid:
+  - |
+    from pydantic import BaseModel
+    class UserService:
+        def get_user(self, user_id: int):
+            pass
+    class User(BaseModel):
+        id: int
+        name: str
+  - |
+    from pydantic import BaseModel
+    class InternalDomainModel(BaseModel):
+        id: int
+        name: str
+        email: str

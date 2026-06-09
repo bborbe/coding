@@ -1,0 +1,28 @@
+id: go-functional-composition/list-checks-ctx-done
+language: go
+severity: error
+message: |
+  XxxList method iterates over members without checking ctx.Done() between iterations.
+  Add a non-blocking select { case <-ctx.Done(): return ctx.Err(); default: } at the top
+  of the loop body so cancellation stops the chain mid-way.
+  See docs/go-functional-composition-pattern.md (RULE go-functional-composition/list-checks-ctx-done).
+rule:
+  # Anchor: method on a *List receiver that has a for loop but NO ctx.Done() check anywhere.
+  # The LLM adjudicates: rules out bounded/cheap iterations where ctx-check overhead is unjustified.
+  pattern: "func ($LIST $$$LIST_TYPE) $METHOD($$$) $$$RETURN { $$$BODY }"
+  all:
+    - has:
+        stopBy: end
+        kind: for_statement
+    - not:
+        has:
+          stopBy: end
+          pattern: <-ctx.Done()
+constraints:
+  LIST_TYPE:
+    regex: 'List$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -1,0 +1,35 @@
+id: go-testing/suite-test-file-required
+valid:
+  # Suite file itself — contains RunSpecs, not a Describe anchor
+  - |
+    package mypkg_test
+    import (
+      "testing"
+      . "github.com/onsi/ginkgo/v2"
+      . "github.com/onsi/gomega"
+    )
+    func TestSuite(t *testing.T) {
+      RegisterFailHandler(Fail)
+      RunSpecs(t, "MyPkg Suite")
+    }
+  # Regular production code — no Describe call
+  - |
+    package mypkg
+    func NewFoo() *Foo { return &Foo{} }
+invalid:
+  # Spec file with Describe — needs companion suite file
+  - |
+    package mypkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("MyService", func() {
+      It("does something", func() {})
+    })
+  # Context anchor in a spec file
+  - |
+    package mypkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      Context("with valid data", func() {
+        It("returns result", func() {})
+      })
+    })

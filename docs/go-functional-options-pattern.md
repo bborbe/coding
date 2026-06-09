@@ -516,7 +516,7 @@ func NewConsumer(options ...func(*ConsumerOptions)) Consumer {
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.
-**Enforcement**: judgment (ast-grep follow-up: `type_alias_declaration` / `type_declaration` with `XxxOptions func(...)` matching the wrong-singular pattern, and `struct_type` named `XxxOption`)
+**Enforcement**: `rules/go/singular-option-type.yml` (mechanical first-pass flags function types named `*Options`) + judgment-tier LLM adjudication to confirm the pattern context and rule out unrelated `*Options` func types.
 **Why**: The pair-naming convention — `XxxOption` (singular function type) + `XxxOptions` (plural config struct) — makes the relationship at the type signature unambiguous: one `XxxOption` modifies one `XxxOptions`. Swapping them or using the same word for both makes every reader pause to remember which is which. Industry standard (Dave Cheney's original pattern, gRPC, OpenTelemetry, k8s client-go) follows the singular-function / plural-struct shape; deviating costs reader-onboarding effort with no upside.
 
 #### Bad
@@ -558,7 +558,7 @@ type ConsumerOptions struct {
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go package using the functional-options pattern names the option constructors with prefixes other than `With*` (e.g. `Set*`, `Use*`, `Configure*`, bare nouns like `BatchSize(n)`).
-**Enforcement**: judgment (ast-grep follow-up: `function_declaration` returning a type matching `*Option` / `*ConfigFunc` with name not starting with `With`)
+**Enforcement**: `rules/go/with-prefix-option-functions.yml` (mechanical first-pass flags exported functions returning `*Option` types without `With` prefix) + judgment-tier LLM adjudication to confirm the function is an option constructor.
 **Why**: `With*` is the unambiguous signal that this function is an option constructor, not an action — `WithBatchSize(100)` reads as "with a batch size of 100" while `SetBatchSize(100)` reads as a mutating call against an existing config. Mixed prefixes in the same package leave the reader guessing which functions belong in the option list at the call site (`NewConsumer(WithX(...), SetY(...), Z(...))`) and which are unrelated calls. Picking `With*` and sticking to it makes the pattern self-describing.
 
 #### Bad

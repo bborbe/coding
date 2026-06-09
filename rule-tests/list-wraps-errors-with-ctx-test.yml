@@ -1,0 +1,44 @@
+id: go-functional-composition/list-wraps-errors-with-ctx
+valid:
+  # Uses errors.Wrapf — not a bare "return err"
+  - |
+    package p
+    import "context"
+    func (list ProcessorList) Process(ctx context.Context) error {
+        for i, p := range list {
+            if err := p.Process(ctx); err != nil {
+                return errors.Wrapf(ctx, err, "processor[%d] failed", i)
+            }
+        }
+        return nil
+    }
+  # Method on List receiver with no for loop
+  - |
+    package p
+    import "context"
+    func (list ProcessorList) Len() int { return len(list) }
+invalid:
+  # Bare return err inside for loop
+  - |
+    package p
+    import "context"
+    func (list ProcessorList) Process(ctx context.Context) error {
+        for _, p := range list {
+            if err := p.Process(ctx); err != nil {
+                return err
+            }
+        }
+        return nil
+    }
+  # ValidatorList with bare return err
+  - |
+    package p
+    import "context"
+    func (list ValidatorList) Validate(ctx context.Context) error {
+        for _, v := range list {
+            if err := v.Validate(ctx); err != nil {
+                return err
+            }
+        }
+        return nil
+    }

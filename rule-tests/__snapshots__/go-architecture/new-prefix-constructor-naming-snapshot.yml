@@ -1,0 +1,36 @@
+id: go-architecture/new-prefix-constructor-naming
+snapshots:
+  ? |
+    package p
+    type UserService interface{ GetUser() string }
+    func BuildUserService() UserService { return nil }
+  : labels:
+    - source: func BuildUserService() UserService { return nil }
+      style: primary
+      start: 57
+      end: 107
+    - source: BuildUserService
+      style: secondary
+      start: 62
+      end: 78
+    - source: UserService
+      style: secondary
+      start: 81
+      end: 92
+  ? |
+    package p
+    type UserService interface{ GetUser() string }
+    func MakeUserService() UserService { return nil }
+  : labels:
+    - source: func MakeUserService() UserService { return nil }
+      style: primary
+      start: 57
+      end: 106
+    - source: MakeUserService
+      style: secondary
+      start: 62
+      end: 77
+    - source: UserService
+      style: secondary
+      start: 80
+      end: 91

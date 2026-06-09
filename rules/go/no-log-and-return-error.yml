@@ -1,0 +1,57 @@
+id: go-logging/no-log-and-return-error
+language: go
+severity: error
+message: |
+  An error is logged AND returned in the same if-err block — the caller
+  will log it again, producing duplicate entries in aggregators.
+  Pick one: return the error (let the boundary log once) OR log and
+  consume (don't return the error). Never both.
+  EXEMPT: documented boundary-audit log lines (one-per-wire-crossing) —
+  see go-logging/external-call-logs-response. The agent reads the
+  call site to decide.
+  See docs/go-logging-guide.md (RULE go-logging/no-log-and-return-error).
+rule:
+  # Over-inclusive first-pass: match `if err != nil` blocks that contain
+  # both a glog/slog/log Error/Warning call AND a return statement
+  # that passes `err` back to the caller.
+  kind: if_statement
+  all:
+    - has:
+        kind: binary_expression
+        all:
+          - has:
+              field: left
+              kind: identifier
+              regex: '^err$'
+          - has:
+              field: right
+              kind: nil
+    - has:
+        stopBy: end
+        kind: call_expression
+        has:
+          field: function
+          kind: selector_expression
+          all:
+            - has:
+                field: operand
+                kind: identifier
+                regex: '^(glog|slog|log)$'
+            - has:
+                field: field
+                kind: field_identifier
+                regex: '^(Errorf|Error|Warningf|Warning|Printf|Print|Println)$'
+    - has:
+        stopBy: end
+        kind: return_statement
+        has:
+          stopBy: end
+          kind: identifier
+          regex: '^err$'
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

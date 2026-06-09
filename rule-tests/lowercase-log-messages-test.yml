@@ -1,0 +1,38 @@
+id: go-logging/lowercase-log-messages
+valid:
+  # Lowercase message — correct
+  - |
+    package main
+    import "github.com/golang/glog"
+    func main() { glog.Infof("service started on port %d", 8080) }
+  # slog lowercase — correct
+  - |
+    package main
+    import "log/slog"
+    func main() { slog.Error("failed to parse request", "error", nil) }
+  # Errorf with lowercase — correct
+  - |
+    package main
+    import "github.com/golang/glog"
+    func run() { glog.Errorf("failed to connect: %v", nil) }
+  # Warnf with lowercase — correct
+  - |
+    package main
+    import "log/slog"
+    func run() { slog.Warn("connection lost", "host", "localhost") }
+invalid:
+  # glog.Infof with uppercase message
+  - |
+    package main
+    import "github.com/golang/glog"
+    func main() { glog.Infof("Service started on port %d", 8080) }
+  # slog.Error with uppercase message
+  - |
+    package main
+    import "log/slog"
+    func main() { slog.Error("Failed to parse request", "error", nil) }
+  # glog.Warningf with uppercase
+  - |
+    package main
+    import "github.com/golang/glog"
+    func run() { glog.Warningf("Retrying connection", "attempt", 3) }

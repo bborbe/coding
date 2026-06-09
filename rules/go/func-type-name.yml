@@ -1,0 +1,26 @@
+id: go-functional-composition/func-type-name
+language: go
+severity: error
+message: |
+  Function-type adapter must be named XxxFunc (where Xxx is the interface name).
+  A custom name (HandlerLambda, ProcessorClosure, RunFn) breaks the convention;
+  consumers can no longer find the adapter by grepping for the interface name + "Func".
+  See docs/go-functional-composition-pattern.md (RULE go-functional-composition/func-type-name).
+rule:
+  # Over-inclusive anchor: flag every function-type declaration whose name does NOT end with "Func".
+  # The LLM adjudicates: rules out func types that are not functional-composition pattern adapters.
+  kind: type_spec
+  all:
+    - has:
+        field: type
+        kind: function_type
+    - has:
+        field: name
+        kind: type_identifier
+        not:
+          regex: 'Func$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

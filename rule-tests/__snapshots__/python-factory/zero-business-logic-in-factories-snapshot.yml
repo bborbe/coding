@@ -1,0 +1,98 @@
+id: python-factory/zero-business-logic-in-factories
+snapshots:
+  ? |
+    # for loop in factory body — business logic
+    def create_processor(config):
+        for item in config.items:
+            validate(item)
+        return Processor(config)
+  : labels:
+    - source: |-
+        def create_processor(config):
+            for item in config.items:
+                validate(item)
+            return Processor(config)
+      style: primary
+      start: 46
+      end: 157
+    - source: create_processor
+      style: secondary
+      start: 50
+      end: 66
+    - source: |-
+        for item in config.items:
+                validate(item)
+      style: secondary
+      start: 80
+      end: 128
+  ? |
+    # if statement in factory body — domain dispatch
+    def create_service(config):
+        if config.mode == "special":
+            return SpecialService(config)
+        return Service(config)
+  : labels:
+    - source: |-
+        def create_service(config):
+            if config.mode == "special":
+                return SpecialService(config)
+            return Service(config)
+      style: primary
+      start: 51
+      end: 176
+    - source: create_service
+      style: secondary
+      start: 55
+      end: 69
+    - source: |-
+        if config.mode == "special":
+                return SpecialService(config)
+      style: secondary
+      start: 83
+      end: 149
+  ? |
+    # inline lambda — logic embedded in factory
+    def create_pipeline(config):
+        transform = lambda x: x * 2
+        return Pipeline(transform, config)
+  : labels:
+    - source: |-
+        def create_pipeline(config):
+            transform = lambda x: x * 2
+            return Pipeline(transform, config)
+      style: primary
+      start: 46
+      end: 145
+    - source: create_pipeline
+      style: secondary
+      start: 50
+      end: 65
+    - source: 'lambda x: x * 2'
+      style: secondary
+      start: 91
+      end: 106
+  ? |
+    # nested function definition in factory body
+    def make_handler(config):
+        def inner_helper():
+            return 42
+        return Handler(inner_helper, config)
+  : labels:
+    - source: |-
+        def make_handler(config):
+            def inner_helper():
+                return 42
+            return Handler(inner_helper, config)
+      style: primary
+      start: 45
+      end: 153
+    - source: make_handler
+      style: secondary
+      start: 49
+      end: 61
+    - source: |-
+        def inner_helper():
+                return 42
+      style: secondary
+      start: 75
+      end: 112

@@ -1,0 +1,23 @@
+id: go-functional-options/with-prefix-option-functions
+valid:
+  # Correct: starts with With
+  - |
+    package p
+    type ConsumerOption func(*ConsumerOptions)
+    func WithBatchSize(n int) ConsumerOption { return nil }
+  # Correct: another With* function
+  - |
+    package p
+    type ServerOption func(*ServerOptions)
+    func WithTimeout(d int) ServerOption { return nil }
+invalid:
+  # Wrong prefix: Set*
+  - |
+    package p
+    type ConsumerOption func(*ConsumerOptions)
+    func SetBatchSize(n int) ConsumerOption { return nil }
+  # No prefix (bare noun)
+  - |
+    package p
+    type ConsumerOption func(*ConsumerOptions)
+    func BatchSize(n int) ConsumerOption { return nil }

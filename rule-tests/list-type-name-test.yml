@@ -1,0 +1,19 @@
+id: go-functional-composition/list-type-name
+valid:
+  # Correctly named — ends with List
+  - |
+    package p
+    type ProcessorList []Processor
+  # Correctly named — ends with List
+  - |
+    package p
+    type ValidatorList []Validator
+invalid:
+  # Wrong name — plural without List suffix
+  - |
+    package p
+    type Processors []Processor
+  # Wrong name — Chain suffix
+  - |
+    package p
+    type ProcessorChain []Processor

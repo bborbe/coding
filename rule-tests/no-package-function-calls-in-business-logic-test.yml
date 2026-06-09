@@ -1,0 +1,37 @@
+id: go-composition/no-package-function-calls-in-business-logic
+valid:
+  # Good: method calls through injected field (r.scanner.ListQueued chains selector)
+  - |
+    package p
+    import "context"
+    type runner struct{ scanner interface{ ListQueued(context.Context) ([]string, error) } }
+    func (r *runner) Run(ctx context.Context) error {
+        _, _ = r.scanner.ListQueued(ctx)
+        return nil
+    }
+  # Good: standalone function (not a method) — rule only fires inside method_declaration
+  - |
+    package p
+    import "context"
+    func DoWork(ctx context.Context) error {
+        return prompt.DoSomething(ctx)
+    }
+invalid:
+  # Bad: direct package function call inside method body
+  - |
+    package p
+    import "context"
+    type runner struct{}
+    func (r *runner) Run(ctx context.Context) error {
+        prompt.ResetExecuting(ctx)
+        return nil
+    }
+  # Bad: multiple package calls inside method
+  - |
+    package p
+    import "context"
+    type runner struct{}
+    func (r *runner) Release(ctx context.Context) error {
+        git.CommitAndRelease(ctx, "release")
+        return nil
+    }

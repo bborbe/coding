@@ -19,6 +19,7 @@ This guide enables an AI agent to develop features using **Test-Driven Developme
 **Owner**: go-test-quality-assistant
 **Applies when**: a PR introduces new functionality (new file, new function, new branch) without a corresponding test-file change that demonstrates the new behavior failing before the implementation lands.
 **Enforcement**: judgment (commit-ordering inspection; ast-grep can flag new exported functions without adjacent test additions as a first-pass filter)
+**Trigger**: **/*_test.go, **/*.go
 **Why**: Writing the failing test first forces the author to specify the behavior before implementing — pinning down inputs, outputs, edge cases, and error paths *as a contract* rather than as an afterthought. Test-after coding tends to test what the implementation already does instead of what the requirement actually was. SHOULD because the signal is weak (commit timing); pair-review confirms intent.
 
 #### Bad

@@ -1,0 +1,63 @@
+id: python-pydantic/optional-needs-default
+snapshots:
+  ? |
+    from pydantic import BaseModel
+    class Config(BaseModel):
+        status: str | None
+  : labels:
+    - source: 'status: str | None'
+      style: primary
+      start: 60
+      end: 78
+    - source: (BaseModel)
+      style: secondary
+      start: 43
+      end: 54
+    - source: |-
+        class Config(BaseModel):
+            status: str | None
+      style: secondary
+      start: 31
+      end: 78
+  ? |
+    from pydantic import BaseModel
+    from typing import Optional
+    class Response(BaseModel):
+        data: Optional[str]
+        error: Optional[str]
+  : labels:
+    - source: 'data: Optional[str]'
+      style: primary
+      start: 90
+      end: 109
+    - source: (BaseModel)
+      style: secondary
+      start: 73
+      end: 84
+    - source: |-
+        class Response(BaseModel):
+            data: Optional[str]
+            error: Optional[str]
+      style: secondary
+      start: 59
+      end: 134
+  ? |
+    from pydantic import BaseModel
+    from typing import Optional
+    class User(BaseModel):
+        name: Optional[str]
+  : labels:
+    - source: 'name: Optional[str]'
+      style: primary
+      start: 86
+      end: 105
+    - source: (BaseModel)
+      style: secondary
+      start: 69
+      end: 80
+    - source: |-
+        class User(BaseModel):
+            name: Optional[str]
+      style: secondary
+      start: 59
+      end: 105

@@ -7,6 +7,7 @@ Concrete, action-oriented criteria for choosing the right test type when generat
 **Owner**: go-test-quality-assistant
 **Applies when**: a new test is written at a higher layer (E2E, integration) when an equivalent assertion could be made at a lower layer (integration → unit, E2E → integration). Specifically: the test exercises pure business logic via a full HTTP/DB round-trip, or it tests 5+ input combinations via E2E browser automation.
 **Enforcement**: judgment (semantic — distinguishing "this needs the real boundary" from "I just defaulted to the higher layer" requires reading test intent)
+**Trigger**: **/*_test.go
 **Why**: Each layer up the pyramid is roughly 10× slower and 10× more flaky. A 50ms unit test runs millions of times in CI lifetime; a 5s integration test runs hundreds of thousands; a 30s E2E test runs thousands. Defaulting up the pyramid quietly costs the team minutes-per-PR forever. Forcing the question "could this be one layer down?" before writing the higher-layer test surfaces the right level — and "yes, it can" beats "let's just E2E it" in 80%+ of cases.
 
 ## Default: Push tests down the pyramid

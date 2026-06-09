@@ -1,0 +1,19 @@
+id: go-functional-composition/func-type-name
+valid:
+  # Correctly named — ends with Func
+  - |
+    package p
+    type ProcessorFunc func(ctx context.Context, input Input) error
+  # Multi-method adapter uses struct (not func type) — not flagged by this rule
+  - |
+    package p
+    type ValidatorFunc struct{ ValidateFunc func() error }
+invalid:
+  # Wrong name: ends with Lambda
+  - |
+    package p
+    type ProcessorLambda func(ctx context.Context, input Input) error
+  # Wrong name: ends with Fn
+  - |
+    package p
+    type HandlerFn func(w http.ResponseWriter, r *http.Request)

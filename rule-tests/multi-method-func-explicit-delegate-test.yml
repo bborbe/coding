@@ -1,0 +1,24 @@
+id: go-functional-composition/multi-method-func-explicit-delegate
+valid:
+  # Single-method function type (not a struct) — not flagged
+  - |
+    package p
+    type ProcessorFunc func(ctx context.Context) error
+  # Exported struct not ending in Func
+  - |
+    package p
+    type ValidatorConfig struct{ Timeout int }
+invalid:
+  # Struct named *Func — over-inclusive anchor (LLM checks nil guards)
+  - |
+    package p
+    type ValidatorFunc struct {
+        ValidateFunc func(data string) error
+    }
+  # Another *Func struct
+  - |
+    package p
+    type ProcessorFunc struct {
+        ProcessFunc  func() error
+        TransformFunc func(string) string
+    }

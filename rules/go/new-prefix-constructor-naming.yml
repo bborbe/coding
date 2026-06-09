@@ -1,0 +1,36 @@
+id: go-architecture/new-prefix-constructor-naming
+language: go
+severity: error
+message: |
+  Exported function returns an exported type but name does not start with 'New'.
+  'New*' is the universal Go signal for "this is the constructor". Without it consumers
+  cannot tell UserService(...) from a regular function; tooling cannot surface it as a constructor.
+  See docs/go-architecture-patterns.md (RULE go-architecture/new-prefix-constructor-naming).
+rule:
+  # Anchor: exported function_declaration whose name does NOT start with "New" but whose result
+  # is an exported type_identifier (interface or struct type alias).
+  # The LLM adjudicates: rules out Create* factories in pkg/factory/** (covered by a different rule),
+  # helper functions that happen to return an exported type, and test helpers.
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        kind: identifier
+        regex: '^[A-Z]'
+        not:
+          regex: '^New'
+    - has:
+        field: result
+        kind: type_identifier
+        regex: '^[A-Z]'
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "cmd/**"
+  - "**/cmd/**"
+  - "pkg/factory/**"
+  - "**/pkg/factory/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

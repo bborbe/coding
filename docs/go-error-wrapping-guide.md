@@ -309,6 +309,7 @@ func (s *svc) validate(ctx context.Context, input string) error {
 **Owner**: go-error-assistant
 **Applies when**: an inner closure (passed to `db.Update`, `filepath.WalkDir`, or similar callback APIs) calls `errors.Wrap`/`errors.Wrapf` while the surrounding function ALSO wraps the closure's return value.
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: double-wrapping inflates error messages with redundant prefixes (`save data X: update: put: bolt: connection refused`) and doesn't add new information. The outer wrap is enough.
 
 #### Bad
@@ -344,6 +345,7 @@ func (s *svc) Save(ctx context.Context, data Data) error {
 **Owner**: go-error-assistant
 **Applies when**: a package-level sentinel error variable uses the legacy `XxxError`/`XxxErr` naming convention (e.g. `BucketNotFoundErr`, `ConnectionError`) instead of the stdlib-style `ErrXxx` prefix (`ErrBucketNotFound`, `ErrConnection`).
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: stdlib uses `Err` prefix (`io.EOF`, `sql.ErrNoRows`); matching it makes the convention discoverable and consistent. Legacy projects may keep the old name as a `Deprecated:` alias during transition.
 
 #### Bad

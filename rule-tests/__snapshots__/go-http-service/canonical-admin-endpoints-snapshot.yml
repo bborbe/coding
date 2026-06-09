@@ -1,0 +1,59 @@
+id: go-http-service/canonical-admin-endpoints
+snapshots:
+  ? |
+    package main
+    func setup() {
+        router := mux.NewRouter()
+        router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+    }
+  : labels:
+    - source: router.Path("/healthz")
+      style: primary
+      start: 62
+      end: 85
+    - source: Path
+      style: secondary
+      start: 69
+      end: 73
+    - source: router.Path
+      style: secondary
+      start: 62
+      end: 73
+    - source: '"/healthz"'
+      style: secondary
+      start: 74
+      end: 84
+    - source: ("/healthz")
+      style: secondary
+      start: 73
+      end: 85
+  ? |
+    package main
+    func setup() {
+        router := mux.NewRouter()
+        router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+        router.Path("/metrics").Handler(promhttp.Handler())
+        router.Path("/setloglevel/{level}").Handler(log.NewSetLoglevelHandler())
+        router.Path("/gc").Handler(libhttp.NewGarbageCollectorHandler())
+    }
+  : labels:
+    - source: router.Path("/readiness")
+      style: primary
+      start: 62
+      end: 87
+    - source: Path
+      style: secondary
+      start: 69
+      end: 73
+    - source: router.Path
+      style: secondary
+      start: 62
+      end: 73
+    - source: '"/readiness"'
+      style: secondary
+      start: 74
+      end: 86
+    - source: ("/readiness")
+      style: secondary
+      start: 73
+      end: 87

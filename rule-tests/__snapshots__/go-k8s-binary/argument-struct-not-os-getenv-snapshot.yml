@@ -1,0 +1,49 @@
+id: go-k8s-binary/argument-struct-not-os-getenv
+snapshots:
+  ? |
+    package main
+    import "os"
+    func (a *application) getStage() string {
+        return os.Getenv("STAGE")
+    }
+  : labels:
+    - source: os.Getenv("STAGE")
+      style: primary
+      start: 78
+      end: 96
+    - source: os
+      style: secondary
+      start: 78
+      end: 80
+    - source: Getenv
+      style: secondary
+      start: 81
+      end: 87
+    - source: os.Getenv
+      style: secondary
+      start: 78
+      end: 87
+  ? |
+    package main
+    import "os"
+    func (a *application) resolveAuth(ctx context.Context) (*http.Client, error) {
+        pemKey := []byte(os.Getenv("PEM_KEY"))
+        return factory.CreateClient(ctx, pemKey)
+    }
+  : labels:
+    - source: os.Getenv("PEM_KEY")
+      style: primary
+      start: 125
+      end: 145
+    - source: os
+      style: secondary
+      start: 125
+      end: 127
+    - source: Getenv
+      style: secondary
+      start: 128
+      end: 134
+    - source: os.Getenv
+      style: secondary
+      start: 125
+      end: 134

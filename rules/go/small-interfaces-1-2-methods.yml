@@ -1,0 +1,28 @@
+id: go-composition/small-interfaces-1-2-methods
+language: go
+severity: warning
+message: |
+  Interface declares 3+ methods — may span more than one logical capability.
+  Go convention (Rob Pike): the bigger the interface, the weaker the abstraction.
+  Consider splitting into focused 1-2 method interfaces that consumers compose as needed.
+  See docs/go-composition.md (RULE go-composition/small-interfaces-1-2-methods).
+rule:
+  # Anchor: type_spec wrapping an interface_type that contains a 3rd method_elem (via follows chain).
+  # follows: method_elem → follows: method_elem means "this method_elem has 2 preceding siblings",
+  # i.e. this is the 3rd+ method — so the interface has at least 3 methods total.
+  # The LLM adjudicates: "one logical capability" check (a 3-method CRUD interface may be fine).
+  kind: type_spec
+  has:
+    field: type
+    kind: interface_type
+    has:
+      kind: method_elem
+      follows:
+        kind: method_elem
+        follows:
+          kind: method_elem
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

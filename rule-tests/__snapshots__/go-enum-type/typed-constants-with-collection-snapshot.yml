@@ -1,0 +1,29 @@
+id: go-enum-type/typed-constants-with-collection
+snapshots:
+  ? |
+    package p
+    const (
+        OrderStatusPending    = "pending"
+        OrderStatusProcessing = "processing"
+    )
+  : labels:
+    - source: OrderStatusPending    = "pending"
+      style: primary
+      start: 22
+      end: 55
+    - source: '"pending"'
+      style: secondary
+      start: 46
+      end: 55
+  ? |
+    package p
+    const OrderStatusPending = "pending"
+  : labels:
+    - source: OrderStatusPending = "pending"
+      style: primary
+      start: 16
+      end: 46
+    - source: '"pending"'
+      style: secondary
+      start: 37
+      end: 46

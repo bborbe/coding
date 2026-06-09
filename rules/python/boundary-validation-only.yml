@@ -1,0 +1,21 @@
+id: python-pydantic/boundary-validation-only
+language: python
+severity: warning
+message: |
+  pydantic.BaseModel subclasses must appear only at system boundaries (API handlers,
+  queue consumers, file parsers). Internal domain models must use dataclass or plain types.
+  Validation at every instantiation wastes CPU on already-trusted data.
+  See docs/python-pydantic-guide.md (RULE python-pydantic/boundary-validation-only).
+rule:
+  # Over-inclusive first-pass: any class inheriting from BaseModel.
+  # The agent rules out the "actually at a boundary" case by inspecting the file path
+  # (pkg/api/, pkg/handler/, pkg/ingestion/, etc.) and the class's usage context.
+  # Severity: warning (not error) because boundary placement is path-dependent and
+  # the agent makes the final MUST/skip call.
+  pattern: 'class $NAME(BaseModel): $$$'
+ignores:
+  - "**/*_test.py"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"

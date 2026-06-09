@@ -1,0 +1,31 @@
+id: go-http-service/canonical-admin-endpoints
+valid:
+  - |
+    package main
+    func setup() {
+        router := mux.NewRouter()
+        router.Path("/custom-business-endpoint").Handler(myHandler())
+    }
+  - |
+    package main
+    // Non-route call — not a Path/Handle registration
+    func setup() {
+        router := mux.NewRouter()
+        router.Use(middlewareFunc)
+    }
+invalid:
+  - |
+    package main
+    func setup() {
+        router := mux.NewRouter()
+        router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+    }
+  - |
+    package main
+    func setup() {
+        router := mux.NewRouter()
+        router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+        router.Path("/metrics").Handler(promhttp.Handler())
+        router.Path("/setloglevel/{level}").Handler(log.NewSetLoglevelHandler())
+        router.Path("/gc").Handler(libhttp.NewGarbageCollectorHandler())
+    }

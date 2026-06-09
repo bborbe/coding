@@ -1,0 +1,74 @@
+id: go-logging/no-tight-loop-without-sampler
+snapshots:
+  ? |
+    package pkg
+    import "github.com/golang/glog"
+    func process(items []string) {
+      for _, item := range items {
+        if err := doWork(item); err != nil {
+          glog.Warningf("process %s failed: %v", item, err)
+        }
+      }
+    }
+  : labels:
+    - source: |-
+        for _, item := range items {
+            if err := doWork(item); err != nil {
+              glog.Warningf("process %s failed: %v", item, err)
+            }
+          }
+      style: primary
+      start: 77
+      end: 212
+    - source: glog
+      style: secondary
+      start: 153
+      end: 157
+    - source: Warningf
+      style: secondary
+      start: 158
+      end: 166
+    - source: glog.Warningf
+      style: secondary
+      start: 153
+      end: 166
+    - source: 'glog.Warningf("process %s failed: %v", item, err)'
+      style: secondary
+      start: 153
+      end: 202
+  ? |
+    package pkg
+    import "log/slog"
+    func consume(msgs []Message) {
+      for _, msg := range msgs {
+        if err := handle(msg); err != nil {
+          slog.Warn("message handling failed", "error", err)
+        }
+      }
+    }
+  : labels:
+    - source: |-
+        for _, msg := range msgs {
+            if err := handle(msg); err != nil {
+              slog.Warn("message handling failed", "error", err)
+            }
+          }
+      style: primary
+      start: 63
+      end: 196
+    - source: slog
+      style: secondary
+      start: 136
+      end: 140
+    - source: Warn
+      style: secondary
+      start: 141
+      end: 145
+    - source: slog.Warn
+      style: secondary
+      start: 136
+      end: 145
+    - source: slog.Warn("message handling failed", "error", err)
+      style: secondary
+      start: 136
+      end: 186

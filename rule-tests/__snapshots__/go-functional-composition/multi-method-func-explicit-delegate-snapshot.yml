@@ -1,0 +1,53 @@
+id: go-functional-composition/multi-method-func-explicit-delegate
+snapshots:
+  ? |
+    package p
+    type ProcessorFunc struct {
+        ProcessFunc  func() error
+        TransformFunc func(string) string
+    }
+  : labels:
+    - source: |-
+        ProcessorFunc struct {
+            ProcessFunc  func() error
+            TransformFunc func(string) string
+        }
+      style: primary
+      start: 15
+      end: 107
+    - source: ProcessorFunc
+      style: secondary
+      start: 15
+      end: 28
+    - source: |-
+        struct {
+            ProcessFunc  func() error
+            TransformFunc func(string) string
+        }
+      style: secondary
+      start: 29
+      end: 107
+  ? |
+    package p
+    type ValidatorFunc struct {
+        ValidateFunc func(data string) error
+    }
+  : labels:
+    - source: |-
+        ValidatorFunc struct {
+            ValidateFunc func(data string) error
+        }
+      style: primary
+      start: 15
+      end: 80
+    - source: ValidatorFunc
+      style: secondary
+      start: 15
+      end: 28
+    - source: |-
+        struct {
+            ValidateFunc func(data string) error
+        }
+      style: secondary
+      start: 29
+      end: 80

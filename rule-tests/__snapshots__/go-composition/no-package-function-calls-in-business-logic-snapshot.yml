@@ -1,0 +1,60 @@
+id: go-composition/no-package-function-calls-in-business-logic
+snapshots:
+  ? |
+    package p
+    import "context"
+    type runner struct{}
+    func (r *runner) Release(ctx context.Context) error {
+        git.CommitAndRelease(ctx, "release")
+        return nil
+    }
+  : labels:
+    - source: git.CommitAndRelease(ctx, "release")
+      style: primary
+      start: 106
+      end: 142
+    - source: |-
+        func (r *runner) Release(ctx context.Context) error {
+            git.CommitAndRelease(ctx, "release")
+            return nil
+        }
+      style: secondary
+      start: 48
+      end: 159
+    - source: git
+      style: secondary
+      start: 106
+      end: 109
+    - source: git.CommitAndRelease
+      style: secondary
+      start: 106
+      end: 126
+  ? |
+    package p
+    import "context"
+    type runner struct{}
+    func (r *runner) Run(ctx context.Context) error {
+        prompt.ResetExecuting(ctx)
+        return nil
+    }
+  : labels:
+    - source: prompt.ResetExecuting(ctx)
+      style: primary
+      start: 102
+      end: 128
+    - source: |-
+        func (r *runner) Run(ctx context.Context) error {
+            prompt.ResetExecuting(ctx)
+            return nil
+        }
+      style: secondary
+      start: 48
+      end: 145
+    - source: prompt
+      style: secondary
+      start: 102
+      end: 108
+    - source: prompt.ResetExecuting
+      style: secondary
+      start: 102
+      end: 123

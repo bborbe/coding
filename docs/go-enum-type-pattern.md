@@ -18,7 +18,7 @@ Use this pattern when you need:
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go package introduces a finite set of enum-like values (status codes, kinds, modes, etc.) declared as untyped `const` strings or `const` ints, without a paired typed `string`/`int` newtype AND without an `Available<Name>s` collection containing every valid value.
-**Enforcement**: judgment (ast-grep follow-up: `const_declaration` of `string` literals with shared semantic prefix; pair-check against the existence of a `type X string` newtype + a `var AvailableXs Xs` collection in the same package)
+**Enforcement**: `rules/go/typed-constants-with-collection.yml` (mechanical first-pass flags untyped `const` string specs) + judgment-tier LLM adjudication to confirm shared semantic prefix and check whether the package already has a typed newtype + `Available*` collection.
 **Why**: Untyped enum constants spread through the codebase as bare strings — every call site can pass any string, every comparison can typo, and the linter has no signal that "scheduled" / "completed" / "pending" are meant to be members of a closed set. Typed constants paired with an `AvailableXs` collection turn the enum into a first-class type the type-checker enforces and that `Validate()` can range over. The `Available*` collection is what makes the pattern self-describing — a new contributor reads the package and immediately sees the full value space.
 
 #### Bad
@@ -130,7 +130,7 @@ func (o OrderStatuses) Contains(status OrderStatus) bool {
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go enum type's `Validate(ctx context.Context) error` method validates against an inline switch / hardcoded value list / regex, instead of `AvailableXs.Contains(value)`.
-**Enforcement**: judgment (ast-grep follow-up: `method_declaration` named `Validate` on an enum-shaped type, body containing inline `switch` / `||` chain over string literals, paired with the package having a defined `AvailableXs` collection)
+**Enforcement**: `rules/go/validate-against-available-collection.yml` (mechanical first-pass flags `Validate` methods containing an inline `switch`) + judgment-tier LLM adjudication to confirm the switch is enum-membership validation and the package has an `Available*` collection.
 **Why**: Validating against an inline switch duplicates the enum's value space — adding a new enum constant requires updating both `const (...)` and the `Validate()` body, and the type checker can't enforce the pair. Range-over-`AvailableXs` collapses the two into one declaration: the collection IS the validation source, so the only place to add a value is the collection literal. Adds-a-constant-but-forgets-to-update-validate becomes structurally impossible.
 
 #### Bad

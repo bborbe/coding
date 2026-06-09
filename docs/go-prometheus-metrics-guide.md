@@ -22,6 +22,7 @@ Key principles:
 **Owner**: go-metrics-assistant
 **Applies when**: a CounterVec is registered for a label set whose value domain is small, bounded, and known at compile time (typically < 20 combinations — enum, fixed slice of strings, etc.). For large or unbounded domains, prefer `absent()` checks in alerting rules instead.
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: Without pre-initialization, `rate(metric[5m])` returns *no data* (not zero) for unseen label combos. Alert expressions like `rate(errors_total[5m]) > 0.1` silently skip absent series instead of evaluating to false — so the alert never fires when the system is fine *and never fires when the system is broken either*. `absent()` checks don't save you because the series literally doesn't exist yet.
 
 #### Bad
@@ -55,6 +56,7 @@ func init() {
 **Owner**: go-metrics-assistant
 **Applies when**: a single `Metrics` interface aggregates methods spanning two or more distinct functional domains (handlers + senders + schedulers + …), forcing consumers to depend on methods they don't use.
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: Interface Segregation Principle. Components that only send notifications should depend on `MetricsNotificationSender`, not the full `Metrics` interface. Narrow interfaces produce smaller Counterfeiter mocks, clearer test setup, and make accidental coupling visible at the type signature.
 
 #### Bad
@@ -107,6 +109,7 @@ type MetricsNotificationSender interface {
 **Owner**: go-metrics-assistant
 **Applies when**: a `prometheus.NewGaugeVec` / `prometheus.NewGauge` registers a metric the code only ever increments (only `.Inc()` / `.Add(positive)` call sites, never `.Set()` / `.Dec()` / `.Sub()`).
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: `rate()` and `increase()` are type-agnostic — they interpret *any* downward movement in the sample series as a counter reset and adjust accordingly. With a Gauge, a legitimate decrease (e.g. queue drains) is treated as a reset, producing nonsense rates. With a Counter, the type signals that the value can only increase, so PromQL's reset detection is sound. Dashboards built on a Gauge-used-as-counter silently produce wrong numbers.
 
 #### Bad
@@ -233,6 +236,7 @@ prometheus.NewCounterVec(prometheus.CounterOpts{
 **Owner**: go-metrics-assistant
 **Applies when**: any `prometheus.{Counter,Gauge,Histogram,Summary}Opts` struct literal sets a `Help:` field that (a) is empty, (b) duplicates another metric's Help verbatim, or (c) describes a different metric (copy-paste residue).
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: Help strings appear in `/metrics` output and the Grafana metric explorer. Wrong descriptions cause real confusion during incidents — the on-call sees a Help string that contradicts the metric name, can't tell which is wrong, and burns minutes verifying. Empty Help strings make alert ownership ambiguous.
 
 #### Bad
@@ -275,6 +279,7 @@ notificationSendSuccessCounter = prometheus.NewCounterVec(prometheus.CounterOpts
 **Owner**: go-metrics-assistant
 **Applies when**: two or more metrics in the same project reference the same conceptual entity using different label names (e.g. `product` vs `item` for product ID; `tenant` vs `customer` vs `org`).
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: Inconsistent label names silently break PromQL joins (`on(product)` only joins series that share the label) and Grafana dashboards (variable interpolation can't unify across panels). The cost shows up at 3am when a dashboard is half-empty and no one knows why.
 
 #### Bad

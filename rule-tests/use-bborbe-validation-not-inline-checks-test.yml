@@ -1,0 +1,53 @@
+id: go-validation/use-bborbe-validation-not-inline-checks
+valid:
+  # Uses bborbe/validation library — correct pattern
+  - |
+    package pkg
+    import "github.com/bborbe/validation"
+    type User struct{ Username, Email string }
+    func (u User) Validate(ctx context.Context) error {
+      return validation.All{
+        validation.Name("username", validation.NotEmptyString(u.Username)),
+        validation.Name("email", validation.NotEmptyString(u.Email)),
+      }.Validate(ctx)
+    }
+  # Non-Validate method with if+error — not flagged
+  - |
+    package pkg
+    import "errors"
+    type User struct{ Username string }
+    func (u User) Process(ctx context.Context) error {
+      if u.Username == "" {
+        return errors.New("username required")
+      }
+      return nil
+    }
+invalid:
+  # Hand-rolled if-chain Validate method — should use bborbe/validation
+  - |
+    package pkg
+    import "github.com/bborbe/errors"
+    type User struct{ Username, Email, Role string }
+    func (u User) Validate(ctx context.Context) error {
+      if u.Username == "" {
+        return errors.Errorf(ctx, "username is empty")
+      }
+      if u.Email == "" {
+        return errors.Errorf(ctx, "email is empty")
+      }
+      return nil
+    }
+  # stdlib errors inline Validate — also flagged
+  - |
+    package pkg
+    import "errors"
+    type Request struct{ Name, Category string }
+    func (r Request) Validate(ctx context.Context) error {
+      if r.Name == "" {
+        return errors.New("name is required")
+      }
+      if r.Category == "" {
+        return errors.New("category is required")
+      }
+      return nil
+    }

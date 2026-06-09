@@ -103,15 +103,17 @@ coding:simple-bash-runner agent: "cd <REVIEW_DIR> && make precommit"
 
 Include failures in report. Continue regardless.
 
-### Step 4: Dispatcher — ast-grep funnel → per-Owner LLM adjudication
+### Step 4: Dispatcher — ast-grep funnel → findings-scoped LLM adjudication
 
-The dispatcher replaces the previous hardcoded "load conventions + invoke fixed agent list" flow with a doc-driven pipeline backed by `rules/index.json`. Mechanical pre-filter via `coding:ast-grep-runner`; LLM-tier adjudication only for findings that survive, plus judgment-tier rules that have no mechanical YAML.
+The dispatcher runs the full mechanical+script funnel first (diff-scoped), then spawns adjudication Tasks only for owners that have findings or active judgment rules. **Standard mode**: zero LLM spawns when the funnel is clean and no judgment rules are active. **Full mode**: keeps today's behavior (all relevant owners + conditional agents).
 
 **Short Mode**: No agents — skip to Step 5.
 
+**Early exit (standard mode)**: if NO changed file has extension `.go` or `.py` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `pyproject.toml`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the Step 0c diff stat decides this — no tool calls needed.
+
 #### 4.0: Toolchain preflight (fail-fast)
 
-Before invoking the runner, verify `ast-grep` is available in PATH. The runner itself fail-fasts on the same check (`agents/ast-grep-runner.md` Step 0), but doing it here too keeps the failure surface close to the dispatcher so the user sees a single clear error rather than the runner's JSON envelope:
+Before invoking the runner, verify `ast-grep` is available in PATH. The runner script fail-fasts on the same check (exit 2 + JSON error), but doing it here too keeps the failure surface close to the dispatcher so the user sees a single clear error rather than the runner's JSON envelope:
 
 ```bash
 cd <REVIEW_DIR> && (command -v ast-grep >/dev/null 2>&1 || command -v sg >/dev/null 2>&1) \
@@ -122,33 +124,70 @@ Run exactly this one command, once. If it fails: report the toolchain gap in Ste
 
 #### 4a: Mechanical funnel
 
+Run `scripts/ast-grep-runner.sh` (deterministic — covers ast-grep YAMLs AND script-tier rule-checks, diff-scoped) over the changed files identified from `git diff --stat` in Step 0c. The script ships with the coding plugin; resolve its path first — plugin install dir, falling back to the local checkout:
+
+```bash
+RUNNER="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/ast-grep-runner.sh"
+[ -x "$RUNNER" ] || RUNNER="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/scripts/ast-grep-runner.sh"
+[ -x "$RUNNER" ] || RUNNER="$HOME/Documents/workspaces/coding/scripts/ast-grep-runner.sh"
+"$RUNNER" <REVIEW_DIR> <changed files, space-separated> > /tmp/pr-review-findings.json
 ```
-coding:ast-grep-runner agent: "TARGET_DIR=<REVIEW_DIR>. Run every ast-grep YAML in rules/<lang>/*.yml. Return findings grouped by Owner per the agent's documented JSON contract."
+
+Run exactly this one Bash call, once. The runner emits `{stats, findings_by_owner: {<agent-name>: [...findings]}, errors}` — read it from `/tmp/pr-review-findings.json`. Do NOT spawn an agent for this step (the former `coding:ast-grep-runner` agent is deprecated). If the runner is missing or fails: note "mechanical funnel unavailable" for the Step 5 report and continue with Step 4b using judgment-rule triggers only — do NOT investigate (no `find`, no `which`, no path probing).
+
+#### 4b: Findings-scoped adjudication (standard mode)
+
+Compute the active judgment-rule set and dispatch owners selectively:
+
+**Step 4b-i: Active judgment rules** — compute which judgment-tier rules are triggered by the diff. Run:
+
+```bash
+CHANGED_FILES="<newline-separated list from git diff --stat>"
+jq -r --arg files "$CHANGED_FILES" '
+  [ .[] | select(.enforcement_type == "judgment") |
+    select(
+      .trigger == null or
+      (.trigger | any(. as $pat |
+        ($files | split("\n") | .[] |
+          (. == $pat) or
+          (($pat | startswith("@")) and $pat == "@commits") or
+          (($pat | contains("*")) and
+            (. | test("^" + ($pat | gsub("\\."; "\\.") | gsub("\\*\\*/"; "°") | gsub("\\*\\*"; "±") | gsub("\\*"; "[^/]*") | gsub("\\?"; "[^/]") | gsub("°"; "(.*/)?") | gsub("±"; ".*")) + "$"))
+          )
+        )
+      ))
+    )
+  ] | .[] | .id + " " + .owner
+' rules/index.json
 ```
 
-The runner emits `{stats, findings_by_owner: {<agent-name>: [...findings]}, errors}`.
+This produces a list of `<rule-id> <owner>` pairs whose trigger globs match at least one changed file. Rules with `trigger: ["@commits"]` are always included.
 
-#### 4b: Per-Owner adjudication
+**Step 4b-ii: Dispatch set** — the set of owners to spawn is:
 
-For each `<owner>` in `findings_by_owner` AND for each non-mechanical (judgment-tier) rule whose `owner` matches a per-language agent in `agents/`:
+```
+owners_to_spawn = (keys of findings_by_owner) ∪ (owners from active judgment rules)
+```
+
+If `owners_to_spawn` is empty AND `findings_by_owner` is empty, report "funnel clean — no adjudication needed" and proceed to Step 5. ZERO LLM spawns.
+
+Otherwise, spawn ONE Task per owner in `owners_to_spawn` **concurrently**. Owners NOT in the set are NOT spawned — no exceptions in standard mode. Each Task prompt:
 
 ```
 coding:<owner> agent: "REVIEW_DIR=<REVIEW_DIR>.
 
-Pre-filtered mechanical findings (from ast-grep-runner):
-<findings_by_owner[<owner>] JSON>
+Pre-filtered mechanical findings for you (from ast-grep-runner):
+<findings_by_owner[<owner>] JSON, or empty array if none>
 
-Judgment-tier rules you own (from rules/index.json):
-<list of rule ids with enforcement=judgment AND owner=<this agent>>
+Active judgment rules you own (from rules/index.json, triggered by this diff):
+<list of rule blocks — id + doc_path + applies_when — for this owner only>
 
-Adjudicate: for each finding, assign severity (Critical / Important / Optional), add a fix suggestion that cites the rule by ID, and report findings citing only rule_ids that exist in rules/index.json. Drop any finding whose rule_id is not in the index — that's a stale-walker bug, not your concern.
+Adjudicate: for each mechanical finding, assign severity (Critical / Important / Optional), add a fix suggestion that cites the rule by ID. Drop any finding whose rule_id is not in the index — stale-walker bug, not your concern.
 
-Also scan the diff for judgment-tier rules listed above and report violations you find there.
+Also scan the diff for each active judgment rule listed above and report violations you find. Read only changed files relevant to those rules.
 
 Only review changed files from the diff. Exclude vendor/ and node_modules/."
 ```
-
-Run these per-owner dispatches **concurrently** — they're independent.
 
 **Timing instrumentation**: **Only when `REVIEW_TIMING=1` is set in the environment** — otherwise skip this instrumentation entirely. Record the wall-time of each per-Owner dispatch as a structured event. Recommended shape — one log line per Owner before and after the agent runs:
 

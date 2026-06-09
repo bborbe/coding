@@ -1,0 +1,65 @@
+id: python-ioc/dependencies-as-private-fields
+snapshots:
+  ? |
+    # Mixed — only public ones should fire
+    class MixedService:
+        def __init__(self, repo, logger):
+            self.repo = repo
+            self._logger = logger
+  : labels:
+    - source: self.repo = repo
+      style: primary
+      start: 107
+      end: 123
+    - source: __init__
+      style: secondary
+      start: 69
+      end: 77
+    - source: |-
+        def __init__(self, repo, logger):
+                self.repo = repo
+                self._logger = logger
+      style: secondary
+      start: 65
+      end: 153
+  ? |
+    # Multiple public assignments — multiple violations
+    class OrderService:
+        def __init__(self, repo, logger):
+            self.repo = repo
+            self.logger = logger
+  : labels:
+    - source: self.repo = repo
+      style: primary
+      start: 120
+      end: 136
+    - source: __init__
+      style: secondary
+      start: 82
+      end: 90
+    - source: |-
+        def __init__(self, repo, logger):
+                self.repo = repo
+                self.logger = logger
+      style: secondary
+      start: 78
+      end: 165
+  ? |
+    class UserService:
+        def __init__(self, repo):
+            self.repo = repo
+  : labels:
+    - source: self.repo = repo
+      style: primary
+      start: 57
+      end: 73
+    - source: __init__
+      style: secondary
+      start: 27
+      end: 35
+    - source: |-
+        def __init__(self, repo):
+                self.repo = repo
+      style: secondary
+      start: 23
+      end: 73

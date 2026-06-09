@@ -6,7 +6,7 @@ Orchestrators compose small single-responsibility services. Never call package-l
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go service method calls a top-level package function (`prompt.ListQueued(...)`, `git.CommitAndRelease(...)`) directly instead of receiving the equivalent capability through an injected interface declared in the same package as the consumer.
-**Enforcement**: judgment (ast-grep follow-up: `call_expression` of the form `<package>.<Function>(...)` inside method bodies, where `<package>` is a non-stdlib non-bborbe-library import; the agent rules out leaf packages whose functions are pure helpers).
+**Enforcement**: `rules/go/no-package-function-calls-in-business-logic.yml` (mechanical first-pass flags all `pkg.Func()` calls inside method bodies) + judgment-tier LLM adjudication to rule out stdlib/bborbe-library calls and leaf packages providing pure helper functions.
 **Why**: Direct package-function calls are hidden dependencies. The constructor doesn't surface them, tests can't mock them, and replacing the implementation requires editing every call site instead of swapping one constructor argument. Wrapping each capability in a small interface (`PromptScanner`, `Releaser`) makes the dep graph explicit at the type signature, makes Counterfeiter-mockable points obvious, and lets factories swap real for fake without touching business logic. The cost is one interface declaration per wrapped capability; the value is testability + composability + Single Responsibility at the right granularity.
 
 #### Bad
@@ -125,7 +125,7 @@ func CreateRunner(promptsDir string) Runner {
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go interface declares 3+ methods spanning more than one logical capability — i.e. consumers of the interface use a subset of methods, and the unused-by-this-consumer methods are inferred from method-count plus call-site analysis.
-**Enforcement**: judgment (ast-grep follow-up: `type_declaration` with `interface_type` body containing 3+ method specifications; the "one logical capability" check is semantic)
+**Enforcement**: `rules/go/small-interfaces-1-2-methods.yml` (mechanical first-pass flags interfaces with 3+ methods) + judgment-tier LLM adjudication for the "one logical capability" check (a 3-method CRUD interface that forms a coherent capability may be fine).
 **Why**: The Go convention is "the bigger the interface, the weaker the abstraction" (Rob Pike). A 5-method interface forces every consumer to depend on all 5 methods even when they only use 1 — Counterfeiter generates 5 stubs per test, refactors propagate everywhere, and Interface Segregation Principle violations breed. 1-2 method interfaces are easier to mock, easier to compose, and make each consumer's actual dep surface visible at the type signature. Existing standard library interfaces (`io.Reader`, `io.Writer`, `sort.Interface`, `error`) show the shape: small, focused, composable. SHOULD-level because composition cases (`io.ReadWriteCloser`) and certain framework interfaces legitimately bundle several methods.
 
 #### Bad

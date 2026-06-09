@@ -18,6 +18,7 @@ If your service already depends on `bborbe/k8s` (most do), use these instead of 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go service consuming a CRD hand-writes the event-handler cast adapter, the typed event handler, or the in-memory state store, while the service already depends on (or could depend on) `github.com/bborbe/k8s`.
 **Enforcement**: judgment (file-existence + dependency-graph check: presence of `pkg/event-handler*.go` or `pkg/<resource>-store.go` alongside a non-trivial `bborbe/k8s` import means hand-written boilerplate that should use the generic primitives)
+**Trigger**: **/*.go, go.mod
 **Why**: `bborbe/k8s` collapses ~300 lines of hand-written event-handler + adapter + store boilerplate per CRD into one `k8s.NewEventHandler[T]()` + `k8s.NewResourceEventHandler[T]()` call. The generic primitives are typed (no `interface{}` casts), thread-safe by construction, and tested upstream. Hand-written equivalents re-invent the same bugs (race conditions on the store, missed `OnDelete` events, type assertions that panic on cache resync) across every service. Take the dependency; delete the boilerplate.
 
 #### Bad
@@ -279,6 +280,7 @@ No `go mod vendor` step is required before `generatek8s` — the generator reads
 **Owner**: go-architecture-assistant
 **Applies when**: a Go consumer service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of the typed clientset generated via `hack/update-codegen.sh`.
 **Enforcement**: judgment (import-graph check on the consumer service: `client-go/dynamic` imported alongside a known-schema CR type is the smell; dynamic-client use is acceptable only when the CR is third-party with unknown schema)
+**Trigger**: **/*.go, go.mod
 **Why**: The dynamic client returns `*unstructured.Unstructured` — every field access is a string lookup, every value comes back as `interface{}`, every typo is a runtime error. Generated clientsets return typed Go structs: typos fail at compile time, IDE auto-complete works, refactors propagate. The dynamic client is the right tool when you don't know the schema (admin tools, generic operators, schema discovery); for first-party CRDs where you wrote the types, it's the wrong tool — it discards every type-safety guarantee Go offers.
 
 #### Bad

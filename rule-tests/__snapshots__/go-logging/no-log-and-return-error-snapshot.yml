@@ -1,0 +1,114 @@
+id: go-logging/no-log-and-return-error
+snapshots:
+  ? |
+    package pkg
+    import "github.com/golang/glog"
+    func fetchUser(id string) error {
+      err := doSomething()
+      if err != nil {
+        glog.Errorf("failed to fetch user %s: %v", id, err)
+        return wrapf(err, "fetch user")
+      }
+      return nil
+    }
+  : labels:
+    - source: |-
+        if err != nil {
+            glog.Errorf("failed to fetch user %s: %v", id, err)
+            return wrapf(err, "fetch user")
+          }
+      style: primary
+      start: 103
+      end: 214
+    - source: err
+      style: secondary
+      start: 106
+      end: 109
+    - source: nil
+      style: secondary
+      start: 113
+      end: 116
+    - source: err != nil
+      style: secondary
+      start: 106
+      end: 116
+    - source: glog
+      style: secondary
+      start: 123
+      end: 127
+    - source: Errorf
+      style: secondary
+      start: 128
+      end: 134
+    - source: glog.Errorf
+      style: secondary
+      start: 123
+      end: 134
+    - source: 'glog.Errorf("failed to fetch user %s: %v", id, err)'
+      style: secondary
+      start: 123
+      end: 174
+    - source: err
+      style: secondary
+      start: 192
+      end: 195
+    - source: return wrapf(err, "fetch user")
+      style: secondary
+      start: 179
+      end: 210
+  ? |
+    package pkg
+    import "log/slog"
+    func getItem(id string) (*Item, error) {
+      item, err := store.Get(id)
+      if err != nil {
+        slog.Error("failed to get item", "id", id, "error", err)
+        return nil, err
+      }
+      return item, nil
+    }
+  : labels:
+    - source: |-
+        if err != nil {
+            slog.Error("failed to get item", "id", id, "error", err)
+            return nil, err
+          }
+      style: primary
+      start: 102
+      end: 202
+    - source: err
+      style: secondary
+      start: 105
+      end: 108
+    - source: nil
+      style: secondary
+      start: 112
+      end: 115
+    - source: err != nil
+      style: secondary
+      start: 105
+      end: 115
+    - source: slog
+      style: secondary
+      start: 122
+      end: 126
+    - source: Error
+      style: secondary
+      start: 127
+      end: 132
+    - source: slog.Error
+      style: secondary
+      start: 122
+      end: 132
+    - source: slog.Error("failed to get item", "id", id, "error", err)
+      style: secondary
+      start: 122
+      end: 178
+    - source: err
+      style: secondary
+      start: 195
+      end: 198
+    - source: return nil, err
+      style: secondary
+      start: 183
+      end: 198

@@ -1,0 +1,35 @@
+id: python-factory/zero-business-logic-in-factories
+valid:
+  - |
+    # Pure composition — no loops, conditionals, lambdas, nested defs
+    def create_service(config):
+        return Service(Repository(config), Logger(config))
+  - |
+    # make_ prefix also qualifies; this is pure wiring
+    def make_handler(config):
+        repo = Repository(config.db_url)
+        return Handler(repo)
+invalid:
+  - |
+    # for loop in factory body — business logic
+    def create_processor(config):
+        for item in config.items:
+            validate(item)
+        return Processor(config)
+  - |
+    # if statement in factory body — domain dispatch
+    def create_service(config):
+        if config.mode == "special":
+            return SpecialService(config)
+        return Service(config)
+  - |
+    # inline lambda — logic embedded in factory
+    def create_pipeline(config):
+        transform = lambda x: x * 2
+        return Pipeline(transform, config)
+  - |
+    # nested function definition in factory body
+    def make_handler(config):
+        def inner_helper():
+            return 42
+        return Handler(inner_helper, config)

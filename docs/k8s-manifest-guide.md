@@ -9,6 +9,7 @@ How to organize Kubernetes YAML manifests in a service repository. Rules only �
 **Owner**: go-architecture-assistant
 **Applies when**: a Kubernetes manifest uses `kind: Deployment` for a workload with per-replica disk state, stable network identity needs, or ordered start/stop semantics — instead of `kind: StatefulSet`. Equivalent: using `Deployment` for a workload that runs to completion (should be `Job` / `CronJob`) or runs on every node (should be `DaemonSet`).
 **Enforcement**: judgment (semantic — the workload's actual lifecycle semantics aren't visible in the YAML itself, requires reading the corresponding Go binary + understanding the data-persistence requirements)
+**Trigger**: k8s/**/*.yaml
 **Why**: Wrong workload kind produces silent operational failures: a `Deployment` with a shared PVC corrupts data on replica scale-up; a `Job` deployed as `Deployment` restart-loops because the pod exits 0 and Kubernetes treats it as a crash; a `DaemonSet`-shaped workload deployed as `Deployment` misses every new node added to the cluster. Defaulting to `Deployment` because it's familiar is the most common error. Pick by lifecycle semantics, not by author muscle memory.
 
 ### RULE k8s-manifest/statefulset-pvc-via-volumeclaimtemplates (MUST)
@@ -16,6 +17,7 @@ How to organize Kubernetes YAML manifests in a service repository. Rules only �
 **Owner**: go-architecture-assistant
 **Applies when**: a `StatefulSet` mounts persistent storage via a standalone `PersistentVolumeClaim` + `volumes[].persistentVolumeClaim.claimName`, instead of `spec.volumeClaimTemplates` (which generates one PVC per replica automatically).
 **Enforcement**: judgment (YAML inspection: `kind: StatefulSet` with `spec.template.spec.volumes` containing a `persistentVolumeClaim` — should be in `volumeClaimTemplates` instead)
+**Trigger**: k8s/**/*.yaml
 **Why**: `volumeClaimTemplates` is the StatefulSet primitive for per-replica PVCs. Standalone PVCs are cluster-wide singletons — `mysvc-0`, `mysvc-1`, `mysvc-2` all mount the same volume and corrupt each other's writes. `volumeClaimTemplates` produces `datadir-mysvc-0`, `datadir-mysvc-1`, `datadir-mysvc-2` automatically, each its own PVC bound to one replica. Using the wrong shape works for replicas=1 and fails at scale-up; using the right shape works at any replica count.
 
 ## 0. Choose the workload kind first

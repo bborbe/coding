@@ -9,6 +9,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * PATCH version when you make backwards-compatible bug fixes.
 
 ## Unreleased
+- perf: add standard-mode early exit to Step 4 in both commands — diffs touching no rule-relevant files (no .go/.py, no CHANGELOG/go.mod/LICENSE/README/Makefile/pyproject/k8s/agents/commands/skills/docs) skip the funnel entirely with a report note
 
 - docs: update scenarios/001-004 to funnel v2 architecture (scripts/ast-grep-runner.sh, exit 2, /tmp/findings.json contract, funnel-clean short-circuit, diff-scope assertions); walk 001/003/004 with real output recorded
 - feat: extend `build-index.py` to derive `enforcement_type` (`mechanical`/`script`/`judgment`) and parse optional `**Trigger**:` field into a `trigger` array for every rule entry in `rules/index.json`

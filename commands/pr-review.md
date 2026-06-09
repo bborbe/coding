@@ -109,6 +109,8 @@ The dispatcher runs the full mechanical+script funnel first (diff-scoped), then 
 
 **Short Mode**: No agents — skip to Step 5.
 
+**Early exit (standard mode)**: if NO changed file has extension `.go` or `.py` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `pyproject.toml`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the Step 0c diff stat decides this — no tool calls needed.
+
 #### 4.0: Toolchain preflight (fail-fast)
 
 Before invoking the runner, verify `ast-grep` is available in PATH. The runner script fail-fasts on the same check (exit 2 + JSON error), but doing it here too keeps the failure surface close to the dispatcher so the user sees a single clear error rather than the runner's JSON envelope:

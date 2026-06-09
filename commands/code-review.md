@@ -72,6 +72,8 @@ If Makefile doesn't exist or lacks `precommit` target, skip this step. If `make 
 Mirrors `commands/pr-review.md` Step 4. The funnel runs first (diff-scoped), then adjudication Tasks are spawned only for owners with findings or active judgment rules. **Standard mode**: zero LLM spawns when the funnel is clean and no judgment rules are active. **Full mode**: keeps today's behavior (all relevant owners + conditional agents).
 
 **Short Mode**: No agents — skip to Step 5.
+
+**Early exit (standard mode)**: if NO changed file has extension `.go` or `.py` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `pyproject.toml`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the diff stat decides this — no tool calls needed.
 - BUT: if LICENSE missing AND repo is public, add to "Should Fix":
   - "Missing LICENSE file"
   - "README missing license section" (check with Grep for `## License` in README.md)

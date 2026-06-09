@@ -10,6 +10,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- feat: add `scripts/ast-grep-runner.sh` — deterministic replacement for the `ast-grep-runner` LLM agent; same JSON contract (`stats`/`findings_by_owner`/`errors`), diff-scoping via changed-file args, merges `rule-checks.sh` output.
+- feat: add `scripts/rule-checks.sh` — script-tier (bucket 2) mechanical checks for 11 rules: `go-licensing/license-file-required`, `go-licensing/readme-license-section-required`, `changelog/preamble-frozen`, `git-commit/subject-under-50-chars`, `git-workflow/no-ai-attribution-in-commits`, `go-library/semver-vprefix-tag-required`, `go-tools-versioning/no-tools-go-for-clis`, `go-mod-replace/no-cross-repo-replace`, `python-project-structure/src-layout-required`, `python-project-structure/pyproject-toml-with-hatchling`, `skill-writing/scripts-in-scripts-subdir`.
+- docs: deprecate `agents/ast-grep-runner.md` with pointer to `scripts/ast-grep-runner.sh`; update `**Enforcement**:` lines for 11 rules to cite `scripts/rule-checks.sh`.
 - feat: transcribe 37 judgment-tier rule recipes into mechanical ast-grep YAMLs (`rules/go/` +31, new `rules/python/` +6) — each rule's prose "ast-grep partial/follow-up" recipe is now a real over-inclusive first-pass filter; mechanical coverage 29 → 66 of 139 rules. `go-mod-replace/no-cross-repo-replace` excluded (no go.mod grammar; doc updated to agent-only enforcement).
 - feat: add ast-grep native rule tests — `testConfigs: rule-tests/` in `sgconfig.yml`, 37 test files with ≥2 valid + ≥2 invalid snippets per rule (incl. documented exemption cases); `ast-grep test -c sgconfig.yml` passes 37/37.
 - docs: update 19 docs' `**Enforcement**:` lines to cite the new YAML paths, keeping adjudication guidance and dropping the now-redundant pattern prose.

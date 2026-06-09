@@ -50,7 +50,7 @@ project-name/
 
 **Owner**: python-architecture-assistant
 **Applies when**: a Python project's importable package directory (`<package_name>/__init__.py`) sits at the repo root instead of under `src/`.
-**Enforcement**: judgment (file-layout check: `<repo-root>/<package_name>/__init__.py` exists at root level when `pyproject.toml` declares the package)
+**Enforcement**: `scripts/rule-checks.sh` (finds `<pkg>/__init__.py` at depth-2 from repo root when `pyproject.toml` present; `src/`, `tests/`, `build/` excluded)
 **Why**: Root-layout projects inherit a subtle bug — running tests from the repo root adds `.` to `sys.path`, so `import mypackage` succeeds against the *development* directory regardless of whether the package was actually built and installed. Tests pass locally; the wheel ships broken. `src/` layout forces the package to be installed (or `pip install -e .`-ed) before it's importable — tests then run against the same code consumers will get. Standard build tools (hatchling, setuptools, flit) recognise the layout automatically.
 
 #### Bad
@@ -82,7 +82,7 @@ pyproject.toml
 
 **Owner**: python-architecture-assistant
 **Applies when**: a Python project ships a `setup.py` (legacy distutils/setuptools) or omits `pyproject.toml`, instead of using `pyproject.toml` + hatchling build backend.
-**Enforcement**: judgment (file-layout check: `setup.py` present at repo root, OR `pyproject.toml` missing `[build-system]` with `build-backend = "hatchling.build"`)
+**Enforcement**: `scripts/rule-checks.sh` (flags `setup.py` at repo root, or `pyproject.toml` with `[build-system]` whose `build-backend` is not `hatchling.build`)
 **Why**: `setup.py` is the legacy build entry point — it executes arbitrary code at install time, has no declarative manifest, and ties the project to setuptools forever. PEP 517/518 made `pyproject.toml` the standard *declarative* build manifest; any modern build backend can read it. Hatchling is the recommended PyPA backend: zero plugin configuration for the 95% case, fast, maintained, and doesn't require setuptools as a transitive dependency. Sticking with `setup.py` blocks every modern Python tooling chain (uv, hatch, build, pip-tools-modern).
 
 #### Bad

@@ -27,7 +27,7 @@ gh pr create                      # PR triggers review + CI
 
 **Owner**: agent-auditor
 **Applies when**: a git commit message body or trailer contains "Co-Authored-By: Claude", "Generated with Claude Code", "Co-Authored-By: GitHub Copilot", or any other AI-attribution line.
-**Enforcement**: judgment (commit-message grep at PR-review time; can be a `commit-msg` hook reject)
+**Enforcement**: `scripts/rule-checks.sh` (greps `git log --format=%B HEAD~10..HEAD` for AI-attribution patterns when `.git` present)
 **Why**: AI attribution inflates commit metadata noise, signals tool use rather than authorship, and makes commits look "automated" even when the human did substantive design + review work. The human + commit message together constitute the canonical history. AI is a tool; tools don't get authorship credit any more than the editor or compiler does.
 
 #### Bad

@@ -32,7 +32,7 @@ Public projects in the Benjamin Borbe ecosystem use **BSD-2-Clause** (BSD-style)
 
 **Owner**: license-assistant
 **Applies when**: a Go project published to `github.com/*` (public) does not have a `LICENSE` file in its repo root.
-**Enforcement**: judgment (file-existence check; ast-grep cannot detect file absence)
+**Enforcement**: `scripts/rule-checks.sh` (checks for `LICENSE` file at repo root)
 **Why**: GitHub's repo metadata, package managers (`go.mod` consumers), and downstream Linux distros all key off the root `LICENSE` file. Without it, consumers can't legally redistribute, GitHub's "License" badge stays empty, and `go list -m all` license aggregators report the project as unlicensed. Private/internal repos (`bitbucket.seibert.tools` etc.) are exempt.
 
 #### Bad
@@ -97,7 +97,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 **Owner**: license-assistant
 **Applies when**: a public Go project's `README.md` has no `## License` (H2) section pointing at the root `LICENSE` file.
-**Enforcement**: judgment (markdown section presence; ast-grep doesn't parse markdown structure)
+**Enforcement**: `scripts/rule-checks.sh` (greps `README.md` for `## License` H2 section)
 **Why**: README is the first thing a consumer reads. Without a License section pointing at the LICENSE file, downstream users have to scroll the repo file tree to discover the license — friction that turns into "I'll just use a different library." The section is one line of work and removes a real adoption barrier.
 
 #### Bad

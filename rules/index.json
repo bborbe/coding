@@ -84,7 +84,7 @@
     "anchor": "changelog/preamble-frozen",
     "applies_when": "a CHANGELOG.md edit inserts content above the `# Changelog` title, modifies the SemVer preamble bullets (MAJOR/MINOR/PATCH), or places a `## Unreleased` / `## vX.Y.Z` section inside (rather than after) the preamble block.",
     "doc_path": "docs/changelog-guide.md",
-    "enforcement": "judgment (markdown-structure inspection: every CHANGELOG.md must have the canonical preamble first, then sections in `## Unreleased` → `## vX.Y.Z` order)",
+    "enforcement": "`scripts/rule-checks.sh` (checks `# Changelog` is first content; flags any `## Unreleased`/`## vX.Y.Z` before the preamble block)",
     "id": "changelog/preamble-frozen",
     "level": "MUST",
     "owner": "agent-auditor"
@@ -120,7 +120,7 @@
     "anchor": "git-commit/subject-under-50-chars",
     "applies_when": "a git commit subject line exceeds 50 characters. Body lines may be longer (wrap at 72 per the broader convention) but the subject is the single line that has to fit GitHub's PR list view, `git log --oneline`, and 80-column terminals without wrapping.",
     "doc_path": "docs/git-commit-guide.md",
-    "enforcement": "judgment (PR/commit-message check; `git log --format=%s | awk '{ if (length($0) > 50) print length($0)\" chars: \"$0 }'` surfaces violators)",
+    "enforcement": "`scripts/rule-checks.sh` (`git log --format=%s HEAD~10..HEAD | awk` over recent commits when `.git` present)",
     "id": "git-commit/subject-under-50-chars",
     "level": "SHOULD",
     "owner": "agent-auditor"
@@ -138,7 +138,7 @@
     "anchor": "git-workflow/no-ai-attribution-in-commits",
     "applies_when": "a git commit message body or trailer contains \"Co-Authored-By: Claude\", \"Generated with Claude Code\", \"Co-Authored-By: GitHub Copilot\", or any other AI-attribution line.",
     "doc_path": "docs/git-workflow.md",
-    "enforcement": "judgment (commit-message grep at PR-review time; can be a `commit-msg` hook reject)",
+    "enforcement": "`scripts/rule-checks.sh` (greps `git log --format=%B HEAD~10..HEAD` for AI-attribution patterns when `.git` present)",
     "id": "git-workflow/no-ai-attribution-in-commits",
     "level": "MUST",
     "owner": "agent-auditor"
@@ -624,7 +624,7 @@
     "anchor": "go-library/semver-vprefix-tag-required",
     "applies_when": "a public Go library repo cuts a release without a `git tag` matching `v<MAJOR>.<MINOR>.<PATCH>` (e.g. `v1.0.0`, `v0.12.3`) — either tagless commits, date-based tags (`2026-06-03`), or non-prefixed semver (`1.0.0` without the leading `v`).",
     "doc_path": "docs/go-library-guide.md",
-    "enforcement": "judgment (git-tag inspection: `git tag --list` filtered against `^v[0-9]+\\.[0-9]+\\.[0-9]+$`)",
+    "enforcement": "`scripts/rule-checks.sh` (`git tag --list` filtered against `^v[0-9]+\\.[0-9]+\\.[0-9]+$` when `.git` present)",
     "id": "go-library/semver-vprefix-tag-required",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -642,7 +642,7 @@
     "anchor": "go-licensing/license-file-required",
     "applies_when": "a Go project published to `github.com/*` (public) does not have a `LICENSE` file in its repo root.",
     "doc_path": "docs/go-licensing-guide.md",
-    "enforcement": "judgment (file-existence check; ast-grep cannot detect file absence)",
+    "enforcement": "`scripts/rule-checks.sh` (checks for `LICENSE` file at repo root)",
     "id": "go-licensing/license-file-required",
     "level": "MUST",
     "owner": "license-assistant"
@@ -651,7 +651,7 @@
     "anchor": "go-licensing/readme-license-section-required",
     "applies_when": "a public Go project's `README.md` has no `## License` (H2) section pointing at the root `LICENSE` file.",
     "doc_path": "docs/go-licensing-guide.md",
-    "enforcement": "judgment (markdown section presence; ast-grep doesn't parse markdown structure)",
+    "enforcement": "`scripts/rule-checks.sh` (greps `README.md` for `## License` H2 section)",
     "id": "go-licensing/readme-license-section-required",
     "level": "MUST",
     "owner": "license-assistant"
@@ -777,7 +777,7 @@
     "anchor": "go-mod-replace/no-cross-repo-replace",
     "applies_when": "a Go project's `go.mod` contains a `replace` directive whose right-hand side path points outside the current repo's working tree — relative paths that escape the repo root (`../../other-repo/lib`), absolute filesystem paths (`/Users/<name>/work/...`), or any other off-repo location.",
     "doc_path": "docs/go-mod-replace-guide.md",
-    "enforcement": "judgment (ast-grep has no `go.mod` grammar — this rule is enforced by agent inspection only. The agent looks for `replace` directives whose right-hand side is an absolute path or a `../` relative path that escapes the repo root. Same-repo replaces like `replace github.com/acme/monorepo/libs/shared => ../../libs/shared` are fine.)",
+    "enforcement": "`scripts/rule-checks.sh` (greps `go.mod` for `replace` directives with absolute paths or `../` paths that resolve outside the repo root; same-repo relative replaces are exempt)",
     "id": "go-mod-replace/no-cross-repo-replace",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -1038,7 +1038,7 @@
     "anchor": "go-tools-versioning/no-tools-go-for-clis",
     "applies_when": "a Go project has a `tools.go` file with `//go:build tools` that imports CLI tools (`_ \"github.com/golangci/golangci-lint/v2/cmd/golangci-lint\"`, `_ \"github.com/google/osv-scanner/v2/cmd/osv-scanner\"`, etc.) — instead of declaring CLI versions in a separate `tools.env` consumed by the Makefile via `go run pkg@$(VERSION)`.",
     "doc_path": "docs/go-tools-versioning-guide.md",
-    "enforcement": "judgment (file-presence check: `tools.go` with `//go:build tools` header + CLI tool imports)",
+    "enforcement": "`scripts/rule-checks.sh` (finds `tools.go` with `//go:build tools` + known CLI tool imports via grep)",
     "id": "go-tools-versioning/no-tools-go-for-clis",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -1164,7 +1164,7 @@
     "anchor": "python-project-structure/pyproject-toml-with-hatchling",
     "applies_when": "a Python project ships a `setup.py` (legacy distutils/setuptools) or omits `pyproject.toml`, instead of using `pyproject.toml` + hatchling build backend.",
     "doc_path": "docs/python-project-structure.md",
-    "enforcement": "judgment (file-layout check: `setup.py` present at repo root, OR `pyproject.toml` missing `[build-system]` with `build-backend = \"hatchling.build\"`)",
+    "enforcement": "`scripts/rule-checks.sh` (flags `setup.py` at repo root, or `pyproject.toml` with `[build-system]` whose `build-backend` is not `hatchling.build`)",
     "id": "python-project-structure/pyproject-toml-with-hatchling",
     "level": "MUST",
     "owner": "python-architecture-assistant"
@@ -1173,7 +1173,7 @@
     "anchor": "python-project-structure/src-layout-required",
     "applies_when": "a Python project's importable package directory (`<package_name>/__init__.py`) sits at the repo root instead of under `src/`.",
     "doc_path": "docs/python-project-structure.md",
-    "enforcement": "judgment (file-layout check: `<repo-root>/<package_name>/__init__.py` exists at root level when `pyproject.toml` declares the package)",
+    "enforcement": "`scripts/rule-checks.sh` (finds `<pkg>/__init__.py` at depth-2 from repo root when `pyproject.toml` present; `src/`, `tests/`, `build/` excluded)",
     "id": "python-project-structure/src-layout-required",
     "level": "MUST",
     "owner": "python-architecture-assistant"
@@ -1209,7 +1209,7 @@
     "anchor": "skill-writing/scripts-in-scripts-subdir",
     "applies_when": "a Claude Code skill places executable scripts (`*.sh`, `*.py`) directly alongside `SKILL.md` instead of in a `scripts/` subdirectory.",
     "doc_path": "docs/claude-code-skill-writing-guide.md",
-    "enforcement": "judgment (file-layout check on `skills/<name>/` — only `SKILL.md` at top-level; scripts under `scripts/`)",
+    "enforcement": "`scripts/rule-checks.sh` (finds `*.sh`/`*.py` directly inside `skills/<name>/` at depth-1)",
     "id": "skill-writing/scripts-in-scripts-subdir",
     "level": "MUST",
     "owner": "skill-auditor"

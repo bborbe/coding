@@ -8,7 +8,7 @@ How to write Claude Code skills — self-contained capabilities that auto-activa
 
 **Owner**: skill-auditor
 **Applies when**: a Claude Code skill places executable scripts (`*.sh`, `*.py`) directly alongside `SKILL.md` instead of in a `scripts/` subdirectory.
-**Enforcement**: judgment (file-layout check on `skills/<name>/` — only `SKILL.md` at top-level; scripts under `scripts/`)
+**Enforcement**: `scripts/rule-checks.sh` (finds `*.sh`/`*.py` directly inside `skills/<name>/` at depth-1)
 **Why**: The `scripts/` subdirectory keeps `SKILL.md` discoverable at a glance (one file at top level), groups all executables under a single permission-allowed glob pattern (`Bash(scripts/*.sh)`), and matches the convention every existing bborbe skill follows. Loose-next-to-SKILL.md scripts produce ambiguity ("is this part of the skill or a stray script?") and require enumerating individual files in the skill's `allowed-tools`.
 
 ### RULE skill-writing/skill-md-frontmatter-required (MUST)

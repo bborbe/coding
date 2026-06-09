@@ -8,7 +8,7 @@ When to use `replace` in `go.mod`, and when not to.
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go project's `go.mod` contains a `replace` directive whose right-hand side path points outside the current repo's working tree — relative paths that escape the repo root (`../../other-repo/lib`), absolute filesystem paths (`/Users/<name>/work/...`), or any other off-repo location.
-**Enforcement**: judgment (ast-grep has no `go.mod` grammar — this rule is enforced by agent inspection only. The agent looks for `replace` directives whose right-hand side is an absolute path or a `../` relative path that escapes the repo root. Same-repo replaces like `replace github.com/acme/monorepo/libs/shared => ../../libs/shared` are fine.)
+**Enforcement**: `scripts/rule-checks.sh` (greps `go.mod` for `replace` directives with absolute paths or `../` paths that resolve outside the repo root; same-repo relative replaces are exempt)
 **Why**: An off-repo replace points to a path that exists only on the author's machine. Anyone else cloning the repo gets a broken build; CI can't resolve it; the module graph becomes non-reproducible. Worse, it hides the fact that consumers of your module require an unreleased change — the dependency looks fine locally but breaks the moment someone else pulls it. Within a monorepo, relative-path replaces ARE correct (every clone has the sibling module at the same path) — that's the same-repo exception. The rule fires only on the cross-repo escape.
 
 #### Bad

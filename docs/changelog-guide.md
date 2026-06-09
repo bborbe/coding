@@ -39,7 +39,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 **Owner**: agent-auditor
 **Applies when**: a CHANGELOG.md edit inserts content above the `# Changelog` title, modifies the SemVer preamble bullets (MAJOR/MINOR/PATCH), or places a `## Unreleased` / `## vX.Y.Z` section inside (rather than after) the preamble block.
-**Enforcement**: judgment (markdown-structure inspection: every CHANGELOG.md must have the canonical preamble first, then sections in `## Unreleased` → `## vX.Y.Z` order)
+**Enforcement**: `scripts/rule-checks.sh` (checks `# Changelog` is first content; flags any `## Unreleased`/`## vX.Y.Z` before the preamble block)
 **Why**: The preamble is the API contract between the changelog and every tool that parses it (dark-factory's version-bump detector, /coding:commit's CHANGELOG validator, downstream release-notes generators). Moving / deleting / shifting it breaks the parsers silently — the next release attempt either bumps the wrong version or misses entries entirely. Restoring is cheap; preventing the edit is cheaper.
 
 #### Bad

@@ -33,7 +33,7 @@ update README with installation steps
 
 **Owner**: agent-auditor
 **Applies when**: a git commit subject line exceeds 50 characters. Body lines may be longer (wrap at 72 per the broader convention) but the subject is the single line that has to fit GitHub's PR list view, `git log --oneline`, and 80-column terminals without wrapping.
-**Enforcement**: judgment (PR/commit-message check; `git log --format=%s | awk '{ if (length($0) > 50) print length($0)" chars: "$0 }'` surfaces violators)
+**Enforcement**: `scripts/rule-checks.sh` (`git log --format=%s HEAD~10..HEAD | awk` over recent commits when `.git` present)
 **Why**: GitHub truncates PR subject lines around 70 characters; terminals at 80 columns wrap awkwardly around 60+ char subjects after the SHA prefix; `git log --oneline` becomes hard to scan when every line wraps to 2-3 rows. The 50-char convention is a soft cap with operational payoff: every history-reading surface stays one line per commit.
 
 #### Bad

@@ -24,6 +24,20 @@ For Bitbucket PRs, use `/bitbucket-pr-review <url>` instead.
 - `REPO_DIR` = current directory
 - `SOURCE_BRANCH` = current branch
 
+#### 0a-pre: Short-circuit — skip worktree creation if already at PR head
+
+After parsing arguments, before fetching, run exactly this one check:
+
+```bash
+git fetch origin <SOURCE_BRANCH> && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/<SOURCE_BRANCH>)" ] && [ -z "$(git status --porcelain)" ] && echo "ALREADY_AT_HEAD"
+```
+
+If this prints `ALREADY_AT_HEAD`: set `REVIEW_DIR` = current directory, skip steps 0b and 0d (no worktree to create or remove), and proceed directly to 0c (generate diff). Do not run any further git exploration (worktree list, show-ref, rev-parse variants) — this check is authoritative.
+
+Rationale: in the agent pod the cwd is already a worktree at PR HEAD; the unconditional worktree dance costs ~18 extra tool calls per review.
+
+If the output does not contain `ALREADY_AT_HEAD`, fall through to 0b as normal.
+
 #### 0b: Fetch and create worktree
 
 IMPORTANT: Never use `git -C` — breaks auto-approval.
@@ -78,9 +92,11 @@ Detect project type in `REVIEW_DIR`:
 
 **3a. Check for LICENSE file** in `REVIEW_DIR` root.
 
-**3b. Run make precommit (if available)**
+**3b. Run make precommit (Full mode only)**
 
-Check if `REVIEW_DIR/Makefile` exists and has `precommit` target. If yes:
+Running the full test suite is CI's job; the review needs the result, not a re-run. In **Standard** and **Short** mode, skip this step entirely and include in the Step 5 report: "precommit skipped (standard mode) — CI covers lint+test".
+
+**Full mode only**: Check if `REVIEW_DIR/Makefile` exists and has `precommit` target. If yes:
 ```
 coding:simple-bash-runner agent: "cd <REVIEW_DIR> && make precommit"
 ```
@@ -102,7 +118,7 @@ cd <REVIEW_DIR> && (command -v ast-grep >/dev/null 2>&1 || command -v sg >/dev/n
   || { echo "ERROR: ast-grep/sg not in PATH. Install via 'npm install -g @ast-grep/cli' (or 'apk add ast-grep' in alpine). pr-reviewer container fix: bborbe/maintainer agent/pr-reviewer/Dockerfile commit 1de083f." >&2; exit 1; }
 ```
 
-If preflight fails, report the toolchain gap in Step 5 (Must Fix) and skip Step 4 entirely — a review without the mechanical funnel would silently miss every MUST-tier YAML finding.
+Run exactly this one command, once. If it fails: report the toolchain gap in Step 5 (Must Fix) and skip Step 4 entirely. Do NOT investigate further (no `which`, no `ls rules/`, no retry variants). A review without the mechanical funnel would silently miss every MUST-tier YAML finding.
 
 #### 4a: Mechanical funnel
 
@@ -134,7 +150,7 @@ Only review changed files from the diff. Exclude vendor/ and node_modules/."
 
 Run these per-owner dispatches **concurrently** — they're independent.
 
-**Timing instrumentation**: record the wall-time of each per-Owner dispatch as a structured event. Recommended shape — one log line per Owner before and after the agent runs:
+**Timing instrumentation**: **Only when `REVIEW_TIMING=1` is set in the environment** — otherwise skip this instrumentation entirely. Record the wall-time of each per-Owner dispatch as a structured event. Recommended shape — one log line per Owner before and after the agent runs:
 
 ```bash
 ts_start=$(date +%s%3N)

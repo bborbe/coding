@@ -152,7 +152,7 @@ jq -r --arg files "$CHANGED_FILES" '
           (. == $pat) or
           (($pat | startswith("@")) and $pat == "@commits") or
           (($pat | contains("*")) and
-            (. | test($pat | gsub("\\*\\*"; ".*") | gsub("\\*"; "[^/]*") | gsub("\\?"; ".")))
+            (. | test("^" + ($pat | gsub("\\."; "\\.") | gsub("\\*\\*/"; "°") | gsub("\\*\\*"; "±") | gsub("\\*"; "[^/]*") | gsub("\\?"; "[^/]") | gsub("°"; "(.*/)?") | gsub("±"; ".*")) + "$"))
           )
         )
       ))

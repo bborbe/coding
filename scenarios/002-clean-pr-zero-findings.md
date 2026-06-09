@@ -6,6 +6,8 @@ status: active
 
 Validates that a diff with no mechanical-rule violations flows through `/coding:code-review master standard` (Step 4.0 → 4a → 4b → 4c → 4d → 5) and produces a report with empty Must Fix / Should Fix / Nice to Have sections — locking down the regression risk that the LLM tier hallucinates findings to fill the void when the mechanical layer surfaces none.
 
+Updated for funnel v2 (PR #48): runner output now lands in `/tmp/code-review-findings.json` (not an awk-extracted stdout block); zero LLM spawns are signalled by the dispatcher logging "funnel clean — no adjudication needed" when `findings_by_owner` is empty and no judgment rules are triggered by the README-only diff.
+
 ## Setup
 
 - [ ] Clone master at the current HEAD: `WORK=$(mktemp -d) && cd "$WORK" && git clone --depth=1 --branch master git@github.com:bborbe/coding.git . && git checkout -b clean-pr-fixture`
@@ -20,7 +22,10 @@ Validates that a diff with no mechanical-rule violations flows through `/coding:
 ## Expected
 
 - [ ] `cat /tmp/code-review-exit` prints `0`
-- [ ] Runner block in stdout has `findings_count: 0`: extract the JSON block via `awk '/^{$/,/^}$/' /tmp/code-review-stdout.log > /tmp/code-review-runner.json && jq '.stats.findings_count' /tmp/code-review-runner.json` returns `0`
+- [ ] Runner output lands in `/tmp/code-review-findings.json`; assert: `jq '.stats.findings_count' /tmp/code-review-findings.json` returns `0`
+- [ ] `jq '.findings_by_owner' /tmp/code-review-findings.json` returns `{}` — mechanical funnel found nothing
+- [ ] Dispatcher stdout contains the literal string `funnel clean — no adjudication needed` (Step 4b-ii short-circuit when `owners_to_spawn` is empty)
+- [ ] Zero Task/agent spawns occurred in standard mode for this README-only diff. To verify from a stream-json transcript: inspect the session's tool_use events for any `subagent_type` matching `coding:*-assistant` — there must be none. Concretely: `grep '"subagent_type"' /tmp/code-review-stdout.log` should return no lines, OR the stream-json file for the session should have no `tool_use` blocks whose `subagent_type` field starts with `coding:`.
 - [ ] Report includes a `Must Fix (Critical)` section whose body line is exactly `None.` — verified via: `awk '/^#### Must Fix/{flag=1; next} /^#### /{flag=0} flag && NF' /tmp/code-review-stdout.log` prints exactly `None.`
 - [ ] Report includes a `Should Fix (Important)` section whose body line is exactly `None.` (same `awk` shape)
 - [ ] Report includes a `Nice to Have (Optional)` section whose body line is exactly `None.` (same `awk` shape)
@@ -30,3 +35,7 @@ Validates that a diff with no mechanical-rule violations flows through `/coding:
 ## Cleanup
 
 - `rm -rf "$WORK" /tmp/code-review-*`
+
+---
+
+**Status**: updated for funnel v2 (PR #48), not yet walked. Requires a live Claude Code session; mark as walked once a session produces the stream-json transcript. Key new assertions vs v1: (1) findings path is `/tmp/code-review-findings.json` not an awk-extracted stdout block; (2) "funnel clean — no adjudication needed" message asserted; (3) zero `coding:*-assistant` subagent spawns verified from transcript.

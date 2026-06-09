@@ -10,6 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- docs: update scenarios/001-004 to funnel v2 architecture (scripts/ast-grep-runner.sh, exit 2, /tmp/findings.json contract, funnel-clean short-circuit, diff-scope assertions); walk 001/003/004 with real output recorded
 - feat: extend `build-index.py` to derive `enforcement_type` (`mechanical`/`script`/`judgment`) and parse optional `**Trigger**:` field into a `trigger` array for every rule entry in `rules/index.json`
 - feat: backfill `**Trigger**:` field for all 62 judgment-tier rules across 30 doc files — enables diff-scoped dispatcher to skip owners whose triggers don't match changed files
 - feat: rewrite Step 4 in `commands/pr-review.md` and `commands/code-review.md` — standard mode now computes active judgment-rule set via jq glob-matching and spawns only owners present in `findings_by_owner ∪ active-judgment-rule-owners`; zero LLM spawns when funnel is clean and no judgment rules are active; full mode unchanged

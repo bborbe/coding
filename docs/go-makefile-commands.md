@@ -27,6 +27,7 @@ make precommit
 **Owner**: go-quality-assistant
 **Applies when**: a Go project's CI script, contributor onboarding doc, or commit message references `go build ./...` as the verification step for "this change compiles and is safe to merge", instead of `make test` (which wraps Ginkgo + race detection + coverage thresholds).
 **Enforcement**: judgment (semantic — distinguishing "this is the canonical verification step" from "this is one of several build sanity checks" requires reading the context. `go build ./...` is fine as one signal; it's wrong as THE signal)
+**Trigger**: Makefile
 **Why**: `go build ./...` compiles every package but doesn't run any tests. A change that breaks a Ginkgo spec, introduces a race condition, drops coverage below the threshold, or violates an `errcheck` assertion all pass `go build ./...` cleanly and still ship the bug. `make test` wraps:
 - Ginkgo v2 test runner with `-race` enabled (catches concurrent-write panics)
 - Coverage threshold enforcement (prevents silent untested-code-path drift)

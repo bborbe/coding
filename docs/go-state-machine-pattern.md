@@ -137,6 +137,7 @@ func runShippingPhase(ctx context.Context) (*Result, error) {
 **Owner**: go-architecture-assistant
 **Applies when**: a Go workflow / FSM controller persists a single field that conflates "where in the workflow" with "how the last invocation ended" — e.g. a `state` enum mixing `validating`/`charging`/`done`/`failed` together, or marking a task `completed` while `NextPhase` is still non-terminal.
 **Enforcement**: judgment (semantic — requires reading the controller's persist logic)
+**Trigger**: **/*.go
 **Why**: Status and phase are independent dimensions. Phase = WHERE; Status = HOW the last run ended. Collapsing them into one field produces the textbook workflow stall: the controller marks the task `completed` after the first phase, stops spawning, and the workflow halts with no error and no signal. The two-field shape makes the controller's transition logic explicit and the persisted state legible: a paused human-review task reads as `(phase=human_review, status=in_progress)` rather than the ambiguous `state=human_review` (does that mean blocked? completed? failed?).
 
 #### Bad
@@ -265,6 +266,7 @@ Typical controller loop:
 **Owner**: go-architecture-assistant
 **Applies when**: a Go FSM worker emits `NextPhase` referring to an earlier phase in the workflow's declared order, without an explicit circuit-breaker `attempt` counter and a controller-side cap.
 **Enforcement**: judgment (semantic — requires reading both the worker's NextPhase-emission logic and the controller's persist logic)
+**Trigger**: **/*.go
 **Why**: Backward edges are how long-running agents accidentally burn unbounded budgets. A re-planning loop that emits `NextPhase=draft` from `review` looks reasonable in isolation; in production it spins for hours until someone notices. Forward-only-by-default makes the rare backward edge the conspicuous choice — when it's needed (re-planning, retries, operator-driven requeues), the worker explicitly tracks an `attempts` counter and the controller fails the workflow when it exceeds the cap. Four legitimate patterns: interventional reset (operator flips state), phase unrolling (bounded loop linearised into distinct phases), sub-phase loops (iteration in-memory inside one worker), controlled loop with circuit breaker (worker emits backward + attempts counter).
 
 #### Bad

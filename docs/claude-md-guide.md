@@ -7,6 +7,7 @@ Guide for writing CLAUDE.md files. CLAUDE.md is operational context for AI agent
 **Owner**: agent-auditor
 **Applies when**: a project's CLAUDE.md duplicates README.md user-facing content (install instructions, feature marketing, usage tutorials) instead of serving as terse agent-operational context (build commands, architecture map, constraints).
 **Enforcement**: judgment (semantic — distinguishing "agent needs this to change the code" from "user needs this to use it" requires reading the content)
+**Trigger**: CLAUDE.md
 **Why**: CLAUDE.md exists to make AI agents safe + productive in the codebase. Duplicating README content bloats the agent's per-turn context, costs tokens, drowns the actually-load-bearing rules (build commands, ban lists, version-alignment requirements) in marketing copy. Tone signals the audience: README is welcoming and explanatory; CLAUDE.md is terse and imperative. Agents that read CLAUDE.md expect "do this, never that"; users expect "here's what this project does."
 
 ## CLAUDE.md vs README.md

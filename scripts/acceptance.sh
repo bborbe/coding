@@ -47,12 +47,19 @@ else
   fail "short mode skip directive missing from pr-review.md or code-review.md"
 fi
 
-# Standard mode invokes the ast-grep-runner agent (Step 4a is mandatory for the dispatcher).
-if grep -qE "coding:ast-grep-runner" commands/code-review.md && \
-   grep -qE "coding:ast-grep-runner" commands/pr-review.md; then
-  ok "standard mode invokes coding:ast-grep-runner in both dispatcher commands"
+# Standard mode invokes the deterministic runner script (Step 4a is mandatory for
+# the dispatcher). The former coding:ast-grep-runner agent is deprecated and must
+# NOT be invoked by either command.
+if grep -qE "scripts/ast-grep-runner\.sh" commands/code-review.md && \
+   grep -qE "scripts/ast-grep-runner\.sh" commands/pr-review.md; then
+  ok "standard mode invokes scripts/ast-grep-runner.sh in both dispatcher commands"
 else
-  fail "coding:ast-grep-runner not referenced in pr-review.md or code-review.md"
+  fail "scripts/ast-grep-runner.sh not referenced in pr-review.md or code-review.md"
+fi
+if grep -qE '^coding:ast-grep-runner agent' commands/code-review.md commands/pr-review.md; then
+  fail "deprecated coding:ast-grep-runner agent still invoked in a dispatcher command"
+else
+  ok "deprecated coding:ast-grep-runner agent not invoked by either command"
 fi
 
 # Full mode lists at least 4 conditional / legacy-path agents that haven't migrated

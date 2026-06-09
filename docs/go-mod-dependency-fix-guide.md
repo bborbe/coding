@@ -123,6 +123,7 @@ go mod tidy
 **Owner**: go-quality-assistant
 **Applies when**: a Go project's CHANGELOG / git history shows a `go get -u <pkg>` or `go get <pkg>@<version>` operation that was committed without a subsequent `go mod tidy` (`go.sum` shows added entries but no removed-but-no-longer-needed entries; or `go.mod` has new `require` lines but `go.sum` has unused hashes).
 **Enforcement**: judgment (semantic — typically caught at PR review: the commit message says "update X" but the diff doesn't have the `go mod tidy` side effects)
+**Trigger**: go.mod, go.sum
 **Why**: `go get -u` and `go get @version` update individual modules but leave the dependency graph inconsistent — transitively required modules at older incompatible versions stay pinned, transitively-no-longer-needed modules linger in `go.sum`. The next contributor's `go build` fails with cryptic version-conflict errors. `go mod tidy` recalculates Minimum Version Selection (MVS) for the entire graph after every dep change — it's the canonical "leave the graph clean" step. Skipping it is the #1 cause of the broken-build-after-merge problem.
 
 #### Bad
@@ -150,6 +151,7 @@ git commit -m "update some/lib"
 **Owner**: go-quality-assistant
 **Applies when**: a Go project pins around a known-broken upstream transitive version by adding a `replace` directive that points at a different repo (forked code, pseudo-version on a different module path) instead of an `exclude` directive that lets MVS pick the next valid version.
 **Enforcement**: judgment (semantic — `replace` for known-broken-version-skip and `replace` for cross-repo-pinning look identical in `go.mod`; the intent is the differentiator)
+**Trigger**: go.mod
 **Why**: `exclude` is the right primitive for "this specific version is broken; let MVS choose another." It says "skip version v0.4.6-..., pick the next valid one." `replace` is the right primitive for "redirect this module to a different source location" — fine for same-repo monorepo paths (see `go-mod-replace/no-cross-repo-replace`), wrong for "pin to an upstream fix that exists on main but isn't tagged." A `replace` to upstream-main hides the fact that the project requires an unreleased commit; an `exclude` of the broken version makes the skip explicit and lets the next valid upstream tag resolve normally.
 
 #### Bad

@@ -7,6 +7,7 @@
 **Owner**: agent-auditor
 **Applies when**: a git commit lands directly on `master` / `main` without going through a feature branch + PR — typically caught by `pre-push` hook rejecting cross-name pushes to the default branch, or by GitHub's `master-protection` ruleset.
 **Enforcement**: judgment + tooling (`~/.git-hooks/pre-push` rejects feature-branch-to-master pushes; GitHub ruleset enforces required PR). Release commits (`release vX.Y.Z`) are the documented exception.
+**Trigger**: @commits
 **Why**: Direct-to-master commits skip review, skip CI, skip the audit trail. The 14-commits-on-origin-master trap (PR #1) happened this way: `git worktree add -b feat/foo origin/master` left upstream pointing at master so `git push` shipped to the wrong place. Hook + ruleset catch it before it happens.
 
 #### Bad

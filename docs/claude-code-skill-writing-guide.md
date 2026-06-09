@@ -16,6 +16,7 @@ How to write Claude Code skills — self-contained capabilities that auto-activa
 **Owner**: skill-auditor
 **Applies when**: a `skills/<name>/SKILL.md` file is missing the required frontmatter fields — `name:` (must match the directory name) and `description:` (Claude's discovery signal).
 **Enforcement**: judgment (YAML-frontmatter inspection: presence of `name` + `description` at the top of every SKILL.md)
+**Trigger**: skills/**/*.md
 **Why**: `description:` is the trigger phrase Claude pattern-matches against conversation context to auto-activate the skill. Without it, the skill is invisible to autonomous discovery — users must type the full `/plugin:skill-name` slash command every time. `name:` is the dispatch key the runtime resolves; mismatch with the directory name produces 404s on invocation. Both fields are cheap to add and break the skill loudly if absent.
 
 ## Structure

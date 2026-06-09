@@ -32,6 +32,20 @@ Immediately beneath the heading, three fields must appear, each on its own line:
 - **Applies when**: Describes the condition under which the rule fires.
 - **Enforcement**: Describes how the rule is enforced — typically a path to an ast-grep rules file plus any LLM-adjudication notes.
 
+### Optional Field: `Trigger`
+
+Judgment-tier rules carry a `**Trigger**:` field immediately after `**Enforcement**:`. The walker indexes it as a `trigger` array in `rules/index.json`. The dispatcher uses it to scope which owner agents are spawned for a given diff.
+
+```markdown
+**Trigger**: <comma-separated glob patterns>
+```
+
+- Each value is a glob pattern matched against changed file paths from the diff. Examples: `**/*.go`, `k8s/**/*.yaml`, `CHANGELOG.md`.
+- Special value `@commits` means "always active when reviewing commits" — dispatchers treat it as always-match for PR review.
+- Multiple patterns separated by commas: `**/*.go, go.mod`.
+- Missing `Trigger` field → `trigger` key omitted from the index entry (no scoping applied).
+- All judgment-tier rules MUST have a `Trigger` field. Mechanical and script rules omit it (they are always run by the funnel unconditionally).
+
 ### Recommended Field: `Why`
 
 Most rule blocks in this repo carry a `**Why**:` paragraph immediately after `**Enforcement**:`. The `Why` is not indexed (the walker ignores it) but is highly recommended as the *only* place the rule's rationale lives — it tells future authors, agents, and bot reviewers *what failure mode this rule prevents*, which is what makes the rule defensible during code review.
@@ -88,6 +102,8 @@ The index is a JSON array of rule entries. Top-level key is an array; entries ar
 | `owner` | string | **Owner**: field | The `coding:`-prefixed agent name |
 | `applies_when` | string | **Applies when**: field | Copied verbatim |
 | `enforcement` | string | **Enforcement**: field | Copied verbatim |
+| `enforcement_type` | string | Derived from `enforcement` | `mechanical` (cites `rules/<lang>/<slug>.yml`), `script` (cites `scripts/rule-checks.sh`), or `judgment` (neither) |
+| `trigger` | array of strings | Optional **Trigger**: field | Glob patterns; present only when the doc block includes a `**Trigger**:` line. `@commits` is a special value meaning "always active for PR commit review". Missing = no dispatcher-level scoping (owner runs whenever invoked). |
 
 JSON object keys are alphabetically sorted in output.
 

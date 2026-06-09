@@ -155,6 +155,7 @@ Keep it simple - the full text is in the LICENSE file.
 **Owner**: license-assistant
 **Applies when**: a public Go project has `*.go` files outside `vendor/` without the 3-line BSD-2-Clause header block at the top.
 **Enforcement**: `addlicense -check` invocation via `make precommit` (the canonical tool; ast-grep can detect missing headers via first-line regex, but `addlicense` is already wired through the toolchain).
+**Trigger**: **/*.go
 **Why**: License headers per source file are a redistribution requirement under the BSD-2-Clause terms. The 3-line header makes every file self-describing for legal review and prevents the "this file was copied into my project without provenance" failure mode that bites at audit time. `addlicense` automates the maintenance — `make precommit` should never let a public project commit a Go file without the header.
 
 #### Bad
@@ -239,6 +240,7 @@ go run -mod=mod github.com/google/addlicense \
 **Owner**: license-assistant
 **Applies when**: a PR diff modifies copyright years in `*.go` source-file headers — either bulk-updating across many files or setting future / non-numeric years (`2099`, `present`, etc.).
 **Enforcement**: judgment (diff inspection — ast-grep can detect `Copyright (c) 2099` shapes but the "bulk-update for trivial changes" trigger needs PR-scope reasoning)
+**Trigger**: **/*.go
 **Why**: Copyright years record when copyright was *established* on a file, not when the file was last touched. Bulk year-updates obscure the original publication date (legally meaningful for derivative-work claims) and produce noisy diffs that bury the real change. Future / non-numeric years break OSS license aggregators and look unprofessional to downstream auditors.
 
 ### What NOT to Do

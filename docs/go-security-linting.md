@@ -123,6 +123,7 @@ data, err := os.ReadFile(trustedPath)
 **Owner**: go-security-specialist
 **Applies when**: an `os.Chmod($PATH, $PERM)` call in a `*.go` file outside `*_test.go` and `vendor/` whose return value is discarded (no `if err := os.Chmod(...); err != nil` wrapper, no `_ = os.Chmod(...)` with an explanatory comment). Detecting "return value used in error check" requires reading the surrounding statement — pure ast-grep cannot reliably distinguish a checked `os.Chmod(...)` from an unchecked one without false positives.
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: silent `os.Chmod` failures leave file permissions in an unexpected state. The convention is either `if err := os.Chmod(...); err != nil { return ... }` or explicit `_ = os.Chmod(...)` with a comment explaining why the error is ignored.
 
 #### Bad

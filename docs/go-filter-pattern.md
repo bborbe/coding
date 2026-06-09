@@ -16,6 +16,7 @@ Filters are predicates that determine whether data should be included or exclude
 **Owner**: go-architecture-assistant
 **Applies when**: a Go filter / predicate interface uses ambiguous method names like `Match(item)` / `Check(item)` / `Apply(item)` without doc-comment clarifying whether `true` means "include" or "exclude" — OR uses contradictory naming (`Filtered` returning true for "passes the filter" instead of "filtered out").
 **Enforcement**: judgment (interface declaration check: method-name + doc-comment alignment for predicate methods returning bool)
+**Trigger**: **/*.go
 **Why**: Filter semantics inversion is the textbook off-by-true bug — every consumer either gets all the records (filter inverted, treated as pass-through) or zero records (filter inverted, everything excluded). The `Filtered()` convention used in bborbe Go code returns true for "exclude" (the item HAS been filtered out); other codebases use the opposite. Pick one, document it in the interface comment, stick to it everywhere — and never let a new filter type use the opposite semantic in the same codebase.
 
 ## Core Filter Interface

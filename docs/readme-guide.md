@@ -16,6 +16,7 @@ Guide for writing README.md files. README.md is for humans browsing GitHub — i
 **Owner**: agent-auditor
 **Applies when**: a project's README.md includes agent-operational content (build commands, architecture internals, ban lists, version-alignment requirements, structured constraints) instead of user-facing content (description, install, quick-start, usage).
 **Enforcement**: judgment (semantic — distinguishing "user needs this to use it" from "agent needs this to change it" requires reading the content; symptom: README has sections labelled "Constraints" / "Hard Rules" / "Architecture")
+**Trigger**: README.md
 **Why**: README is the user's first impression of the project (rendered on the GitHub repo home page, on pkg.go.dev, in package manager listings). Agent-operational content drowns the install steps in noise and signals "this project is hard to use" to potential adopters. Move agent context to `CLAUDE.md`; keep README focused on "can a new user get this running in 5 minutes?". The README and CLAUDE.md serve different audiences — separating them sharpens both.
 
 ## Project Types

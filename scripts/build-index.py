@@ -41,9 +41,9 @@ FIELD_RE = re.compile(r"^\*\*([A-Za-z ]+)\*\*:\s*(.+)$|^([A-Za-z ]+):\s*(.+)$")
 
 
 def parse_fields(doc_path: str, rule_id: str, lines):
-    """Extract Owner, Applies when, Enforcement from field lines.
+    """Extract Owner, Applies when, Enforcement, and optional Trigger from field lines.
 
-    Returns a dict with keys: owner, applies_when, enforcement.
+    Returns a dict with keys: owner, applies_when, enforcement, and optionally trigger.
     Exits via sys.exit on missing required field.
     """
     result = {}
@@ -61,7 +61,7 @@ def parse_fields(doc_path: str, rule_id: str, lines):
             key = m.group(3).strip()
             value = m.group(4).strip()
 
-        if key in ("Owner", "Applies when", "Enforcement"):
+        if key in ("Owner", "Applies when", "Enforcement", "Trigger"):
             result[key.lower().replace(" ", "_")] = value
 
     required = ["owner", "applies_when", "enforcement"]
@@ -74,6 +74,20 @@ def parse_fields(doc_path: str, rule_id: str, lines):
             sys.exit(1)
 
     return result
+
+
+def derive_enforcement_type(enforcement: str) -> str:
+    """Derive enforcement_type from the enforcement field value.
+
+    mechanical — enforcement cites a rules/<lang>/<slug>.yml path
+    script     — enforcement cites scripts/rule-checks.sh
+    judgment   — anything else
+    """
+    if re.search(r"\brules/[a-z]+/[a-z0-9_-]+\.yml\b", enforcement):
+        return "mechanical"
+    if "scripts/rule-checks.sh" in enforcement:
+        return "script"
+    return "judgment"
 
 
 def walk_docs(docs_dir: pathlib.Path) -> list[dict]:
@@ -119,6 +133,8 @@ def walk_docs(docs_dir: pathlib.Path) -> list[dict]:
 
                 fields = parse_fields(str(doc_path), rule_id, field_lines)
 
+                enforcement_type = derive_enforcement_type(fields["enforcement"])
+
                 entry = {
                     "id": rule_id,
                     "level": level,
@@ -127,7 +143,15 @@ def walk_docs(docs_dir: pathlib.Path) -> list[dict]:
                     "owner": fields["owner"],
                     "applies_when": fields["applies_when"],
                     "enforcement": fields["enforcement"],
+                    "enforcement_type": enforcement_type,
                 }
+
+                # Parse optional Trigger field into a list of glob patterns
+                if "trigger" in fields and fields["trigger"]:
+                    raw_trigger = fields["trigger"]
+                    trigger_list = [t.strip() for t in raw_trigger.split(",") if t.strip()]
+                    if trigger_list:
+                        entry["trigger"] = trigger_list
 
                 # Check duplicate ID
                 if rule_id in seen_ids:

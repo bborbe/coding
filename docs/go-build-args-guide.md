@@ -21,6 +21,7 @@ This guide defines the canonical layout. Reference implementation: `~/Documents/
 **Owner**: go-quality-assistant
 **Applies when**: a Go service's `Makefile.docker` / `Dockerfile` is missing any of the three canonical `--build-arg` values: `BUILD_GIT_VERSION` (`git describe --tags --always --dirty`), `BUILD_GIT_COMMIT` (`git rev-parse --short HEAD`), `BUILD_DATE` (`date -u +%Y-%m-%dT%H:%M:%SZ`). Equivalent: the `main.go` `var` block doesn't declare matching `buildGitVersion` / `buildGitCommit` / `buildDate` variables wired via `-ldflags "-X"`.
 **Enforcement**: judgment (file-grep across `Makefile.docker` for the three `--build-arg` lines + `Dockerfile` ARG/ENV declarations + `main.go` ldflag-wired var declarations)
+**Trigger**: **/main.go, Dockerfile, Makefile.docker
 **Why**: All three answer different runtime questions. `BUILD_GIT_VERSION` answers "which release is running?" — friendly for operators when builds are tagged, falls back to short SHA when untagged, gains `-dirty` suffix when built from a tree with uncommitted changes (catching `make buca` accidents from mid-rebase worktrees). `BUILD_GIT_COMMIT` answers "exact source hash?" — unambiguous when tags get moved or shared across history. `BUILD_DATE` answers "when was this image built?" — separates dev/staging/prod builds with identical source. Omitting any one removes the answer to its specific question. The cost is three lines per file; the value is "what shipped?" being a one-line log read instead of a forensic investigation.
 
 #### Bad

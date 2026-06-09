@@ -187,6 +187,7 @@ type Order struct {
 **Owner**: go-time-assistant
 **Applies when**: a factory or constructor file outside `main.go` calls `libtime.NewCurrentDateTime()`.
 **Enforcement**: judgment
+**Trigger**: **/*.go
 **Why**: factories must be pure composition; creating `libtime.CurrentDateTime` inside a factory hardcodes the clock and breaks the test-time `SetNow` override. ast-grep cannot reliably distinguish a factory call site from a test fixture — whole-function context is required.
 
 #### Bad

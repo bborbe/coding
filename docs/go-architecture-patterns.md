@@ -144,6 +144,7 @@ func NewUserService(
 **Owner**: go-architecture-assistant
 **Applies when**: a Go package exposes an exported interface (e.g. `UserService`) and the package contains exactly one struct implementing every method of that interface, but the struct's name is not the interface name with the first letter lowercased (`userService`).
 **Enforcement**: judgment (paired-declaration scan: for each exported interface, find structs with matching method sets in the same package and check name correspondence — single-implementation packages only)
+**Trigger**: **/*.go
 **Why**: When `UserService`'s implementation is `userService`, every reader knows at a glance which struct backs which interface — godoc renders them adjacent, IDE outlines pair them, refactors find them with one rename. When the implementation is `defaultUserService` / `userServiceImpl` / `internalUser`, every reader has to grep to find the link, and "which struct implements this interface" becomes a research task.
 
 #### Bad
@@ -791,6 +792,7 @@ func (s *service) ProcessDocument(ctx context.Context, document *Document) error
 **Owner**: go-architecture-assistant
 **Applies when**: `main.go` (production code only — `main_test.go` is exempt) or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.
 **Enforcement**: judgment (semantic check — what counts as "business logic" requires reading the code). Coarse ast-grep filter is possible: `main.go` containing imports of `bborbe/errors` or `bborbe/validation` is a strong signal that domain logic leaked out of `pkg/`; production-file-scoped, `_test.go` excluded.
+**Trigger**: **/main.go
 **Why**: `main.go` is for wiring: parsing flags, building dependencies, starting goroutines, handling shutdown. Business logic in `main.go` is untestable (Ginkgo suites can't exercise it without `gexec.Build` overhead), unreachable from other binaries (CLI tool vs HTTP server vs worker — they should share `pkg/` code), and impossible to refactor without touching the entry-point. Keep `main.go` thin; push every domain operation into a service.
 
 #### Bad

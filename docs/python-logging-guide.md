@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 **Owner**: python-quality-assistant
 **Applies when**: a Python file in *library code* (modules imported by application code, intended for reuse across applications) calls `logging.basicConfig()` or adds handlers to the root logger. **Exempt**: the application entry point (`main.py` / `__main__.py` / `cli.py`) AND application-private helper modules wired from the entry point exclusively for configuration (e.g. `logging_setup.py` — see the next section), since those are part of the entry-point configuration surface, not library code.
 **Enforcement**: judgment (semantic — distinguishing library code from application-private configuration helpers requires reading the import graph; ast-grep can flag every non-entry-point `logging.basicConfig` call as a first-pass filter, but the agent must rule out the helper-module exemption case)
+**Trigger**: **/*.py
 **Why**: `basicConfig` is a one-shot global root-logger setup. Calling it from library code produces three failure modes: (1) first import wins, so the library's config silently overrides the application's choice depending on import order; (2) repeated calls add duplicate handlers, doubling every log line; (3) applications can't change log level without code edits in libraries they don't control. Libraries call `logging.getLogger(__name__)` and emit; configuration is the application's responsibility, and the application does it exactly once.
 
 #### Bad

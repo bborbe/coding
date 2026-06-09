@@ -17,6 +17,7 @@ The standard pattern for Python services follows this structure:
 **Owner**: python-architecture-assistant
 **Applies when**: a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a *method parameter* instead of through `__init__`. Related but distinct anti-patterns covered by other rules: dependency from a global module variable (see `python-architecture/main-py-composition-root`); post-construction `self.foo = bar.foo` mutation (see `python-ioc/dependencies-as-private-fields`, which mandates private-field storage that makes mutation socially difficult).
 **Enforcement**: judgment (semantic — requires distinguishing dependency injection from runtime parameter passing. The other two related anti-patterns have their own rules and enforcement paths.)
+**Trigger**: **/*.py
 **Why**: Mixing dependency injection with runtime parameter passing breaks the contract Python's type system relies on. Constructor injection makes the dep set visible at `__init__`, immutable after construction, and self-documenting at the type signature. Method-level injection means tests have to construct the full dep graph for every call site; global injection means tests are order-dependent. Methods should receive only the data needed to do their job — `create_user(user: User)`, not `create_user(repo, logger, validator, user)`.
 
 #### Bad
@@ -68,6 +69,7 @@ class UserService:
 **Owner**: python-architecture-assistant
 **Applies when**: a Python application instantiates service objects at module level (top of `repository.py`, `handler.py`, etc.) instead of wiring them inside `main()` / `main.py`.
 **Enforcement**: judgment (file-scope check: module-level `Service()` / `Repository()` calls outside `if __name__ == "__main__":` blocks)
+**Trigger**: **/*.py
 **Why**: Module-level instantiation runs at *import time* — order-dependent, hard to test, impossible to mock for unit tests. The composition root pattern says: configuration parsing, infrastructure setup, and service wiring all happen in one place (`main.py` → `main(argv)`), in a deterministic order, with explicit dependency edges. Tests can then construct their own composition root with mock infrastructure; production constructs the real one. Module-level state collapses this clean separation into spaghetti.
 
 #### Bad

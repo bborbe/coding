@@ -10,6 +10,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- feat: extend `build-index.py` to derive `enforcement_type` (`mechanical`/`script`/`judgment`) and parse optional `**Trigger**:` field into a `trigger` array for every rule entry in `rules/index.json`
+- feat: backfill `**Trigger**:` field for all 62 judgment-tier rules across 30 doc files — enables diff-scoped dispatcher to skip owners whose triggers don't match changed files
+- feat: rewrite Step 4 in `commands/pr-review.md` and `commands/code-review.md` — standard mode now computes active judgment-rule set via jq glob-matching and spawns only owners present in `findings_by_owner ∪ active-judgment-rule-owners`; zero LLM spawns when funnel is clean and no judgment rules are active; full mode unchanged
+- docs: update `docs/rule-block-schema.md` to document `Trigger` optional field and new `enforcement_type`/`trigger` index fields
 - feat: add `scripts/ast-grep-runner.sh` — deterministic replacement for the `ast-grep-runner` LLM agent; same JSON contract (`stats`/`findings_by_owner`/`errors`), diff-scoping via changed-file args, merges `rule-checks.sh` output.
 - feat: add `scripts/rule-checks.sh` — script-tier (bucket 2) mechanical checks for 11 rules: `go-licensing/license-file-required`, `go-licensing/readme-license-section-required`, `changelog/preamble-frozen`, `git-commit/subject-under-50-chars`, `git-workflow/no-ai-attribution-in-commits`, `go-library/semver-vprefix-tag-required`, `go-tools-versioning/no-tools-go-for-clis`, `go-mod-replace/no-cross-repo-replace`, `python-project-structure/src-layout-required`, `python-project-structure/pyproject-toml-with-hatchling`, `skill-writing/scripts-in-scripts-subdir`.
 - docs: deprecate `agents/ast-grep-runner.md` with pointer to `scripts/ast-grep-runner.sh`; update `**Enforcement**:` lines for 11 rules to cite `scripts/rule-checks.sh`.

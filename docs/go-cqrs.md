@@ -131,6 +131,7 @@ err := cdb.RunCommandConsumerTx(saramaClientProvider, syncProducer, db,
 **Owner**: go-architecture-assistant
 **Applies when**: a Go CQRS executor handles a *non-retryable* condition (idempotent skip, command targets an already-terminal entity, duplicate detected, validation against immutable state failed) by returning `nil` or an arbitrary `err` instead of `ErrCommandObjectSkipped`.
 **Enforcement**: judgment (semantic — distinguishing "non-retryable skip" from "transient error worth a Failure result" requires reading the executor's intent)
+**Trigger**: **/*.go
 **Why**: Three different result-topic outcomes hinge on the executor's return:
 - `nil` → `ResultObjectSuccess` published. The publisher thinks the command succeeded.
 - `err` → `ResultObjectFailure` published, one per occurrence. Duplicate publisher emissions produce N Failure entries + N error log lines + N noisy alerts.

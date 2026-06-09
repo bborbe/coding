@@ -26,6 +26,7 @@ This guide covers the standardized JSON error handler pattern from `github.com/b
 **Owner**: go-http-handler-assistant
 **Applies when**: an HTTP handler in a Go service emits an error response that is not a JSON object with the canonical `{error: {code, message, details}}` shape — e.g. plain-text bodies, top-level `{message: ...}` without an `error` wrapper, or `details` as a string instead of a `map[string]string`.
 **Enforcement**: judgment (response-shape inspection; ast-grep can detect `http.Error` calls and inline JSON writes but the full contract needs request/response review)
+**Trigger**: **/pkg/handler/**/*.go, **/*.go
 **Why**: Clients deserialise error responses against a stable shape. When some handlers return plain text and others return JSON, every client needs branching parse logic and an "if response.Status >= 400 try-string-then-try-JSON" fallback — exactly the kind of fragility that breaks on the first new error path. The canonical `{error: {code, message, details}}` shape is the lingua franca: `code` for programmatic dispatch, `message` for logging and human readers, `details` (string-map) for structured context (the field that failed, the expected vs. actual value, etc.) without committing to a per-error-type schema.
 
 #### Bad

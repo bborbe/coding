@@ -18,6 +18,7 @@ This guide captures practical decision-making patterns and implementation choice
 **Owner**: go-architecture-assistant
 **Applies when**: a Go service needs to dispatch to one of several implementations and the code uses the wrong dispatch shape for the set's openness: a `map[string]Creator` registry for a closed compile-time set, or a compiled `switch` for an open runtime-extensible set.
 **Enforcement**: judgment (semantic — depends on whether the implementation set is closed or open)
+**Trigger**: **/*.go
 **Why**: Static `switch` is faster (compiled jump table vs. map lookup + indirect call), trivially exhaustive (compiler-checked via `default:` + `errors.Errorf`), and refactor-friendly (renames propagate). Dynamic map-based registries are necessary when implementations register themselves at runtime (plugin systems, third-party extensions) but the cost — lost compile-time exhaustiveness, harder-to-test, registration-order sensitivity — is real. Match the shape to the problem: closed set → switch; open set → registry. Defaulting to one or the other regardless of context produces both unnecessary overhead and brittle systems.
 
 #### Bad

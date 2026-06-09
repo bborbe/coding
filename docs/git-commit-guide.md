@@ -9,6 +9,7 @@ Comprehensive guide for git commit workflow covering feature branch development,
 **Owner**: agent-auditor
 **Applies when**: a git commit message's subject line starts with a non-imperative verb form — past tense (`added`, `fixed`, `updated`), gerund (`adding`, `fixing`), or 3rd-person singular (`adds`, `fixes`, `updates`) — instead of the bare imperative form (`add`, `fix`, `update`).
 **Enforcement**: judgment (PR/commit-message check; the agent reads commit subjects via `git log --format=%s` and flags non-imperative verbs against the prose `Common Imperative Verbs` table below)
+**Trigger**: @commits
 **Why**: Imperative mood matches Git's own convention (every internal `git` command produces an imperative message: "Merge branch X", "Revert commit Y") so the project history reads as one consistent voice. Past-tense and gerund forms also make `git log --grep "^add"` lossy — searching for added features finds 30% of them. The bare-imperative form is one fewer keystroke, one shorter subject line, and grep-friendly.
 
 #### Bad
@@ -53,6 +54,7 @@ add OAuth2 PKCE auth endpoint
 **Owner**: agent-auditor
 **Applies when**: a `git tag vX.Y.Z` command runs on a feature branch (any branch that is not `master` / `main`). Tags landing on a feature branch attach to a non-canonical commit; after PR merge the master-branch merge commit lacks the tag, and `git describe` returns a misleading version.
 **Enforcement**: judgment (PR/CI check; `git for-each-ref --contains <feature-branch-tip> 'refs/tags/*'` returning any tag = violation. The agent verifies the tagged commit is reachable from master, not just from the feature branch)
+**Trigger**: @commits
 **Why**: Tags represent **released versions** that users consume via `git checkout vX.Y.Z` or `claude plugin install pkg@vX.Y.Z`. A tag on a feature branch points at a commit that may differ from what landed on master (rebase, squash, amendment during review), so users who fetch the tag get pre-merge code that nobody actually reviewed. Only master-branch commits — the merge commits CI tested and reviewers approved — should carry release tags. The release procedure: merge first, tag second. See [releasing-coding.md](releasing-coding.md) for the canonical [autoRelease workflow](releasing-coding.md) when `.maintainer.yaml` has `release.autoRelease: true`.
 
 #### Bad

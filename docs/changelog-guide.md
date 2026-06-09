@@ -79,6 +79,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 **Owner**: agent-auditor
 **Applies when**: a bullet under `## Unreleased` in CHANGELOG.md does not start with one of the recognised conventional prefixes (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`).
 **Enforcement**: judgment (regex over `## Unreleased` bullets: `^- ([a-z]+:)` first token must be in the allowed prefix set)
+**Trigger**: CHANGELOG.md
 **Why**: dark-factory and `/coding:commit` parse the prefix to decide the version bump automatically — any `feat:` entry triggers a minor bump, everything else triggers a patch. Missing or wrong prefix means the version-bump detection fails: the release may patch-bump a feature commit (downstream consumers miss the new functionality in their range queries) or minor-bump a chore. Standardising the prefix is the cheapest possible structure for unambiguous machine parsing.
 
 #### Bad

@@ -554,6 +554,7 @@ defer func() {
 **Owner**: go-factory-pattern-assistant
 **Applies when**: a `*.go` file inside `pkg/factory/` (any path matching `**/pkg/factory/*.go`) contains a struct type declaration with non-trivial methods (methods with logic beyond a trivial accessor), an interface declaration with multiple methods, or any function declaration that is NOT a `Create*` factory function. Detecting "non-trivial" requires reading the method body — pure ast-grep can match `type X struct` and method declarations but cannot reliably decide which methods are "trivial".
 **Enforcement**: judgment — implementation-vs-trivial-helper distinction needs whole-method reasoning. Mechanical flag can catch structural violations (non-`Create*` function declarations, multi-method interfaces, impl structs) inside `pkg/factory/`, but the "trivial accessor" exception requires LLM adjudication.
+**Trigger**: **/factory/**/*.go, **/*factory*.go
 **Why**: `pkg/factory/` is wiring-only. Implementation types belong in `pkg/` (flat) or `pkg/<subpkg>/` (grouped). A struct like `mocoRoundTripper` inside `pkg/factory/roundtripper.go` is wrong — move it.
 
 #### Bad

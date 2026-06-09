@@ -311,6 +311,7 @@ Expect(actualUser.Name).To(Equal("test"))
 **Owner**: go-test-quality-assistant
 **Applies when**: a Go business-logic file (outside `main.go`, `cmd/**`, `*_test.go`, `vendor/`) reads the current time. Tests cannot control `time.Now()` directly, so dependent code is unverifiable.
 **Enforcement**: cross-rule — overlaps with `go-time/no-time-now-direct` (already in `rules/index.json`). This rule scopes the same constraint to test-coverage assessments: a service that doesn't inject time has no testable time-dependent paths.
+**Trigger**: **/*.go
 **Why**: Without `libtime.CurrentDateTimeGetter` injection, every test that depends on time becomes flaky or impossible. `libtime.NewCurrentDateTime()` + `SetNow(fixedTime)` produces deterministic, fast tests for date math, expiry windows, scheduling, etc.
 
 ```go

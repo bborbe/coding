@@ -4,87 +4,135 @@
     "applies_when": "a PR introduces an irreversible architectural change (database technology choice, message-bus selection, framework swap, major topology change like blue-green vs canary) without a corresponding ADR document under `docs/adr/NNNN-<title>.md` capturing the decision, alternatives considered, rationale, and consequences.",
     "doc_path": "docs/adr-guide.md",
     "enforcement": "judgment (semantic — distinguishing \"irreversible architectural decision\" from \"tactical implementation choice\" requires reading the change scope; symptom: PR introduces new top-level package or external dependency without ADR reference)",
+    "enforcement_type": "judgment",
     "id": "adr/required-for-irreversible-architecture-decisions",
     "level": "SHOULD",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go",
+      "go.mod"
+    ]
   },
   {
     "anchor": "agent-cmd/agent-frontmatter",
     "applies_when": "any `agents/*.md` file is created.",
     "doc_path": "docs/agent-command-development-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "agent-cmd/agent-frontmatter",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "agents/**/*.md"
+    ]
   },
   {
     "anchor": "agent-cmd/command-frontmatter",
     "applies_when": "any `commands/*.md` file is created.",
     "doc_path": "docs/agent-command-development-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "agent-cmd/command-frontmatter",
     "level": "MUST",
-    "owner": "slash-command-auditor"
+    "owner": "slash-command-auditor",
+    "trigger": [
+      "commands/**/*.md"
+    ]
   },
   {
     "anchor": "agent-cmd/command-thin",
     "applies_when": "any new `commands/*.md` file is added or substantially changed.",
     "doc_path": "docs/agent-command-development-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "agent-cmd/command-thin",
     "level": "MUST",
-    "owner": "slash-command-auditor"
+    "owner": "slash-command-auditor",
+    "trigger": [
+      "agents/**/*.md",
+      "commands/**/*.md",
+      "skills/**/*.md"
+    ]
   },
   {
     "anchor": "agent-cmd/gap-driven-feedback",
     "applies_when": "an agent depends on documented information that may be incomplete.",
     "doc_path": "docs/agent-command-development-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "agent-cmd/gap-driven-feedback",
     "level": "SHOULD",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "agents/**/*.md",
+      "commands/**/*.md",
+      "skills/**/*.md"
+    ]
   },
   {
     "anchor": "agent-cmd/no-user-prompts",
     "applies_when": "any agent or command performs work that could prompt the user (writing to `/tmp/`, requesting permissions, asking confirmation) during normal execution.",
     "doc_path": "docs/agent-command-development-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "agent-cmd/no-user-prompts",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "agents/**/*.md",
+      "commands/**/*.md",
+      "skills/**/*.md"
+    ]
   },
   {
     "anchor": "agent-cmd/scripts-in-claude-dir",
     "applies_when": "an agent depends on executable scripts (Python, shell) to do real work.",
     "doc_path": "docs/agent-command-development-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "agent-cmd/scripts-in-claude-dir",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "agents/**/*.md",
+      "commands/**/*.md",
+      "skills/**/*.md"
+    ]
   },
   {
     "anchor": "agent-cmd/single-source-of-truth",
     "applies_when": "an agent's domain has multiple potential data sources (config files, APIs, generated artifacts, documentation) and one of them is the authoritative, human-maintained source.",
     "doc_path": "docs/agent-command-development-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "agent-cmd/single-source-of-truth",
     "level": "SHOULD",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "agents/**/*.md",
+      "commands/**/*.md",
+      "skills/**/*.md"
+    ]
   },
   {
     "anchor": "changelog/conventional-prefix-required",
     "applies_when": "a bullet under `## Unreleased` in CHANGELOG.md does not start with one of the recognised conventional prefixes (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`).",
     "doc_path": "docs/changelog-guide.md",
     "enforcement": "judgment (regex over `## Unreleased` bullets: `^- ([a-z]+:)` first token must be in the allowed prefix set)",
+    "enforcement_type": "judgment",
     "id": "changelog/conventional-prefix-required",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "CHANGELOG.md"
+    ]
   },
   {
     "anchor": "changelog/preamble-frozen",
     "applies_when": "a CHANGELOG.md edit inserts content above the `# Changelog` title, modifies the SemVer preamble bullets (MAJOR/MINOR/PATCH), or places a `## Unreleased` / `## vX.Y.Z` section inside (rather than after) the preamble block.",
     "doc_path": "docs/changelog-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (checks `# Changelog` is first content; flags any `## Unreleased`/`## vX.Y.Z` before the preamble block)",
+    "enforcement_type": "script",
     "id": "changelog/preamble-frozen",
     "level": "MUST",
     "owner": "agent-auditor"
@@ -94,33 +142,46 @@
     "applies_when": "a project's CLAUDE.md duplicates README.md user-facing content (install instructions, feature marketing, usage tutorials) instead of serving as terse agent-operational context (build commands, architecture map, constraints).",
     "doc_path": "docs/claude-md-guide.md",
     "enforcement": "judgment (semantic — distinguishing \"agent needs this to change the code\" from \"user needs this to use it\" requires reading the content)",
+    "enforcement_type": "judgment",
     "id": "claude-md/agent-context-not-user-docs",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "CLAUDE.md"
+    ]
   },
   {
     "anchor": "git-commit/feature-branch-no-tag",
     "applies_when": "a `git tag vX.Y.Z` command runs on a feature branch (any branch that is not `master` / `main`). Tags landing on a feature branch attach to a non-canonical commit; after PR merge the master-branch merge commit lacks the tag, and `git describe` returns a misleading version.",
     "doc_path": "docs/git-commit-guide.md",
     "enforcement": "judgment (PR/CI check; `git for-each-ref --contains <feature-branch-tip> 'refs/tags/*'` returning any tag = violation. The agent verifies the tagged commit is reachable from master, not just from the feature branch)",
+    "enforcement_type": "judgment",
     "id": "git-commit/feature-branch-no-tag",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "@commits"
+    ]
   },
   {
     "anchor": "git-commit/imperative-mood",
     "applies_when": "a git commit message's subject line starts with a non-imperative verb form — past tense (`added`, `fixed`, `updated`), gerund (`adding`, `fixing`), or 3rd-person singular (`adds`, `fixes`, `updates`) — instead of the bare imperative form (`add`, `fix`, `update`).",
     "doc_path": "docs/git-commit-guide.md",
     "enforcement": "judgment (PR/commit-message check; the agent reads commit subjects via `git log --format=%s` and flags non-imperative verbs against the prose `Common Imperative Verbs` table below)",
+    "enforcement_type": "judgment",
     "id": "git-commit/imperative-mood",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "@commits"
+    ]
   },
   {
     "anchor": "git-commit/subject-under-50-chars",
     "applies_when": "a git commit subject line exceeds 50 characters. Body lines may be longer (wrap at 72 per the broader convention) but the subject is the single line that has to fit GitHub's PR list view, `git log --oneline`, and 80-column terminals without wrapping.",
     "doc_path": "docs/git-commit-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (`git log --format=%s HEAD~10..HEAD | awk` over recent commits when `.git` present)",
+    "enforcement_type": "script",
     "id": "git-commit/subject-under-50-chars",
     "level": "SHOULD",
     "owner": "agent-auditor"
@@ -130,15 +191,20 @@
     "applies_when": "a git commit lands directly on `master` / `main` without going through a feature branch + PR — typically caught by `pre-push` hook rejecting cross-name pushes to the default branch, or by GitHub's `master-protection` ruleset.",
     "doc_path": "docs/git-workflow.md",
     "enforcement": "judgment + tooling (`~/.git-hooks/pre-push` rejects feature-branch-to-master pushes; GitHub ruleset enforces required PR). Release commits (`release vX.Y.Z`) are the documented exception.",
+    "enforcement_type": "judgment",
     "id": "git-workflow/never-direct-commit-to-master",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "@commits"
+    ]
   },
   {
     "anchor": "git-workflow/no-ai-attribution-in-commits",
     "applies_when": "a git commit message body or trailer contains \"Co-Authored-By: Claude\", \"Generated with Claude Code\", \"Co-Authored-By: GitHub Copilot\", or any other AI-attribution line.",
     "doc_path": "docs/git-workflow.md",
     "enforcement": "`scripts/rule-checks.sh` (greps `git log --format=%B HEAD~10..HEAD` for AI-attribution patterns when `.git` present)",
+    "enforcement_type": "script",
     "id": "git-workflow/no-ai-attribution-in-commits",
     "level": "MUST",
     "owner": "agent-auditor"
@@ -148,15 +214,20 @@
     "applies_when": "`main.go` (production code only — `main_test.go` is exempt) or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.",
     "doc_path": "docs/go-architecture-patterns.md",
     "enforcement": "judgment (semantic check — what counts as \"business logic\" requires reading the code). Coarse ast-grep filter is possible: `main.go` containing imports of `bborbe/errors` or `bborbe/validation` is a strong signal that domain logic leaked out of `pkg/`; production-file-scoped, `_test.go` excluded.",
+    "enforcement_type": "judgment",
     "id": "go-architecture/business-logic-not-in-main",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/main.go"
+    ]
   },
   {
     "anchor": "go-architecture/constructor-returns-interface",
     "applies_when": "a Go `New*` constructor returns the concrete struct type (`*userService`) instead of the interface it implements (`UserService`).",
     "doc_path": "docs/go-architecture-patterns.md",
     "enforcement": "`rules/go/constructor-returns-interface.yml` flags every `func NewXxx(...) *ConcreteStruct` declaration. The agent decides per-finding whether the returned concrete type has a corresponding interface in the same package (real violation) or is a data-holder / config / DTO struct without an interface (exempt) — the same-package interface lookup needs cross-file reasoning ast-grep can't do in a single rule.",
+    "enforcement_type": "mechanical",
     "id": "go-architecture/constructor-returns-interface",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -166,6 +237,7 @@
     "applies_when": "an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests) has no preceding `//counterfeiter:generate` line. Concrete trigger: any package with `*_test.go` files that import a `mocks` package, plus every exported interface in that package.",
     "doc_path": "docs/go-architecture-patterns.md",
     "enforcement": "`rules/go/counterfeiter-directive-on-interface.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-architecture/counterfeiter-directive-on-interface",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -175,6 +247,7 @@
     "applies_when": "a Go function outside `pkg/factory/**` returns an exported interface or struct type and is intended to be the canonical construction site, but the function name does not start with `New`.",
     "doc_path": "docs/go-architecture-patterns.md",
     "enforcement": "`rules/go/new-prefix-constructor-naming.yml` (mechanical first-pass flags exported functions returning exported types without `New` prefix; `pkg/factory/**` excluded) + judgment-tier LLM adjudication to rule out `Create*` factories, helper functions, and non-constructor uses.",
+    "enforcement_type": "mechanical",
     "id": "go-architecture/new-prefix-constructor-naming",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -184,6 +257,7 @@
     "applies_when": "a Go service package introduces a service dependency (logger, DB, HTTP client, time getter, etc.) via any of: (a) a package-level `var` declaration, (b) initialisation inside `func init()`, or (c) lazy initialisation via `sync.Once` keyed to a package-level pointer. All three patterns share the same test-ordering and parallelism problems.",
     "doc_path": "docs/go-architecture-patterns.md",
     "enforcement": "`rules/go/no-globals-or-singletons.yml` covers the most common variant — `var X = NewY(...)` / `var X = CreateY(...)` package-level declarations whose RHS is a New*/Create* constructor call. The `init()` and `sync.Once` variants stay judgment-tier (the agent makes the final call based on body inspection); the YAML catches the highest-frequency case mechanically.",
+    "enforcement_type": "mechanical",
     "id": "go-architecture/no-globals-or-singletons",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -193,33 +267,48 @@
     "applies_when": "a Go package exposes an exported interface (e.g. `UserService`) and the package contains exactly one struct implementing every method of that interface, but the struct's name is not the interface name with the first letter lowercased (`userService`).",
     "doc_path": "docs/go-architecture-patterns.md",
     "enforcement": "judgment (paired-declaration scan: for each exported interface, find structs with matching method sets in the same package and check name correspondence — single-implementation packages only)",
+    "enforcement_type": "judgment",
     "id": "go-architecture/private-struct-matches-interface",
     "level": "SHOULD",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-boolean-combinator/result-with-description-not-naked-bool",
     "applies_when": "a Go boolean-combinator / decision interface's method returns a bare `bool` instead of a `Result` type carrying both the boolean decision AND a human-readable `Description() string` explaining the reason.",
     "doc_path": "docs/go-boolean-combinator-pattern.md",
     "enforcement": "judgment (interface declaration check: decision-style interfaces (`Check`, `IsTrusted`, `Filtered`, `Allowed`, `Matches`) returning naked `bool`)",
+    "enforcement_type": "judgment",
     "id": "go-boolean-combinator/result-with-description-not-naked-bool",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-build-args/three-args-required",
     "applies_when": "a Go service's `Makefile.docker` / `Dockerfile` is missing any of the three canonical `--build-arg` values: `BUILD_GIT_VERSION` (`git describe --tags --always --dirty`), `BUILD_GIT_COMMIT` (`git rev-parse --short HEAD`), `BUILD_DATE` (`date -u +%Y-%m-%dT%H:%M:%SZ`). Equivalent: the `main.go` `var` block doesn't declare matching `buildGitVersion` / `buildGitCommit` / `buildDate` variables wired via `-ldflags \"-X\"`.",
     "doc_path": "docs/go-build-args-guide.md",
     "enforcement": "judgment (file-grep across `Makefile.docker` for the three `--build-arg` lines + `Dockerfile` ARG/ENV declarations + `main.go` ldflag-wired var declarations)",
+    "enforcement_type": "judgment",
     "id": "go-build-args/three-args-required",
     "level": "MUST",
-    "owner": "go-quality-assistant"
+    "owner": "go-quality-assistant",
+    "trigger": [
+      "**/main.go",
+      "Dockerfile",
+      "Makefile.docker"
+    ]
   },
   {
     "anchor": "go-cli/cobra-not-stdlib-flag",
     "applies_when": "any non-test Go file imports the stdlib `flag` package or calls `flag.*` functions (Parse / String / Bool / Int / Float64 / Duration + all *Var variants + Var / Func / NewFlagSet / CommandLine). Scope is intentionally broader than \"CLI binaries only\" because the Why this rule prevents is **transitive `flag.init()` pollution** — a library calling `flag.String()` in its `init()` adds flags to every binary that imports it, which is the actual failure mode this rule guards against. Test files are exempt.",
     "doc_path": "docs/go-cli-guide.md",
     "enforcement": "`rules/go/cobra-not-stdlib-flag.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-cli/cobra-not-stdlib-flag",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -229,6 +318,7 @@
     "applies_when": "a *new* Go CLI binary (created after Go 1.21 release; no prior glog usage in the same module) imports `github.com/golang/glog`. Existing glog-using projects are exempt — they should not introduce slog and glog side by side.",
     "doc_path": "docs/go-cli-guide.md",
     "enforcement": "`rules/go/slog-not-glog-in-new-projects.yml` flags every `import \"github.com/golang/glog\"`. The agent decides whether each finding is a real violation (new project introducing glog) or an exempt case (existing project mid-migration with prior glog usage) — that distinction needs git-history / module-age reasoning ast-grep can't do.",
+    "enforcement_type": "mechanical",
     "id": "go-cli/slog-not-glog-in-new-projects",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -238,6 +328,7 @@
     "applies_when": "a Go service method calls a top-level package function (`prompt.ListQueued(...)`, `git.CommitAndRelease(...)`) directly instead of receiving the equivalent capability through an injected interface declared in the same package as the consumer.",
     "doc_path": "docs/go-composition.md",
     "enforcement": "`rules/go/no-package-function-calls-in-business-logic.yml` (mechanical first-pass flags all `pkg.Func()` calls inside method bodies) + judgment-tier LLM adjudication to rule out stdlib/bborbe-library calls and leaf packages providing pure helper functions.",
+    "enforcement_type": "mechanical",
     "id": "go-composition/no-package-function-calls-in-business-logic",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -247,6 +338,7 @@
     "applies_when": "a Go interface declares 3+ methods spanning more than one logical capability — i.e. consumers of the interface use a subset of methods, and the unused-by-this-consumer methods are inferred from method-count plus call-site analysis.",
     "doc_path": "docs/go-composition.md",
     "enforcement": "`rules/go/small-interfaces-1-2-methods.yml` (mechanical first-pass flags interfaces with 3+ methods) + judgment-tier LLM adjudication for the \"one logical capability\" check (a 3-method CRUD interface that forms a coherent capability may be fine).",
+    "enforcement_type": "mechanical",
     "id": "go-composition/small-interfaces-1-2-methods",
     "level": "SHOULD",
     "owner": "go-architecture-assistant"
@@ -256,6 +348,7 @@
     "applies_when": "a Go file calls `close(ch)` on a channel that was passed in as a function parameter from elsewhere — i.e. closed by a consumer/receiver rather than by the goroutine that produces values into it.",
     "doc_path": "docs/go-concurrency-patterns.md",
     "enforcement": "`rules/go/channel-closed-by-sender-only.yml` flags every `close($X)` call. The agent decides per-finding whether the enclosing function is the producer (sends into the channel — close correct, often `defer close(ch)`) or a consumer (only receives — `close(ch)` is the bug), and clears multi-producer cases routed through a dedicated closer goroutine + sync.WaitGroup. The producer-vs-consumer judgment needs reading the function body's send/receive direction — exactly the cross-context reasoning ast-grep can't do reliably.",
+    "enforcement_type": "mechanical",
     "id": "go-concurrency/channel-closed-by-sender-only",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -265,6 +358,7 @@
     "applies_when": "a Go file uses the raw `go func() { ... }()` / `go someMethod(...)` syntax outside top-level entry points — instead of one of the `github.com/bborbe/run` strategies (`CancelOnFirstErrorWait`, `CancelOnFirstFinishWait`, `All`, `Sequential`). Exempt paths: `main.go` / `cmd/**` (binary entry points where goroutine spawn-and-cancel is the canonical pattern), `pkg/cli/**` (where the canonical `Execute()` signal-listener uses `go func() { <-sigCh; cancel() }()` per the `go-cli-guide.md` pattern), and `*_test.go` / `vendor/` / `mocks/`.",
     "doc_path": "docs/go-concurrency-patterns.md",
     "enforcement": "`rules/go/no-raw-go-func.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-concurrency/no-raw-go-func",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -274,6 +368,7 @@
     "applies_when": "Go `for` loop body lacks a non-blocking `select { case <-ctx.Done(): ...; default: }` check, outside `*_test.go` and `vendor/`.",
     "doc_path": "docs/go-context-cancellation-in-loops.md",
     "enforcement": "`rules/go/cancel-check-in-loop.yml` (mechanical flag) + judgment-tier LLM adjudication for \"long-running enough to matter\".",
+    "enforcement_type": "mechanical",
     "id": "go-context/cancel-check-in-loop",
     "level": "SHOULD",
     "owner": "go-context-assistant"
@@ -283,6 +378,7 @@
     "applies_when": "a Go CQRS consumer in this framework manually wraps its command executor with `kv.NewTransactionMiddleware` / similar transaction-management code instead of using `RunCommandConsumerTx` (which auto-wraps).",
     "doc_path": "docs/go-cqrs.md",
     "enforcement": "`rules/go/auto-tx-wrapper-no-manual-wrap.yml` flags any `call_expression` invoking `NewTransactionMiddleware`. The agent confirms whether the wrapping is adjacent to a `RunCommandConsumerTx` registration (the specific double-wrap anti-pattern).",
+    "enforcement_type": "mechanical",
     "id": "go-cqrs/auto-tx-wrapper-no-manual-wrap",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -292,51 +388,72 @@
     "applies_when": "a Go CQRS executor handles a *non-retryable* condition (idempotent skip, command targets an already-terminal entity, duplicate detected, validation against immutable state failed) by returning `nil` or an arbitrary `err` instead of `ErrCommandObjectSkipped`.",
     "doc_path": "docs/go-cqrs.md",
     "enforcement": "judgment (semantic — distinguishing \"non-retryable skip\" from \"transient error worth a Failure result\" requires reading the executor's intent)",
+    "enforcement_type": "judgment",
     "id": "go-cqrs/skipped-not-nil-for-non-retryable",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-doc/comment-starts-with-name",
     "applies_when": "an exported identifier has a doc comment whose first word does not match the identifier's name exactly (case-sensitive).",
     "doc_path": "docs/go-doc-best-practices.md",
     "enforcement": "judgment (mechanical follow-up: no standard linter catches this — `revive`'s `exported` rule only flags *missing* doc comments, not first-word mismatch. Best path is an ast-grep pattern over `func_declaration` / `type_declaration` + adjacent comment text, comparing the first whitespace-delimited word against the identifier name — see PR #11 recipe for the surrounding-comment pattern shape)",
+    "enforcement_type": "judgment",
     "id": "go-doc/comment-starts-with-name",
     "level": "MUST",
-    "owner": "godoc-assistant"
+    "owner": "godoc-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-doc/exported-item-must-have-comment",
     "applies_when": "a Go file defines an exported (capitalized) function, method, type, interface, struct, struct field, constant, or variable without a preceding `//` doc comment.",
     "doc_path": "docs/go-doc-best-practices.md",
     "enforcement": "judgment (mechanical follow-up: enable `revive`'s `exported` rule or `golangci-lint`'s `revive` linter with `exported` enabled — these flag every exported identifier without a doc comment)",
+    "enforcement_type": "judgment",
     "id": "go-doc/exported-item-must-have-comment",
     "level": "MUST",
-    "owner": "godoc-assistant"
+    "owner": "godoc-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-doc/package-comment-in-doc-go",
     "applies_when": "a Go package's package-level comment lives in a regular source file (`<feature>.go`) rather than in a dedicated `doc.go`.",
     "doc_path": "docs/go-doc-best-practices.md",
     "enforcement": "judgment (filename presence + first-comment-block check)",
+    "enforcement_type": "judgment",
     "id": "go-doc/package-comment-in-doc-go",
     "level": "SHOULD",
-    "owner": "godoc-assistant"
+    "owner": "godoc-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-doc/third-person-no-signature-repeat",
     "applies_when": "a doc comment uses first-person (\"I\", \"we\", \"our\") OR repeats the function signature verbatim in the prose (\"takes an `int` and returns a `string`\" when the signature already says `func F(int) string`).",
     "doc_path": "docs/go-doc-best-practices.md",
     "enforcement": "judgment (prose linters can flag first-person; signature-repeat is semantic and needs review)",
+    "enforcement_type": "judgment",
     "id": "go-doc/third-person-no-signature-repeat",
     "level": "SHOULD",
-    "owner": "godoc-assistant"
+    "owner": "godoc-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-enum-type/typed-constants-with-collection",
     "applies_when": "a Go package introduces a finite set of enum-like values (status codes, kinds, modes, etc.) declared as untyped `const` strings or `const` ints, without a paired typed `string`/`int` newtype AND without an `Available<Name>s` collection containing every valid value.",
     "doc_path": "docs/go-enum-type-pattern.md",
     "enforcement": "`rules/go/typed-constants-with-collection.yml` (mechanical first-pass flags untyped `const` string specs) + judgment-tier LLM adjudication to confirm shared semantic prefix and check whether the package already has a typed newtype + `Available*` collection.",
+    "enforcement_type": "mechanical",
     "id": "go-enum-type/typed-constants-with-collection",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -346,6 +463,7 @@
     "applies_when": "a Go enum type's `Validate(ctx context.Context) error` method validates against an inline switch / hardcoded value list / regex, instead of `AvailableXs.Contains(value)`.",
     "doc_path": "docs/go-enum-type-pattern.md",
     "enforcement": "`rules/go/validate-against-available-collection.yml` (mechanical first-pass flags `Validate` methods containing an inline `switch`) + judgment-tier LLM adjudication to confirm the switch is enum-membership validation and the package has an `Available*` collection.",
+    "enforcement_type": "mechanical",
     "id": "go-enum-type/validate-against-available-collection",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -355,15 +473,20 @@
     "applies_when": "an inner closure (passed to `db.Update`, `filepath.WalkDir`, or similar callback APIs) calls `errors.Wrap`/`errors.Wrapf` while the surrounding function ALSO wraps the closure's return value.",
     "doc_path": "docs/go-error-wrapping-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-errors/inner-closure-no-double-wrap",
     "level": "SHOULD",
-    "owner": "go-error-assistant"
+    "owner": "go-error-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-errors/no-bare-return-err",
     "applies_when": "a Go `return err` statement appears inside an `if err != nil { ... }` block, outside `*_test.go` and `vendor/`. Inner closures where the outer scope already wraps are an exception — see RULE `go-errors/inner-closure-no-double-wrap`.",
     "doc_path": "docs/go-error-wrapping-guide.md",
     "enforcement": "`rules/go/no-bare-return-err.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-errors/no-bare-return-err",
     "level": "MUST",
     "owner": "go-error-assistant"
@@ -373,6 +496,7 @@
     "applies_when": "a Go `context.Background()` call appears outside `main.go`, `cmd/**`, `*_test.go`, `vendor/`. Top-level goroutine spawners in `main` are exempt by path filter.",
     "doc_path": "docs/go-error-wrapping-guide.md",
     "enforcement": "`rules/go/no-context-background-in-business-logic.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-errors/no-context-background-in-business-logic",
     "level": "MUST",
     "owner": "go-error-assistant"
@@ -382,6 +506,7 @@
     "applies_when": "any `*.go` file outside `main.go`, `*_test.go`, `vendor/` calls `fmt.Errorf(...)`.",
     "doc_path": "docs/go-error-wrapping-guide.md",
     "enforcement": "`rules/go/no-fmt-errorf.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-errors/no-fmt-errorf",
     "level": "MUST",
     "owner": "go-error-assistant"
@@ -391,15 +516,20 @@
     "applies_when": "a package-level sentinel error variable uses the legacy `XxxError`/`XxxErr` naming convention (e.g. `BucketNotFoundErr`, `ConnectionError`) instead of the stdlib-style `ErrXxx` prefix (`ErrBucketNotFound`, `ErrConnection`).",
     "doc_path": "docs/go-error-wrapping-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-errors/sentinel-err-prefix-naming",
     "level": "SHOULD",
-    "owner": "go-error-assistant"
+    "owner": "go-error-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-factory/no-cleanup-return",
     "applies_when": "a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` has a return type list that includes `func()` (a cleanup closure). Common shapes: `(T, func())`, `(T, func(), error)`, `(func(), error)`.",
     "doc_path": "docs/go-factory-pattern.md",
     "enforcement": "`rules/go/factory-no-cleanup-return.yml` (mechanical flag) + judgment-tier LLM adjudication for any legitimate edge case.",
+    "enforcement_type": "mechanical",
     "id": "go-factory/no-cleanup-return",
     "level": "MUST",
     "owner": "go-factory-pattern-assistant"
@@ -409,6 +539,7 @@
     "applies_when": "a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` contains an `if`, `switch`, or `for` statement anywhere in its body. Anonymous functions inside the body that are pure pass-throughs (single method call, no logic — see section 4.3 `Run Function Wrapper`) are an acceptable exception adjudicated by the judgment tier.",
     "doc_path": "docs/go-factory-pattern.md",
     "enforcement": "`rules/go/factory-no-conditional-in-body.yml` (mechanical flag) + judgment-tier LLM adjudication for the anonymous-function exception.",
+    "enforcement_type": "mechanical",
     "id": "go-factory/no-conditional-in-body",
     "level": "MUST",
     "owner": "go-factory-pattern-assistant"
@@ -418,6 +549,7 @@
     "applies_when": "a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` has a return type list that includes `error`. The single permitted exception is a pass-through wrapper per section 7 — a one-statement factory that immediately returns an error-returning constructor call without adding wiring, logging, or validation.",
     "doc_path": "docs/go-factory-pattern.md",
     "enforcement": "`rules/go/factory-no-error-return.yml` (mechanical flag) + judgment-tier LLM adjudication for the pass-through wrapper exception.",
+    "enforcement_type": "mechanical",
     "id": "go-factory/no-error-return",
     "level": "MUST",
     "owner": "go-factory-pattern-assistant"
@@ -427,24 +559,34 @@
     "applies_when": "a `*.go` file inside `pkg/factory/` (any path matching `**/pkg/factory/*.go`) contains a struct type declaration with non-trivial methods (methods with logic beyond a trivial accessor), an interface declaration with multiple methods, or any function declaration that is NOT a `Create*` factory function. Detecting \"non-trivial\" requires reading the method body — pure ast-grep can match `type X struct` and method declarations but cannot reliably decide which methods are \"trivial\".",
     "doc_path": "docs/go-factory-pattern.md",
     "enforcement": "judgment — implementation-vs-trivial-helper distinction needs whole-method reasoning. Mechanical flag can catch structural violations (non-`Create*` function declarations, multi-method interfaces, impl structs) inside `pkg/factory/`, but the \"trivial accessor\" exception requires LLM adjudication.",
+    "enforcement_type": "judgment",
     "id": "go-factory/no-impl-in-factory-pkg",
     "level": "MUST",
-    "owner": "go-factory-pattern-assistant"
+    "owner": "go-factory-pattern-assistant",
+    "trigger": [
+      "**/factory/**/*.go",
+      "**/*factory*.go"
+    ]
   },
   {
     "anchor": "go-filter/document-filtered-semantics",
     "applies_when": "a Go filter / predicate interface uses ambiguous method names like `Match(item)` / `Check(item)` / `Apply(item)` without doc-comment clarifying whether `true` means \"include\" or \"exclude\" — OR uses contradictory naming (`Filtered` returning true for \"passes the filter\" instead of \"filtered out\").",
     "doc_path": "docs/go-filter-pattern.md",
     "enforcement": "judgment (interface declaration check: method-name + doc-comment alignment for predicate methods returning bool)",
+    "enforcement_type": "judgment",
     "id": "go-filter/document-filtered-semantics",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-functional-composition/func-type-name",
     "applies_when": "a Go file introduces a function type that implements an interface `X` for the functional-composition pattern but names the type something other than `XFunc`.",
     "doc_path": "docs/go-functional-composition-pattern.md",
     "enforcement": "`rules/go/func-type-name.yml` (mechanical first-pass) + judgment-tier LLM adjudication to rule out unrelated func types not serving as functional-composition adapters.",
+    "enforcement_type": "mechanical",
     "id": "go-functional-composition/func-type-name",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -454,6 +596,7 @@
     "applies_when": "a `XList` method that accepts a `context.Context` iterates over its members without checking `ctx.Done()` between iterations — so a cancelled context cannot stop the chain mid-way.",
     "doc_path": "docs/go-functional-composition-pattern.md",
     "enforcement": "`rules/go/list-checks-ctx-done.yml` (mechanical first-pass) + judgment-tier LLM adjudication for bounded/cheap iterations where ctx-check overhead is unjustified.",
+    "enforcement_type": "mechanical",
     "id": "go-functional-composition/list-checks-ctx-done",
     "level": "MUST",
     "owner": "go-context-assistant"
@@ -463,6 +606,7 @@
     "applies_when": "a Go file introduces a slice type that implements an interface `X` for the functional-composition pattern but names the type something other than `XList`.",
     "doc_path": "docs/go-functional-composition-pattern.md",
     "enforcement": "`rules/go/list-type-name.yml` (mechanical first-pass) + judgment-tier LLM adjudication to rule out generic slice aliases not serving as functional-composition aggregators.",
+    "enforcement_type": "mechanical",
     "id": "go-functional-composition/list-type-name",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -472,6 +616,7 @@
     "applies_when": "a `XList` method returns an error from a wrapped member's call directly (`return err`) instead of wrapping with `errors.Wrapf(ctx, err, \"<member-identifying context>\")` from `github.com/bborbe/errors`.",
     "doc_path": "docs/go-functional-composition-pattern.md",
     "enforcement": "`rules/go/list-wraps-errors-with-ctx.yml` (mechanical first-pass) + judgment-tier LLM adjudication to rule out single-member iterations where wrapping adds no context.",
+    "enforcement_type": "mechanical",
     "id": "go-functional-composition/list-wraps-errors-with-ctx",
     "level": "MUST",
     "owner": "go-error-assistant"
@@ -481,6 +626,7 @@
     "applies_when": "a multi-method interface `X` has a `XFunc` struct adapter, but the adapter omits a field for one or more of the interface's methods OR delegates without a `nil`-check + sane default, so calling the missing/zero field panics.",
     "doc_path": "docs/go-functional-composition-pattern.md",
     "enforcement": "`rules/go/multi-method-func-explicit-delegate.yml` (mechanical first-pass flags every `*Func` struct) + judgment-tier LLM adjudication verifies each interface method has a matching field + nil-check + sane zero default.",
+    "enforcement_type": "mechanical",
     "id": "go-functional-composition/multi-method-func-explicit-delegate",
     "level": "SHOULD",
     "owner": "go-quality-assistant"
@@ -490,6 +636,7 @@
     "applies_when": "a Go package using the functional-options pattern uses suboptimal pair naming — function type with plural `XxxOptions` (matching the struct so they collide semantically), OR config struct with singular `XxxOption` (clashing with the function type). Both shapes work; this rule promotes the industry-standard singular-function / plural-struct pair for clarity, not as a correctness fix.",
     "doc_path": "docs/go-functional-options-pattern.md",
     "enforcement": "`rules/go/singular-option-type.yml` (mechanical first-pass flags function types named `*Options`) + judgment-tier LLM adjudication to confirm the pattern context and rule out unrelated `*Options` func types.",
+    "enforcement_type": "mechanical",
     "id": "go-functional-options/singular-option-type",
     "level": "SHOULD",
     "owner": "go-quality-assistant"
@@ -499,6 +646,7 @@
     "applies_when": "a Go package using the functional-options pattern names the option constructors with prefixes other than `With*` (e.g. `Set*`, `Use*`, `Configure*`, bare nouns like `BatchSize(n)`).",
     "doc_path": "docs/go-functional-options-pattern.md",
     "enforcement": "`rules/go/with-prefix-option-functions.yml` (mechanical first-pass flags exported functions returning `*Option` types without `With` prefix) + judgment-tier LLM adjudication to confirm the function is an option constructor.",
+    "enforcement_type": "mechanical",
     "id": "go-functional-options/with-prefix-option-functions",
     "level": "SHOULD",
     "owner": "go-quality-assistant"
@@ -508,6 +656,7 @@
     "applies_when": "a Go file calls `glog.Info` / `glog.Infof` for debug, trace, internal-state, or developer-troubleshooting log lines that should be filtered out in production — instead of `glog.V(N).Info...` / `glog.V(N).Infof...` with an appropriate verbosity level (1 for sysop debug, 2 for dev default, 3+ for deep debug). Scope: applies across ALL V levels — V0 is reserved for production-default operator info; everything debug-shaped goes through `V(N)`.",
     "doc_path": "docs/go-glog-guide.md",
     "enforcement": "`rules/go/glog-info-needs-v.yml` flags every `glog.Info(...)` / `glog.Infof(...)` call. The agent decides per-finding whether the call is V0-worthy production-operator info (startup, shutdown, health change, recovered panic) or debug-shaped content that should be gated behind `V(N)` — that distinction needs reading the log message intent, which ast-grep can't do.",
+    "enforcement_type": "mechanical",
     "id": "go-glog/use-v-for-debug-not-info",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -517,24 +666,33 @@
     "applies_when": "a `*.go` file under `**/pkg/handler/**` is named with non-kebab-case style (e.g. `exists_handler.go`, `existshandler.go`, or `handler.go`) instead of the documented `<action>-<noun>.go` kebab-case (e.g. `exists.go`, `forward-invoice.go`). Pure ast-grep operates on file contents, not filenames — this is a filesystem convention check.",
     "doc_path": "docs/go-http-handler-refactoring-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-http-handler/kebab-case-handler-files",
     "level": "SHOULD",
-    "owner": "go-http-handler-assistant"
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/pkg/handler/**/*.go"
+    ]
   },
   {
     "anchor": "go-http-handler/new-prefix-naming",
     "applies_when": "a function declared in a `*.go` file inside `**/pkg/handler/**` returning `libhttp.WithError`, `run.Func`, or `http.Handler` does not follow the `New[Purpose]Handler` naming pattern. Pure ast-grep can match the function's return type but cannot reliably check whether the chosen name is descriptive enough — that semantic check needs a reviewer.",
     "doc_path": "docs/go-http-handler-refactoring-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-http-handler/new-prefix-naming",
     "level": "MUST",
-    "owner": "go-http-handler-assistant"
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/pkg/handler/**/*.go"
+    ]
   },
   {
     "anchor": "go-http-handler/no-inline-background-handler",
     "applies_when": "`libhttp.NewBackgroundRunHandler(ctx, func ...)` is called with an inline anonymous function as its second argument in a `*.go` file outside `**/pkg/handler/**`, `*_test.go`, and `vendor/`. The legitimate place is inside `pkg/handler/New*Handler` factories (returning `run.Func`).",
     "doc_path": "docs/go-http-handler-refactoring-guide.md",
     "enforcement": "`rules/go/handler-no-inline-background-handler.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-http-handler/no-inline-background-handler",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
@@ -544,6 +702,7 @@
     "applies_when": "`libhttp.WithErrorFunc(func ...)` is called with an inline anonymous function as its argument in a `*.go` file outside `**/pkg/handler/**`, `*_test.go`, and `vendor/`. The legitimate place for inline error handler closures is inside `pkg/handler/New*Handler` factory functions; anywhere else (typically `main.go`) the closure should be extracted into the handler package.",
     "doc_path": "docs/go-http-handler-refactoring-guide.md",
     "enforcement": "`rules/go/handler-no-inline-error-handler.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-http-handler/no-inline-error-handler",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
@@ -553,6 +712,7 @@
     "applies_when": "a Go service's admin HTTP server (the one serving `/healthz`, `/metrics`, etc.) defaults to a port other than `9090` — either hardcoded or via a `--listen` flag/env-var whose default isn't `:9090`.",
     "doc_path": "docs/go-http-service-guide.md",
     "enforcement": "`rules/go/admin-port-9090.yml` flags `field_declaration` nodes named `Listen` whose struct tag contains a `default:\"...\"` value that is not `\":9090\"`. Fields with no default tag are not caught mechanically — the agent handles those during full struct inspection.",
+    "enforcement_type": "mechanical",
     "id": "go-http-service/admin-port-9090",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
@@ -562,6 +722,7 @@
     "applies_when": "a Go service's admin HTTP server (port 9090, mounted under `/admin/<svc>/...` by the gateway) is missing any of the five always-required endpoints: `/healthz`, `/readiness`, `/metrics`, `/setloglevel/{level}`, `/gc`.",
     "doc_path": "docs/go-http-service-guide.md",
     "enforcement": "`rules/go/canonical-admin-endpoints.yml` flags `router.Path(...)` / `router.Handle(...)` / `mux.Handle(...)` calls registering any of the five canonical paths as a first-pass filter. The agent audits the route table to confirm all five are present; a file with only some endpoints registered fires the rule for the agent to check completeness.",
+    "enforcement_type": "mechanical",
     "id": "go-http-service/canonical-admin-endpoints",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
@@ -571,15 +732,21 @@
     "applies_when": "an HTTP handler in a Go service emits an error response that is not a JSON object with the canonical `{error: {code, message, details}}` shape — e.g. plain-text bodies, top-level `{message: ...}` without an `error` wrapper, or `details` as a string instead of a `map[string]string`.",
     "doc_path": "docs/go-json-error-handler-guide.md",
     "enforcement": "judgment (response-shape inspection; ast-grep can detect `http.Error` calls and inline JSON writes but the full contract needs request/response review)",
+    "enforcement_type": "judgment",
     "id": "go-json-error-handler/structured-response-shape",
     "level": "MUST",
-    "owner": "go-http-handler-assistant"
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/pkg/handler/**/*.go",
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-json-error-handler/use-error-code-constants",
     "applies_when": "a Go HTTP handler passes a raw string literal as the error-code argument to `libhttp.WrapWithCode` / `libhttp.WrapWithDetails` instead of the `libhttp.ErrorCodeXxx` constants.",
     "doc_path": "docs/go-json-error-handler-guide.md",
     "enforcement": "`rules/go/use-error-code-constants.yml` flags `libhttp.WrapWithCode(err, $CODE, statusCode)` / `libhttp.WrapWithDetails(err, $CODE, statusCode, details)` calls whose `$CODE` argument (position #2 per the libhttp signature) is an `interpreted_string_literal` (raw string) instead of an `ErrorCodeXxx` constant selector_expression. Uses the metavariable-constraint shape (PR #11 recipe).",
+    "enforcement_type": "mechanical",
     "id": "go-json-error-handler/use-error-code-constants",
     "level": "MUST",
     "owner": "go-http-handler-assistant"
@@ -589,6 +756,7 @@
     "applies_when": "a Go k8s-deployed binary calls `os.Getenv(\"FOO\")` to read a config / auth value that's already declared as an `application` struct field bound via `argument` tags.",
     "doc_path": "docs/go-k8s-binary-conventions.md",
     "enforcement": "`rules/go/argument-struct-not-os-getenv.yml` flags any `os.Getenv(...)` call expression. `main.go` and `cmd/**` are excluded (early bootstrap is permitted). The agent confirms whether the matching call site duplicates an already-bound struct field.",
+    "enforcement_type": "mechanical",
     "id": "go-k8s-binary/argument-struct-not-os-getenv",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -598,6 +766,7 @@
     "applies_when": "an `application` struct field in a Go k8s-deployed binary holds secret material (PEM key, OAuth token, password, API key, JWT signing secret) without the `display:\"length\"` tag — meaning glog / structured-logging dumps of the application config will print the secret value.",
     "doc_path": "docs/go-k8s-binary-conventions.md",
     "enforcement": "`rules/go/secret-fields-need-display-length.yml` flags `field_declaration` whose name contains `PEM` / `Token` / `Secret` / `Password` / `Key` / `Credential` and whose tag either lacks `display:\"length\"` or is absent entirely. The agent dismisses incidental name matches (e.g. `MasterKey` for a non-credential master record).",
+    "enforcement_type": "mechanical",
     "id": "go-k8s-binary/secret-fields-need-display-length",
     "level": "MUST",
     "owner": "go-security-specialist"
@@ -607,24 +776,35 @@
     "applies_when": "a Go consumer service interacts with a first-party CRD (the CR schema is known at compile time, defined in the same repo or a sibling library) using `k8s.io/client-go/dynamic` instead of the typed clientset generated via `hack/update-codegen.sh`.",
     "doc_path": "docs/go-kubernetes-crd-controller-guide.md",
     "enforcement": "judgment (import-graph check on the consumer service: `client-go/dynamic` imported alongside a known-schema CR type is the smell; dynamic-client use is acceptable only when the CR is third-party with unknown schema)",
+    "enforcement_type": "judgment",
     "id": "go-k8s-crd/generated-client-not-dynamic",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go",
+      "go.mod"
+    ]
   },
   {
     "anchor": "go-k8s-crd/use-bborbe-k8s",
     "applies_when": "a Go service consuming a CRD hand-writes the event-handler cast adapter, the typed event handler, or the in-memory state store, while the service already depends on (or could depend on) `github.com/bborbe/k8s`.",
     "doc_path": "docs/go-kubernetes-crd-controller-guide.md",
     "enforcement": "judgment (file-existence + dependency-graph check: presence of `pkg/event-handler*.go` or `pkg/<resource>-store.go` alongside a non-trivial `bborbe/k8s` import means hand-written boilerplate that should use the generic primitives)",
+    "enforcement_type": "judgment",
     "id": "go-k8s-crd/use-bborbe-k8s",
     "level": "SHOULD",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go",
+      "go.mod"
+    ]
   },
   {
     "anchor": "go-library/semver-vprefix-tag-required",
     "applies_when": "a public Go library repo cuts a release without a `git tag` matching `v<MAJOR>.<MINOR>.<PATCH>` (e.g. `v1.0.0`, `v0.12.3`) — either tagless commits, date-based tags (`2026-06-03`), or non-prefixed semver (`1.0.0` without the leading `v`).",
     "doc_path": "docs/go-library-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (`git tag --list` filtered against `^v[0-9]+\\.[0-9]+\\.[0-9]+$` when `.git` present)",
+    "enforcement_type": "script",
     "id": "go-library/semver-vprefix-tag-required",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -634,15 +814,20 @@
     "applies_when": "a PR diff modifies copyright years in `*.go` source-file headers — either bulk-updating across many files or setting future / non-numeric years (`2099`, `present`, etc.).",
     "doc_path": "docs/go-licensing-guide.md",
     "enforcement": "judgment (diff inspection — ast-grep can detect `Copyright (c) 2099` shapes but the \"bulk-update for trivial changes\" trigger needs PR-scope reasoning)",
+    "enforcement_type": "judgment",
     "id": "go-licensing/copyright-year-discipline",
     "level": "MUST",
-    "owner": "license-assistant"
+    "owner": "license-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-licensing/license-file-required",
     "applies_when": "a Go project published to `github.com/*` (public) does not have a `LICENSE` file in its repo root.",
     "doc_path": "docs/go-licensing-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (checks for `LICENSE` file at repo root)",
+    "enforcement_type": "script",
     "id": "go-licensing/license-file-required",
     "level": "MUST",
     "owner": "license-assistant"
@@ -652,6 +837,7 @@
     "applies_when": "a public Go project's `README.md` has no `## License` (H2) section pointing at the root `LICENSE` file.",
     "doc_path": "docs/go-licensing-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (greps `README.md` for `## License` H2 section)",
+    "enforcement_type": "script",
     "id": "go-licensing/readme-license-section-required",
     "level": "MUST",
     "owner": "license-assistant"
@@ -661,33 +847,48 @@
     "applies_when": "a public Go project has `*.go` files outside `vendor/` without the 3-line BSD-2-Clause header block at the top.",
     "doc_path": "docs/go-licensing-guide.md",
     "enforcement": "`addlicense -check` invocation via `make precommit` (the canonical tool; ast-grep can detect missing headers via first-line regex, but `addlicense` is already wired through the toolchain).",
+    "enforcement_type": "judgment",
     "id": "go-licensing/source-file-header-required",
     "level": "MUST",
-    "owner": "license-assistant"
+    "owner": "license-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-linting/banned-packages-via-depguard",
     "applies_when": "a Go project's `.golangci.yaml` does not configure `depguard` with the bborbe banned-package list (deprecated stdlib alternatives like `io/ioutil`, v1 of versioned packages where v2+ exists, `pkg/errors` superseded by `bborbe/errors`).",
     "doc_path": "docs/go-linting-guide.md",
     "enforcement": "judgment (config inspection; ast-grep does not parse golangci YAML structure)",
+    "enforcement_type": "judgment",
     "id": "go-linting/banned-packages-via-depguard",
     "level": "MUST",
-    "owner": "go-quality-assistant"
+    "owner": "go-quality-assistant",
+    "trigger": [
+      ".golangci.yaml",
+      ".golangci.yml"
+    ]
   },
   {
     "anchor": "go-linting/complexity-limits-enforced",
     "applies_when": "a Go project's `.golangci.yaml` (or `.golangci.yml`) does not enable `funlen`, `gocognit`, `nestif`, and `maintidx` with the bborbe standard thresholds (80 lines / 50 statements / 20 complexity / 4 nesting / 20 maintainability).",
     "doc_path": "docs/go-linting-guide.md",
     "enforcement": "judgment (config-file presence + threshold inspection; ast-grep does not parse YAML reliably for nested numeric thresholds)",
+    "enforcement_type": "judgment",
     "id": "go-linting/complexity-limits-enforced",
     "level": "MUST",
-    "owner": "go-quality-assistant"
+    "owner": "go-quality-assistant",
+    "trigger": [
+      ".golangci.yaml",
+      ".golangci.yml"
+    ]
   },
   {
     "anchor": "go-logging/external-call-logs-response",
     "applies_when": "a Go function makes a call that crosses the process boundary (HTTP client, gRPC client, database query, message-bus publish, subprocess `exec`) without emitting a single log line summarising the call's outcome (method/op + status/result + latency, plus error message on failure).",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "`rules/go/external-call-logs-response.yml` (mechanical first-pass — flags `client.Do`, `db.QueryContext`/`ExecContext`/`QueryRowContext`, and `exec.Command`/`CommandContext` call sites) + judgment-tier LLM adjudication for whether a log statement exists in the same block and whether the caller is already wrapped by a logging middleware",
+    "enforcement_type": "mechanical",
     "id": "go-logging/external-call-logs-response",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -697,6 +898,7 @@
     "applies_when": "a Go log call's message string starts with an uppercase letter (`glog.Infof(\"Service started ...\")`, `slog.Info(\"Failed to ...\")`).",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "`rules/go/lowercase-log-messages.yml` (mechanical first-pass — flags glog/slog/log calls containing any string-literal argument starting with an uppercase letter) + judgment-tier LLM adjudication for proper nouns, acronyms, and key strings in slog structured key-value pairs",
+    "enforcement_type": "mechanical",
     "id": "go-logging/lowercase-log-messages",
     "level": "SHOULD",
     "owner": "go-quality-assistant"
@@ -706,6 +908,7 @@
     "applies_when": "a Go function logs an error (via `glog.Errorf` / `slog.Error` / `log.Printf` / similar) and then also returns the same error to the caller — meaning the error is reported twice: once at the inner site and again upstream when the caller (or its caller) logs the propagated error.",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "`rules/go/no-log-and-return-error.yml` (mechanical first-pass — flags `if err != nil` blocks containing both a glog/slog/log Error/Warning call and a `return ..., err`) + judgment-tier LLM adjudication for the documented boundary-audit-log exemption (see `go-logging/external-call-logs-response`)",
+    "enforcement_type": "mechanical",
     "id": "go-logging/no-log-and-return-error",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -715,6 +918,7 @@
     "applies_when": "a Go file in a project that already uses one logging library (`log/slog` OR `github.com/golang/glog`) imports the other one — meaning the codebase emits both stdlib structured logs and glog's V-leveled string logs from the same binary.",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "`rules/go/no-mixing-slog-and-glog.yml` (mechanical first-pass — flags every file importing both `\"log/slog\"` and `\"github.com/golang/glog\"`) + judgment-tier LLM adjudication for the monorepo-sibling exemption (new binary coexisting with glog-using siblings)",
+    "enforcement_type": "mechanical",
     "id": "go-logging/no-mixing-slog-and-glog",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -724,6 +928,7 @@
     "applies_when": "a Go log statement (`glog.Infof` / `slog.Info` / `log.Printf` / similar) interpolates a value whose name or content suggests sensitive material — password, passphrase, token (access/refresh/bearer/CSRF/session/JWT), secret (raw value, not k8s `secretName`/`secretRef`), compound `*Secret` (`clientSecret`, `webhookSecret`, `signingSecret`), credential-shaped key (privateKey, signingKey, encryptionKey, apiKey, PEM key — NOT publicKey / partitionKey / sortKey / lookupKey), Authorization header, cookie (session / auth / tracking, including `Set-Cookie` header value and individual cookie values), DB connection string / DSN, OAuth client secret, X.509 certificate body, full request/response struct that contains any of the above as a field.",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "`rules/go/no-sensitive-data-in-logs.yml` (mechanical first-pass — flags glog/slog/log calls passing direct identifier arguments matching credential-shaped names: password, token, credential, authorization, jwt, pem, dsn, cookie, privateKey, signingKey, etc.) + judgment-tier LLM adjudication for false positives on public-value names (publicKey, partitionKey, sortKey) and whole-struct `%+v`/`%#v` dump checks",
+    "enforcement_type": "mechanical",
     "id": "go-logging/no-sensitive-data-in-logs",
     "level": "MUST",
     "owner": "go-security-specialist"
@@ -733,6 +938,7 @@
     "applies_when": "a Go log statement appears inside a `for` loop body whose iteration count is unbounded at compile time (range over an externally-sourced slice / channel; classic for-condition driven by external state) without being gated by a `log.Sampler` / `IsSample()` check or a `glog.V(N)` verbosity guard. The judgment threshold is \"would this log line out-pace what an operator can scan at expected load?\" — a poll-loop running once per second is fine to log every iteration; a per-message Kafka consumer running 10k msg/s is not.",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "`rules/go/no-tight-loop-without-sampler.yml` (mechanical first-pass — flags glog/slog/log Info/Warning calls inside any `for_statement` body) + judgment-tier LLM adjudication for bounded loops, sampler-gated calls, and verbosity-gated `glog.V(N)` guards",
+    "enforcement_type": "mechanical",
     "id": "go-logging/no-tight-loop-without-sampler",
     "level": "SHOULD",
     "owner": "go-quality-assistant"
@@ -742,6 +948,7 @@
     "applies_when": "a Go function emits a `glog.V(2).Infof(...)` heartbeat log line unconditionally — meaning the line runs every iteration / cycle / poll regardless of whether anything observable happened (zero items processed, no state change, no signal worth recording).",
     "doc_path": "docs/go-logging-guide.md",
     "enforcement": "`rules/go/skip-empty-v2-heartbeats.yml` (mechanical first-pass — flags `glog.V(N).Info`/`Infof` calls inside any `for_statement` body) + judgment-tier LLM adjudication for calls already guarded by `if changed > 0` / `if n > 0` or a sampler check",
+    "enforcement_type": "mechanical",
     "id": "go-logging/skip-empty-v2-heartbeats",
     "level": "SHOULD",
     "owner": "go-quality-assistant"
@@ -751,33 +958,47 @@
     "applies_when": "a Go project's CI script, contributor onboarding doc, or commit message references `go build ./...` as the verification step for \"this change compiles and is safe to merge\", instead of `make test` (which wraps Ginkgo + race detection + coverage thresholds).",
     "doc_path": "docs/go-makefile-commands.md",
     "enforcement": "judgment (semantic — distinguishing \"this is the canonical verification step\" from \"this is one of several build sanity checks\" requires reading the context. `go build ./...` is fine as one signal; it's wrong as THE signal)",
+    "enforcement_type": "judgment",
     "id": "go-makefile/test-not-build-for-verification",
     "level": "MUST",
-    "owner": "go-quality-assistant"
+    "owner": "go-quality-assistant",
+    "trigger": [
+      "Makefile"
+    ]
   },
   {
     "anchor": "go-mod-dependency-fix/exclude-over-cross-repo-replace",
     "applies_when": "a Go project pins around a known-broken upstream transitive version by adding a `replace` directive that points at a different repo (forked code, pseudo-version on a different module path) instead of an `exclude` directive that lets MVS pick the next valid version.",
     "doc_path": "docs/go-mod-dependency-fix-guide.md",
     "enforcement": "judgment (semantic — `replace` for known-broken-version-skip and `replace` for cross-repo-pinning look identical in `go.mod`; the intent is the differentiator)",
+    "enforcement_type": "judgment",
     "id": "go-mod-dependency-fix/exclude-over-cross-repo-replace",
     "level": "SHOULD",
-    "owner": "go-quality-assistant"
+    "owner": "go-quality-assistant",
+    "trigger": [
+      "go.mod"
+    ]
   },
   {
     "anchor": "go-mod-dependency-fix/tidy-after-get-update",
     "applies_when": "a Go project's CHANGELOG / git history shows a `go get -u <pkg>` or `go get <pkg>@<version>` operation that was committed without a subsequent `go mod tidy` (`go.sum` shows added entries but no removed-but-no-longer-needed entries; or `go.mod` has new `require` lines but `go.sum` has unused hashes).",
     "doc_path": "docs/go-mod-dependency-fix-guide.md",
     "enforcement": "judgment (semantic — typically caught at PR review: the commit message says \"update X\" but the diff doesn't have the `go mod tidy` side effects)",
+    "enforcement_type": "judgment",
     "id": "go-mod-dependency-fix/tidy-after-get-update",
     "level": "MUST",
-    "owner": "go-quality-assistant"
+    "owner": "go-quality-assistant",
+    "trigger": [
+      "go.mod",
+      "go.sum"
+    ]
   },
   {
     "anchor": "go-mod-replace/no-cross-repo-replace",
     "applies_when": "a Go project's `go.mod` contains a `replace` directive whose right-hand side path points outside the current repo's working tree — relative paths that escape the repo root (`../../other-repo/lib`), absolute filesystem paths (`/Users/<name>/work/...`), or any other off-repo location.",
     "doc_path": "docs/go-mod-replace-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (greps `go.mod` for `replace` directives with absolute paths or `../` paths that resolve outside the repo root; same-repo relative replaces are exempt)",
+    "enforcement_type": "script",
     "id": "go-mod-replace/no-cross-repo-replace",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -787,6 +1008,7 @@
     "applies_when": "a Go package adds a `ParseX(ctx, value)` function returning `(X, error)` without a paired `ParseXDefault(ctx, value, default) X` that suppresses the error and returns the default — OR vice versa (`ParseXDefault` without `ParseX`).",
     "doc_path": "docs/go-parse-pattern.md",
     "enforcement": "`rules/go/paired-parse-and-parsedefault.yml` (mechanical first-pass — flags `Parse*` function declarations with an error return type that lack a `Default` suffix) + judgment-tier LLM adjudication for whether the matching `Parse*Default` counterpart exists in the same package",
+    "enforcement_type": "mechanical",
     "id": "go-parse/paired-parse-and-parsedefault",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -796,6 +1018,7 @@
     "applies_when": "a Go file declares a custom pointer helper function (`func stringPtr(s string) *string { return &s }`, `func intPtr(...)`, etc.) instead of importing `github.com/bborbe/collection` and calling `collection.Ptr(...)`.",
     "doc_path": "docs/go-patterns.md",
     "enforcement": "`rules/go/no-custom-ptr-helpers.yml` matches the canonical pointer-helper signature `func N(P T) *T { return &P }` (same param identifier on both sides). The agent decides per-finding whether the function is a real pointer-helper (one-arg, returns `&that_arg`) or a one-liner constructor that incidentally returns a pointer to a struct literal (`&Type{...}`) — the latter is exempt.",
+    "enforcement_type": "mechanical",
     "id": "go-patterns/bborbe-collection-ptr-not-helpers",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -805,6 +1028,7 @@
     "applies_when": "a Go file dispatches behaviour on an enum-typed value (`OrderStatus`, `WorkflowMode`, `Phase`) using an `if/else if/else` chain over equality comparisons, instead of a `switch` statement with explicit cases + a `default` arm returning an error for unknown values.",
     "doc_path": "docs/go-patterns.md",
     "enforcement": "`rules/go/switch-over-if-chain-for-dispatch.yml` (mechanical first-pass flags `if/else if/else if` chains with 3+ branches) + judgment-tier LLM adjudication to confirm this is enum dispatch rather than coincidental equality checks over unrelated conditions.",
+    "enforcement_type": "mechanical",
     "id": "go-patterns/switch-over-if-chain-for-dispatch",
     "level": "SHOULD",
     "owner": "go-quality-assistant"
@@ -814,24 +1038,33 @@
     "applies_when": "a single `Metrics` interface aggregates methods spanning two or more distinct functional domains (handlers + senders + schedulers + …), forcing consumers to depend on methods they don't use.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-prometheus/composed-metrics-interface",
     "level": "SHOULD",
-    "owner": "go-metrics-assistant"
+    "owner": "go-metrics-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-prometheus/counter-pre-initialization",
     "applies_when": "a CounterVec is registered for a label set whose value domain is small, bounded, and known at compile time (typically < 20 combinations — enum, fixed slice of strings, etc.). For large or unbounded domains, prefer `absent()` checks in alerting rules instead.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-prometheus/counter-pre-initialization",
     "level": "MUST",
-    "owner": "go-metrics-assistant"
+    "owner": "go-metrics-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-prometheus/counter-total-suffix",
     "applies_when": "a `prometheus.CounterOpts` struct literal sets a `Name:` field whose string value does not end with `_total`.",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "`rules/go/counter-total-suffix.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-prometheus/counter-total-suffix",
     "level": "MUST",
     "owner": "go-metrics-assistant"
@@ -841,42 +1074,59 @@
     "applies_when": "any `prometheus.{Counter,Gauge,Histogram,Summary}Opts` struct literal sets a `Help:` field that (a) is empty, (b) duplicates another metric's Help verbatim, or (c) describes a different metric (copy-paste residue).",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-prometheus/help-string-quality",
     "level": "MUST",
-    "owner": "go-metrics-assistant"
+    "owner": "go-metrics-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-prometheus/label-naming-consistency",
     "applies_when": "two or more metrics in the same project reference the same conceptual entity using different label names (e.g. `product` vs `item` for product ID; `tenant` vs `customer` vs `org`).",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-prometheus/label-naming-consistency",
     "level": "MUST",
-    "owner": "go-metrics-assistant"
+    "owner": "go-metrics-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-prometheus/no-gauge-for-monotonic",
     "applies_when": "a `prometheus.NewGaugeVec` / `prometheus.NewGauge` registers a metric the code only ever increments (only `.Inc()` / `.Add(positive)` call sites, never `.Set()` / `.Dec()` / `.Sub()`).",
     "doc_path": "docs/go-prometheus-metrics-guide.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-prometheus/no-gauge-for-monotonic",
     "level": "MUST",
-    "owner": "go-metrics-assistant"
+    "owner": "go-metrics-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-security/chmod-return-checked",
     "applies_when": "an `os.Chmod($PATH, $PERM)` call in a `*.go` file outside `*_test.go` and `vendor/` whose return value is discarded (no `if err := os.Chmod(...); err != nil` wrapper, no `_ = os.Chmod(...)` with an explanatory comment). Detecting \"return value used in error check\" requires reading the surrounding statement — pure ast-grep cannot reliably distinguish a checked `os.Chmod(...)` from an unchecked one without false positives.",
     "doc_path": "docs/go-security-linting.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-security/chmod-return-checked",
     "level": "MUST",
-    "owner": "go-security-specialist"
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-security/dir-perms-too-permissive",
     "applies_when": "`os.MkdirAll($PATH, $PERM)` or `os.Mkdir($PATH, $PERM)` calls in a `*.go` file outside `*_test.go` and `vendor/`, where `$PERM` is a literal octal that is NOT `0750` / `0o750`.",
     "doc_path": "docs/go-security-linting.md",
     "enforcement": "`rules/go/dir-perms-too-permissive.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-security/dir-perms-too-permissive",
     "level": "MUST",
     "owner": "go-security-specialist"
@@ -886,6 +1136,7 @@
     "applies_when": "`os.WriteFile($PATH, $DATA, $PERM)` or `os.OpenFile($PATH, $FLAGS, $PERM)` calls in a `*.go` file outside `*_test.go` and `vendor/`, where `$PERM` is a literal octal that is NOT `0600` / `0o600`.",
     "doc_path": "docs/go-security-linting.md",
     "enforcement": "`rules/go/file-perms-too-permissive.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-security/file-perms-too-permissive",
     "level": "MUST",
     "owner": "go-security-specialist"
@@ -895,6 +1146,7 @@
     "applies_when": "a `// #nosec <CODE>` comment in a `*.go` file outside `*_test.go` and `vendor/` appears WITHOUT a `-- <reason>` text component on the same line.",
     "doc_path": "docs/go-security-linting.md",
     "enforcement": "`rules/go/nosec-requires-reason.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-security/nosec-requires-reason",
     "level": "MUST",
     "owner": "go-security-specialist"
@@ -904,6 +1156,7 @@
     "applies_when": "a Go service method receives a struct (by value OR by pointer) named `Context` / `ServiceContext` / `Deps` / etc. that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.",
     "doc_path": "docs/go-service-implementation-patterns.md",
     "enforcement": "`rules/go/no-context-object-injection.yml` flags `method_declaration` nodes whose parameter list contains a `type_identifier` or pointer thereof matching `*Context$`, `*Deps$`, or `*Dependencies$` (excluding `context.Context` which is a `qualified_type`). The agent confirms the matched type is a bundle struct with 2+ service-interface fields.",
+    "enforcement_type": "mechanical",
     "id": "go-service-impl/no-context-object-injection",
     "level": "MUST",
     "owner": "go-architecture-assistant"
@@ -913,33 +1166,46 @@
     "applies_when": "a Go service needs to dispatch to one of several implementations and the code uses the wrong dispatch shape for the set's openness: a `map[string]Creator` registry for a closed compile-time set, or a compiled `switch` for an open runtime-extensible set.",
     "doc_path": "docs/go-service-implementation-patterns.md",
     "enforcement": "judgment (semantic — depends on whether the implementation set is closed or open)",
+    "enforcement_type": "judgment",
     "id": "go-service-impl/provider-vs-registry-choice",
     "level": "SHOULD",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-state-machine/forward-only-by-default",
     "applies_when": "a Go FSM worker emits `NextPhase` referring to an earlier phase in the workflow's declared order, without an explicit circuit-breaker `attempt` counter and a controller-side cap.",
     "doc_path": "docs/go-state-machine-pattern.md",
     "enforcement": "judgment (semantic — requires reading both the worker's NextPhase-emission logic and the controller's persist logic)",
+    "enforcement_type": "judgment",
     "id": "go-state-machine/forward-only-by-default",
     "level": "SHOULD",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-state-machine/status-phase-separation",
     "applies_when": "a Go workflow / FSM controller persists a single field that conflates \"where in the workflow\" with \"how the last invocation ended\" — e.g. a `state` enum mixing `validating`/`charging`/`done`/`failed` together, or marking a task `completed` while `NextPhase` is still non-terminal.",
     "doc_path": "docs/go-state-machine-pattern.md",
     "enforcement": "judgment (semantic — requires reading the controller's persist logic)",
+    "enforcement_type": "judgment",
     "id": "go-state-machine/status-phase-separation",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-testing/counterfeiter-mocks-required",
     "applies_when": "a test file declares a hand-written struct that satisfies a production interface and is used in place of a real implementation under test, instead of importing a `mocks/<Name>` fake produced by Counterfeiter.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "`rules/go/counterfeiter-mocks-required.yml` (mechanical first-pass — flags every interface type declaration in production code) + judgment-tier LLM adjudication for whether a `//counterfeiter:generate` directive exists above the interface and a corresponding `mocks/*.go` file is present",
+    "enforcement_type": "mechanical",
     "id": "go-testing/counterfeiter-mocks-required",
     "level": "MUST",
     "owner": "go-test-quality-assistant"
@@ -949,15 +1215,20 @@
     "applies_when": "a Go business-logic file (outside `main.go`, `cmd/**`, `*_test.go`, `vendor/`) reads the current time. Tests cannot control `time.Now()` directly, so dependent code is unverifiable.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "cross-rule — overlaps with `go-time/no-time-now-direct` (already in `rules/index.json`). This rule scopes the same constraint to test-coverage assessments: a service that doesn't inject time has no testable time-dependent paths.",
+    "enforcement_type": "judgment",
     "id": "go-testing/libtime-injection-required",
     "level": "MUST",
-    "owner": "go-test-quality-assistant"
+    "owner": "go-test-quality-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-testing/main-test-with-compiles",
     "applies_when": "a Go binary project (package `main` with `main.go`) does not have a `main_test.go` containing a `Compiles` It-block backed by `gexec.Build`.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "`rules/go/main-test-with-compiles.yml` (mechanical first-pass — flags `func main()` declarations in package main files) + judgment-tier LLM adjudication for whether `main_test.go` with a `gexec.Build` Compiles It-block exists in the same directory",
+    "enforcement_type": "mechanical",
     "id": "go-testing/main-test-with-compiles",
     "level": "MUST",
     "owner": "go-test-quality-assistant"
@@ -967,6 +1238,7 @@
     "applies_when": "a Go test file inside an `It` / `BeforeEach` / `JustBeforeEach` / `AfterEach` block calls an error-returning function whose return value is discarded.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "`rules/go/no-bare-error-call.yml` (mechanical first-pass — flags bare method/selector call expression_statements inside Ginkgo It/BeforeEach/JustBeforeEach/AfterEach blocks) + judgment-tier LLM adjudication for void functions whose return is legitimately ignored",
+    "enforcement_type": "mechanical",
     "id": "go-testing/no-bare-error-call",
     "level": "MUST",
     "owner": "go-test-quality-assistant"
@@ -976,6 +1248,7 @@
     "applies_when": "a Go test file uses `t.Run` inside a `for ... range` loop instead of `DescribeTable`/`Entry`. The rule fires regardless of whether a Ginkgo suite exists in the package — stdlib table-driven tests are discouraged universally; suite-coexistence amplifies the cost.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "`rules/go/no-stdlib-table-tests.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-testing/no-stdlib-table-tests",
     "level": "MUST",
     "owner": "go-test-quality-assistant"
@@ -985,6 +1258,7 @@
     "applies_when": "a Go file in a package that has a Ginkgo `TestSuite` entry-point uses `*testing.T` directly inside test functions other than the suite entry-point itself.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "`rules/go/no-testing-t-direct.yml` flags every `func TestXxx(t *testing.T)` declaration. The agent decides per-finding whether the function is the legitimate Ginkgo suite entry-point (`RegisterFailHandler(Fail); RunSpecs(t, \"Suite\")`) or a stdlib-style test that needs to be ported to Ginkgo — that distinction needs reading the function body's intent, which ast-grep can't do reliably.",
+    "enforcement_type": "mechanical",
     "id": "go-testing/no-testing-t-direct",
     "level": "MUST",
     "owner": "go-test-quality-assistant"
@@ -994,6 +1268,7 @@
     "applies_when": "a Go package contains test files (`*_test.go`) but no `*_suite_test.go` file with a `TestSuite` entry-point and `RunSpecs`.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "`rules/go/suite-test-file-required.yml` (mechanical first-pass — flags every top-level `var _ = Describe(...)` anchor in a test file) + judgment-tier LLM adjudication for whether a `*_suite_test.go` with `RunSpecs` exists in the same package directory",
+    "enforcement_type": "mechanical",
     "id": "go-testing/suite-test-file-required",
     "level": "MUST",
     "owner": "go-test-quality-assistant"
@@ -1003,6 +1278,7 @@
     "applies_when": "a `*_suite_test.go` file calls `GinkgoConfiguration()` without setting `suiteConfig.Timeout` before `RunSpecs`.",
     "doc_path": "docs/go-testing-guide.md",
     "enforcement": "`rules/go/suite-timeout-required.yml` — flags `TestXxx(t *testing.T)` bodies calling `GinkgoConfiguration()` without an assignment to `suiteConfig.Timeout`; agent dismisses helper-set, decorator-set, and aliased-import (`g.GinkgoConfiguration()`) cases.",
+    "enforcement_type": "mechanical",
     "id": "go-testing/suite-timeout-required",
     "level": "MUST",
     "owner": "go-test-quality-assistant"
@@ -1012,15 +1288,20 @@
     "applies_when": "a factory or constructor file outside `main.go` calls `libtime.NewCurrentDateTime()`.",
     "doc_path": "docs/go-time-injection.md",
     "enforcement": "judgment",
+    "enforcement_type": "judgment",
     "id": "go-time/inject-getter-not-create",
     "level": "MUST",
-    "owner": "go-time-assistant"
+    "owner": "go-time-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-time/no-time-now-direct",
     "applies_when": "any `*.go` file outside `main.go`, `*_test.go`, `vendor/` calls `time.Now()` directly.",
     "doc_path": "docs/go-time-injection.md",
     "enforcement": "`rules/go/no-time-now-direct.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-time/no-time-now-direct",
     "level": "MUST",
     "owner": "go-time-assistant"
@@ -1030,6 +1311,7 @@
     "applies_when": "any Go struct field is declared with stdlib type `time.Time` or `time.Duration`.",
     "doc_path": "docs/go-time-injection.md",
     "enforcement": "`rules/go/no-time-time-in-fields.yml`",
+    "enforcement_type": "mechanical",
     "id": "go-time/no-time-time-in-fields",
     "level": "MUST",
     "owner": "go-time-assistant"
@@ -1039,6 +1321,7 @@
     "applies_when": "a Go project has a `tools.go` file with `//go:build tools` that imports CLI tools (`_ \"github.com/golangci/golangci-lint/v2/cmd/golangci-lint\"`, `_ \"github.com/google/osv-scanner/v2/cmd/osv-scanner\"`, etc.) — instead of declaring CLI versions in a separate `tools.env` consumed by the Makefile via `go run pkg@$(VERSION)`.",
     "doc_path": "docs/go-tools-versioning-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (finds `tools.go` with `//go:build tools` + known CLI tool imports via grep)",
+    "enforcement_type": "script",
     "id": "go-tools-versioning/no-tools-go-for-clis",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -1048,6 +1331,7 @@
     "applies_when": "a Go service implements input validation via hand-rolled `if`/`if-else` chains in a `Validate(ctx context.Context) error` method or HTTP handler, instead of using `github.com/bborbe/validation` (`validation.All{...}` + `validation.Name(...)` + `validation.NotEmptyString(...)` etc.).",
     "doc_path": "docs/go-validation-framework-guide.md",
     "enforcement": "`rules/go/use-bborbe-validation-not-inline-checks.yml` (mechanical first-pass — flags `Validate` methods containing if-statements that return an `errors.*` call directly) + judgment-tier LLM adjudication for single-field domain types with one simple check, or packages already importing `github.com/bborbe/validation`",
+    "enforcement_type": "mechanical",
     "id": "go-validation/use-bborbe-validation-not-inline-checks",
     "level": "MUST",
     "owner": "go-quality-assistant"
@@ -1057,51 +1341,72 @@
     "applies_when": "a `StatefulSet` mounts persistent storage via a standalone `PersistentVolumeClaim` + `volumes[].persistentVolumeClaim.claimName`, instead of `spec.volumeClaimTemplates` (which generates one PVC per replica automatically).",
     "doc_path": "docs/k8s-manifest-guide.md",
     "enforcement": "judgment (YAML inspection: `kind: StatefulSet` with `spec.template.spec.volumes` containing a `persistentVolumeClaim` — should be in `volumeClaimTemplates` instead)",
+    "enforcement_type": "judgment",
     "id": "k8s-manifest/statefulset-pvc-via-volumeclaimtemplates",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "k8s/**/*.yaml"
+    ]
   },
   {
     "anchor": "k8s-manifest/workload-kind-matches-semantics",
     "applies_when": "a Kubernetes manifest uses `kind: Deployment` for a workload with per-replica disk state, stable network identity needs, or ordered start/stop semantics — instead of `kind: StatefulSet`. Equivalent: using `Deployment` for a workload that runs to completion (should be `Job` / `CronJob`) or runs on every node (should be `DaemonSet`).",
     "doc_path": "docs/k8s-manifest-guide.md",
     "enforcement": "judgment (semantic — the workload's actual lifecycle semantics aren't visible in the YAML itself, requires reading the corresponding Go binary + understanding the data-persistence requirements)",
+    "enforcement_type": "judgment",
     "id": "k8s-manifest/workload-kind-matches-semantics",
     "level": "MUST",
-    "owner": "go-architecture-assistant"
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "k8s/**/*.yaml"
+    ]
   },
   {
     "anchor": "markdown-todo/lowercase-x-for-complete",
     "applies_when": "a markdown checkbox uses `[X]` (uppercase) or any other variant (`[v]`, `[*]`, `[/]`) to mark a task complete instead of `[x]` (lowercase).",
     "doc_path": "docs/markdown-todo-guide.md",
     "enforcement": "judgment (regex over `^- \\[.\\]` markdown bullets: only `[ ]` (incomplete) and `[x]` (complete) are recognised by GitHub-flavoured markdown renderers and most checkbox parsers)",
+    "enforcement_type": "judgment",
     "id": "markdown-todo/lowercase-x-for-complete",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "**/*.md"
+    ]
   },
   {
     "anchor": "python-architecture/constructor-injection-only",
     "applies_when": "a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a *method parameter* instead of through `__init__`. Related but distinct anti-patterns covered by other rules: dependency from a global module variable (see `python-architecture/main-py-composition-root`); post-construction `self.foo = bar.foo` mutation (see `python-ioc/dependencies-as-private-fields`, which mandates private-field storage that makes mutation socially difficult).",
     "doc_path": "docs/python-architecture-patterns.md",
     "enforcement": "judgment (semantic — requires distinguishing dependency injection from runtime parameter passing. The other two related anti-patterns have their own rules and enforcement paths.)",
+    "enforcement_type": "judgment",
     "id": "python-architecture/constructor-injection-only",
     "level": "MUST",
-    "owner": "python-architecture-assistant"
+    "owner": "python-architecture-assistant",
+    "trigger": [
+      "**/*.py"
+    ]
   },
   {
     "anchor": "python-architecture/main-py-composition-root",
     "applies_when": "a Python application instantiates service objects at module level (top of `repository.py`, `handler.py`, etc.) instead of wiring them inside `main()` / `main.py`.",
     "doc_path": "docs/python-architecture-patterns.md",
     "enforcement": "judgment (file-scope check: module-level `Service()` / `Repository()` calls outside `if __name__ == \"__main__\":` blocks)",
+    "enforcement_type": "judgment",
     "id": "python-architecture/main-py-composition-root",
     "level": "SHOULD",
-    "owner": "python-architecture-assistant"
+    "owner": "python-architecture-assistant",
+    "trigger": [
+      "**/*.py"
+    ]
   },
   {
     "anchor": "python-factory/zero-business-logic-in-factories",
     "applies_when": "a Python factory function (in `factory.py` or named `create_*` / `make_*`) contains business logic — loops over domain data, conditional dispatch on runtime state, inline function implementations, validation logic, etc. — instead of pure dependency-wiring calls (constructor invocations and object-tree composition only).",
     "doc_path": "docs/python-factory-pattern.md",
     "enforcement": "`rules/python/zero-business-logic-in-factories.yml` flags `function_definition` nodes named `create_*` / `make_*` whose body contains a `for_statement`, `if_statement`, `lambda`, or nested `function_definition`. Config-level conditionals also fire — the agent distinguishes domain logic from wiring-time config branching.",
+    "enforcement_type": "mechanical",
     "id": "python-factory/zero-business-logic-in-factories",
     "level": "MUST",
     "owner": "python-architecture-assistant"
@@ -1111,6 +1416,7 @@
     "applies_when": "a Python service class stores an injected dependency on `self.<name>` (public attribute) instead of `self._<name>` (single-underscore private convention).",
     "doc_path": "docs/python-ioc-guide.md",
     "enforcement": "`rules/python/dependencies-as-private-fields.yml` flags any `self.X = Y` assignment inside `__init__` where `X` does not start with `_`. Type-annotation resolution to distinguish service deps from public data fields cannot be done in ast-grep — the agent makes the final call. Overinclusive first-pass is acceptable: most public `self.X` assignments in service classes ARE the smell.",
+    "enforcement_type": "mechanical",
     "id": "python-ioc/dependencies-as-private-fields",
     "level": "MUST",
     "owner": "python-architecture-assistant"
@@ -1120,6 +1426,7 @@
     "applies_when": "a Python service interface (dependency surface, e.g. `UserRepository`, `Logger`) is declared with `abc.ABC` + `@abstractmethod` decorators instead of `typing.Protocol`, AND no shared implementation across concrete types motivates the ABC.",
     "doc_path": "docs/python-ioc-guide.md",
     "enforcement": "`rules/python/protocol-not-abc-for-dependencies.yml` flags all `class X(ABC): ...` declarations as a first-pass filter. The \"no shared implementation needed\" trigger is semantic — the agent examines whether any method body provides shared behavior via `super()` and passes those through.",
+    "enforcement_type": "mechanical",
     "id": "python-ioc/protocol-not-abc-for-dependencies",
     "level": "MUST",
     "owner": "python-architecture-assistant"
@@ -1129,15 +1436,20 @@
     "applies_when": "a Python file in *library code* (modules imported by application code, intended for reuse across applications) calls `logging.basicConfig()` or adds handlers to the root logger. **Exempt**: the application entry point (`main.py` / `__main__.py` / `cli.py`) AND application-private helper modules wired from the entry point exclusively for configuration (e.g. `logging_setup.py` — see the next section), since those are part of the entry-point configuration surface, not library code.",
     "doc_path": "docs/python-logging-guide.md",
     "enforcement": "judgment (semantic — distinguishing library code from application-private configuration helpers requires reading the import graph; ast-grep can flag every non-entry-point `logging.basicConfig` call as a first-pass filter, but the agent must rule out the helper-module exemption case)",
+    "enforcement_type": "judgment",
     "id": "python-logging/configure-once-in-main",
     "level": "MUST",
-    "owner": "python-quality-assistant"
+    "owner": "python-quality-assistant",
+    "trigger": [
+      "**/*.py"
+    ]
   },
   {
     "anchor": "python-logging/lazy-evaluation-for-debug",
     "applies_when": "a Python `logger.debug(...)` / `logger.log(logging.DEBUG, ...)` call passes an f-string whose interpolation calls an expensive function (serializer, JSON dump, network fetch, large-collection traversal) instead of using `%s` placeholders with deferred arguments.",
     "doc_path": "docs/python-logging-guide.md",
     "enforcement": "`rules/python/lazy-evaluation-for-debug.yml` flags any `logger.debug(...)` call whose argument list contains an f-string (first-pass filter). Trivial f-strings like `logger.debug(f\"count={count}\")` fire — the agent makes the expensive-vs-trivial judgment and dismisses cheap interpolations.",
+    "enforcement_type": "mechanical",
     "id": "python-logging/lazy-evaluation-for-debug",
     "level": "MUST",
     "owner": "python-quality-assistant"
@@ -1147,24 +1459,34 @@
     "applies_when": "a Python project's `Makefile` is missing a `precommit` target that runs `format` + `test` + `check` (or equivalent: lint, type-check, test). The default `make` target (no argument) MUST resolve to `precommit` so CI and pre-commit hooks can invoke `make` uniformly across projects.",
     "doc_path": "docs/python-makefile-commands.md",
     "enforcement": "judgment (Makefile presence + target-list inspection: `grep -E '^precommit:' Makefile` plus default-target check via `make -np | grep '^precommit'`)",
+    "enforcement_type": "judgment",
     "id": "python-makefile/precommit-target-required",
     "level": "MUST",
-    "owner": "python-quality-assistant"
+    "owner": "python-quality-assistant",
+    "trigger": [
+      "Makefile"
+    ]
   },
   {
     "anchor": "python-makefile/uv-not-pip-or-poetry",
     "applies_when": "a Python project's `Makefile` (or CI script) uses `pip install -r requirements.txt` / `poetry install` / `pipenv install` instead of `uv sync` for dependency management.",
     "doc_path": "docs/python-makefile-commands.md",
     "enforcement": "judgment (Makefile + CI-config inspection for non-uv install commands; cross-check against `pyproject.toml` having `[tool.uv]` or `uv.lock` present)",
+    "enforcement_type": "judgment",
     "id": "python-makefile/uv-not-pip-or-poetry",
     "level": "SHOULD",
-    "owner": "python-quality-assistant"
+    "owner": "python-quality-assistant",
+    "trigger": [
+      "Makefile",
+      "pyproject.toml"
+    ]
   },
   {
     "anchor": "python-project-structure/pyproject-toml-with-hatchling",
     "applies_when": "a Python project ships a `setup.py` (legacy distutils/setuptools) or omits `pyproject.toml`, instead of using `pyproject.toml` + hatchling build backend.",
     "doc_path": "docs/python-project-structure.md",
     "enforcement": "`scripts/rule-checks.sh` (flags `setup.py` at repo root, or `pyproject.toml` with `[build-system]` whose `build-backend` is not `hatchling.build`)",
+    "enforcement_type": "script",
     "id": "python-project-structure/pyproject-toml-with-hatchling",
     "level": "MUST",
     "owner": "python-architecture-assistant"
@@ -1174,6 +1496,7 @@
     "applies_when": "a Python project's importable package directory (`<package_name>/__init__.py`) sits at the repo root instead of under `src/`.",
     "doc_path": "docs/python-project-structure.md",
     "enforcement": "`scripts/rule-checks.sh` (finds `<pkg>/__init__.py` at depth-2 from repo root when `pyproject.toml` present; `src/`, `tests/`, `build/` excluded)",
+    "enforcement_type": "script",
     "id": "python-project-structure/src-layout-required",
     "level": "MUST",
     "owner": "python-architecture-assistant"
@@ -1183,6 +1506,7 @@
     "applies_when": "a Python service class or internal domain model inherits from `pydantic.BaseModel` instead of using `dataclass` / plain types, in code reached only from already-validated callers (not at an API boundary, queue consumer, file parser, or other untrusted-input ingestion point).",
     "doc_path": "docs/python-pydantic-guide.md",
     "enforcement": "`rules/python/boundary-validation-only.yml` flags all `class X(BaseModel): ...` declarations as a first-pass filter. The agent rules out the \"actually at a boundary\" case by inspecting the file path (e.g. `pkg/api/`, `pkg/handler/`, `pkg/ingestion/`).",
+    "enforcement_type": "mechanical",
     "id": "python-pydantic/boundary-validation-only",
     "level": "MUST",
     "owner": "python-quality-assistant"
@@ -1192,6 +1516,7 @@
     "applies_when": "a Pydantic `BaseModel` field is typed `Optional[T]` / `T | None` (intended to be omittable) but has no default value assigned.",
     "doc_path": "docs/python-pydantic-guide.md",
     "enforcement": "`rules/python/optional-needs-default.yml` flags `name: Optional[T]` and `name: T | None` annotations inside `BaseModel` subclasses that lack a `= None` or `= Field(...)` default. The agent confirms intent when the absence is intentional.",
+    "enforcement_type": "mechanical",
     "id": "python-pydantic/optional-needs-default",
     "level": "MUST",
     "owner": "python-quality-assistant"
@@ -1201,15 +1526,20 @@
     "applies_when": "a project's README.md includes agent-operational content (build commands, architecture internals, ban lists, version-alignment requirements, structured constraints) instead of user-facing content (description, install, quick-start, usage).",
     "doc_path": "docs/readme-guide.md",
     "enforcement": "judgment (semantic — distinguishing \"user needs this to use it\" from \"agent needs this to change it\" requires reading the content; symptom: README has sections labelled \"Constraints\" / \"Hard Rules\" / \"Architecture\")",
+    "enforcement_type": "judgment",
     "id": "readme/user-facing-not-agent-context",
     "level": "MUST",
-    "owner": "agent-auditor"
+    "owner": "agent-auditor",
+    "trigger": [
+      "README.md"
+    ]
   },
   {
     "anchor": "skill-writing/scripts-in-scripts-subdir",
     "applies_when": "a Claude Code skill places executable scripts (`*.sh`, `*.py`) directly alongside `SKILL.md` instead of in a `scripts/` subdirectory.",
     "doc_path": "docs/claude-code-skill-writing-guide.md",
     "enforcement": "`scripts/rule-checks.sh` (finds `*.sh`/`*.py` directly inside `skills/<name>/` at depth-1)",
+    "enforcement_type": "script",
     "id": "skill-writing/scripts-in-scripts-subdir",
     "level": "MUST",
     "owner": "skill-auditor"
@@ -1219,35 +1549,53 @@
     "applies_when": "a `skills/<name>/SKILL.md` file is missing the required frontmatter fields — `name:` (must match the directory name) and `description:` (Claude's discovery signal).",
     "doc_path": "docs/claude-code-skill-writing-guide.md",
     "enforcement": "judgment (YAML-frontmatter inspection: presence of `name` + `description` at the top of every SKILL.md)",
+    "enforcement_type": "judgment",
     "id": "skill-writing/skill-md-frontmatter-required",
     "level": "MUST",
-    "owner": "skill-auditor"
+    "owner": "skill-auditor",
+    "trigger": [
+      "skills/**/*.md"
+    ]
   },
   {
     "anchor": "tdd/failing-test-before-implementation",
     "applies_when": "a PR introduces new functionality (new file, new function, new branch) without a corresponding test-file change that demonstrates the new behavior failing before the implementation lands.",
     "doc_path": "docs/tdd-guide.md",
     "enforcement": "judgment (commit-ordering inspection; ast-grep can flag new exported functions without adjacent test additions as a first-pass filter)",
+    "enforcement_type": "judgment",
     "id": "tdd/failing-test-before-implementation",
     "level": "SHOULD",
-    "owner": "go-test-quality-assistant"
+    "owner": "go-test-quality-assistant",
+    "trigger": [
+      "**/*_test.go",
+      "**/*.go"
+    ]
   },
   {
     "anchor": "teamvault/short-alphanumeric-is-lookup-key-not-secret",
     "applies_when": "a code-review agent or security-lint pass flags a 6-12 char alphanumeric value in a `.env` file / k8s manifest / config file as an exposed credential, when the corresponding k8s manifest uses `teamvaultFileBase64` / `teamvaultPassword` / `teamvaultConfig` template functions to resolve the value.",
     "doc_path": "docs/teamvault-conventions.md",
     "enforcement": "judgment (semantic — distinguishing a lookup key from a real short token requires reading the k8s manifest the env var feeds into)",
+    "enforcement_type": "judgment",
     "id": "teamvault/short-alphanumeric-is-lookup-key-not-secret",
     "level": "MUST",
-    "owner": "go-security-specialist"
+    "owner": "go-security-specialist",
+    "trigger": [
+      ".env",
+      "k8s/**/*.yaml"
+    ]
   },
   {
     "anchor": "test-pyramid/push-down-when-unsure",
     "applies_when": "a new test is written at a higher layer (E2E, integration) when an equivalent assertion could be made at a lower layer (integration → unit, E2E → integration). Specifically: the test exercises pure business logic via a full HTTP/DB round-trip, or it tests 5+ input combinations via E2E browser automation.",
     "doc_path": "docs/test-pyramid-triggers.md",
     "enforcement": "judgment (semantic — distinguishing \"this needs the real boundary\" from \"I just defaulted to the higher layer\" requires reading test intent)",
+    "enforcement_type": "judgment",
     "id": "test-pyramid/push-down-when-unsure",
     "level": "MUST",
-    "owner": "go-test-quality-assistant"
+    "owner": "go-test-quality-assistant",
+    "trigger": [
+      "**/*_test.go"
+    ]
   }
 ]

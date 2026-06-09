@@ -432,6 +432,7 @@ router.Path("/forward-all").Handler(factory.CreateForwardAllInvoicesHandler(ctx,
 **Owner**: go-http-handler-assistant
 **Applies when**: a function declared in a `*.go` file inside `**/pkg/handler/**` returning `libhttp.WithError`, `run.Func`, or `http.Handler` does not follow the `New[Purpose]Handler` naming pattern. Pure ast-grep can match the function's return type but cannot reliably check whether the chosen name is descriptive enough — that semantic check needs a reviewer.
 **Enforcement**: judgment
+**Trigger**: **/pkg/handler/**/*.go
 **Why**: consistent `New*Handler` naming makes the handler discoverable across services, matches the constructor naming used elsewhere in bborbe Go projects (`New*` for constructors, `Create*` for factories), and signals the function's role as a handler factory.
 
 #### Bad
@@ -453,6 +454,7 @@ func NewFetchDetailsHandler(store ResourceStore) libhttp.WithError { ... }
 **Owner**: go-http-handler-assistant
 **Applies when**: a `*.go` file under `**/pkg/handler/**` is named with non-kebab-case style (e.g. `exists_handler.go`, `existshandler.go`, or `handler.go`) instead of the documented `<action>-<noun>.go` kebab-case (e.g. `exists.go`, `forward-invoice.go`). Pure ast-grep operates on file contents, not filenames — this is a filesystem convention check.
 **Enforcement**: judgment
+**Trigger**: **/pkg/handler/**/*.go
 **Why**: kebab-case action-oriented names (`forward-invoice.go`, `fetch-details.go`) immediately signal what the handler does without opening the file. Generic names (`handler.go`, `send.go`) require reading the file to discover its purpose; that's friction at scale.
 
 #### Bad

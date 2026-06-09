@@ -30,6 +30,7 @@ Doc-driven development. The guide is the source of truth; agents reference it; n
 **Owner**: slash-command-auditor
 **Applies when**: any new `commands/*.md` file is added or substantially changed.
 **Enforcement**: judgment
+**Trigger**: agents/**/*.md, commands/**/*.md, skills/**/*.md
 **Why**: Commands that grow business logic become unmaintainable. The agent is the home for all detection algorithms, quality checks, and report formatting. Commands that exceed ~100 lines almost always carry leaked logic that belongs in the agent.
 
 #### Bad
@@ -66,6 +67,7 @@ Doc-driven development. The guide is the source of truth; agents reference it; n
 **Owner**: agent-auditor
 **Applies when**: any agent or command performs work that could prompt the user (writing to `/tmp/`, requesting permissions, asking confirmation) during normal execution.
 **Enforcement**: judgment
+**Trigger**: agents/**/*.md, commands/**/*.md, skills/**/*.md
 **Why**: Interruptions break workflow. Users expect agents to work autonomously. Every approval request adds friction and trains the user to ignore prompts. The goal is unattended behavior.
 
 #### Bad — Inline Script Generation
@@ -91,6 +93,7 @@ EOF
 **Owner**: agent-auditor
 **Applies when**: an agent depends on executable scripts (Python, shell) to do real work.
 **Enforcement**: judgment
+**Trigger**: agents/**/*.md, commands/**/*.md, skills/**/*.md
 **Why**: Scripts in `~/.claude/scripts/` (or skill-local `scripts/`) are reusable, testable independently, and pre-approved by `permissions` settings. Scripts written on the fly are not.
 
 #### Setup pattern
@@ -119,6 +122,7 @@ chmod +x ~/.claude/scripts/my-script.py
 **Owner**: agent-auditor
 **Applies when**: an agent's domain has multiple potential data sources (config files, APIs, generated artifacts, documentation) and one of them is the authoritative, human-maintained source.
 **Enforcement**: judgment
+**Trigger**: agents/**/*.md, commands/**/*.md, skills/**/*.md
 **Why**: Scanning every source is expensive, slow, and produces inconsistent results when sources drift. Pinning to one source forces drift to surface as gaps in *that* source — which is also what drives the documentation feedback loop (below). Performance bonus: single source = bounded scan cost.
 
 #### Pattern
@@ -136,6 +140,7 @@ chmod +x ~/.claude/scripts/my-script.py
 **Owner**: agent-auditor
 **Applies when**: an agent depends on documented information that may be incomplete.
 **Enforcement**: judgment
+**Trigger**: agents/**/*.md, commands/**/*.md, skills/**/*.md
 **Why**: An agent that silently fills gaps from heuristics produces inconsistent output and never improves. An agent that *complains* about gaps with a precise pointer to the fix surfaces real maintenance work and gets better data on the next run. The feedback loop is the value.
 
 #### Loop
@@ -169,6 +174,7 @@ CRITICAL GAPS (Block Assessment):
 **Owner**: slash-command-auditor
 **Applies when**: any `commands/*.md` file is created.
 **Enforcement**: judgment
+**Trigger**: commands/**/*.md
 **Why**: Frontmatter is the contract Claude Code reads to dispatch. Missing `description` = no auto-trigger; missing `allowed-tools` = unbounded permissions; missing `argument-hint` = bad UX.
 
 #### Required frontmatter
@@ -223,6 +229,7 @@ argument-hint: "[--fix]"
 **Owner**: agent-auditor
 **Applies when**: any `agents/*.md` file is created.
 **Enforcement**: judgment
+**Trigger**: agents/**/*.md
 **Why**: Agents need a `name` + `description` (for Skill-tool auto-invoke) and `tools:` (to bound permissions). Without these the agent is non-discoverable or over-permissioned.
 
 #### Required frontmatter

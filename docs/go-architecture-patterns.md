@@ -65,7 +65,7 @@ type UserService interface {
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go function outside `pkg/factory/**` returns an exported interface or struct type and is intended to be the canonical construction site, but the function name does not start with `New`.
-**Enforcement**: judgment (ast-grep follow-up: `function_declaration` returning a service-interface type with `name` not matching `^New`. `Create*` factories under `pkg/factory/**` are covered by `go-factory/no-impl-in-factory-pkg` instead and MUST be excluded from this rule's scope).
+**Enforcement**: `rules/go/new-prefix-constructor-naming.yml` (mechanical first-pass flags exported functions returning exported types without `New` prefix; `pkg/factory/**` excluded) + judgment-tier LLM adjudication to rule out `Create*` factories, helper functions, and non-constructor uses.
 **Why**: `New*` is the universal Go signal for "this is the constructor — give it deps, get back a ready-to-use object". Without it, consumers can't tell `UserService(...)` from a regular function call; tooling (IDE search, godoc grouping, godoc renderers) treats it as ordinary; refactors don't surface the construction site. The convention is cheap; ignoring it costs every consumer a second of "wait, is this the constructor?". The `Create*` factory prefix is a deliberate exception scoped to `pkg/factory/**` — that's the factory pattern's home, not the service-construction site this rule covers.
 
 #### Bad

@@ -10,6 +10,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- feat: transcribe 37 judgment-tier rule recipes into mechanical ast-grep YAMLs (`rules/go/` +31, new `rules/python/` +6) — each rule's prose "ast-grep partial/follow-up" recipe is now a real over-inclusive first-pass filter; mechanical coverage 29 → 66 of 139 rules. `go-mod-replace/no-cross-repo-replace` excluded (no go.mod grammar; doc updated to agent-only enforcement).
+- feat: add ast-grep native rule tests — `testConfigs: rule-tests/` in `sgconfig.yml`, 37 test files with ≥2 valid + ≥2 invalid snippets per rule (incl. documented exemption cases); `ast-grep test -c sgconfig.yml` passes 37/37.
+- docs: update 19 docs' `**Enforcement**:` lines to cite the new YAML paths, keeping adjudication guidance and dropping the now-redundant pattern prose.
 - perf: gate `make precommit` to Full mode only in both `pr-review.md` and `code-review.md` — running the full test suite is CI's job; Standard/Short mode now report "precommit skipped (standard mode) — CI covers lint+test" instead.
 - perf: make timing instrumentation opt-in via `REVIEW_TIMING=1` env var in both commands — the per-Owner ts_start/ts_end + jq/grep roll-up (~14 extra tool calls) now only fires when explicitly requested; otherwise skipped entirely.
 - perf: add Step 0a-pre short-circuit to `pr-review.md` — if the cwd is already a clean checkout at origin/<SOURCE_BRANCH> HEAD, skip worktree creation/removal entirely (saves ~18 tool calls in the agent pod where cwd is already at PR HEAD).

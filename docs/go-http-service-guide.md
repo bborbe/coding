@@ -53,7 +53,7 @@ func (a *application) createHTTPServer(
 
 **Owner**: go-http-handler-assistant
 **Applies when**: a Go service's admin HTTP server (port 9090, mounted under `/admin/<svc>/...` by the gateway) is missing any of the five always-required endpoints: `/healthz`, `/readiness`, `/metrics`, `/setloglevel/{level}`, `/gc`.
-**Enforcement**: judgment (route-table inspection in `main.go` / handler factory; ast-grep partial: `router.Handle(...)` / `mux.Handle(...)` patterns checked against the five-endpoint set)
+**Enforcement**: `rules/go/canonical-admin-endpoints.yml` flags `router.Path(...)` / `router.Handle(...)` / `mux.Handle(...)` calls registering any of the five canonical paths as a first-pass filter. The agent audits the route table to confirm all five are present; a file with only some endpoints registered fires the rule for the agent to check completeness.
 **Why**: The five endpoints are the cross-service contract between every bborbe Go service and the supervisor (Kubernetes probes, Prometheus scrapes, on-call debugging, manual GC inspection). A service missing `/healthz` blocks Kubernetes liveness probes; missing `/readiness` breaks rollout coordination; missing `/setloglevel` forces a StatefulSet edit + pod restart for every debug session. The endpoints are cheap (a few lines each, factory-built) and the cost of omitting one shows up at the worst possible time — usually during an incident.
 
 #### Bad
@@ -101,7 +101,7 @@ router.Path("/gc").Handler(libhttp.NewGarbageCollectorHandler())
 
 **Owner**: go-http-handler-assistant
 **Applies when**: a Go service's admin HTTP server (the one serving `/healthz`, `/metrics`, etc.) defaults to a port other than `9090` — either hardcoded or via a `--listen` flag/env-var whose default isn't `:9090`.
-**Enforcement**: judgment (config inspection in `main.go` / `application` struct; ast-grep partial: struct-tag `default:":9090"` on the Listen field)
+**Enforcement**: `rules/go/admin-port-9090.yml` flags `field_declaration` nodes named `Listen` whose struct tag contains a `default:"..."` value that is not `":9090"`. Fields with no default tag are not caught mechanically — the agent handles those during full struct inspection.
 **Why**: 9090 is the cross-service contract for the admin endpoint. Prometheus scrape configs, the gateway's `admin/port: '9090'` annotation, the operator's muscle memory for `kubectl port-forward 9090`, and shared tooling all assume it. A custom port per service breaks scrape configs (Prometheus probes the wrong port → no metrics), breaks the gateway's auto-routing (admin URL doesn't resolve), and forces every operator to look up the per-service port before they can curl an endpoint at 3am. The deviation cost is real; the standardisation cost is zero.
 
 #### Bad

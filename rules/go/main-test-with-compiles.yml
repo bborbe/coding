@@ -1,0 +1,35 @@
+id: go-testing/main-test-with-compiles
+language: go
+severity: error
+message: |
+  This file declares `func main()` in package main but may be missing a
+  companion main_test.go with a Ginkgo `Compiles` It-block backed by
+  `gexec.Build`. Without it, build failures in main.go are not caught by
+  `make test` — CI greenlight then deploys a binary that does not link.
+  Create main_test.go with the standard TestSuite + Compiles pattern.
+  EXEMPT: main.go files that already have a main_test.go with gexec.Build.
+  The agent checks whether main_test.go with the Compiles check exists.
+  See docs/go-testing-guide.md (RULE go-testing/main-test-with-compiles).
+rule:
+  # Anchor: the func main() declaration in a package main source file.
+  # The LLM checks whether main_test.go with gexec.Build + Compiles It
+  # exists in the same directory.
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        kind: identifier
+        regex: '^main$'
+    - inside:
+        kind: source_file
+        has:
+          stopBy: end
+          kind: package_clause
+          has:
+            kind: package_identifier
+            regex: '^main$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

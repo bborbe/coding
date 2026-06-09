@@ -1,0 +1,26 @@
+id: go-testing/counterfeiter-mocks-required
+language: go
+severity: error
+message: |
+  An interface type declaration was found. Each non-trivial interface used
+  across package boundaries should have a Counterfeiter-generated mock in
+  mocks/<name>.go with a `//counterfeiter:generate` directive above it.
+  Hand-written mocks drift from the interface silently; Counterfeiter-
+  generated fakes fail at `go generate` time when the interface changes.
+  EXEMPT: internal interfaces not used in tests, or interfaces already
+  covered by a counterfeiter:generate directive + mocks/*.go file.
+  The agent checks for the directive comment and the mocks/ file.
+  See docs/go-testing-guide.md (RULE go-testing/counterfeiter-mocks-required).
+rule:
+  # Anchor: any interface type declaration in production code.
+  # The LLM checks whether a `//counterfeiter:generate` directive precedes it
+  # and whether the corresponding mocks/*.go file exists.
+  kind: type_declaration
+  has:
+    stopBy: end
+    kind: interface_type
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

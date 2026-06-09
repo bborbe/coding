@@ -1,0 +1,33 @@
+id: python-pydantic/boundary-validation-only
+snapshots:
+  ? |
+    from pydantic import BaseModel
+    class InternalDomainModel(BaseModel):
+        id: int
+        name: str
+        email: str
+  : labels:
+    - source: |-
+        class InternalDomainModel(BaseModel):
+            id: int
+            name: str
+            email: str
+      style: primary
+      start: 31
+      end: 109
+  ? |
+    from pydantic import BaseModel
+    class UserService:
+        def get_user(self, user_id: int):
+            pass
+    class User(BaseModel):
+        id: int
+        name: str
+  : labels:
+    - source: |-
+        class User(BaseModel):
+            id: int
+            name: str
+      style: primary
+      start: 101
+      end: 149

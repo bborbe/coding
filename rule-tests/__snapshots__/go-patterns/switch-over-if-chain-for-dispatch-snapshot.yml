@@ -1,0 +1,54 @@
+id: go-patterns/switch-over-if-chain-for-dispatch
+snapshots:
+  ? |
+    package p
+    func dispatch(mode string) error {
+        if mode == "pr" {
+            return handlePR()
+        } else if mode == "merge" {
+            return handleMerge()
+        } else if mode == "rebase" {
+            return handleRebase()
+        }
+        return handleDirect()
+    }
+  : labels:
+    - source: |-
+        if mode == "pr" {
+                return handlePR()
+            } else if mode == "merge" {
+                return handleMerge()
+            } else if mode == "rebase" {
+                return handleRebase()
+            }
+      style: primary
+      start: 49
+      end: 222
+  ? |
+    package p
+    func handle(w string) error {
+        if w == "a" {
+            return doA()
+        } else if w == "b" {
+            return doB()
+        } else if w == "c" {
+            return doC()
+        } else if w == "d" {
+            return doD()
+        }
+        return nil
+    }
+  : labels:
+    - source: |-
+        if w == "a" {
+                return doA()
+            } else if w == "b" {
+                return doB()
+            } else if w == "c" {
+                return doC()
+            } else if w == "d" {
+                return doD()
+            }
+      style: primary
+      start: 44
+      end: 222

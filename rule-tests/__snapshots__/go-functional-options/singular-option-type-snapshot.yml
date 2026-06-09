@@ -1,0 +1,34 @@
+id: go-functional-options/singular-option-type
+snapshots:
+  ? |
+    package p
+    type ConsumerOptions func(*ConsumerConfig)
+  : labels:
+    - source: ConsumerOptions func(*ConsumerConfig)
+      style: primary
+      start: 15
+      end: 52
+    - source: ConsumerOptions
+      style: secondary
+      start: 15
+      end: 30
+    - source: func(*ConsumerConfig)
+      style: secondary
+      start: 31
+      end: 52
+  ? |
+    package p
+    type ServerOptions func(*ServerConfig)
+  : labels:
+    - source: ServerOptions func(*ServerConfig)
+      style: primary
+      start: 15
+      end: 48
+    - source: ServerOptions
+      style: secondary
+      start: 15
+      end: 28
+    - source: func(*ServerConfig)
+      style: secondary
+      start: 29
+      end: 48

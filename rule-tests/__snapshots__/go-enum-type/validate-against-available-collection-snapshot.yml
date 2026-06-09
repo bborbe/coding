@@ -1,0 +1,80 @@
+id: go-enum-type/validate-against-available-collection
+snapshots:
+  ? |
+    package p
+    import "context"
+    type Mode string
+    func (m Mode) Validate(ctx context.Context) error {
+        switch m {
+        case "fast", "slow":
+            return nil
+        default:
+            return fmt.Errorf("unknown mode: %s", m)
+        }
+    }
+  : labels:
+    - source: |-
+        func (m Mode) Validate(ctx context.Context) error {
+            switch m {
+            case "fast", "slow":
+                return nil
+            default:
+                return fmt.Errorf("unknown mode: %s", m)
+            }
+        }
+      style: primary
+      start: 44
+      end: 224
+    - source: Validate
+      style: secondary
+      start: 58
+      end: 66
+    - source: |-
+        switch m {
+            case "fast", "slow":
+                return nil
+            default:
+                return fmt.Errorf("unknown mode: %s", m)
+            }
+      style: secondary
+      start: 100
+      end: 222
+  ? |
+    package p
+    import "context"
+    type OrderStatus string
+    func (o OrderStatus) Validate(ctx context.Context) error {
+        switch o {
+        case "pending", "processing", "completed":
+            return nil
+        default:
+            return fmt.Errorf("unknown: %s", o)
+        }
+    }
+  : labels:
+    - source: |-
+        func (o OrderStatus) Validate(ctx context.Context) error {
+            switch o {
+            case "pending", "processing", "completed":
+                return nil
+            default:
+                return fmt.Errorf("unknown: %s", o)
+            }
+        }
+      style: primary
+      start: 51
+      end: 255
+    - source: Validate
+      style: secondary
+      start: 72
+      end: 80
+    - source: |-
+        switch o {
+            case "pending", "processing", "completed":
+                return nil
+            default:
+                return fmt.Errorf("unknown: %s", o)
+            }
+      style: secondary
+      start: 114
+      end: 253

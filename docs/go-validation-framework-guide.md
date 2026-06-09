@@ -27,7 +27,7 @@ The `github.com/bborbe/validation` library provides a declarative approach to va
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go service implements input validation via hand-rolled `if`/`if-else` chains in a `Validate(ctx context.Context) error` method or HTTP handler, instead of using `github.com/bborbe/validation` (`validation.All{...}` + `validation.Name(...)` + `validation.NotEmptyString(...)` etc.).
-**Enforcement**: judgment (ast-grep follow-up: `method_declaration` named `Validate` whose body contains 3+ inline `if v == "" || v == ""` chains with manual `errors.Errorf` calls, in a package not importing `github.com/bborbe/validation`)
+**Enforcement**: `rules/go/use-bborbe-validation-not-inline-checks.yml` (mechanical first-pass — flags `Validate` methods containing if-statements that return an `errors.*` call directly) + judgment-tier LLM adjudication for single-field domain types with one simple check, or packages already importing `github.com/bborbe/validation`
 **Why**: Hand-rolled validation drifts: every package writes its own "is this empty?" check, error message format, field-naming convention, and short-circuiting policy. Code review can't enforce consistency across 30 services. `bborbe/validation` provides one composable library with named fields, structured errors, and consistent message formatting — adopting it everywhere eliminates 40+ lines of boilerplate per Validate method and produces consistent error JSON downstream consumers can parse.
 
 ## Basic Patterns

@@ -6,7 +6,7 @@ Factory functions compose objects by wiring dependencies together. They contain 
 
 **Owner**: python-architecture-assistant
 **Applies when**: a Python factory function (in `factory.py` or named `create_*` / `make_*`) contains business logic — loops over domain data, conditional dispatch on runtime state, inline function implementations, validation logic, etc. — instead of pure dependency-wiring calls (constructor invocations and object-tree composition only).
-**Enforcement**: judgment (ast-grep partial: `function_definition` in `factory.py` whose body contains `for_statement` / `if_statement` over non-config values, or inline `lambda` / nested `def`)
+**Enforcement**: `rules/python/zero-business-logic-in-factories.yml` flags `function_definition` nodes named `create_*` / `make_*` whose body contains a `for_statement`, `if_statement`, `lambda`, or nested `function_definition`. Config-level conditionals also fire — the agent distinguishes domain logic from wiring-time config branching.
 **Why**: Factories are the application's composition root — they answer "how do you build the object graph?". Mixing in business logic conflates two concerns: object lifecycle (a wiring concern) and domain decisions (a service concern). Tests of the business logic then need to construct the full factory state; refactors of the wiring propagate to business code. Keeping factories to pure constructor calls (and at most config-level conditionals like "if test_mode, use FakeDB else RealDB") makes them obvious to read, trivially testable as composition graphs, and a clean boundary between "what gets built" and "what it does."
 
 ## 1. Core Principles

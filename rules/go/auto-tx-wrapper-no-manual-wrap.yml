@@ -1,0 +1,25 @@
+id: go-cqrs/auto-tx-wrapper-no-manual-wrap
+language: go
+severity: error
+message: |
+  CQRS command consumers must not manually wrap executors with NewTransactionMiddleware.
+  Use RunCommandConsumerTx — it owns the transaction lifecycle and wraps automatically.
+  Manual wrapping causes double-rollback panics or double-apply state bugs.
+  See docs/go-cqrs.md (RULE go-cqrs/auto-tx-wrapper-no-manual-wrap).
+rule:
+  # Match any call to NewTransactionMiddleware (from kv or similar packages).
+  # The agent confirms whether the wrapping is adjacent to a RunCommandConsumerTx
+  # registration, which is the specific double-wrap anti-pattern this rule targets.
+  kind: call_expression
+  has:
+    field: function
+    kind: selector_expression
+    has:
+      field: field
+      kind: field_identifier
+      regex: '^NewTransactionMiddleware$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

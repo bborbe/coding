@@ -1,0 +1,30 @@
+id: python-ioc/dependencies-as-private-fields
+language: python
+severity: error
+message: |
+  Service dependencies stored on self.<name> must use single-underscore prefix (self._<name>).
+  Public attributes invite external mutation that breaks the constructor-injection contract.
+  See docs/python-ioc-guide.md (RULE python-ioc/dependencies-as-private-fields).
+rule:
+  # Over-inclusive first-pass: any `self.X = Y` assignment inside __init__ where X
+  # does not start with `_`. The agent rules out public data fields (e.g. self.name = name
+  # for a DTO). The vast majority of public self.X assignments in service classes ARE
+  # the smell — most public data fields live on dataclasses, not service classes.
+  all:
+    - pattern: self.$X = $Y
+    - inside:
+        stopBy: end
+        kind: function_definition
+        has:
+          field: name
+          regex: '^__init__$'
+constraints:
+  X:
+    not:
+      regex: '^_'
+ignores:
+  - "**/*_test.py"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"

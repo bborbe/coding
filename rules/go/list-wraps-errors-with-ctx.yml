@@ -1,0 +1,27 @@
+id: go-functional-composition/list-wraps-errors-with-ctx
+language: go
+severity: error
+message: |
+  XxxList method returns a bare 'return err' from a wrapped member's call instead of
+  wrapping with errors.Wrapf(ctx, err, "<context>") from github.com/bborbe/errors.
+  A bare return tells callers "something failed" but not which member nor what context.
+  See docs/go-functional-composition-pattern.md (RULE go-functional-composition/list-wraps-errors-with-ctx).
+rule:
+  # Anchor: method on a *List receiver that has a for loop AND contains a bare "return err".
+  # The LLM adjudicates: rules out single-member iterations where wrapping adds no context.
+  pattern: "func ($LIST $$$LIST_TYPE) $METHOD($$$) $$$RETURN { $$$BODY }"
+  all:
+    - has:
+        stopBy: end
+        kind: for_statement
+    - has:
+        stopBy: end
+        pattern: "return err"
+constraints:
+  LIST_TYPE:
+    regex: 'List$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -1,0 +1,50 @@
+id: go-validation/use-bborbe-validation-not-inline-checks
+language: go
+severity: error
+message: |
+  A `Validate` method uses hand-rolled if-chains returning errors directly
+  instead of the `github.com/bborbe/validation` library. Hand-rolled
+  validation drifts: every package writes its own "is empty?" check, error
+  message format, and field-naming convention. Use validation.All{...} +
+  validation.Name(...) + validation.NotEmptyString(...) for composable,
+  consistent, zero-boilerplate validation.
+  EXEMPT: single-field domain types with one simple validate call, or
+  validation using other established libraries. The agent reads the method
+  body and import list to decide whether the library is already in use.
+  See docs/go-validation-framework-guide.md
+  (RULE go-validation/use-bborbe-validation-not-inline-checks).
+rule:
+  # Over-inclusive first-pass: flag Validate methods whose body contains
+  # if-statements that return an errors.* call. The LLM checks whether
+  # bborbe/validation is already imported and whether the inline count
+  # warrants refactoring (the rule targets 3+ inline if-error chains).
+  kind: method_declaration
+  all:
+    - has:
+        field: name
+        kind: field_identifier
+        regex: '^Validate$'
+    - has:
+        stopBy: end
+        kind: if_statement
+        has:
+          stopBy: end
+          kind: return_statement
+          has:
+            stopBy: end
+            kind: call_expression
+            has:
+              field: function
+              any:
+                - kind: selector_expression
+                  has:
+                    field: field
+                    kind: field_identifier
+                    regex: '^(New|Errorf|Wrapf|Newf|Error)$'
+                - kind: identifier
+                  regex: '^(New|Errorf|Error)$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

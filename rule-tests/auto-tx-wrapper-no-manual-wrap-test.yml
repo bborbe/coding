@@ -1,0 +1,32 @@
+id: go-cqrs/auto-tx-wrapper-no-manual-wrap
+valid:
+  - |
+    package main
+    func setup() {
+        err := cdb.RunCommandConsumerTx(provider, producer, db, schemaID, executor)
+        if err != nil {
+            return err
+        }
+    }
+  - |
+    package main
+    // RunCommandConsumer (non-Tx variant) without any transaction wrapping
+    func setup() {
+        err := cdb.RunCommandConsumer(provider, producer, schemaID, executor)
+        if err != nil {
+            return err
+        }
+    }
+invalid:
+  - |
+    package main
+    func setup() {
+        wrappedExecutor := kv.NewTransactionMiddleware(db, executor)
+        err := cdb.RunCommandConsumerTx(provider, producer, db, schemaID, wrappedExecutor)
+    }
+  - |
+    package main
+    func setup() {
+        txExecutor := store.NewTransactionMiddleware(kvStore, baseExecutor)
+        return txExecutor
+    }

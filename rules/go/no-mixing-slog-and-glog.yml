@@ -1,0 +1,39 @@
+id: go-logging/no-mixing-slog-and-glog
+language: go
+severity: error
+message: |
+  This file imports both "log/slog" and "github.com/golang/glog".
+  Mixing the two loggers in one binary fragments the operator's view:
+  log aggregators see two different formats, grep patterns from one
+  side miss the other, and verbosity gating controls only half the
+  output. Use one logger throughout the binary — keep glog for existing
+  glog projects, pick slog for new ones.
+  EXEMPT: a migration commit that intentionally bridges both while
+  transitioning — the agent reads the commit intent and surrounding
+  package usage to decide.
+  See docs/go-logging-guide.md (RULE go-logging/no-mixing-slog-and-glog).
+rule:
+  # Over-inclusive first-pass: flag every import of "github.com/golang/glog"
+  # that appears in a file which also imports "log/slog".
+  # The `all` clause requires BOTH import_spec nodes to exist in the
+  # same file (ast-grep evaluates `all` against sibling subtrees under
+  # the same root). Each `import_spec` is matched by its `path` field.
+  kind: import_spec
+  all:
+    - has:
+        field: path
+        regex: '^"github\.com/golang/glog"$'
+    - inside:
+        stopBy: end
+        kind: source_file
+        has:
+          stopBy: end
+          kind: import_spec
+          has:
+            field: path
+            regex: '^"log/slog"$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

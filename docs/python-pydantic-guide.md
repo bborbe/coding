@@ -38,7 +38,7 @@ pip install "pydantic<2"
 
 **Owner**: python-quality-assistant
 **Applies when**: a Python service class or internal domain model inherits from `pydantic.BaseModel` instead of using `dataclass` / plain types, in code reached only from already-validated callers (not at an API boundary, queue consumer, file parser, or other untrusted-input ingestion point).
-**Enforcement**: judgment (ast-grep first-pass filter: `class X(BaseModel):` declarations in files outside designated boundary directories like `pkg/api/`, `pkg/handler/`, `pkg/ingestion/`; the agent rules out the "actually at a boundary" case)
+**Enforcement**: `rules/python/boundary-validation-only.yml` flags all `class X(BaseModel): ...` declarations as a first-pass filter. The agent rules out the "actually at a boundary" case by inspecting the file path (e.g. `pkg/api/`, `pkg/handler/`, `pkg/ingestion/`).
 **Why**: Pydantic validation runs on every instantiation. At the system boundary, that cost is justified — incoming JSON could be malformed. Inside the service, the data has already been validated at ingestion; re-validating wastes CPU on every method call and obscures the trust boundary (a reader can't tell which `User` instances are "raw input" vs "already trusted"). Boundary-only use keeps the validation cost where the trust boundary actually is and makes internal code free of `**user.dict()` re-validation rituals.
 
 #### Bad
@@ -130,7 +130,7 @@ class UserEntity(BaseModel):  # Unnecessary validation overhead
 
 **Owner**: python-quality-assistant
 **Applies when**: a Pydantic `BaseModel` field is typed `Optional[T]` / `T | None` (intended to be omittable) but has no default value assigned.
-**Enforcement**: judgment (ast-grep first-pass: `class X(BaseModel):` body containing `name: Optional[T]` or `name: T | None` declarations without `= None` or `= Field(default=...)`; agent confirms intent if needed)
+**Enforcement**: `rules/python/optional-needs-default.yml` flags `name: Optional[T]` and `name: T | None` annotations inside `BaseModel` subclasses that lack a `= None` or `= Field(...)` default. The agent confirms intent when the absence is intentional.
 **Why**: `Optional[T]` is a type-system declaration that values can be `None` — it does NOT make the field omittable. Pydantic still requires the field at instantiation; callers must explicitly pass `name=None`. The "field omitted ⇒ default applied" semantic only kicks in when a default is declared. The bug is silent at definition time and explodes as a `ValidationError: field required` at instantiation — usually in a code path the author thought was optional. Always pair `Optional[T]` with `= None` (or `= Field(default=...)`) when the intent is "may be omitted."
 
 #### Bad

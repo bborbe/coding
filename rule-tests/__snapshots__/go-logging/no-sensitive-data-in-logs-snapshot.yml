@@ -1,0 +1,118 @@
+id: go-logging/no-sensitive-data-in-logs
+snapshots:
+  ? |
+    package pkg
+    import "github.com/golang/glog"
+    func authenticate(password string) { glog.Infof("authenticating with password=%s", password) }
+  : labels:
+    - source: glog.Infof("authenticating with password=%s", password)
+      style: primary
+      start: 81
+      end: 136
+    - source: glog
+      style: secondary
+      start: 81
+      end: 85
+    - source: Infof
+      style: secondary
+      start: 86
+      end: 91
+    - source: glog.Infof
+      style: secondary
+      start: 81
+      end: 91
+    - source: password
+      style: secondary
+      start: 127
+      end: 135
+    - source: ("authenticating with password=%s", password)
+      style: secondary
+      start: 91
+      end: 136
+  ? |
+    package pkg
+    import "github.com/golang/glog"
+    func login(token string) { glog.Infof("authenticated with token=%s", token) }
+  : labels:
+    - source: glog.Infof("authenticated with token=%s", token)
+      style: primary
+      start: 71
+      end: 119
+    - source: glog
+      style: secondary
+      start: 71
+      end: 75
+    - source: Infof
+      style: secondary
+      start: 76
+      end: 81
+    - source: glog.Infof
+      style: secondary
+      start: 71
+      end: 81
+    - source: token
+      style: secondary
+      start: 113
+      end: 118
+    - source: ("authenticated with token=%s", token)
+      style: secondary
+      start: 81
+      end: 119
+  ? |
+    package pkg
+    import "log/slog"
+    func connect(dsn string) { slog.Info("connecting", "dsn", dsn) }
+  : labels:
+    - source: slog.Info("connecting", "dsn", dsn)
+      style: primary
+      start: 57
+      end: 92
+    - source: slog
+      style: secondary
+      start: 57
+      end: 61
+    - source: Info
+      style: secondary
+      start: 62
+      end: 66
+    - source: slog.Info
+      style: secondary
+      start: 57
+      end: 66
+    - source: dsn
+      style: secondary
+      start: 88
+      end: 91
+    - source: ("connecting", "dsn", dsn)
+      style: secondary
+      start: 66
+      end: 92
+  ? |
+    package pkg
+    import "log/slog"
+    func oauthRefresh(refreshToken string) { slog.Info("oauth refresh", "refresh_token", refreshToken) }
+  : labels:
+    - source: slog.Info("oauth refresh", "refresh_token", refreshToken)
+      style: primary
+      start: 71
+      end: 128
+    - source: slog
+      style: secondary
+      start: 71
+      end: 75
+    - source: Info
+      style: secondary
+      start: 76
+      end: 80
+    - source: slog.Info
+      style: secondary
+      start: 71
+      end: 80
+    - source: refreshToken
+      style: secondary
+      start: 115
+      end: 127
+    - source: ("oauth refresh", "refresh_token", refreshToken)
+      style: secondary
+      start: 80
+      end: 128

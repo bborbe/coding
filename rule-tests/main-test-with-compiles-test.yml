@@ -1,0 +1,28 @@
+id: go-testing/main-test-with-compiles
+valid:
+  # Library package — no main function, not flagged
+  - |
+    package mylib
+    func NewFoo() *Foo { return &Foo{} }
+  # Test file — ignored by rule
+  - |
+    package mylib
+    func helper() string { return "test" }
+invalid:
+  # Package main with func main — needs companion main_test.go
+  - |
+    package main
+    import "fmt"
+    func main() { fmt.Println("hello") }
+  # Package main with more code — still needs Compiles test
+  - |
+    package main
+    import (
+      "context"
+      "os"
+    )
+    func main() {
+      ctx := context.Background()
+      _ = ctx
+      os.Exit(0)
+    }

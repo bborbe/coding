@@ -1,0 +1,86 @@
+id: go-composition/small-interfaces-1-2-methods
+snapshots:
+  ? |
+    package p
+    import "context"
+    type Service interface {
+        Log(msg string)
+        Save(ctx context.Context) error
+        Load(ctx context.Context) error
+        Delete(ctx context.Context) error
+        Notify(ctx context.Context) error
+    }
+  : labels:
+    - source: |-
+        Service interface {
+            Log(msg string)
+            Save(ctx context.Context) error
+            Load(ctx context.Context) error
+            Delete(ctx context.Context) error
+            Notify(ctx context.Context) error
+        }
+      style: primary
+      start: 32
+      end: 221
+    - source: Log(msg string)
+      style: secondary
+      start: 56
+      end: 71
+    - source: Save(ctx context.Context) error
+      style: secondary
+      start: 76
+      end: 107
+    - source: Load(ctx context.Context) error
+      style: secondary
+      start: 112
+      end: 143
+    - source: |-
+        interface {
+            Log(msg string)
+            Save(ctx context.Context) error
+            Load(ctx context.Context) error
+            Delete(ctx context.Context) error
+            Notify(ctx context.Context) error
+        }
+      style: secondary
+      start: 40
+      end: 221
+  ? |
+    package p
+    import "context"
+    type Service interface {
+        Log(msg string)
+        Save(ctx context.Context) error
+        Load(ctx context.Context) error
+    }
+  : labels:
+    - source: |-
+        Service interface {
+            Log(msg string)
+            Save(ctx context.Context) error
+            Load(ctx context.Context) error
+        }
+      style: primary
+      start: 32
+      end: 145
+    - source: Log(msg string)
+      style: secondary
+      start: 56
+      end: 71
+    - source: Save(ctx context.Context) error
+      style: secondary
+      start: 76
+      end: 107
+    - source: Load(ctx context.Context) error
+      style: secondary
+      start: 112
+      end: 143
+    - source: |-
+        interface {
+            Log(msg string)
+            Save(ctx context.Context) error
+            Load(ctx context.Context) error
+        }
+      style: secondary
+      start: 40
+      end: 145

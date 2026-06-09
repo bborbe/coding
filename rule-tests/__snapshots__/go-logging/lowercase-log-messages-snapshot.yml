@@ -1,0 +1,89 @@
+id: go-logging/lowercase-log-messages
+snapshots:
+  ? |
+    package main
+    import "github.com/golang/glog"
+    func main() { glog.Infof("Service started on port %d", 8080) }
+  : labels:
+    - source: glog.Infof("Service started on port %d", 8080)
+      style: primary
+      start: 59
+      end: 105
+    - source: glog
+      style: secondary
+      start: 59
+      end: 63
+    - source: Infof
+      style: secondary
+      start: 64
+      end: 69
+    - source: glog.Infof
+      style: secondary
+      start: 59
+      end: 69
+    - source: '"Service started on port %d"'
+      style: secondary
+      start: 70
+      end: 98
+    - source: ("Service started on port %d", 8080)
+      style: secondary
+      start: 69
+      end: 105
+  ? |
+    package main
+    import "github.com/golang/glog"
+    func run() { glog.Warningf("Retrying connection", "attempt", 3) }
+  : labels:
+    - source: glog.Warningf("Retrying connection", "attempt", 3)
+      style: primary
+      start: 58
+      end: 108
+    - source: glog
+      style: secondary
+      start: 58
+      end: 62
+    - source: Warningf
+      style: secondary
+      start: 63
+      end: 71
+    - source: glog.Warningf
+      style: secondary
+      start: 58
+      end: 71
+    - source: '"Retrying connection"'
+      style: secondary
+      start: 72
+      end: 93
+    - source: ("Retrying connection", "attempt", 3)
+      style: secondary
+      start: 71
+      end: 108
+  ? |
+    package main
+    import "log/slog"
+    func main() { slog.Error("Failed to parse request", "error", nil) }
+  : labels:
+    - source: slog.Error("Failed to parse request", "error", nil)
+      style: primary
+      start: 45
+      end: 96
+    - source: slog
+      style: secondary
+      start: 45
+      end: 49
+    - source: Error
+      style: secondary
+      start: 50
+      end: 55
+    - source: slog.Error
+      style: secondary
+      start: 45
+      end: 55
+    - source: '"Failed to parse request"'
+      style: secondary
+      start: 56
+      end: 81
+    - source: ("Failed to parse request", "error", nil)
+      style: secondary
+      start: 55
+      end: 96

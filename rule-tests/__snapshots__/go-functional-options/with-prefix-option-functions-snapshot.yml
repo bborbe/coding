@@ -1,0 +1,36 @@
+id: go-functional-options/with-prefix-option-functions
+snapshots:
+  ? |
+    package p
+    type ConsumerOption func(*ConsumerOptions)
+    func BatchSize(n int) ConsumerOption { return nil }
+  : labels:
+    - source: func BatchSize(n int) ConsumerOption { return nil }
+      style: primary
+      start: 53
+      end: 104
+    - source: BatchSize
+      style: secondary
+      start: 58
+      end: 67
+    - source: ConsumerOption
+      style: secondary
+      start: 75
+      end: 89
+  ? |
+    package p
+    type ConsumerOption func(*ConsumerOptions)
+    func SetBatchSize(n int) ConsumerOption { return nil }
+  : labels:
+    - source: func SetBatchSize(n int) ConsumerOption { return nil }
+      style: primary
+      start: 53
+      end: 107
+    - source: SetBatchSize
+      style: secondary
+      start: 58
+      end: 70
+    - source: ConsumerOption
+      style: secondary
+      start: 78
+      end: 92

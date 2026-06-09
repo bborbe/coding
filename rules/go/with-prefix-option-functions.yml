@@ -1,0 +1,28 @@
+id: go-functional-options/with-prefix-option-functions
+language: go
+severity: warning
+message: |
+  Option constructor function does not start with 'With' prefix (e.g. BatchSize, SetTimeout).
+  Use 'With*' uniformly: WithBatchSize, WithTimeout. Mixed prefixes make call sites unreadable —
+  callers cannot tell which arguments are option constructors vs unrelated function calls.
+  See docs/go-functional-options-pattern.md (RULE go-functional-options/with-prefix-option-functions).
+rule:
+  # Anchor: exported function whose name does NOT start with "With" but returns a type ending in "Option".
+  # The LLM adjudicates: confirms the return type is a functional-options type, not coincidental name match.
+  kind: function_declaration
+  all:
+    - has:
+        field: name
+        kind: identifier
+        not:
+          regex: '^With'
+        regex: '^[A-Z]'
+    - has:
+        field: result
+        kind: type_identifier
+        regex: 'Option$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -1,0 +1,38 @@
+id: python-ioc/protocol-not-abc-for-dependencies
+snapshots:
+  ? |
+    from abc import ABC, abstractmethod
+    class Logger(ABC):
+        @abstractmethod
+        def info(self, msg: str) -> None:
+            pass
+        @abstractmethod
+        def error(self, msg: str) -> None:
+            pass
+  : labels:
+    - source: |-
+        class Logger(ABC):
+            @abstractmethod
+            def info(self, msg: str) -> None:
+                pass
+            @abstractmethod
+            def error(self, msg: str) -> None:
+                pass
+      style: primary
+      start: 36
+      end: 197
+  ? |
+    from abc import ABC, abstractmethod
+    class UserRepository(ABC):
+        @abstractmethod
+        def save(self, user) -> None:
+            pass
+  : labels:
+    - source: |-
+        class UserRepository(ABC):
+            @abstractmethod
+            def save(self, user) -> None:
+                pass
+      style: primary
+      start: 36
+      end: 129

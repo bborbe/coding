@@ -1,0 +1,88 @@
+id: go-logging/external-call-logs-response
+snapshots:
+  ? |
+    package pkg
+    import "database/sql"
+    func insert(db *sql.DB) {
+      _, err := db.ExecContext(ctx, "INSERT INTO users VALUES ($1)", "foo")
+      _ = err
+    }
+  : labels:
+    - source: db.ExecContext(ctx, "INSERT INTO users VALUES ($1)", "foo")
+      style: primary
+      start: 72
+      end: 131
+    - source: ExecContext
+      style: secondary
+      start: 75
+      end: 86
+    - source: db.ExecContext
+      style: secondary
+      start: 72
+      end: 86
+  ? |
+    package pkg
+    import "database/sql"
+    func query(db *sql.DB) {
+      rows, err := db.QueryContext(ctx, "SELECT * FROM users")
+      _ = rows
+      _ = err
+    }
+  : labels:
+    - source: db.QueryContext(ctx, "SELECT * FROM users")
+      style: primary
+      start: 74
+      end: 117
+    - source: QueryContext
+      style: secondary
+      start: 77
+      end: 89
+    - source: db.QueryContext
+      style: secondary
+      start: 74
+      end: 89
+  ? |
+    package pkg
+    import "net/http"
+    func callAPI(client *http.Client, req *http.Request) (*http.Response, error) {
+      resp, err := client.Do(req)
+      return resp, err
+    }
+  : labels:
+    - source: client.Do(req)
+      style: primary
+      start: 124
+      end: 138
+    - source: Do
+      style: secondary
+      start: 131
+      end: 133
+    - source: client.Do
+      style: secondary
+      start: 124
+      end: 133
+  ? |
+    package pkg
+    import "os/exec"
+    func runCmd() {
+      out, err := exec.Command("git", "status").Output()
+      _ = out
+      _ = err
+    }
+  : labels:
+    - source: exec.Command("git", "status")
+      style: primary
+      start: 59
+      end: 88
+    - source: exec
+      style: secondary
+      start: 59
+      end: 63
+    - source: Command
+      style: secondary
+      start: 64
+      end: 71
+    - source: exec.Command
+      style: secondary
+      start: 59
+      end: 71

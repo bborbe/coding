@@ -1,0 +1,48 @@
+id: go-logging/skip-empty-v2-heartbeats
+language: go
+severity: warning
+message: |
+  A glog.V(2).Info/Infof call appears inside a for-loop. V(2) is the
+  production-heartbeat level (default LOGLEVEL=2). Unconditional V(2)
+  heartbeats produce log volume proportional to iteration frequency,
+  even when nothing happened. Guard with `if changed > 0` / `if n > 0`
+  or wrap in a sampler (`log.NewSampleTime(10s)`).
+  EXEMPT: calls already gated by a "something happened" guard or a
+  sampler check. The agent reads the surrounding if-guard to decide.
+  See docs/go-logging-guide.md (RULE go-logging/skip-empty-v2-heartbeats).
+rule:
+  # Over-inclusive first-pass: any for_statement whose body contains a
+  # glog.V(N).Info/Infof call. Does NOT verify whether a guard exists —
+  # the LLM reads the surrounding code to decide.
+  kind: for_statement
+  has:
+    stopBy: end
+    kind: call_expression
+    has:
+      field: function
+      kind: selector_expression
+      all:
+        - has:
+            field: operand
+            kind: call_expression
+            has:
+              field: function
+              kind: selector_expression
+              all:
+                - has:
+                    field: operand
+                    kind: identifier
+                    regex: '^glog$'
+                - has:
+                    field: field
+                    kind: field_identifier
+                    regex: '^V$'
+        - has:
+            field: field
+            kind: field_identifier
+            regex: '^(Info|Infof)$'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"
+  - "**/*_test.go"

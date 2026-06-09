@@ -1,0 +1,34 @@
+id: go-functional-composition/func-type-name
+snapshots:
+  ? |
+    package p
+    type HandlerFn func(w http.ResponseWriter, r *http.Request)
+  : labels:
+    - source: HandlerFn func(w http.ResponseWriter, r *http.Request)
+      style: primary
+      start: 15
+      end: 69
+    - source: func(w http.ResponseWriter, r *http.Request)
+      style: secondary
+      start: 25
+      end: 69
+    - source: HandlerFn
+      style: secondary
+      start: 15
+      end: 24
+  ? |
+    package p
+    type ProcessorLambda func(ctx context.Context, input Input) error
+  : labels:
+    - source: ProcessorLambda func(ctx context.Context, input Input) error
+      style: primary
+      start: 15
+      end: 75
+    - source: func(ctx context.Context, input Input) error
+      style: secondary
+      start: 31
+      end: 75
+    - source: ProcessorLambda
+      style: secondary
+      start: 15
+      end: 30

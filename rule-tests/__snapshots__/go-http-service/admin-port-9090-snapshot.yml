@@ -1,0 +1,38 @@
+id: go-http-service/admin-port-9090
+snapshots:
+  ? |
+    package main
+    type application struct {
+        Listen string `required:"false" arg:"listen" env:"LISTEN" default:":3000"`
+    }
+  : labels:
+    - source: Listen string `required:"false" arg:"listen" env:"LISTEN" default:":3000"`
+      style: primary
+      start: 43
+      end: 117
+    - source: Listen
+      style: secondary
+      start: 43
+      end: 49
+    - source: '`required:"false" arg:"listen" env:"LISTEN" default:":3000"`'
+      style: secondary
+      start: 57
+      end: 117
+  ? |
+    package main
+    type application struct {
+        Listen string `required:"false" arg:"listen" env:"LISTEN" default:":8080"`
+    }
+  : labels:
+    - source: Listen string `required:"false" arg:"listen" env:"LISTEN" default:":8080"`
+      style: primary
+      start: 43
+      end: 117
+    - source: Listen
+      style: secondary
+      start: 43
+      end: 49
+    - source: '`required:"false" arg:"listen" env:"LISTEN" default:":8080"`'
+      style: secondary
+      start: 57
+      end: 117

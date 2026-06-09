@@ -1,0 +1,45 @@
+id: go-logging/no-sensitive-data-in-logs
+language: go
+severity: error
+message: |
+  A glog/slog/log call appears to pass a credential-shaped identifier
+  as an argument — password, token, key, secret, dsn, cookie, etc.
+  Logged credentials land in stdout, log aggregators, and cloud logging
+  backends — searchable, indexed, and impossible to redact once shipped.
+  Log lengths instead of values: `token_len=%d, len(token)`.
+  EXEMPT: publicKey, partitionKey, sortKey, lookupKey, secretName,
+  secretRef, secretNamespace (k8s reference fields). The agent reads
+  the identifier's source type and intent to decide.
+  See docs/go-logging-guide.md (RULE go-logging/no-sensitive-data-in-logs).
+rule:
+  # Over-inclusive first-pass: match glog/slog/log calls that pass a
+  # direct identifier (or string key) matching credential-shaped names
+  # as an argument. `has` without `stopBy` checks only immediate children
+  # of argument_list, so len(token) is NOT matched (the arg is a
+  # call_expression, not an identifier). False positives on partitionKey
+  # etc. are expected; the agent disambiguates.
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: operand
+              kind: identifier
+              regex: '^(glog|slog|log)$'
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^(Info|Infof|InfoContext|Warning|Warningf|Error|Errorf|Fatal|Fatalf|Warn|Warnf|Debug|Debugf|Print|Printf|Println)$'
+    - has:
+        field: arguments
+        kind: argument_list
+        has:
+          kind: identifier
+          regex: '(?i)(password|passphrase|token|credential|authorization|jwt|pem|dsn|connectionstring|cookie)|(private|signing|encryption|api|client|webhook)(Key|Secret)'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"
+  - "**/*_test.go"

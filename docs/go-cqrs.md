@@ -106,7 +106,7 @@ In normal error-handling paths, the only case where offsets do NOT commit is whe
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go CQRS consumer in this framework manually wraps its command executor with `kv.NewTransactionMiddleware` / similar transaction-management code instead of using `RunCommandConsumerTx` (which auto-wraps).
-**Enforcement**: judgment (ast-grep partial: `call_expression` matching `NewTransactionMiddleware` / `Wrap...` patterns adjacent to a CQRS command consumer registration)
+**Enforcement**: `rules/go/auto-tx-wrapper-no-manual-wrap.yml` flags any `call_expression` invoking `NewTransactionMiddleware`. The agent confirms whether the wrapping is adjacent to a `RunCommandConsumerTx` registration (the specific double-wrap anti-pattern).
 **Why**: `RunCommandConsumerTx` is the framework's transaction-management entry point. It opens a kv transaction per command, hands the txn-bound store to the executor, commits on success, rolls back on error — exactly once per message, in the exact order the framework expects. Manual wrapping duplicates that logic and introduces subtle drift: the manual wrapper may rollback while the framework also rolls back (double-rollback panic on closed txn), or may commit while the framework expects rollback semantics on a downstream failure. The bug surfaces as "this CQRS consumer occasionally double-applies state changes" — hard to reproduce, harder to diagnose.
 
 #### Bad

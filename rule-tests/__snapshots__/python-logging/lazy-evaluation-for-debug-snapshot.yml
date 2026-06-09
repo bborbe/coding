@@ -1,0 +1,89 @@
+id: python-logging/lazy-evaluation-for-debug
+snapshots:
+  ? |
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Details: {expensive_serialization(large_object)}")
+  : labels:
+    - source: 'logger.debug(f"Details: {expensive_serialization(large_object)}")'
+      style: primary
+      start: 52
+      end: 117
+    - source: logger
+      style: secondary
+      start: 52
+      end: 58
+    - source: debug
+      style: secondary
+      start: 59
+      end: 64
+    - source: logger.debug
+      style: secondary
+      start: 52
+      end: 64
+    - source: 'f"Details: {expensive_serialization(large_object)}"'
+      style: secondary
+      start: 65
+      end: 116
+    - source: '(f"Details: {expensive_serialization(large_object)}")'
+      style: secondary
+      start: 64
+      end: 117
+  ? |
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Payload: {json.dumps(data)}")
+  : labels:
+    - source: 'logger.debug(f"Payload: {json.dumps(data)}")'
+      style: primary
+      start: 52
+      end: 96
+    - source: logger
+      style: secondary
+      start: 52
+      end: 58
+    - source: debug
+      style: secondary
+      start: 59
+      end: 64
+    - source: logger.debug
+      style: secondary
+      start: 52
+      end: 64
+    - source: 'f"Payload: {json.dumps(data)}"'
+      style: secondary
+      start: 65
+      end: 95
+    - source: '(f"Payload: {json.dumps(data)}")'
+      style: secondary
+      start: 64
+      end: 96
+  ? |
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"count={count}")
+  : labels:
+    - source: logger.debug(f"count={count}")
+      style: primary
+      start: 52
+      end: 82
+    - source: logger
+      style: secondary
+      start: 52
+      end: 58
+    - source: debug
+      style: secondary
+      start: 59
+      end: 64
+    - source: logger.debug
+      style: secondary
+      start: 52
+      end: 64
+    - source: f"count={count}"
+      style: secondary
+      start: 65
+      end: 81
+    - source: (f"count={count}")
+      style: secondary
+      start: 64
+      end: 82

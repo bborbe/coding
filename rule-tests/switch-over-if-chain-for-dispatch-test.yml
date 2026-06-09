@@ -1,0 +1,55 @@
+id: go-patterns/switch-over-if-chain-for-dispatch
+valid:
+  # switch statement — correct
+  - |
+    package p
+    func dispatch(mode string) error {
+        switch mode {
+        case "pr":
+            return nil
+        case "merge":
+            return nil
+        default:
+            return fmt.Errorf("unknown: %s", mode)
+        }
+    }
+  # 2-branch if/else — below the 3-branch threshold
+  - |
+    package p
+    func handle(mode string) error {
+        if mode == "pr" {
+            return handlePR()
+        } else if mode == "merge" {
+            return handleMerge()
+        }
+        return nil
+    }
+invalid:
+  # 3-branch if/else if chain
+  - |
+    package p
+    func dispatch(mode string) error {
+        if mode == "pr" {
+            return handlePR()
+        } else if mode == "merge" {
+            return handleMerge()
+        } else if mode == "rebase" {
+            return handleRebase()
+        }
+        return handleDirect()
+    }
+  # 4-branch chain
+  - |
+    package p
+    func handle(w string) error {
+        if w == "a" {
+            return doA()
+        } else if w == "b" {
+            return doB()
+        } else if w == "c" {
+            return doC()
+        } else if w == "d" {
+            return doD()
+        }
+        return nil
+    }

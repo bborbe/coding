@@ -1,0 +1,48 @@
+id: go-testing/counterfeiter-mocks-required
+snapshots:
+  ? |
+    package pkg
+    import "context"
+    //counterfeiter:generate -o mocks/service.go --fake-name Service . Service
+    type Service interface {
+      Create(ctx context.Context, user User) error
+    }
+  : labels:
+    - source: |-
+        type Service interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: primary
+      start: 104
+      end: 177
+    - source: |-
+        interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: secondary
+      start: 117
+      end: 177
+  ? |
+    package pkg
+    import "context"
+    type Service interface {
+      Create(ctx context.Context, user User) error
+      Get(ctx context.Context, id string) (*User, error)
+    }
+  : labels:
+    - source: |-
+        type Service interface {
+          Create(ctx context.Context, user User) error
+          Get(ctx context.Context, id string) (*User, error)
+        }
+      style: primary
+      start: 29
+      end: 155
+    - source: |-
+        interface {
+          Create(ctx context.Context, user User) error
+          Get(ctx context.Context, id string) (*User, error)
+        }
+      style: secondary
+      start: 42
+      end: 155

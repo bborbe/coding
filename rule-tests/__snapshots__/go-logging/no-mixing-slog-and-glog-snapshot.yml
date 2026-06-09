@@ -1,0 +1,122 @@
+id: go-logging/no-mixing-slog-and-glog
+snapshots:
+  ? |
+    package main
+    import (
+      "log/slog"
+      "github.com/golang/glog"
+    )
+    func doWork() {
+      slog.Debug("debug")
+      glog.Errorf("error: %v", nil)
+    }
+  : labels:
+    - source: '"github.com/golang/glog"'
+      style: primary
+      start: 37
+      end: 61
+    - source: '"github.com/golang/glog"'
+      style: secondary
+      start: 37
+      end: 61
+    - source: '"log/slog"'
+      style: secondary
+      start: 24
+      end: 34
+    - source: '"log/slog"'
+      style: secondary
+      start: 24
+      end: 34
+    - source: |
+        package main
+        import (
+          "log/slog"
+          "github.com/golang/glog"
+        )
+        func doWork() {
+          slog.Debug("debug")
+          glog.Errorf("error: %v", nil)
+        }
+      style: secondary
+      start: 0
+      end: 136
+  ? |
+    package main
+    import (
+      "log/slog"
+      "github.com/golang/glog"
+    )
+    func process() {
+      slog.Info("starting")
+      glog.Infof("done")
+    }
+  : labels:
+    - source: '"github.com/golang/glog"'
+      style: primary
+      start: 37
+      end: 61
+    - source: '"github.com/golang/glog"'
+      style: secondary
+      start: 37
+      end: 61
+    - source: '"log/slog"'
+      style: secondary
+      start: 24
+      end: 34
+    - source: '"log/slog"'
+      style: secondary
+      start: 24
+      end: 34
+    - source: |
+        package main
+        import (
+          "log/slog"
+          "github.com/golang/glog"
+        )
+        func process() {
+          slog.Info("starting")
+          glog.Infof("done")
+        }
+      style: secondary
+      start: 0
+      end: 128
+  ? |
+    package main
+    import (
+      "log/slog"
+      "github.com/golang/glog"
+    )
+    func process() {
+      slog.Info("starting", "items", 42)
+      glog.Infof("done with %d items", 42)
+    }
+  : labels:
+    - source: '"github.com/golang/glog"'
+      style: primary
+      start: 37
+      end: 61
+    - source: '"github.com/golang/glog"'
+      style: secondary
+      start: 37
+      end: 61
+    - source: '"log/slog"'
+      style: secondary
+      start: 24
+      end: 34
+    - source: '"log/slog"'
+      style: secondary
+      start: 24
+      end: 34
+    - source: |
+        package main
+        import (
+          "log/slog"
+          "github.com/golang/glog"
+        )
+        func process() {
+          slog.Info("starting", "items", 42)
+          glog.Infof("done with %d items", 42)
+        }
+      style: secondary
+      start: 0
+      end: 159

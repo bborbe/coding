@@ -1,0 +1,35 @@
+id: go-composition/no-package-function-calls-in-business-logic
+language: go
+severity: error
+message: |
+  Method body calls a package-level function (pkg.Function(...)) directly — hidden dependency.
+  Wrap each capability in a small interface, inject via the constructor, and call through the
+  injected field. Direct package calls are untestable and hide the dependency graph.
+  See docs/go-composition.md (RULE go-composition/no-package-function-calls-in-business-logic).
+rule:
+  # Anchor: call_expression inside a method body whose callee is a selector_expression where the
+  # operand is a bare identifier (the package name). Over-inclusive: also fires on receiver field
+  # calls like r.scanner.Method() where the outermost operand IS an identifier — the LLM adjudicates.
+  #
+  # Uses structural rule to avoid the type_conversion_expression gotcha: bare `pkg.Func($A)` patterns
+  # parse as type_conversion_expression in contexts where tree-sitter cannot disambiguate, yielding
+  # zero matches. The kind: call_expression + has: function selector shape avoids the misparse.
+  kind: call_expression
+  inside:
+    kind: method_declaration
+    stopBy: end
+  has:
+    field: function
+    kind: selector_expression
+    has:
+      field: operand
+      kind: identifier
+ignores:
+  - "main.go"
+  - "**/main.go"
+  - "cmd/**"
+  - "**/cmd/**"
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

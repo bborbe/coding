@@ -1,0 +1,20 @@
+id: python-ioc/protocol-not-abc-for-dependencies
+language: python
+severity: error
+message: |
+  Service dependency interfaces must use typing.Protocol, not abc.ABC + @abstractmethod.
+  Protocol gives structural typing — mocks need no inheritance, contracts are lighter.
+  Use ABC only when concrete implementations share code via super().
+  See docs/python-ioc-guide.md (RULE python-ioc/protocol-not-abc-for-dependencies).
+rule:
+  # Over-inclusive first-pass: any class inheriting from ABC.
+  # The "no shared implementation needed" trigger is semantic — the agent determines
+  # whether any method has a non-pass body that provides shared behavior.
+  # False positives (ABCs with genuine shared impl) are expected and acceptable.
+  pattern: 'class $NAME(ABC): $$$'
+ignores:
+  - "**/*_test.py"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"

@@ -1,0 +1,26 @@
+id: go-functional-composition/list-type-name
+language: go
+severity: error
+message: |
+  Slice-type adapter for functional composition must be named XxxList (where Xxx is the interface name).
+  A custom name (Processors, ProcessorChain, ProcessorSet) breaks the pattern pair convention —
+  consumers see XxxFunc but cannot find the aggregator.
+  See docs/go-functional-composition-pattern.md (RULE go-functional-composition/list-type-name).
+rule:
+  # Over-inclusive anchor: flag every slice-type declaration whose name does NOT end with "List".
+  # The LLM adjudicates: rules out generic slice aliases that are not functional-composition aggregators.
+  kind: type_spec
+  all:
+    - has:
+        field: type
+        kind: slice_type
+    - has:
+        field: name
+        kind: type_identifier
+        not:
+          regex: 'List$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

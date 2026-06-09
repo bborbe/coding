@@ -1,0 +1,60 @@
+id: go-logging/external-call-logs-response
+language: go
+severity: warning
+message: |
+  A boundary call (HTTP client, DB query, subprocess exec) was found
+  without a log statement summarising the call's outcome. Boundary
+  calls are the audit trail — without a log line per call, runtime
+  mysteries ("did the payment send?") require redeploying with extra
+  instrumentation. Log: method + path/op + status + latency; add
+  error message on failure.
+  EXEMPT: calls already wrapped by a logging middleware, retry loop,
+  or helper that emits the audit line. The agent reads the full block
+  to decide. Pair with go-logging/no-tight-loop-without-sampler for
+  high-frequency paths.
+  See docs/go-logging-guide.md (RULE go-logging/external-call-logs-response).
+rule:
+  # Over-inclusive first-pass: flag known boundary-call patterns.
+  # The LLM adjudicates whether a log statement exists in the same block.
+  # Pattern covers: HTTP client.Do/Get/Post, DB QueryContext/ExecContext,
+  # and os/exec Command/CommandContext.
+  any:
+    # HTTP client calls: client.Do / client.Get / client.Post
+    - kind: call_expression
+      has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^(Do|RoundTrip)$'
+    # DB / SQL calls: db.QueryContext / db.ExecContext / db.QueryRow
+    - kind: call_expression
+      has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^(QueryContext|ExecContext|QueryRowContext)$'
+    # os/exec calls: exec.Command / exec.CommandContext
+    - kind: call_expression
+      has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: operand
+              kind: identifier
+              regex: '^exec$'
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^(Command|CommandContext)$'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"
+  - "**/*_test.go"

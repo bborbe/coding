@@ -1,0 +1,27 @@
+id: go-enum-type/typed-constants-with-collection
+valid:
+  # Typed constant — has explicit type annotation
+  - |
+    package p
+    type OrderStatus string
+    const PendingOrderStatus OrderStatus = "pending"
+  # Typed constant with multiple values
+  - |
+    package p
+    type OrderStatus string
+    const (
+        PendingOrderStatus    OrderStatus = "pending"
+        CompletedOrderStatus  OrderStatus = "completed"
+    )
+invalid:
+  # Untyped string constant
+  - |
+    package p
+    const OrderStatusPending = "pending"
+  # Multiple untyped string constants
+  - |
+    package p
+    const (
+        OrderStatusPending    = "pending"
+        OrderStatusProcessing = "processing"
+    )

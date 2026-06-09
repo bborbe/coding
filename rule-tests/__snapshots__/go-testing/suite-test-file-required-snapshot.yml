@@ -1,0 +1,58 @@
+id: go-testing/suite-test-file-required
+snapshots:
+  ? |
+    package mypkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      Context("with valid data", func() {
+        It("returns result", func() {})
+      })
+    })
+  : labels:
+    - source: |-
+        var _ = Describe("Foo", func() {
+          Context("with valid data", func() {
+            It("returns result", func() {})
+          })
+        })
+      style: primary
+      start: 56
+      end: 170
+    - source: Describe
+      style: secondary
+      start: 64
+      end: 72
+    - source: |-
+        Describe("Foo", func() {
+          Context("with valid data", func() {
+            It("returns result", func() {})
+          })
+        })
+      style: secondary
+      start: 64
+      end: 170
+  ? |
+    package mypkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("MyService", func() {
+      It("does something", func() {})
+    })
+  : labels:
+    - source: |-
+        var _ = Describe("MyService", func() {
+          It("does something", func() {})
+        })
+      style: primary
+      start: 56
+      end: 131
+    - source: Describe
+      style: secondary
+      start: 64
+      end: 72
+    - source: |-
+        Describe("MyService", func() {
+          It("does something", func() {})
+        })
+      style: secondary
+      start: 64
+      end: 131

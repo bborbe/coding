@@ -1,0 +1,27 @@
+id: go-enum-type/typed-constants-with-collection
+language: go
+severity: error
+message: |
+  Untyped string constant in a const block — likely an enum value without a paired typed newtype
+  and Available* collection. Declare 'type XxxStatus string' + 'var AvailableXxxStatuses' so the
+  closed set is type-checked and self-describing.
+  See docs/go-enum-type-pattern.md (RULE go-enum-type/typed-constants-with-collection).
+rule:
+  # Anchor: const_spec containing a string literal value WITHOUT an explicit type annotation.
+  # Untyped: OrderStatusPending = "pending"
+  # Typed:   PendingOrderStatus OrderStatus = "pending"  ← has type_identifier child, won't match.
+  # The LLM adjudicates: confirms multiple same-prefix constants share an enum semantic, and checks
+  # whether the package already has the typed newtype + Available* collection.
+  kind: const_spec
+  all:
+    - has:
+        stopBy: end
+        kind: interpreted_string_literal
+    - not:
+        has:
+          kind: type_identifier
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

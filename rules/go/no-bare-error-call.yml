@@ -1,0 +1,46 @@
+id: go-testing/no-bare-error-call
+language: go
+severity: error
+message: |
+  A function call inside a Ginkgo It/BeforeEach/JustBeforeEach/AfterEach
+  block discards its return value (bare expression_statement with a
+  method/selector call). If the function returns an error, errcheck
+  breaks the build and the test's intent is undocumented.
+  Wrap in a Gomega matcher: `Expect(fn(ctx)).To(Succeed())` for success,
+  `Expect(fn(ctx)).To(HaveOccurred())` for failure.
+  EXEMPT: calls that genuinely return nothing, or Ginkgo/Gomega helpers
+  (By, DeferCleanup, etc.) whose return is intentionally ignored. The
+  agent reads the function's signature to decide.
+  See docs/go-testing-guide.md (RULE go-testing/no-bare-error-call).
+rule:
+  # Match expression_statement (bare call) inside Ginkgo lifecycle blocks
+  # where the call is a selector_expression (method call like svc.Process(ctx))
+  # and the chain does NOT end in .To/.ToNot/.Should (Gomega assertion chain).
+  # ast-grep cannot read function return types, so this is over-inclusive:
+  # bare void calls in Ginkgo blocks are also flagged for the agent to dismiss.
+  kind: expression_statement
+  has:
+    kind: call_expression
+    all:
+      - has:
+          field: function
+          kind: selector_expression
+      - not:
+          has:
+            field: function
+            kind: selector_expression
+            has:
+              field: field
+              kind: field_identifier
+              regex: '^(To|ToNot|NotTo|Should|ShouldNot)$'
+  inside:
+    stopBy: end
+    kind: call_expression
+    has:
+      field: function
+      kind: identifier
+      regex: '^(It|BeforeEach|JustBeforeEach|AfterEach|BeforeSuite|AfterSuite|BeforeAll|AfterAll)$'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -1,0 +1,30 @@
+id: go-testing/counterfeiter-mocks-required
+valid:
+  # Struct type — not an interface, not flagged
+  - |
+    package pkg
+    type UserService struct { db *DB }
+  # Empty struct used as sentinel — not an interface
+  - |
+    package pkg
+    type Config struct {
+      Host string
+      Port int
+    }
+invalid:
+  # Interface without counterfeiter directive — flagged
+  - |
+    package pkg
+    import "context"
+    type Service interface {
+      Create(ctx context.Context, user User) error
+      Get(ctx context.Context, id string) (*User, error)
+    }
+  # Interface with directive — still flagged (LLM checks if mocks/ file exists)
+  - |
+    package pkg
+    import "context"
+    //counterfeiter:generate -o mocks/service.go --fake-name Service . Service
+    type Service interface {
+      Create(ctx context.Context, user User) error
+    }

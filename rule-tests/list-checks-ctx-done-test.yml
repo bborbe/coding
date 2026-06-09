@@ -1,0 +1,49 @@
+id: go-functional-composition/list-checks-ctx-done
+valid:
+  # Has ctx.Done() check in loop
+  - |
+    package p
+    import "context"
+    func (list ProcessorList) Process(ctx context.Context) error {
+        for _, p := range list {
+            select {
+            case <-ctx.Done():
+                return ctx.Err()
+            default:
+            }
+            if err := p.Process(ctx); err != nil {
+                return err
+            }
+        }
+        return nil
+    }
+  # Method on List receiver with no for loop — not flagged
+  - |
+    package p
+    import "context"
+    func (list ProcessorList) Len() int { return len(list) }
+invalid:
+  # For loop with no ctx.Done() check
+  - |
+    package p
+    import "context"
+    func (list ProcessorList) Process(ctx context.Context) error {
+        for _, p := range list {
+            if err := p.Process(ctx); err != nil {
+                return err
+            }
+        }
+        return nil
+    }
+  # Another variant: ValidatorList without ctx check
+  - |
+    package p
+    import "context"
+    func (list ValidatorList) Validate(ctx context.Context) error {
+        for _, v := range list {
+            if err := v.Validate(ctx); err != nil {
+                return err
+            }
+        }
+        return nil
+    }

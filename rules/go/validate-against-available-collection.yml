@@ -1,0 +1,27 @@
+id: go-enum-type/validate-against-available-collection
+language: go
+severity: error
+message: |
+  Validate() method uses an inline switch/case over string literals instead of
+  AvailableXs.Contains(value). Adding a new enum constant then requires updating both
+  the const block and this switch — single source of truth is broken.
+  Use: if !AvailableXxxStatuses.Contains(o) { return errors.Wrapf(...) }
+  See docs/go-enum-type-pattern.md (RULE go-enum-type/validate-against-available-collection).
+rule:
+  # Anchor: method named Validate that contains an expression_switch_statement.
+  # The LLM adjudicates: confirms the switch is validating enum membership (not unrelated dispatch),
+  # and checks whether the package already declares an Available* collection.
+  kind: method_declaration
+  all:
+    - has:
+        field: name
+        kind: field_identifier
+        regex: '^Validate$'
+    - has:
+        stopBy: end
+        kind: expression_switch_statement
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

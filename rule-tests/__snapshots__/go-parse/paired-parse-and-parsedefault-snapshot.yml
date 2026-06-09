@@ -1,0 +1,54 @@
+id: go-parse/paired-parse-and-parsedefault
+snapshots:
+  ? |
+    package pkg
+    func ParseOrderStatus(ctx context.Context, value any) (*OrderStatus, error) {
+      s := OrderStatus("pending")
+      return &s, nil
+    }
+  : labels:
+    - source: |-
+        func ParseOrderStatus(ctx context.Context, value any) (*OrderStatus, error) {
+          s := OrderStatus("pending")
+          return &s, nil
+        }
+      style: primary
+      start: 12
+      end: 138
+    - source: ParseOrderStatus
+      style: secondary
+      start: 17
+      end: 33
+    - source: error
+      style: secondary
+      start: 81
+      end: 86
+    - source: (*OrderStatus, error)
+      style: secondary
+      start: 66
+      end: 87
+  ? |
+    package pkg
+    func ParseUserID(ctx context.Context, value any) (string, error) {
+      return "", nil
+    }
+  : labels:
+    - source: |-
+        func ParseUserID(ctx context.Context, value any) (string, error) {
+          return "", nil
+        }
+      style: primary
+      start: 12
+      end: 97
+    - source: ParseUserID
+      style: secondary
+      start: 17
+      end: 28
+    - source: error
+      style: secondary
+      start: 70
+      end: 75
+    - source: (string, error)
+      style: secondary
+      start: 61
+      end: 76

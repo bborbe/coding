@@ -4,3 +4,7 @@
 # ruleDirs lists directories scanned recursively for *.yml rule files.
 ruleDirs:
   - ./rules
+
+# ast-grep native rule tests (ast-grep test -c sgconfig.yml)
+testConfigs:
+  - testDir: ./rule-tests

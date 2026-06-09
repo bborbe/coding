@@ -1,0 +1,39 @@
+id: go-logging/skip-empty-v2-heartbeats
+valid:
+  # glog.V(2).Infof OUTSIDE a for loop — not flagged
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func startup(n int) {
+      if n > 0 { glog.V(2).Infof("scan cycle: %d changed", n) }
+    }
+  # glog.Errorf inside loop (different level — not flagged by this rule)
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func scan() {
+      for { glog.Errorf("scan failed") }
+    }
+invalid:
+  # glog.V(2).Infof unconditionally inside for loop
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func scan() {
+      for {
+        changed, _ := scanForUpdates()
+        glog.V(2).Infof("scan cycle: %d changed", changed)
+      }
+    }
+  # glog.V(2).Infof inside guarded if but still inside for loop (over-inclusive catch)
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func poll() {
+      for {
+        n, _ := poll()
+        if n > 0 {
+          glog.V(2).Infof("polled %d items", n)
+        }
+      }
+    }

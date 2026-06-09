@@ -1,0 +1,30 @@
+id: go-http-service/admin-port-9090
+language: go
+severity: error
+message: |
+  The admin HTTP server's Listen field must default to ":9090".
+  Other defaults break Prometheus scrape configs, the gateway admin routing, and operator muscle memory.
+  See docs/go-http-service-guide.md (RULE go-http-service/admin-port-9090).
+rule:
+  # Match any struct field named Listen whose struct tag contains a default:"..."
+  # value that is NOT ":9090". The over-inclusive variant: any Listen field with
+  # a non-9090 default (or any explicit non-9090 default tag). Fields with no
+  # default tag at all are also suspicious but less precisely expressible — those
+  # are caught by the agent during full struct inspection.
+  kind: field_declaration
+  all:
+    - has:
+        field: name
+        regex: '^Listen$'
+    - has:
+        field: tag
+        kind: raw_string_literal
+        all:
+          - regex: 'default:"'
+          - not:
+              regex: 'default:":9090"'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

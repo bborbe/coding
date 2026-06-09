@@ -1,0 +1,28 @@
+id: python-ioc/protocol-not-abc-for-dependencies
+valid:
+  - |
+    from typing import Protocol
+    class UserRepository(Protocol):
+        def save(self, user) -> None: ...
+        def find_by_id(self, user_id: int): ...
+  - |
+    # Plain class — not ABC, not Protocol — fine
+    class UserRepositoryImpl:
+        def save(self, user) -> None:
+            pass
+invalid:
+  - |
+    from abc import ABC, abstractmethod
+    class UserRepository(ABC):
+        @abstractmethod
+        def save(self, user) -> None:
+            pass
+  - |
+    from abc import ABC, abstractmethod
+    class Logger(ABC):
+        @abstractmethod
+        def info(self, msg: str) -> None:
+            pass
+        @abstractmethod
+        def error(self, msg: str) -> None:
+            pass

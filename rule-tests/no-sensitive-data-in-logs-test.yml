@@ -1,0 +1,38 @@
+id: go-logging/no-sensitive-data-in-logs
+valid:
+  # Logging length of token — safe
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func login(token string) { glog.Infof("authenticated token_len=%d", len(token)) }
+  # Logging method + path + auth_len — safe
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func handle(r *Request) { glog.Infof("method=%s path=%s authz_len=%d", r.Method, r.URL.Path, len(r.Header.Get("Authorization"))) }
+  # partitionKey is not a credential — agent dismisses but rule might fire; test safe log
+  - |
+    package pkg
+    import "log/slog"
+    func index(partitionKey string) { slog.Info("indexing", "partition", partitionKey) }
+invalid:
+  # Direct token identifier passed to glog
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func login(token string) { glog.Infof("authenticated with token=%s", token) }
+  # refreshToken in slog structured log
+  - |
+    package pkg
+    import "log/slog"
+    func oauthRefresh(refreshToken string) { slog.Info("oauth refresh", "refresh_token", refreshToken) }
+  # password direct log
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func authenticate(password string) { glog.Infof("authenticating with password=%s", password) }
+  # dsn in slog
+  - |
+    package pkg
+    import "log/slog"
+    func connect(dsn string) { slog.Info("connecting", "dsn", dsn) }

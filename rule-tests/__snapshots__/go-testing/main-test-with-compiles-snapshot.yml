@@ -1,0 +1,77 @@
+id: go-testing/main-test-with-compiles
+snapshots:
+  ? |
+    package main
+    import "fmt"
+    func main() { fmt.Println("hello") }
+  : labels:
+    - source: func main() { fmt.Println("hello") }
+      style: primary
+      start: 26
+      end: 62
+    - source: main
+      style: secondary
+      start: 31
+      end: 35
+    - source: main
+      style: secondary
+      start: 8
+      end: 12
+    - source: package main
+      style: secondary
+      start: 0
+      end: 12
+    - source: |
+        package main
+        import "fmt"
+        func main() { fmt.Println("hello") }
+      style: secondary
+      start: 0
+      end: 63
+  ? |
+    package main
+    import (
+      "context"
+      "os"
+    )
+    func main() {
+      ctx := context.Background()
+      _ = ctx
+      os.Exit(0)
+    }
+  : labels:
+    - source: |-
+        func main() {
+          ctx := context.Background()
+          _ = ctx
+          os.Exit(0)
+        }
+      style: primary
+      start: 43
+      end: 111
+    - source: main
+      style: secondary
+      start: 48
+      end: 52
+    - source: main
+      style: secondary
+      start: 8
+      end: 12
+    - source: package main
+      style: secondary
+      start: 0
+      end: 12
+    - source: |
+        package main
+        import (
+          "context"
+          "os"
+        )
+        func main() {
+          ctx := context.Background()
+          _ = ctx
+          os.Exit(0)
+        }
+      style: secondary
+      start: 0
+      end: 112

@@ -1,0 +1,68 @@
+id: go-functional-composition/list-checks-ctx-done
+snapshots:
+  ? |
+    package p
+    import "context"
+    func (list ProcessorList) Process(ctx context.Context) error {
+        for _, p := range list {
+            if err := p.Process(ctx); err != nil {
+                return err
+            }
+        }
+        return nil
+    }
+  : labels:
+    - source: |-
+        func (list ProcessorList) Process(ctx context.Context) error {
+            for _, p := range list {
+                if err := p.Process(ctx); err != nil {
+                    return err
+                }
+            }
+            return nil
+        }
+      style: primary
+      start: 27
+      end: 221
+    - source: |-
+        for _, p := range list {
+                if err := p.Process(ctx); err != nil {
+                    return err
+                }
+            }
+      style: secondary
+      start: 94
+      end: 204
+  ? |
+    package p
+    import "context"
+    func (list ValidatorList) Validate(ctx context.Context) error {
+        for _, v := range list {
+            if err := v.Validate(ctx); err != nil {
+                return err
+            }
+        }
+        return nil
+    }
+  : labels:
+    - source: |-
+        func (list ValidatorList) Validate(ctx context.Context) error {
+            for _, v := range list {
+                if err := v.Validate(ctx); err != nil {
+                    return err
+                }
+            }
+            return nil
+        }
+      style: primary
+      start: 27
+      end: 223
+    - source: |-
+        for _, v := range list {
+                if err := v.Validate(ctx); err != nil {
+                    return err
+                }
+            }
+      style: secondary
+      start: 95
+      end: 206

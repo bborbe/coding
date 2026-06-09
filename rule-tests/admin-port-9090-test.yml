@@ -1,0 +1,24 @@
+id: go-http-service/admin-port-9090
+valid:
+  - |
+    package main
+    type application struct {
+        Listen string `required:"false" arg:"listen" env:"LISTEN" default:":9090"`
+    }
+  - |
+    package main
+    // Field without a default tag — not covered by this rule (no explicit wrong default)
+    type application struct {
+        Listen string `required:"false" arg:"listen" env:"LISTEN"`
+    }
+invalid:
+  - |
+    package main
+    type application struct {
+        Listen string `required:"false" arg:"listen" env:"LISTEN" default:":8080"`
+    }
+  - |
+    package main
+    type application struct {
+        Listen string `required:"false" arg:"listen" env:"LISTEN" default:":3000"`
+    }

@@ -1,0 +1,32 @@
+id: python-pydantic/optional-needs-default
+language: python
+severity: error
+message: |
+  Pydantic BaseModel fields typed Optional[T] or T | None must declare a default value.
+  Without `= None` (or `= Field(default=...)`), the field is still required at instantiation
+  despite the Optional type hint, causing silent ValidationError at runtime.
+  See docs/python-pydantic-guide.md (RULE python-pydantic/optional-needs-default).
+rule:
+  # Match annotated assignments inside a BaseModel subclass that are typed Optional
+  # or T | None but lack a default value (no `= None` or `= Field(...)` in the text).
+  # Regex on the node text is used because the distinction (with vs without default)
+  # is captured in the node's full source span, not in a discrete child field.
+  all:
+    - pattern: "$X: $T"
+    - inside:
+        stopBy: end
+        kind: class_definition
+        has:
+          field: superclasses
+          regex: 'BaseModel'
+    - any:
+        - regex: "Optional\\["
+        - regex: "\\| *None$"
+    - not:
+        regex: "= *(None|Field)"
+ignores:
+  - "**/*_test.py"
+  - "**/test_*.py"
+  - "**/tests/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"

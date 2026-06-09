@@ -1,0 +1,42 @@
+id: go-logging/lowercase-log-messages
+language: go
+severity: warning
+message: |
+  Log message starts with an uppercase letter. Use lowercase — log lines
+  are streamed mid-sentence into structured-log search tools; lowercase
+  keeps the multi-source stream uniform and matches Go stdlib log convention.
+  EXEMPT: proper nouns, acronyms, identifiers that must be capitalised.
+  The agent reads the message content to decide; this YAML flags every
+  glog/slog/log call whose first (or any) string-literal argument begins
+  with an uppercase letter.
+  See docs/go-logging-guide.md (RULE go-logging/lowercase-log-messages).
+rule:
+  # Over-inclusive first-pass: match any glog/slog/log call that contains
+  # an interpreted_string_literal starting with an uppercase letter among
+  # its arguments. False positives (e.g., key strings in slog key-value
+  # pairs) are acceptable — the LLM adjudicates which string is the message.
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: operand
+              kind: identifier
+              regex: '^(glog|slog|log)$'
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^(Info|Infof|Warning|Warningf|Error|Errorf|Fatal|Fatalf|Warn|Debug|Debugf|Warnf|Print|Printf|Println)$'
+    - has:
+        field: arguments
+        kind: argument_list
+        has:
+          kind: interpreted_string_literal
+          regex: '^"[A-Z]'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"
+  - "**/*_test.go"

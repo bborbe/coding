@@ -1,0 +1,35 @@
+id: go-logging/no-mixing-slog-and-glog
+valid:
+  # glog-only project — no slog import
+  - |
+    package main
+    import "github.com/golang/glog"
+    func process() { glog.Infof("done items=%d", 42) }
+  # slog-only project — no glog import
+  - |
+    package main
+    import "log/slog"
+    func process() { slog.Info("done", "items", 42) }
+invalid:
+  # Both loggers in the same file — triggers rule
+  - |
+    package main
+    import (
+      "log/slog"
+      "github.com/golang/glog"
+    )
+    func process() {
+      slog.Info("starting", "items", 42)
+      glog.Infof("done with %d items", 42)
+    }
+  # glog + slog in same file, different functions
+  - |
+    package main
+    import (
+      "log/slog"
+      "github.com/golang/glog"
+    )
+    func doWork() {
+      slog.Debug("debug")
+      glog.Errorf("error: %v", nil)
+    }

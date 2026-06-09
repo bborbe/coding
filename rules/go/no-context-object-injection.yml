@@ -1,0 +1,39 @@
+id: go-service-impl/no-context-object-injection
+language: go
+severity: error
+message: |
+  Service methods must not accept a context-object struct (ServiceContext, Deps, etc.)
+  that bundles multiple dependencies. Inject dependencies through the constructor instead.
+  Context-object injection hides the dep set, complicates tests, and grows unboundedly.
+  See docs/go-service-implementation-patterns.md (RULE go-service-impl/no-context-object-injection).
+rule:
+  # Match method declarations whose parameter list contains a parameter typed with a
+  # type_identifier or *pointer_type whose name ends in Context, Deps, or Dependencies.
+  # Excludes context.Context (a qualified_type — package.Type form) via not.inside.
+  # The agent confirms the matched type is a bundle struct (2+ service-interface fields)
+  # rather than a legitimate single-dep named "FooContext".
+  kind: method_declaration
+  has:
+    field: parameters
+    kind: parameter_list
+    has:
+      kind: parameter_declaration
+      has:
+        any:
+          - kind: type_identifier
+            regex: '(Context|Deps|Dependencies)$'
+            not:
+              inside:
+                kind: qualified_type
+          - kind: pointer_type
+            has:
+              kind: type_identifier
+              regex: '(Context|Deps|Dependencies)$'
+              not:
+                inside:
+                  kind: qualified_type
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

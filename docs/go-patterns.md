@@ -91,7 +91,7 @@ req := APIRequest{
 
 **Owner**: go-quality-assistant
 **Applies when**: a Go file dispatches behaviour on an enum-typed value (`OrderStatus`, `WorkflowMode`, `Phase`) using an `if/else if/else` chain over equality comparisons, instead of a `switch` statement with explicit cases + a `default` arm returning an error for unknown values.
-**Enforcement**: judgment (ast-grep follow-up: `if_statement` chains with 3+ branches comparing the same expression to enum-typed constants; the agent rules in the "this is dispatch, not coincidental equality checks" case)
+**Enforcement**: `rules/go/switch-over-if-chain-for-dispatch.yml` (mechanical first-pass flags `if/else if/else if` chains with 3+ branches) + judgment-tier LLM adjudication to confirm this is enum dispatch rather than coincidental equality checks over unrelated conditions.
 **Why**: A `switch` over an enum with explicit cases + `default: return errors.Errorf(ctx, "unknown X: %s", v)` makes three things visible: (1) every recognised value is named in its own case, so `grep` finds dispatch sites; (2) the `default` arm catches "we added a new enum value but forgot to handle it here" — surfaces as a real error at runtime instead of silent fallthrough; (3) the structure documents the closed set the function understands. `if/else` chains hide all three: dispatch sites look like arbitrary conditionals, missing-case is silent, and reading the function doesn't surface the value space.
 
 #### Bad

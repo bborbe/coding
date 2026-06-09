@@ -1,0 +1,56 @@
+id: go-logging/no-log-and-return-error
+valid:
+  # Return only — no log at inner site (correct pattern)
+  - |
+    package pkg
+    func fetchUser(id string) error {
+      err := doSomething()
+      if err != nil {
+        return wrapf(err, "fetch user %s", id)
+      }
+      return nil
+    }
+  # Log at boundary (main.go excluded from rule)
+  - |
+    package pkg
+    func handleRequest() error {
+      err := process()
+      if err != nil {
+        return err
+      }
+      return nil
+    }
+  # Log without returning error — consuming the error is fine
+  - |
+    package pkg
+    func process() {
+      err := doSomething()
+      if err != nil {
+        glog.Errorf("background task failed: %v", err)
+      }
+    }
+invalid:
+  # glog.Errorf + return err in same if block
+  - |
+    package pkg
+    import "github.com/golang/glog"
+    func fetchUser(id string) error {
+      err := doSomething()
+      if err != nil {
+        glog.Errorf("failed to fetch user %s: %v", id, err)
+        return wrapf(err, "fetch user")
+      }
+      return nil
+    }
+  # slog.Error + return ..., err
+  - |
+    package pkg
+    import "log/slog"
+    func getItem(id string) (*Item, error) {
+      item, err := store.Get(id)
+      if err != nil {
+        slog.Error("failed to get item", "id", id, "error", err)
+        return nil, err
+      }
+      return item, nil
+    }

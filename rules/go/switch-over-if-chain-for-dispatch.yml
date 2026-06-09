@@ -1,0 +1,19 @@
+id: go-patterns/switch-over-if-chain-for-dispatch
+language: go
+severity: warning
+message: |
+  if/else-if chain with 3+ branches — likely dispatching on an enum/type value.
+  Use a switch statement with explicit cases + default: return error for unknown values.
+  A switch makes the closed set visible, catches new-enum-but-forgot-to-handle silently.
+  See docs/go-patterns.md (RULE go-patterns/switch-over-if-chain-for-dispatch).
+rule:
+  # Anchor: if/else if/else if pattern (3+ branches over the same expression).
+  # Matches the top-level if statement that starts a 3-branch chain.
+  # The LLM adjudicates: confirms this is enum dispatch (not coincidental equality checks
+  # comparing different values or unrelated conditions).
+  pattern: "if $COND1 { $$$B1 } else if $COND2 { $$$B2 } else if $COND3 { $$$B3 }"
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

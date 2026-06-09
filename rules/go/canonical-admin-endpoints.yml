@@ -1,0 +1,35 @@
+id: go-http-service/canonical-admin-endpoints
+language: go
+severity: error
+message: |
+  Admin HTTP server must register all five canonical endpoints:
+  /healthz, /readiness, /metrics, /setloglevel/{level}, /gc.
+  Missing endpoints break Kubernetes probes, Prometheus scraping, or on-call debugging.
+  See docs/go-http-service-guide.md (RULE go-http-service/canonical-admin-endpoints).
+rule:
+  # First-pass filter: match any router.Path / router.Handle / mux.Handle call that
+  # registers one of the five required admin endpoint paths. The agent audits whether
+  # all five are present in the service's route registration code.
+  # Over-inclusive: also fires on files that register all five correctly — the agent
+  # passes those through. False negatives (endpoints registered indirectly via a helper)
+  # are accepted; direct registration is the norm across bborbe services.
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: selector_expression
+        has:
+          field: field
+          kind: field_identifier
+          regex: '^(Path|Handle|HandleFunc)$'
+    - has:
+        field: arguments
+        kind: argument_list
+        has:
+          kind: interpreted_string_literal
+          regex: '^"/(healthz|readiness|metrics|setloglevel|gc)'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

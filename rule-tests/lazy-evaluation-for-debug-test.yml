@@ -1,0 +1,29 @@
+id: python-logging/lazy-evaluation-for-debug
+valid:
+  - |
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug("Details: %s", expensive_serialization(large_object))
+  - |
+    import logging
+    logger = logging.getLogger(__name__)
+    # info level is not covered by this rule — only logger.debug fires
+    logger.info(f"Processing: {item}")
+  - |
+    import logging
+    logger = logging.getLogger(__name__)
+    # Non-f-string debug call — no interpolation to evaluate eagerly
+    logger.debug("static message with no interpolation")
+invalid:
+  - |
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Details: {expensive_serialization(large_object)}")
+  - |
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"count={count}")
+  - |
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Payload: {json.dumps(data)}")

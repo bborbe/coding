@@ -1,0 +1,39 @@
+id: go-logging/no-tight-loop-without-sampler
+language: go
+severity: warning
+message: |
+  A glog/slog/log Info or Warning call appears inside a for-loop body
+  without a sampler guard. Unsampled log calls in hot paths produce log
+  gigabytes per minute, drowning real operator signal and inflating
+  cloud-logging costs.
+  EXEMPT: bounded loops that run at most O(10) iterations, or loops
+  where the log call is already gated by `if h.logSampler.IsSample()`
+  or `glog.V(N)`. The agent reads the loop bound and guard to decide.
+  Use `github.com/bborbe/log` NewSampleTime / NewSampleMod / NewSamplerGlogLevel.
+  See docs/go-logging-guide.md (RULE go-logging/no-tight-loop-without-sampler).
+rule:
+  # Over-inclusive first-pass: any for_statement whose body contains a
+  # glog/slog/log Info or Warning call. Does NOT try to detect the
+  # sampler guard (too complex for ast-grep); the LLM adjudicates
+  # whether the call is sampled or bounded.
+  kind: for_statement
+  has:
+    stopBy: end
+    kind: call_expression
+    has:
+      field: function
+      kind: selector_expression
+      all:
+        - has:
+            field: operand
+            kind: identifier
+            regex: '^(glog|slog|log)$'
+        - has:
+            field: field
+            kind: field_identifier
+            regex: '^(Info|Infof|Warning|Warningf|Warn|Warnf|Print|Printf|Println)$'
+ignores:
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"
+  - "**/*_test.go"

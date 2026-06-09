@@ -1,0 +1,83 @@
+id: go-service-impl/no-context-object-injection
+snapshots:
+  ? |
+    package main
+    func (e *EmailService) Process(ctx context.Context, svcCtx *ServiceContext) error {
+        return svcCtx.SMTPClient.Send(ctx, Message{})
+    }
+  : labels:
+    - source: |-
+        func (e *EmailService) Process(ctx context.Context, svcCtx *ServiceContext) error {
+            return svcCtx.SMTPClient.Send(ctx, Message{})
+        }
+      style: primary
+      start: 13
+      end: 148
+    - source: ServiceContext
+      style: secondary
+      start: 73
+      end: 87
+    - source: '*ServiceContext'
+      style: secondary
+      start: 72
+      end: 87
+    - source: svcCtx *ServiceContext
+      style: secondary
+      start: 65
+      end: 87
+    - source: (ctx context.Context, svcCtx *ServiceContext)
+      style: secondary
+      start: 43
+      end: 88
+  ? |
+    package main
+    func (e *EmailService) Send(ctx context.Context, msg Message, svcCtx ServiceContext) error {
+        svcCtx.Logger.Info("sending")
+        return svcCtx.SMTPClient.Send(ctx, msg)
+    }
+  : labels:
+    - source: |-
+        func (e *EmailService) Send(ctx context.Context, msg Message, svcCtx ServiceContext) error {
+            svcCtx.Logger.Info("sending")
+            return svcCtx.SMTPClient.Send(ctx, msg)
+        }
+      style: primary
+      start: 13
+      end: 185
+    - source: ServiceContext
+      style: secondary
+      start: 82
+      end: 96
+    - source: svcCtx ServiceContext
+      style: secondary
+      start: 75
+      end: 96
+    - source: (ctx context.Context, msg Message, svcCtx ServiceContext)
+      style: secondary
+      start: 40
+      end: 97
+  ? |
+    package main
+    func (h *handler) Handle(ctx context.Context, deps ServiceDeps) error {
+        return deps.Repo.Save(ctx, Entity{})
+    }
+  : labels:
+    - source: |-
+        func (h *handler) Handle(ctx context.Context, deps ServiceDeps) error {
+            return deps.Repo.Save(ctx, Entity{})
+        }
+      style: primary
+      start: 13
+      end: 127
+    - source: ServiceDeps
+      style: secondary
+      start: 64
+      end: 75
+    - source: deps ServiceDeps
+      style: secondary
+      start: 59
+      end: 75
+    - source: (ctx context.Context, deps ServiceDeps)
+      style: secondary
+      start: 37
+      end: 76

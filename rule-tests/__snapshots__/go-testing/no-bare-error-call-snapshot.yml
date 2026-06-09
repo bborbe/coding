@@ -1,0 +1,70 @@
+id: go-testing/no-bare-error-call
+snapshots:
+  ? |
+    package pkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      BeforeEach(func() {
+        store.Reset()
+        service.Initialize(ctx)
+      })
+    })
+  : labels:
+    - source: store.Reset()
+      style: primary
+      start: 113
+      end: 126
+    - source: BeforeEach
+      style: secondary
+      start: 89
+      end: 99
+    - source: |-
+        BeforeEach(func() {
+            store.Reset()
+            service.Initialize(ctx)
+          })
+      style: secondary
+      start: 89
+      end: 159
+    - source: store.Reset
+      style: secondary
+      start: 113
+      end: 124
+    - source: store.Reset()
+      style: secondary
+      start: 113
+      end: 126
+  ? |
+    package pkg_test
+    import . "github.com/onsi/ginkgo/v2"
+    var _ = Describe("Foo", func() {
+      It("calls Save", func() {
+        service.Process(ctx)
+        Expect(store.SaveCallCount()).To(Equal(2))
+      })
+    })
+  : labels:
+    - source: service.Process(ctx)
+      style: primary
+      start: 119
+      end: 139
+    - source: It
+      style: secondary
+      start: 89
+      end: 91
+    - source: |-
+        It("calls Save", func() {
+            service.Process(ctx)
+            Expect(store.SaveCallCount()).To(Equal(2))
+          })
+      style: secondary
+      start: 89
+      end: 191
+    - source: service.Process
+      style: secondary
+      start: 119
+      end: 134
+    - source: service.Process(ctx)
+      style: secondary
+      start: 119
+      end: 139

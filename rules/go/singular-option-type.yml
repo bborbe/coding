@@ -1,0 +1,26 @@
+id: go-functional-options/singular-option-type
+language: go
+severity: warning
+message: |
+  Functional-options function type uses plural suffix 'Options' (e.g. ConsumerOptions func(*...))
+  instead of the industry-standard singular 'Option' (e.g. ConsumerOption func(*ConsumerOptions)).
+  Singular function type + plural struct is the standard pair (Dave Cheney, gRPC, k8s client-go).
+  See docs/go-functional-options-pattern.md (RULE go-functional-options/singular-option-type).
+rule:
+  # Anchor: type declaration where the function type itself has a name ending in "Options"
+  # (wrong — the function type should be singular *Option, not plural *Options).
+  # The LLM adjudicates: confirms this is a functional-options function type, not an unrelated Options type.
+  kind: type_spec
+  all:
+    - has:
+        field: name
+        kind: type_identifier
+        regex: 'Options$'
+    - has:
+        field: type
+        kind: function_type
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

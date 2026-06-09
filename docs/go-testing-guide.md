@@ -80,7 +80,7 @@ var _ = Describe("UserService", func() {
 
 **Owner**: go-test-quality-assistant
 **Applies when**: a Go test file inside an `It` / `BeforeEach` / `JustBeforeEach` / `AfterEach` block calls an error-returning function whose return value is discarded.
-**Enforcement**: judgment (ast-grep follow-up — errcheck-equivalent scoped to Ginkgo blocks)
+**Enforcement**: `rules/go/no-bare-error-call.yml` (mechanical first-pass — flags bare method/selector call expression_statements inside Ginkgo It/BeforeEach/JustBeforeEach/AfterEach blocks) + judgment-tier LLM adjudication for void functions whose return is legitimately ignored
 **Why**: `errcheck` (run by `make precommit`) flags discarded errors and breaks the build. Wrapping every error-returning call in a Gomega matcher (`Succeed()` / `HaveOccurred()` / `MatchError(...)`) documents the test's intent at the assertion site instead of relying on silent fall-through.
 
 Matcher choice by intent:
@@ -113,7 +113,7 @@ It("calls Save exactly twice", func() {
 
 **Owner**: go-test-quality-assistant
 **Applies when**: a Go package contains test files (`*_test.go`) but no `*_suite_test.go` file with a `TestSuite` entry-point and `RunSpecs`.
-**Enforcement**: judgment (file-existence check; ast-grep follow-up)
+**Enforcement**: `rules/go/suite-test-file-required.yml` (mechanical first-pass — flags every top-level `var _ = Describe(...)` anchor in a test file) + judgment-tier LLM adjudication for whether a `*_suite_test.go` with `RunSpecs` exists in the same package directory
 **Why**: Without a suite file, Ginkgo specs are not discovered. `make test` exits 0 even though no specs ran — silent coverage loss. The suite file is the single entry-point Go's `testing` package invokes.
 
 ### Standard Package Suite
@@ -159,7 +159,7 @@ Requirements:
 
 **Owner**: go-test-quality-assistant
 **Applies when**: a Go binary project (package `main` with `main.go`) does not have a `main_test.go` containing a `Compiles` It-block backed by `gexec.Build`.
-**Enforcement**: judgment (file-existence + body check; ast-grep follow-up)
+**Enforcement**: `rules/go/main-test-with-compiles.yml` (mechanical first-pass — flags `func main()` declarations in package main files) + judgment-tier LLM adjudication for whether `main_test.go` with a `gexec.Build` Compiles It-block exists in the same directory
 **Why**: Without `main_test.go` + a `Compiles` check, build failures in `main.go` are not caught by `make test`. The CI greenlight then deploys a binary that doesn't link.
 
 ```go
@@ -267,7 +267,7 @@ Describe("slow subsystem", func() {
 
 **Owner**: go-test-quality-assistant
 **Applies when**: a test file declares a hand-written struct that satisfies a production interface and is used in place of a real implementation under test, instead of importing a `mocks/<Name>` fake produced by Counterfeiter.
-**Enforcement**: judgment (presence of `//counterfeiter:generate` directive + hand-written fake detection; ast-grep follow-up)
+**Enforcement**: `rules/go/counterfeiter-mocks-required.yml` (mechanical first-pass — flags every interface type declaration in production code) + judgment-tier LLM adjudication for whether a `//counterfeiter:generate` directive exists above the interface and a corresponding `mocks/*.go` file is present
 **Why**: Hand-written mocks drift from the interface — when the production interface gains a method, the hand-written mock silently keeps satisfying the old surface (test still compiles, doesn't exercise the new contract). Counterfeiter-generated fakes regenerate from the interface, so any drift surfaces at `go generate` time.
 
 ### Generate Directive

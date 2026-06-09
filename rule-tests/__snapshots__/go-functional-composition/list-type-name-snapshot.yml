@@ -1,0 +1,34 @@
+id: go-functional-composition/list-type-name
+snapshots:
+  ? |
+    package p
+    type ProcessorChain []Processor
+  : labels:
+    - source: ProcessorChain []Processor
+      style: primary
+      start: 15
+      end: 41
+    - source: '[]Processor'
+      style: secondary
+      start: 30
+      end: 41
+    - source: ProcessorChain
+      style: secondary
+      start: 15
+      end: 29
+  ? |
+    package p
+    type Processors []Processor
+  : labels:
+    - source: Processors []Processor
+      style: primary
+      start: 15
+      end: 37
+    - source: '[]Processor'
+      style: secondary
+      start: 26
+      end: 37
+    - source: Processors
+      style: secondary
+      start: 15
+      end: 25

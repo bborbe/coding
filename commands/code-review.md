@@ -7,7 +7,7 @@ description: Perform a comprehensive code review of recent changes
 ## Context
 
 - Current git status: `!git status`
-- Recent changes: `!git diff HEAD~1`
+- Recent changes (stat): `!git diff --stat HEAD~1`
 - Recent commits: `!git log --oneline -5`
 - Current branch: `!git branch --show-current`
 
@@ -50,9 +50,11 @@ Store result for later:
 - If public and missing → flag for license-assistant in Standard mode, report in Short mode
 - If public and present → skip license-assistant in Standard mode
 
-**3b. Run make precommit (if available)**
+**3b. Run make precommit (Full mode only)**
 
-Check if Makefile exists and has a `precommit` target:
+Running the full test suite is CI's job; the review needs the result, not a re-run. In **Standard** and **Short** mode, skip this step entirely and include in the Step 5 report: "precommit skipped (standard mode) — CI covers lint+test".
+
+**Full mode only**: Check if Makefile exists and has a `precommit` target:
 1. Use Read tool to check if Makefile exists (will error if missing)
 2. Use Grep tool to search for `^precommit:` pattern in Makefile
 
@@ -83,7 +85,7 @@ cd <directory> && (command -v ast-grep >/dev/null 2>&1 || command -v sg >/dev/nu
   || { echo "ERROR: ast-grep/sg not in PATH. Install via 'npm install -g @ast-grep/cli' (or 'apk add ast-grep' in alpine). pr-reviewer container fix: bborbe/maintainer agent/pr-reviewer/Dockerfile commit 1de083f." >&2; exit 1; }
 ```
 
-If preflight fails, report the toolchain gap in Step 5 (Must Fix) and skip Step 4 entirely.
+Run exactly this one command, once. If it fails: report the toolchain gap in Step 5 and skip Step 4 entirely. Do NOT investigate further (no `which`, no `ls rules/`, no retry variants).
 
 #### 4a: Mechanical funnel
 
@@ -115,7 +117,7 @@ Review changed code only."
 
 Run per-Owner dispatches **concurrently** — they're independent.
 
-**Timing instrumentation** (mirror of `commands/pr-review.md` Step 4b): record wall-time of each per-Owner dispatch as a structured event so the funnel's per-Owner ROI is measurable, not anecdotal:
+**Timing instrumentation** (mirror of `commands/pr-review.md` Step 4b): **Only when `REVIEW_TIMING=1` is set in the environment** — otherwise skip this instrumentation entirely. Record wall-time of each per-Owner dispatch as a structured event so the funnel's per-Owner ROI is measurable, not anecdotal:
 
 ```bash
 ts_start=$(date +%s%3N)

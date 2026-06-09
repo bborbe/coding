@@ -10,11 +10,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- perf(commands): gate `make precommit` to Full mode only in both `pr-review.md` and `code-review.md` — running the full test suite is CI's job; Standard/Short mode now report "precommit skipped (standard mode) — CI covers lint+test" instead.
-- perf(commands): make timing instrumentation opt-in via `REVIEW_TIMING=1` env var in both commands — the per-Owner ts_start/ts_end + jq/grep roll-up (~14 extra tool calls) now only fires when explicitly requested; otherwise skipped entirely.
-- perf(pr-review): add Step 0a-pre short-circuit — if the cwd is already a clean checkout at origin/<SOURCE_BRANCH> HEAD, skip worktree creation/removal entirely (saves ~18 tool calls in the agent pod where cwd is already at PR HEAD).
-- perf(commands): tighten ast-grep Step 4.0 preflight in both commands — run exactly one compound check, once; on failure report and skip Step 4. Explicitly forbid further investigation (`which`, `ls rules/`, retry variants) to prevent the 4-probe drift observed in prod.
-- perf(code-review): change `!git diff HEAD~1` context injection to `!git diff --stat HEAD~1` — review steps pull full diffs per-file on demand; the unconditional full diff injection was pure token waste.
+- perf: gate `make precommit` to Full mode only in both `pr-review.md` and `code-review.md` — running the full test suite is CI's job; Standard/Short mode now report "precommit skipped (standard mode) — CI covers lint+test" instead.
+- perf: make timing instrumentation opt-in via `REVIEW_TIMING=1` env var in both commands — the per-Owner ts_start/ts_end + jq/grep roll-up (~14 extra tool calls) now only fires when explicitly requested; otherwise skipped entirely.
+- perf: add Step 0a-pre short-circuit to `pr-review.md` — if the cwd is already a clean checkout at origin/<SOURCE_BRANCH> HEAD, skip worktree creation/removal entirely (saves ~18 tool calls in the agent pod where cwd is already at PR HEAD).
+- perf: tighten ast-grep Step 4.0 preflight in both commands — run exactly one compound check, once; on failure report and skip Step 4. Explicitly forbid further investigation (`which`, `ls rules/`, retry variants) to prevent the 4-probe drift observed in prod.
+- perf: change `!git diff HEAD~1` context injection to `!git diff --stat HEAD~1` in `code-review.md` — review steps pull full diffs per-file on demand; the unconditional full diff injection was pure token waste.
 
 ## v0.16.0
 

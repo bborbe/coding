@@ -61,13 +61,22 @@ fi
 
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 
-# Normalise changed files: make absolute, resolve relative-to-target
+# Normalise changed files: make absolute, resolve relative-to-target.
+# Incident 2026-06-11: 274 stale agent-auditor findings surfaced from
+# .git/COMMIT_EDITMSG when selector validation passed git internals as
+# changed-file args.  Filter out any path containing /.git/ or starting
+# with .git/ — defense in depth (the runner and caller both exclude).
 CHANGED_FILES=()
 for f in "$@"; do
   case "$f" in
-    /*) CHANGED_FILES+=("$f") ;;
-    *)  CHANGED_FILES+=("$TARGET_DIR/$f") ;;
+    /*) abs="$f" ;;
+    *)  abs="$TARGET_DIR/$f" ;;
   esac
+  # Skip .git/ internals — they are never source files to scan.
+  case "$abs" in
+    */.git/*) continue ;;
+  esac
+  CHANGED_FILES+=("$abs")
 done
 
 START_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
@@ -186,6 +195,12 @@ while IFS=$'\t' read -r rule_id yml_rel owner level; do
       column=$(printf '%s' "$match_line" | jq -r '.range.start.column // 0')
       matched_text=$(printf '%s' "$match_line" | jq -r '.text // ""')
       message=$(printf '%s' "$match_line" | jq -r '.message // ""')
+
+      # Defense-in-depth: drop findings from .git/ paths even if one slipped
+      # past the input filter above (e.g. absolute paths the caller supplied).
+      case "$file" in
+        */.git/*) continue ;;
+      esac
 
       finding=$(jq -n \
         --arg rule_id "$rule_id" \

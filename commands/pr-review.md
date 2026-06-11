@@ -80,6 +80,7 @@ cd <REPO_DIR> && git worktree remove /tmp/pr-review-<repo>-<SOURCE_BRANCH> --for
 
 - `short|quick|fast` → **Short mode** (manual review only)
 - `full|comprehensive|complete` → **Full mode** (all agents)
+- `--selector` or `selector` → **Selector mode** (in-session classify + adjudicate, zero sub-agent spawns)
 - Otherwise → **Standard mode** (4 core agents, default)
 
 ### Step 2: Project Detection
@@ -210,6 +211,61 @@ echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"tota
 
 The timing file `/tmp/pr-review-timing.jsonl` is purely diagnostic — it lets operators answer "is Owner X worth dispatching?" with data instead of intuition. Not part of the Step 5 user-facing report; include it in the cleanup step for the review worktree so it gets removed after Step 6.
 
+#### Selector mode: Steps 4c-sel and 4d-sel
+
+**Selector mode** replaces Step 4b-ii's per-owner Task dispatch with two in-session steps. Steps 4.0, 4a, and 4b-i run unchanged and produce the candidate set. When the mode argument is `--selector` or `selector`, skip Step 4b-ii and run Steps 4c-sel and 4d-sel instead. When the mode is anything else (short/standard/full), skip this section entirely — the default path below is unchanged.
+
+##### Step 4c-sel: CLASSIFY (in-session, no Task spawn)
+
+**Input**: the diff from Step 0c, the `<rule-id> <owner>` candidate list from Step 4b-i, and the `applies_when` text for each candidate from `rules/index.json`.
+
+For each candidate rule, decide: **applicable** or **skipped** with a one-line reason (≤ 8 words).
+
+**Recall contract (embed verbatim)**: "INCLUDE if a reasonable reviewer would want to read this rule before judging. Do not evaluate compliance. Do not evaluate violations. When uncertain, include."
+
+**HARD INVARIANT**: the applicable set MUST be a subset of the candidate set. Every applicable rule_id must appear in the Step 4b-i candidate list. Never add a rule the glob did not produce.
+
+**Architecture-tier bypass**: any candidate rule whose `enforcement` text contains "architecture" OR whose `doc_path` is `go-architecture-patterns.md` and concerns SRP/layering is unconditionally applicable — do not classify, always include it.
+
+**Short-circuit**: if the applicable set is empty AND the mechanical findings from Step 4a are also empty, report:
+
+> `selector clean — no adjudication needed`
+
+and skip Step 4d-sel, proceeding directly to Step 5. Include the candidate count and a note that all candidates were classified as non-applicable in the Step 5 traceability section.
+
+Produce a classify result:
+```json
+{
+  "applicable": ["<rule-id>", "..."],
+  "skipped": {
+    "<rule-id>": "<one-line reason ≤ 8 words>",
+    "...": "..."
+  }
+}
+```
+
+##### Step 4d-sel: ADJUDICATE (in-session, no Task spawn)
+
+**Input**: the full diff (no truncation — this is the load-bearing step), the mechanical findings from Step 4a, and the applicable rules from Step 4c-sel.
+
+For each applicable rule: locate the rule's `doc_path` in `rules/index.json`, then read only the matching `### RULE <id>` block from that file (grep for the heading, read the block — do not read the whole document).
+
+Judge the full diff plus mechanical findings. For each violation found, emit a finding that cites `rule_id` + file + line and lands in the existing report buckets:
+
+- **Must Fix (Critical)** — security, context violations, concurrency bugs, data correctness, SRP (3+ concerns)
+- **Should Fix (Important)** — architectural violations, error handling, factory/handler patterns, test gaps
+- **Nice to Have (Optional)** — style, naming, minor version issues
+
+Do not emit a per-rule "passed" entry for rules with no violation — silently omit them.
+
+**Batching**: if the applicable set exceeds 20 rules, split adjudication into 2–3 thematic in-session passes (e.g. architecture rules first, then quality rules, then style rules). Each pass runs in the current session — still zero Task spawns. Collect all findings before proceeding to citation validation.
+
+**Citation validation** (same contract as the default Step 4d, but invoked directly — selector mode spawns NO sub-agents, including `coding:simple-bash-runner`): run the validator as a plain Bash call over the adjudication findings before consolidation — findings citing a `rule_id` absent from `rules/index.json` are dropped and logged to stderr.
+
+```bash
+bash scripts/validate-citations.sh <findings.json>
+```
+
 #### 4c: Context-specific conventions (kept from prior Step 2.5)
 
 Some review questions still benefit from a full-doc read even in dispatcher mode. Load these conventionally when the diff matches:
@@ -252,6 +308,16 @@ The script exits non-zero if any finding's `rule_id` is not in `rules/index.json
 
 #### Nice to Have (Optional)
 - Style, code organization, Go patch updates, tool updates, naming conventions, copyright headers
+
+#### Selector Mode: Classify Traceability (selector mode only)
+
+Include this section only when the review ran in selector mode. List counts and every classify skip so operators can spot false drops:
+
+- **Candidates**: `<N>` rules matched by Step 4b-i glob filter
+- **Applicable**: `<M>` rules selected by Step 4c-sel (M ≤ N)
+- **Skipped** (one line each):
+  - `<rule-id>` → `<one-line reason>`
+  - …
 
 ### Step 6: Next Steps Recommendation
 

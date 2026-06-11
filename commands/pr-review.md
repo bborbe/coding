@@ -223,6 +223,8 @@ For each candidate rule, decide: **applicable** or **skipped** with a one-line r
 
 **Recall contract (embed verbatim)**: "INCLUDE if a reasonable reviewer would want to read this rule before judging. Do not evaluate compliance. Do not evaluate violations. When uncertain, include."
 
+**Skip justification rule**: a skip decision MUST be justified against the rule's `applies_when` text itself — the reason states why the `applies_when` condition does not hold for this diff. NEVER infer a rule's scope from its rule-id name or prefix (e.g. `go-testing/*` rules are NOT necessarily scoped to test files — read the `applies_when`). If the diff plausibly matches the `applies_when` condition, the rule is applicable.
+
 **HARD INVARIANT**: the applicable set MUST be a subset of the candidate set. Every applicable rule_id must appear in the Step 4b-i candidate list. Never add a rule the glob did not produce.
 
 **Architecture-tier bypass**: any candidate rule whose `enforcement` text contains "architecture" OR whose `doc_path` is `go-architecture-patterns.md` and concerns SRP/layering is unconditionally applicable — do not classify, always include it.

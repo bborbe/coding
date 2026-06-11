@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.22.0
 
 - feat!: selector mode is now the DEFAULT for `/coding:pr-review` and `/coding:code-review` (was opt-in via `--selector`/`selector` token); callers passing `standard` now get selector behavior — BREAKING CHANGE for any tooling that relied on `standard` triggering per-owner Task dispatch
 - feat!: standard-mode per-owner Task dispatch removed — `owners_to_spawn` computation, per-owner Task prompt template, `funnel clean — no adjudication needed` standard-mode short-circuit, and `REVIEW_TIMING` per-owner instrumentation block deleted from both commands; full mode remains the per-owner deep sweep escape hatch

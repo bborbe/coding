@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat!: selector mode is now the DEFAULT for `/coding:pr-review` and `/coding:code-review` (was opt-in via `--selector`/`selector` token); callers passing `standard` now get selector behavior — BREAKING CHANGE for any tooling that relied on `standard` triggering per-owner Task dispatch
+- feat!: standard-mode per-owner Task dispatch removed — `owners_to_spawn` computation, per-owner Task prompt template, `funnel clean — no adjudication needed` standard-mode short-circuit, and `REVIEW_TIMING` per-owner instrumentation block deleted from both commands; full mode remains the per-owner deep sweep escape hatch
+- docs: scenarios/002 and scenarios/004 retired (status: outdated) — superseded by scenarios/005 and scenarios/006 respectively; footer updated with retirement reason
+- chore: acceptance.sh updated to assert the new dispatch reality: Selector mode (default) routing check added (section 1), per-owner block check tightened to full-mode-only assertions (section 2)
+
 ## v0.21.0
 
 - fix: ast-grep-runner.sh excludes `.git/` paths from both input file list and findings output — incident 2026-06-11 surfaced 274 stale agent-auditor findings from `.git/COMMIT_EDITMSG` during selector validation

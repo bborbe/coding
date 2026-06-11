@@ -182,14 +182,19 @@ Diagnostic only — operators read it to answer "is Owner X worth dispatching?" 
 
 #### Selector mode: Steps 4c-sel and 4d-sel
 
-When the mode argument is `--selector` or `selector`: Steps 4.0, 4a, and 4b-i run unchanged. Skip Step 4b-ii. Resolve the guide and execute Steps 4c-sel and 4d-sel from it — zero sub-agent spawns:
+When the mode argument is `--selector` or `selector`: Steps 4.0, 4a, and 4b-i run unchanged. Skip Step 4b-ii. Resolve the guide and execute Steps 4c-sel and 4d-sel from it — zero sub-agent spawns.
+
+Run exactly this one command, once:
 
 ```bash
 GUIDE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/selector-mode-guide.md"
 [ -f "$GUIDE" ] || GUIDE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/docs/selector-mode-guide.md"
+[ -f "$GUIDE" ] && echo "GUIDE_OK: $GUIDE" || echo "GUIDE_MISSING"
 ```
 
-Read the guide, then execute its **Step 4c-sel CLASSIFY** and **Step 4d-sel ADJUDICATE** with:
+If it prints `GUIDE_MISSING`: report "selector guide unavailable" as a **Must Fix toolchain failure** in Step 5 and STOP the selector path — do NOT continue with a mechanical-findings-only review presented as a complete selector review (a review without the judgment tier silently misses every judgment-tier rule; same fail-fast discipline as Step 4.0). Do NOT investigate further (no `find`, no `ls`, no path probing).
+
+If it prints `GUIDE_OK`: Read the file at that path, then execute its **Step 4c-sel CLASSIFY** and **Step 4d-sel ADJUDICATE** with:
 
 - **DIFF** = `git diff HEAD~1` (or directory diff as parsed in Step 1)
 - **CANDIDATES** = the Step 4b-i `<rule-id> <owner>` output

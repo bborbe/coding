@@ -1,5 +1,5 @@
 ---
-status: draft
+status: active
 ---
 
 # Scenario 006: Selector mode surfaces all seeded violations on the perpetual fixture PR
@@ -51,4 +51,4 @@ The PR stays open in perpetuity. The baseline for expected finding shape is `spe
 
 ---
 
-Selector-mode sibling journey: scenarios/006. These two files keep guarding the legacy default path until the default flip retires it.
+**Status**: walked 2026-06-11 (MiniMax-M2.7-highspeed via `CLAUDE_CONFIG_DIR=~/.claude-verify`, branch `feature/selector-scenarios` @ f93717e): 3m21s, 30 turns, zero `coding:*` spawns, GUIDE_OK, all 5 seeded rule_ids + `go-licensing/source-file-header-required` (judgment tier) surfaced, traceability 31 candidates → 5 applicable → 26 skipped-with-reasons. Transcript: `/tmp/scen006-walk.jsonl` (volatile; key numbers recorded here). Promoted draft → active.

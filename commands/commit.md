@@ -295,34 +295,30 @@ else
 fi
 ```
 
-**Step B.3: Analyze Unreleased changes**
+**Step B.3: Invoke `release-changelog-agent` for bump classification**
 
-Read the content between `## Unreleased` and the next `## v` section. Pass it to the `release-changelog-agent` sub-agent for bump classification.
-
-**Step B.4: Invoke `release-changelog-agent` for bump classification**
-
-Use the Task tool to invoke the shared release agent with the Workflow B profile (`majorBumpAllowed=false`, `rewriteChangelogEntries=false`). This preserves Workflow B's historical contract: bump is capped at `minor` (the operator must manually bump major), and bullets are NOT rewritten (pure passthrough — Workflow B keeps the sed-rename behavior).
+Make sure cwd is `$PROJECT_DIR` (the agent reads `CHANGELOG.md` from cwd and extracts the `## Unreleased` block itself — no inline body passing). Then use the Task tool with the Workflow B profile (`majorBumpAllowed=false`, `rewriteChangelogEntries=false`). This preserves Workflow B's historical contract: bump is capped at `minor` (the operator must manually bump major), and bullets are NOT rewritten (pure passthrough — Workflow B keeps the sed-rename behavior).
 
 ```
+cd $PROJECT_DIR
 Task(
   subagent_type="release-changelog-agent",
   prompt="""
     current_version: $CURRENT_VERSION
     majorBumpAllowed: false
     rewriteChangelogEntries: false
-
-    unreleased_body:
-    <verbatim Unreleased section content from Step B.3>
   """
 )
 ```
 
-Parse the returned JSON. Use the `bump` field to compute the next version:
+Parse the returned JSON. Check for `error` field first; abort with the error message if present. Otherwise use the `bump` field to compute the next version:
 
 - From `v0.3.3`: patch → `v0.3.4`, minor → `v0.4.0`
 - If no previous version: start with `v0.1.0`
 
-The `rewritten_unreleased` field will be empty (per the flag profile) — discard it. The `reasoning` field is informational.
+The `rewritten_unreleased` field will be empty (per the flag profile) — discard it. The `unreleased_body` and `reasoning` fields are informational for the operator log.
+
+**Step B.4: (removed — folded into B.3)**
 
 **Why these flags:** Workflow B is the operator's "I'm releasing manually right now" path. `majorBumpAllowed=false` matches the legacy "major requires manual edit" rule (preserved verbatim from the pre-agent Version Increment Rules below). `rewriteChangelogEntries=false` keeps Workflow B fast and offline — no rewrite call. For full AI rewrite + faithfulness review, use `/coding:github-release` instead (which sets both flags `true`).
 

@@ -198,7 +198,7 @@ esac
 
 ### 4. Classify bump + rewrite bullets via `release-changelog-agent`
 
-Invoke the shared release agent via the Task tool with the `/coding:github-release` profile (`majorBumpAllowed=true`, `rewriteChangelogEntries=true`) — operator-facing path gets full classification and AI rewrite.
+You're already `cd`'d into `$workdir` (Step 0). The agent reads `CHANGELOG.md` from cwd and extracts the `## Unreleased` block itself. Invoke via the Task tool with the `/coding:github-release` profile (`majorBumpAllowed=true`, `rewriteChangelogEntries=true`) — operator-facing path gets full classification and AI rewrite.
 
 ```
 Task(
@@ -207,16 +207,14 @@ Task(
     current_version: $current
     majorBumpAllowed: true
     rewriteChangelogEntries: true
-
-    unreleased_body:
-    <verbatim Unreleased section captured in Step 3>
   """
 )
 ```
 
-Parse the returned JSON:
+Parse the returned JSON. Check for `error` field first; abort with the error message if present. Otherwise:
 - `bump` → drives Step 5 (version arithmetic) and Step 6 (plan + confirm)
-- `rewritten_unreleased` → if non-empty, replaces the Unreleased body in CHANGELOG.md at Step 8 (header rewrite happens at the same time). If empty, leave bullets as-is.
+- `unreleased_body` → the verbatim extracted body; used by Step 8 for an atomic Edit-tool match-and-replace (no re-parsing needed)
+- `rewritten_unreleased` → if non-empty, replaces `unreleased_body` in CHANGELOG.md at Step 8. If empty, only the header gets rewritten.
 - `reasoning` → shown in Step 6 plan output
 
 **Why these flags:** Direct operator release wants the full pipeline — major-bump classification (caller can downgrade at the confirm step) and AI rewrite for clean release notes. Matches the K8s `agent/github-releaser` planning-phase behavior, so a local dry-run can preview what autonomous release would do.
@@ -285,12 +283,12 @@ gh api "repos/${OR}/git/refs/tags/$next" --silent 2>/dev/null && die "tag $next 
 
 ### 8. Rewrite header (+ rewritten bullets) + commit
 
-If the agent returned a non-empty `rewritten_unreleased`, the Edit tool is preferred over the awk pipeline below — it can replace the multi-line Unreleased block atomically in one operation:
+If the agent returned a non-empty `rewritten_unreleased`, use the Edit tool to atomically replace the Unreleased block (`unreleased_body` from Step 4 is the verbatim text — pass it as `old_string`):
 
 ```
 Edit(CHANGELOG.md):
-  old_string: "## Unreleased\n<verbatim original bullets>"
-  new_string: "## ${next}\n<rewritten_unreleased>"
+  old_string: "## Unreleased\n${unreleased_body}"
+  new_string: "## ${next}\n${rewritten_unreleased}"
 ```
 
 Otherwise (passthrough — agent returned empty `rewritten_unreleased`), header-only rewrite via awk:

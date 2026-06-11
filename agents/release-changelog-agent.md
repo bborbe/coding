@@ -19,10 +19,13 @@ The caller passes (via the prompt to the Task tool):
 
 | Input | Source |
 |---|---|
-| `unreleased_body` | Verbatim text of the `## Unreleased` block (everything between `## Unreleased` and the next `## v` heading), without the heading itself |
 | `current_version` | Latest semver tag in the repo (e.g. `v0.17.0` or `v1.2.3-rc1`). Used for the pre-1.0 cap and to compute the next version. |
 | `majorBumpAllowed` | Boolean. `false` → classification is capped at `minor` even if breaking-change bullets are present. `true` → full classification per the rules below. |
 | `rewriteChangelogEntries` | Boolean. `false` → return empty `rewritten_unreleased` (pure passthrough). `true` → apply the rewrite rules below. |
+
+You read `CHANGELOG.md` from the current working directory yourself and extract the `## Unreleased` block (everything between `## Unreleased` and the next `## v` heading or end-of-file, excluding the heading lines). Centralizing the parsing here means each caller only has to `cd` into the right repo before invoking — no separate "extract Unreleased body" step.
+
+If `CHANGELOG.md` is missing, `## Unreleased` is absent, or the Unreleased section is empty, abort with a JSON error object (see Output Schema → Error case).
 
 # Bump Classification Rules
 
@@ -50,7 +53,7 @@ When `majorBumpAllowed=true`, classification follows the full priority order sub
 
 # Bullet Rewrite Rules (when `rewriteChangelogEntries=true`)
 
-Read the `unreleased_body` and decide whether it conforms to conventional-prefix style. If it does, set `rewrite_needed=false` and leave `rewritten_unreleased` empty.
+Decide whether the extracted Unreleased body conforms to conventional-prefix style. If it does, set `rewrite_needed=false` and leave `rewritten_unreleased` empty.
 
 **Rule of thumb:** If every bullet already starts with one of `feat:` / `fix:` / `refactor:` / `chore:` / `docs:` / `test:` / `build:` / `ci:` / `perf:` / `style:`, the body is already clean and `rewrite_needed` should be `false`.
 
@@ -72,11 +75,14 @@ When this flag is false, set `rewrite_needed=false` and `rewritten_unreleased=""
 
 # Output Schema
 
+## Success case
+
 Output a single JSON object inside a fenced ```json code block. The output MUST be valid JSON with exactly these fields. Do not include any prose outside the fenced block.
 
 ```json
 {
   "bump": "patch",
+  "unreleased_body": "- feat: ...\n- fix: ...\n",
   "rewritten_unreleased": "",
   "reasoning": "one sentence justifying the bump classification AND (if rewrite_needed) the deciding rewrite rule"
 }
@@ -85,8 +91,22 @@ Output a single JSON object inside a fenced ```json code block. The output MUST 
 Field requirements:
 
 - `bump` MUST be one of `patch` | `minor` | `major`. Respects the pre-1.0 cap and `majorBumpAllowed` flag.
-- `rewritten_unreleased` is the cleaned body when `rewriteChangelogEntries=true` and `rewrite_needed=true`; an empty string otherwise. Bullets are separated by `\n` and conform to conventional-prefix style.
+- `unreleased_body` is the verbatim text you extracted from `CHANGELOG.md` between `## Unreleased` and the next `## v` heading (or end-of-file). Returned so the caller can match-and-replace it atomically without re-parsing. Bullets separated by `\n`, no trailing newline.
+- `rewritten_unreleased` is the cleaned body when `rewriteChangelogEntries=true` and `rewrite_needed=true`; an empty string otherwise. Same `\n` separation as `unreleased_body`.
 - `reasoning` MUST be non-empty in every case. Single sentence. References the deciding bullet for the bump classification and the deciding rewrite rule (or "every bullet already conforms") if rewrite was attempted.
+
+## Error case
+
+If `CHANGELOG.md` is missing, `## Unreleased` is absent, or the Unreleased section has no bullet entries, output:
+
+```json
+{
+  "error": "changelog-missing" | "unreleased-section-missing" | "unreleased-section-empty",
+  "reasoning": "one sentence naming the specific failure (path checked, heading expected, etc.)"
+}
+```
+
+The caller MUST check for an `error` field before trusting `bump` / `unreleased_body` / `rewritten_unreleased`.
 
 # Caller Profiles (reference)
 
@@ -100,21 +120,25 @@ Callers MUST pass both flags explicitly. If either is missing, treat the missing
 
 # Invocation
 
-Local callers (parent claude in a slash command) invoke via the Task tool:
+The caller `cd`s into the target repo first (so `CHANGELOG.md` is in cwd), then invokes via the Task tool with only the three scalar inputs — body extraction happens here:
 
 ```
+cd $TARGET_REPO   # CHANGELOG.md must be readable from cwd
 Task(
   subagent_type="release-changelog-agent",
   prompt="""
     current_version: v0.17.0
     majorBumpAllowed: true
     rewriteChangelogEntries: true
-
-    unreleased_body:
-    - feat: add /coding:github-release command
-    - fix: handle owner/repo target host injection
   """
 )
 ```
 
-The agent reads the prompt, applies the rules above, and returns the JSON output. The caller parses the JSON and acts on `bump` + `rewritten_unreleased`.
+The agent:
+1. Reads `CHANGELOG.md` from cwd
+2. Extracts the `## Unreleased` block
+3. Classifies the bump per the rules above (with flag + pre-1.0 cap)
+4. Optionally rewrites the bullets (if `rewriteChangelogEntries=true`)
+5. Returns JSON with `bump`, `unreleased_body`, `rewritten_unreleased`, `reasoning` — or an error JSON if the changelog is missing/malformed.
+
+The caller parses the JSON, checks for `error`, then uses `bump` for version arithmetic and `unreleased_body` + `rewritten_unreleased` for the header-rewrite step.

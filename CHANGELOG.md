@@ -8,6 +8,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+- feat: add `/coding:github-release` command (relocated from personal `~/.claude/commands/github-release.md`) — direct release of a git repo (cwd, local dir, or `owner/repo` clone-to-tmp), with bump classification from `## Unreleased`, commit/tag/push, and PR + auto-merge fallback for branch-protected repos
+
 ## v0.17.0
 - fix: correct Step 4b-i trigger glob-to-regex conversion in both commands — escape literal dots, anchor the match, `**/` matches zero-or-more dirs (root main.go), placeholder ordering so `**` expansion survives the `*` pass; found by self-reviewing PR #48 with its own pipeline (12 phantom owners → 1 real)
 - perf: add standard-mode early exit to Step 4 in both commands — diffs touching no rule-relevant files (no .go/.py, no CHANGELOG/go.mod/LICENSE/README/Makefile/pyproject/k8s/agents/commands/skills/docs) skip the funnel entirely with a report note

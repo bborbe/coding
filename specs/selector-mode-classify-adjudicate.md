@@ -52,7 +52,7 @@ Both review commands accept a `--selector` mode argument. When it is active, Ste
 - The two command files' selector sections MUST stay siblings: same step numbering (4c-sel CLASSIFY, 4d-sel ADJUDICATE), same contracts, same short-circuit string, differing only where the files already differ (`REVIEW_DIR` worktree vs in-place `directory`, diff source).
 - `docs/dod.md` is the repo's Definition-of-Done gate; the implementation must satisfy it (CHANGELOG `## Unreleased` entry present; no personal paths introduced; `coding:` prefix on any agent reference).
 - Severity vocabulary is the files' existing report buckets — **Must Fix (Critical) / Should Fix (Important) / Nice to Have (Optional)**. Do not introduce new severity names. For AC1's golden comparison apply the deterministic map Critical↔`critical`, Important↔`major`, Optional↔`nit` (the golden JSON uses the bot's verdict schema vocabulary).
-- Architecture source-of-truth (schemas, step contracts, v3 amendments) lives in `~/Documents/Obsidian/Personal/50 Knowledge Base/AI-Selector Review Redesign.md` (migration Step 1); the golden baseline is `~/Documents/Obsidian/Personal/50 Knowledge Base/attachments/golden-legacy-verdict.json`.
+- The golden baseline is committed in-repo at `specs/fixtures/golden-legacy-verdict.json` (13 findings frozen from the legacy per-owner pipeline on bborbe/maintainer#2, captured 2026-06-11) — AC1 is verifiable by anyone from this file. The broader architecture rationale (v2/v3 design evolution, external review) lives in the author's design notes; everything binding for implementation is in this spec.
 
 ## Failure Modes
 

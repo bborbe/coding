@@ -182,6 +182,8 @@ Diagnostic only — operators read it to answer "is Owner X worth dispatching?" 
 
 #### Selector mode: Steps 4c-sel and 4d-sel
 
+<!-- SIBLING COPY. commands/pr-review.md carries the CANONICAL version of this section; edit there first, mirror here, diff to verify. Single-file extraction is planned for the default-flip migration step. -->
+
 **Selector mode** replaces Step 4b-ii's per-owner Task dispatch with two in-session steps. Steps 4.0, 4a, and 4b-i run unchanged and produce the candidate set. When the mode argument is `--selector` or `selector`, skip Step 4b-ii and run Steps 4c-sel and 4d-sel instead. When the mode is anything else (short/standard/full), skip this section entirely — the default path below is unchanged.
 
 The diff source is the working-tree diff from `git diff HEAD~1` (or the directory diff as parsed in Step 1), consistent with how this command resolves the diff throughout.
@@ -233,10 +235,12 @@ Do not emit a per-rule "passed" entry for rules with no violation — silently o
 
 **Batching**: if the applicable set exceeds 20 rules, split adjudication into 2–3 thematic in-session passes (e.g. architecture rules first, then quality rules, then style rules). Each pass runs in the current session — still zero Task spawns. Collect all findings before proceeding to citation validation.
 
-**Citation validation** (same contract as the default Step 4d, but invoked directly — selector mode spawns NO sub-agents, including `coding:simple-bash-runner`): run the validator as a plain Bash call over the adjudication findings before consolidation — findings citing a `rule_id` absent from `rules/index.json` are dropped and logged to stderr.
+**Citation validation** (same contract as the default Step 4d, but invoked directly — selector mode spawns NO sub-agents, including `coding:simple-bash-runner`): run the validator as a plain Bash call over the adjudication findings before consolidation — findings citing a `rule_id` absent from `rules/index.json` are dropped and logged to stderr. Resolve the script path the same way Step 4a resolves the runner (the reviewed directory may not be the plugin checkout):
 
 ```bash
-bash scripts/validate-citations.sh <findings.json>
+VALIDATOR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/validate-citations.sh"
+[ -x "$VALIDATOR" ] || VALIDATOR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/scripts/validate-citations.sh"
+bash "$VALIDATOR" <findings.json>
 ```
 
 #### 4c: Context-specific conventions

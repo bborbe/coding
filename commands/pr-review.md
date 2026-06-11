@@ -213,6 +213,8 @@ The timing file `/tmp/pr-review-timing.jsonl` is purely diagnostic — it lets o
 
 #### Selector mode: Steps 4c-sel and 4d-sel
 
+<!-- CANONICAL COPY. commands/code-review.md carries a sibling of this section; the two MUST stay in sync (edit here first, mirror there, diff to verify). Single-file extraction is planned for the default-flip migration step, when the legacy per-owner path is removed and this prose is rewritten anyway. -->
+
 **Selector mode** replaces Step 4b-ii's per-owner Task dispatch with two in-session steps. Steps 4.0, 4a, and 4b-i run unchanged and produce the candidate set. When the mode argument is `--selector` or `selector`, skip Step 4b-ii and run Steps 4c-sel and 4d-sel instead. When the mode is anything else (short/standard/full), skip this section entirely — the default path below is unchanged.
 
 ##### Step 4c-sel: CLASSIFY (in-session, no Task spawn)
@@ -262,10 +264,12 @@ Do not emit a per-rule "passed" entry for rules with no violation — silently o
 
 **Batching**: if the applicable set exceeds 20 rules, split adjudication into 2–3 thematic in-session passes (e.g. architecture rules first, then quality rules, then style rules). Each pass runs in the current session — still zero Task spawns. Collect all findings before proceeding to citation validation.
 
-**Citation validation** (same contract as the default Step 4d, but invoked directly — selector mode spawns NO sub-agents, including `coding:simple-bash-runner`): run the validator as a plain Bash call over the adjudication findings before consolidation — findings citing a `rule_id` absent from `rules/index.json` are dropped and logged to stderr.
+**Citation validation** (same contract as the default Step 4d, but invoked directly — selector mode spawns NO sub-agents, including `coding:simple-bash-runner`): run the validator as a plain Bash call over the adjudication findings before consolidation — findings citing a `rule_id` absent from `rules/index.json` are dropped and logged to stderr. Resolve the script path the same way Step 4a resolves the runner (`scripts/` does not exist inside a cloned `REVIEW_DIR`):
 
 ```bash
-bash scripts/validate-citations.sh <findings.json>
+VALIDATOR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/validate-citations.sh"
+[ -x "$VALIDATOR" ] || VALIDATOR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/scripts/validate-citations.sh"
+bash "$VALIDATOR" <findings.json>
 ```
 
 #### 4c: Context-specific conventions (kept from prior Step 2.5)

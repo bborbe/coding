@@ -7,6 +7,7 @@ allowed-tools:
   - MultiEdit
   - Glob
   - LS
+  - Task
   - Bash(git describe:*)
   - Bash(git diff:*)
   - Bash(git log:*)
@@ -64,11 +65,10 @@ Abort with "No changes to commit" only if **both** are empty. If there are unrel
 ### Workflow B: Master Branch + CHANGELOG.md + Unreleased Section
 1. Run `make precommit` (if available)
 2. Get current version from latest git tag
-3. Analyze Unreleased changes to determine increment (patch/minor)
-4. Calculate new version
-5. Rename `## Unreleased` to `## vX.Y.Z` in CHANGELOG.md
-6. Commit with "release vX.Y.Z" message
-7. Create tag and push both commits and tag
+3. Invoke `release-changelog-agent` (flags: `majorBumpAllowed=false`, `rewriteChangelogEntries=false`) → classified `bump` → calculate new version
+4. Rename `## Unreleased` to `## vX.Y.Z` in CHANGELOG.md
+5. Commit with "release vX.Y.Z" message
+6. Create tag and push both commits and tag
 
 ### Workflow C: Master Branch + CHANGELOG.md (No Unreleased)
 1. Legacy workflow: create new version section, tag, push
@@ -294,20 +294,32 @@ else
 fi
 ```
 
-**Step B.3: Analyze Unreleased changes**
+**Step B.3: Invoke `release-changelog-agent` for bump classification**
 
-Read the content between `## Unreleased` and the next `## v` section to understand what changed.
-Use these entries to determine version increment type.
+Make sure cwd is `$PROJECT_DIR` (the agent reads `CHANGELOG.md` from cwd and extracts the `## Unreleased` block itself — no inline body passing). Then use the Task tool with the Workflow B profile (`majorBumpAllowed=false`, `rewriteChangelogEntries=false`). This preserves Workflow B's historical contract: bump is capped at `minor` (the operator must manually bump major), and bullets are NOT rewritten (pure passthrough — Workflow B keeps the sed-rename behavior).
 
-**Step B.4: Determine version increment**
+```
+cd $PROJECT_DIR
+Task(
+  subagent_type="coding:release-changelog-agent",
+  prompt="""
+    current_version: $CURRENT_VERSION
+    majorBumpAllowed: false
+    rewriteChangelogEntries: false
+  """
+)
+```
 
-Analyze the Unreleased entries to determine increment type (see "Version Increment Rules" section below).
+Parse the returned JSON. Check for `error` field first; abort with the error message if present. Otherwise use the `bump` field to compute the next version:
 
-Calculate new version:
-- From `v0.3.3`: patch -> `v0.3.4`, minor -> `v0.4.0`
+- From `v0.3.3`: patch → `v0.3.4`, minor → `v0.4.0`
 - If no previous version: start with `v0.1.0`
 
-**Step B.5: Rename Unreleased to version**
+The `rewritten_unreleased` field will be empty (per the flag profile) — discard it. The `unreleased_body` and `reasoning` fields are informational for the operator log.
+
+**Why these flags:** Workflow B is the operator's "I'm releasing manually right now" path. `majorBumpAllowed=false` matches the legacy "major requires manual edit" rule (preserved verbatim from the pre-agent Version Increment Rules below). `rewriteChangelogEntries=false` keeps Workflow B fast and offline — no rewrite call. For full AI rewrite + faithfulness review, use `/coding:github-release` instead (which sets both flags `true`).
+
+**Step B.4: Rename Unreleased to version**
 
 Replace `## Unreleased` with `## vX.Y.Z` in CHANGELOG.md:
 ```bash
@@ -316,11 +328,11 @@ Replace `## Unreleased` with `## vX.Y.Z` in CHANGELOG.md:
 
 Use the Edit tool to replace `## Unreleased` with `## vX.Y.Z` (preferred over sed).
 
-**Step B.6: Generate commit message**
+**Step B.5: Generate commit message**
 
 Format: `release vX.Y.Z` (this IS a release commit on master).
 
-**Step B.6a: Safety check for Claude/MCP files**
+**Step B.5a: Safety check for Claude/MCP files**
 ```bash
 UNSAFE_FILES=$(git status --porcelain | grep -E '^\?\? .*/?(\.mcp|\.claude|CLAUDE\.md)' || true)
 
@@ -329,7 +341,7 @@ if [ -n "$UNSAFE_FILES" ]; then
 fi
 ```
 
-**Step B.7: Commit, tag, and push**
+**Step B.6: Commit, tag, and push**
 ```bash
 cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "release vX.Y.Z" && git tag vX.Y.Z && git push && git push origin vX.Y.Z
 ```

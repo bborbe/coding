@@ -11,8 +11,8 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 - fix: ast-grep-runner.sh excludes `.git/` paths from both input file list and findings output — incident 2026-06-11 surfaced 274 stale agent-auditor findings from `.git/COMMIT_EDITMSG` during selector validation
-- feat: scenarios/005 (selector clean short-circuit) and scenarios/006 (selector findings path) — two new draft E2E scenarios contracting the selector-mode journeys for a README-only diff and the perpetual fixture PR
-- feat: acceptance.sh section 5 "Selector mode contracts" — 10 scripted checks covering --selector parse, short-circuit string, GUIDE_OK/GUIDE_MISSING fail-fast, selector-mode-guide.md content, sibling consistency, citation-validator rejection of unknown rule_ids, and runner .git/ exclusion
+- feat: scenarios/005 (selector clean short-circuit) and scenarios/006 (selector findings path) — two new E2E scenarios (walked 2026-06-11, promoted to active) contracting the selector-mode journeys for a README-only diff and the perpetual fixture PR
+- feat: acceptance.sh section 5 "Selector mode contracts" — 16 scripted checks covering --selector parse, short-circuit string, GUIDE_OK/GUIDE_MISSING fail-fast, selector-mode-guide.md content, sibling consistency, citation-validator rejection of unknown rule_ids, and runner .git/ exclusion
 
 ## v0.20.0
 

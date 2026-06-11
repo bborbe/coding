@@ -63,6 +63,7 @@ Commit with changelog and version bump:
 | `/coding:check-guides "task"` | Find relevant guides before implementation |
 | `/coding:commit` | Git commit with changelog and versioning |
 | `/coding:go-write-test [basic\|standard\|integration]` | Generate Go tests for changed files |
+| `/coding:github-release [target] [--dry-run]` | Release a git repo (cwd, dir, or `owner/repo` clone-to-tmp) — classify bump, rewrite header, commit, tag, push, PR fallback |
 | `/coding:go-version [check\|update]` | Check/update Go version across project files |
 | `/coding:improve-guide [file]` | Refactor guide into structured rule sets |
 | `/coding:audit-guide [file]` | Audit guide against style, structure, and indexing |
@@ -239,6 +240,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `simple-bash-runner` | Run build commands |
 | `pre-implementation-assistant` | Find relevant guides |
 | `coding-guidelines-finder` | Search docs/ |
+| `release-changelog-agent` | Classify semver bump from `## Unreleased` + optionally rewrite to conventional-prefix style; invoked by `/coding:commit` Workflow B, `/coding:github-release`, and K8s `agent/github-releaser` |
 | `project-docs-finder` | Search project docs/ |
 
 </details>

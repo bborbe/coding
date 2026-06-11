@@ -240,6 +240,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `simple-bash-runner` | Run build commands |
 | `pre-implementation-assistant` | Find relevant guides |
 | `coding-guidelines-finder` | Search docs/ |
+| `release-changelog-agent` | Classify semver bump from `## Unreleased` + optionally rewrite to conventional-prefix style; invoked by `/coding:commit` Workflow B, `/coding:github-release`, and K8s `agent/github-releaser` |
 | `project-docs-finder` | Search project docs/ |
 
 </details>

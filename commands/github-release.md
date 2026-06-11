@@ -35,13 +35,13 @@ allowed-tools:
 
 Direct release command. Target = cwd, a local directory, or a remote repo (`owner/repo` or GitHub URL, cloned to tmp). No task file, no vault interaction — pure git + Claude bump classification, with a confirm step before any write.
 
-Sibling of `/github-release-task-agent` (task-driven pipeline) and `/github-release-repo-watcher` (fleet scanner). Same release logic as the agent's `planning` + `execution` phases, just operator-triggered on the current repo.
+Sibling of `/github-release-task-agent` (task-driven pipeline) and `/github-release-repo-watcher` (fleet scanner) — both personal commands in `~/.claude/commands/`, not yet in this marketplace. Same release logic as the agent's `planning` + `execution` phases, just operator-triggered on the current repo.
 
 ## When to use which
 
 | Command | Trigger | State |
 |---|---|---|
-| `/github-release [target]` | "release a repo NOW" — cwd, a worktree path, or a remote `owner/repo` | none — direct |
+| `/coding:github-release [target]` | "release a repo NOW" — cwd, a worktree path, or a remote `owner/repo` | none — direct |
 | `/github-release-task-agent <task>` | Task already emitted by watcher; release per-task with phase tracking | vault task file |
 | `/github-release-repo-watcher [owner]` | Scan fleet, emit tasks for repos with `## Unreleased` | emits tasks |
 
@@ -59,11 +59,11 @@ Bump is always auto-classified from `## Unreleased`. No flag overrides — the m
 Examples:
 
 ```
-/github-release                                                  # cwd
-/github-release ~/Documents/workspaces/maintainer                # dir
-/github-release bborbe/maintainer                                # owner/repo
-/github-release https://github.com/bborbe/maintainer             # URL
-/github-release bborbe/maintainer --dry-run                      # preview
+/coding:github-release                                           # cwd
+/coding:github-release ~/Documents/workspaces/maintainer         # dir
+/coding:github-release bborbe/maintainer                         # owner/repo
+/coding:github-release https://github.com/bborbe/maintainer      # URL
+/coding:github-release bborbe/maintainer --dry-run               # preview
 ```
 
 ## Workflow
@@ -269,7 +269,7 @@ git checkout -b "$branch"
 git push -u origin "$branch"
 gh pr create --base "$(default_branch)" --head "$branch" \
   --title "release ${next}" \
-  --body "Auto-release via /github-release. Bump: ${bump}. Reasoning: ${reasoning}."
+  --body "Auto-release via /coding:github-release. Bump: ${bump}. Reasoning: ${reasoning}."
 gh pr merge --auto --squash --delete-branch
 ```
 
@@ -300,7 +300,7 @@ Poll `gh pr view --json state,mergeCommit` up to 5 min. On merge → checkout de
 
 ## Difference vs `/github-release-task-agent`
 
-| Aspect | `/github-release [target]` | `/github-release-task-agent <task>` |
+| Aspect | `/coding:github-release [target]` | `/github-release-task-agent <task>` |
 |---|---|---|
 | Input | cwd / dir / `owner/repo` / URL | vault task file |
 | Output | release | release + `## Plan` / `## Result` / `## Review` JSON sections |

@@ -195,14 +195,32 @@ case "$sample" in
 esac
 ```
 
-### 4. Classify bump
+### 4. Classify bump + rewrite bullets via `release-changelog-agent`
 
-Extract Unreleased bullets, classify (in order):
-- **major** → BREAKING CHANGE, removal of public API, caller-affecting change
-- **minor** → `feat:` / additive new capability
-- **patch** → everything else (fix, refactor, deps, internal, docs)
+Invoke the shared release agent via the Task tool with the `/coding:github-release` profile (`majorBumpAllowed=true`, `rewriteChangelogEntries=true`) — operator-facing path gets full classification and AI rewrite.
 
-Be conservative on major — operator experience is that Claude over-classifies as major when bullets sound dramatic but aren't actually caller-affecting. When in doubt between major and minor, prefer minor; let the confirm step (#6) catch real breaking changes.
+```
+Task(
+  subagent_type="release-changelog-agent",
+  prompt="""
+    current_version: $current
+    majorBumpAllowed: true
+    rewriteChangelogEntries: true
+
+    unreleased_body:
+    <verbatim Unreleased section captured in Step 3>
+  """
+)
+```
+
+Parse the returned JSON:
+- `bump` → drives Step 5 (version arithmetic) and Step 6 (plan + confirm)
+- `rewritten_unreleased` → if non-empty, replaces the Unreleased body in CHANGELOG.md at Step 8 (header rewrite happens at the same time). If empty, leave bullets as-is.
+- `reasoning` → shown in Step 6 plan output
+
+**Why these flags:** Direct operator release wants the full pipeline — major-bump classification (caller can downgrade at the confirm step) and AI rewrite for clean release notes. Matches the K8s `agent/github-releaser` planning-phase behavior, so a local dry-run can preview what autonomous release would do.
+
+**Pre-1.0 cap (always-on)** still applies inside the agent — `current_version` starting with `0.` or `v0.` never returns `bump: major` even with `majorBumpAllowed=true`. The agent will downgrade to `minor` with a `pre-1.0` mention in `reasoning`.
 
 Edge case: `current = v0.0.0` (no prior tag) → next is `v0.1.0` regardless of bump.
 
@@ -264,10 +282,25 @@ OR=$(owner_repo)
 gh api "repos/${OR}/git/refs/tags/$next" --silent 2>/dev/null && die "tag $next already exists on remote"
 ```
 
-### 8. Rewrite header + commit
+### 8. Rewrite header (+ rewritten bullets) + commit
+
+If the agent returned a non-empty `rewritten_unreleased`, the Edit tool is preferred over the awk pipeline below — it can replace the multi-line Unreleased block atomically in one operation:
+
+```
+Edit(CHANGELOG.md):
+  old_string: "## Unreleased\n<verbatim original bullets>"
+  new_string: "## ${next}\n<rewritten_unreleased>"
+```
+
+Otherwise (passthrough — agent returned empty `rewritten_unreleased`), header-only rewrite via awk:
 
 ```bash
 awk -v n="$next" 'BEGIN{r=0} /^## Unreleased$/ && r==0 {print "## "n; r=1; next} {print}' CHANGELOG.md > CHANGELOG.md.new && mv CHANGELOG.md.new CHANGELOG.md
+```
+
+Then commit:
+
+```bash
 git add CHANGELOG.md
 git commit -m "release ${next}"
 COMMIT_SHA=$(git rev-parse HEAD)

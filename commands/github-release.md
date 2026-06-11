@@ -195,13 +195,13 @@ case "$sample" in
 esac
 ```
 
-### 4. Classify bump + rewrite bullets via `release-changelog-agent`
+### 4. Classify bump + rewrite bullets via `release-changelog-assistant`
 
 You're already `cd`'d into `$workdir` (Step 0). The agent reads `CHANGELOG.md` from cwd and extracts the `## Unreleased` block itself. Invoke via the Task tool with the `/coding:github-release` profile (`majorBumpAllowed=true`, `rewriteChangelogEntries=true`) — operator-facing path gets full classification and AI rewrite.
 
 ```
 Task(
-  subagent_type="coding:release-changelog-agent",
+  subagent_type="coding:release-changelog-assistant",
   prompt="""
     current_version: $current
     majorBumpAllowed: true

@@ -36,7 +36,7 @@ allowed-tools:
 
 Direct release command. Target = cwd, a local directory, or a remote repo (`owner/repo` or GitHub URL, cloned to tmp). No task file, no vault interaction — pure git + Claude bump classification, with a confirm step before any write.
 
-Sibling of `/github-release-task-agent` (task-driven pipeline) and `/github-release-repo-watcher` (fleet scanner) — both personal commands in `~/.claude/commands/`, not yet in this marketplace. Same release logic as the agent's `planning` + `execution` phases, just operator-triggered on the current repo.
+Same release logic as the maintainer agent's `planning` + `execution` phases (`agent/github-releaser`), just operator-triggered on the current repo instead of vault-task-driven. Sibling tooling (a vault-task-driven release pipeline and a fleet scanner that emits release tasks) lives outside this plugin.
 
 ## When to use which
 
@@ -82,6 +82,18 @@ default_branch() {
   [ -n "$b" ] || die "cannot determine default branch (origin/HEAD unset, no master/main)"
   echo "$b"
 }
+owner_repo() {
+  # Parse owner/repo from origin URL. Supports git@github.com:owner/repo(.git)? and https://github.com/owner/repo(.git)?
+  local url owner_repo
+  url=$(git remote get-url origin 2>/dev/null) || die "no origin remote"
+  owner_repo=$(printf '%s' "$url" | sed -E 's#^(git@github.com:|https://github.com/)([^/]+/[^/]+?)(\.git)?$#\2#')
+  [[ "$owner_repo" == *"/"* ]] || die "cannot parse owner/repo from origin: $url"
+  printf '%s' "$owner_repo"
+}
+
+# Auto-cleanup of tmp clones on any exit path (success, error, Ctrl-C):
+clone_path=""
+trap '[ -n "$clone_path" ] && rm -rf "$clone_path"' EXIT
 
 target="$1"   # may be empty
 
@@ -127,7 +139,7 @@ esac
 cd "$workdir"
 ```
 
-Cleanup: on any exit path (success or failure), `[ -n "$clone_path" ] && rm -rf "$clone_path"`. Trap or explicit at every exit.
+Cleanup happens automatically via the `trap '[ -n "$clone_path" ] && rm -rf "$clone_path"' EXIT` set above — runs on success, error, `die`, and Ctrl-C. No additional cleanup needed at exit paths.
 
 For cloned targets, dirty-tree / non-default-branch checks are trivially satisfied — fresh clone, on default branch. They run anyway for uniform code path.
 
@@ -247,7 +259,8 @@ On `Cancel` → exit, no writes.
 
 ```bash
 git rev-parse "$next" >/dev/null 2>&1 && die "tag $next already exists locally — pull or delete"
-gh api "repos/$OWNER/$REPO/git/refs/tags/$next" --silent 2>/dev/null && die "tag $next already exists on remote"
+OR=$(owner_repo)
+gh api "repos/${OR}/git/refs/tags/$next" --silent 2>/dev/null && die "tag $next already exists on remote"
 ```
 
 ### 8. Rewrite header + commit
@@ -290,7 +303,23 @@ gh pr create --base "$(default_branch)" --head "$branch" \
 gh pr merge --auto --squash --delete-branch
 ```
 
-Poll `gh pr view --json state,mergeCommit` up to 5 min. On merge → checkout default branch, pull, tag at merge SHA, push tag. On timeout → exit with PR URL + `merge pending — re-run after merge to tag`.
+Polling loop (up to 5 min, 10s interval):
+
+```bash
+pr_num=$(gh pr view "$branch" --json number --jq '.number')
+for _ in $(seq 1 30); do
+  sleep 10
+  merged_sha=$(gh pr view "$pr_num" --json state,mergeCommit --jq 'select(.state=="MERGED") | .mergeCommit.oid')
+  [ -n "$merged_sha" ] && break
+done
+if [ -n "$merged_sha" ]; then
+  git checkout "$(default_branch)" && git pull && git tag "$next" "$merged_sha" && git push origin "$next"
+else
+  echo "PR open, merge pending: https://github.com/$(owner_repo)/pull/$pr_num"
+  echo "Re-run /coding:github-release after merge — Steps 1-8 will detect the released CHANGELOG and exit cleanly; only Step 10 (tag at merge SHA) needs to fire."
+  exit 0
+fi
+```
 
 ### 12. Report
 

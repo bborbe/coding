@@ -9,7 +9,8 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * PATCH version when you make backwards-compatible bug fixes.
 
 ## Unreleased
-- feat: add `/coding:github-release` command (relocated from personal `~/.claude/commands/github-release.md`) — direct release of a git repo (cwd, local dir, or `owner/repo` clone-to-tmp), with bump classification from `## Unreleased`, commit/tag/push, and PR + auto-merge fallback for branch-protected repos
+- feat: add `/coding:github-release` command — direct release of a git repo (cwd, local dir, or `owner/repo` clone-to-tmp), with bump classification from `## Unreleased`, commit/tag/push, and PR + auto-merge fallback for branch-protected repos
+- fix: address second round of `/coding:github-release` pr-reviewer findings — define `owner_repo` helper for Step 7's tag-collision `gh api` call (previously referenced undefined `$OWNER`/`$REPO`), add `trap '... rm -rf ...' EXIT` to clean tmp clones on any exit path (including Ctrl-C and errors), spell out Step 11's PR-merge polling loop (`for _ in $(seq 1 30); do sleep 10; ...`) including the re-run path on timeout, drop personal-path references from the command body + CHANGELOG bullet (marketplace self-containment), add new command to `README.md` commands table
 - fix: address `/coding:github-release` pr-reviewer findings — quote `argument-hint`, tighten allowed-tools `rm -rf` glob to mktemp-pattern (`/tmp/github-release/tmp.*`), reject owner/repo targets containing `:` or `@` (host-injection), swap sed→awk in CHANGELOG header rewrite (metachar-safe), define `die` + `default_branch` helper functions inline
 - refactor: scope `/coding:github-release` tmp clones to `/tmp/github-release/` (was bare `mktemp -d` landing in `$TMPDIR` — `/var/folders/...` on macOS, `/tmp` on Linux); tightens `allowed-tools` from `rm -rf /tmp:*` + `rm -rf /var:*` (overly broad, allowed `rm -rf /var` system dir) to `rm -rf /tmp/github-release:*` only
 

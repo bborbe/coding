@@ -83,12 +83,13 @@ default_branch() {
   echo "$b"
 }
 owner_repo() {
-  # Parse owner/repo from origin URL. Supports git@github.com:owner/repo(.git)? and https://github.com/owner/repo(.git)?
-  local url owner_repo
-  url=$(git remote get-url origin 2>/dev/null) || die "no origin remote"
-  owner_repo=$(printf '%s' "$url" | sed -E 's#^(git@github.com:|https://github.com/)([^/]+/[^/]+?)(\.git)?$#\2#')
-  [[ "$owner_repo" == *"/"* ]] || die "cannot parse owner/repo from origin: $url"
-  printf '%s' "$owner_repo"
+  # Parse owner/repo from origin URL. Supports git@github.com:owner/repo(.git)? and https://github.com/owner/repo(.git)?.
+  # Uses shell parameter expansion only — portable across bash/zsh, no sed regex flavor issues.
+  local url=$(git remote get-url origin 2>/dev/null) || die "no origin remote"
+  local stripped="${url#*github.com[:/]}"   # strip everything up to and including 'github.com:' or 'github.com/'
+  stripped="${stripped%.git}"                # drop trailing .git if present
+  [[ "$stripped" == */* && "$stripped" != */*/* ]] || die "cannot parse owner/repo from origin: $url"
+  printf '%s' "$stripped"
 }
 
 # Auto-cleanup of tmp clones on any exit path (success, error, Ctrl-C):

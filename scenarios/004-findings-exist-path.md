@@ -136,3 +136,5 @@ go-time-assistant: AGENT_PRESENT
 All 7 Expected items: **7/7 PASS**
 
 Baseline tuple: `(findings_count=6, distinct_rule_ids=6, distinct_owners=4)`.
+
+Selector-mode sibling journey: scenarios/006. These two files keep guarding the legacy default path until the default flip retires it.

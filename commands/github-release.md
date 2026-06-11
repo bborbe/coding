@@ -32,6 +32,7 @@ allowed-tools:
   - Read
   - Edit
   - AskUserQuestion
+  - Task
 ---
 
 Direct release command. Target = cwd, a local directory, or a remote repo (`owner/repo` or GitHub URL, cloned to tmp). No task file, no vault interaction — pure git + Claude bump classification, with a confirm step before any write.

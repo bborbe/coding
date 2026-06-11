@@ -7,6 +7,7 @@ allowed-tools:
   - MultiEdit
   - Glob
   - LS
+  - Task
   - Bash(git describe:*)
   - Bash(git diff:*)
   - Bash(git log:*)

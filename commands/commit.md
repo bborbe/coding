@@ -65,11 +65,10 @@ Abort with "No changes to commit" only if **both** are empty. If there are unrel
 ### Workflow B: Master Branch + CHANGELOG.md + Unreleased Section
 1. Run `make precommit` (if available)
 2. Get current version from latest git tag
-3. Analyze Unreleased changes to determine increment (patch/minor)
-4. Calculate new version
-5. Rename `## Unreleased` to `## vX.Y.Z` in CHANGELOG.md
-6. Commit with "release vX.Y.Z" message
-7. Create tag and push both commits and tag
+3. Invoke `release-changelog-agent` (flags: `majorBumpAllowed=false`, `rewriteChangelogEntries=false`) → classified `bump` → calculate new version
+4. Rename `## Unreleased` to `## vX.Y.Z` in CHANGELOG.md
+5. Commit with "release vX.Y.Z" message
+6. Create tag and push both commits and tag
 
 ### Workflow C: Master Branch + CHANGELOG.md (No Unreleased)
 1. Legacy workflow: create new version section, tag, push
@@ -318,11 +317,9 @@ Parse the returned JSON. Check for `error` field first; abort with the error mes
 
 The `rewritten_unreleased` field will be empty (per the flag profile) — discard it. The `unreleased_body` and `reasoning` fields are informational for the operator log.
 
-**Step B.4: (removed — folded into B.3)**
-
 **Why these flags:** Workflow B is the operator's "I'm releasing manually right now" path. `majorBumpAllowed=false` matches the legacy "major requires manual edit" rule (preserved verbatim from the pre-agent Version Increment Rules below). `rewriteChangelogEntries=false` keeps Workflow B fast and offline — no rewrite call. For full AI rewrite + faithfulness review, use `/coding:github-release` instead (which sets both flags `true`).
 
-**Step B.5: Rename Unreleased to version**
+**Step B.4: Rename Unreleased to version**
 
 Replace `## Unreleased` with `## vX.Y.Z` in CHANGELOG.md:
 ```bash
@@ -331,11 +328,11 @@ Replace `## Unreleased` with `## vX.Y.Z` in CHANGELOG.md:
 
 Use the Edit tool to replace `## Unreleased` with `## vX.Y.Z` (preferred over sed).
 
-**Step B.6: Generate commit message**
+**Step B.5: Generate commit message**
 
 Format: `release vX.Y.Z` (this IS a release commit on master).
 
-**Step B.6a: Safety check for Claude/MCP files**
+**Step B.5a: Safety check for Claude/MCP files**
 ```bash
 UNSAFE_FILES=$(git status --porcelain | grep -E '^\?\? .*/?(\.mcp|\.claude|CLAUDE\.md)' || true)
 
@@ -344,7 +341,7 @@ if [ -n "$UNSAFE_FILES" ]; then
 fi
 ```
 
-**Step B.7: Commit, tag, and push**
+**Step B.6: Commit, tag, and push**
 ```bash
 cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "release vX.Y.Z" && git tag vX.Y.Z && git push && git push origin vX.Y.Z
 ```

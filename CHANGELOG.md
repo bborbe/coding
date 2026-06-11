@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.21.0
 
 - fix: ast-grep-runner.sh excludes `.git/` paths from both input file list and findings output — incident 2026-06-11 surfaced 274 stale agent-auditor findings from `.git/COMMIT_EDITMSG` during selector validation
 - feat: scenarios/005 (selector clean short-circuit) and scenarios/006 (selector findings path) — two new E2E scenarios (walked 2026-06-11, promoted to active) contracting the selector-mode journeys for a README-only diff and the perpetual fixture PR

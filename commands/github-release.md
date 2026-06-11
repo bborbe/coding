@@ -18,7 +18,6 @@ allowed-tools:
   - Bash(git checkout:*)
   - Bash(grep:*)
   - Bash(awk:*)
-  - Bash(sed:*)
   - Bash(cat:*)
   - Bash(head:*)
   - Bash(mkdir -p /tmp/github-release:*)
@@ -62,7 +61,7 @@ Examples:
 
 ```
 /coding:github-release                                           # cwd
-/coding:github-release ~/Documents/workspaces/maintainer         # dir
+/coding:github-release /path/to/local/repo                       # dir
 /coding:github-release bborbe/maintainer                         # owner/repo
 /coding:github-release https://github.com/bborbe/maintainer      # URL
 /coding:github-release bborbe/maintainer --dry-run               # preview
@@ -202,7 +201,7 @@ You're already `cd`'d into `$workdir` (Step 0). The agent reads `CHANGELOG.md` f
 
 ```
 Task(
-  subagent_type="release-changelog-agent",
+  subagent_type="coding:release-changelog-agent",
   prompt="""
     current_version: $current
     majorBumpAllowed: true
@@ -228,6 +227,9 @@ Edge case: `current = v0.0.0` (no prior tag) → next is `v0.1.0` regardless of 
 ```bash
 # Strip 'v' prefix from current for arithmetic
 cur_n="${current#v}"
+# Strip pre-release suffix (e.g. 'v0.69.0-rc1' → '0.69.0') so read doesn't choke on '-rc1'.
+# The agent's input contract accepts pre-release tags; release-time arithmetic operates on the base version.
+cur_n="${cur_n%%-*}"
 IFS=. read -r MAJ MIN PAT <<< "$cur_n"
 
 case "$bump" in

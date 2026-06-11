@@ -301,7 +301,7 @@ Make sure cwd is `$PROJECT_DIR` (the agent reads `CHANGELOG.md` from cwd and ext
 ```
 cd $PROJECT_DIR
 Task(
-  subagent_type="release-changelog-agent",
+  subagent_type="coding:release-changelog-agent",
   prompt="""
     current_version: $CURRENT_VERSION
     majorBumpAllowed: false

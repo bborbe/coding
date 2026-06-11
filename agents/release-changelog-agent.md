@@ -125,7 +125,7 @@ The caller `cd`s into the target repo first (so `CHANGELOG.md` is in cwd), then 
 ```
 cd $TARGET_REPO   # CHANGELOG.md must be readable from cwd
 Task(
-  subagent_type="release-changelog-agent",
+  subagent_type="coding:release-changelog-agent",
   prompt="""
     current_version: v0.17.0
     majorBumpAllowed: true

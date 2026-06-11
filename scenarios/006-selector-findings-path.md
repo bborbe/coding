@@ -51,4 +51,4 @@ The PR stays open in perpetuity. The baseline for expected finding shape is `spe
 
 ---
 
-**Status**: walked 2026-06-11 (MiniMax-M2.7-highspeed via `CLAUDE_CONFIG_DIR=~/.claude-verify`, branch `feature/selector-scenarios` @ f93717e): 3m21s, 30 turns, zero `coding:*` spawns, GUIDE_OK, all 5 seeded rule_ids + `go-licensing/source-file-header-required` (judgment tier) surfaced, traceability 31 candidates → 5 applicable → 26 skipped-with-reasons. Transcript: `/tmp/scen006-walk.jsonl` (volatile; key numbers recorded here). Promoted draft → active.
+**Status**: walked 2026-06-11 (MiniMax-M2.7-highspeed via an isolated `CLAUDE_CONFIG_DIR` (plugin clone pinned to the branch under test), branch `feature/selector-scenarios` @ f93717e): 3m21s, 30 turns, zero `coding:*` spawns, GUIDE_OK, all 5 seeded rule_ids + `go-licensing/source-file-header-required` (judgment tier) surfaced, traceability 31 candidates → 5 applicable → 26 skipped-with-reasons. Transcript: `/tmp/scen006-walk.jsonl` (volatile; key numbers recorded here). Promoted draft → active.

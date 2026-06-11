@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.19.0
 - refactor!: BREAKING CHANGE — rename `coding:release-changelog-agent` → `coding:release-changelog-assistant` to match marketplace `<noun>-<role>.md` naming convention (`-assistant` / `-auditor`, not `-agent`). Coordinated rename: agent file `agents/release-changelog-agent.md` → `agents/release-changelog-assistant.md`, `name:` frontmatter, both callers' `subagent_type=` reference, README agents-table entry, llms.txt entry, and CHANGELOG mentions. Callers on v0.18.0 will fail to resolve until updated; v0.18.0 callers are bundled in this same commit so any installer of v0.19.0+ has the matching pair.
 - refactor: restructure `coding:release-changelog-assistant` body to XML schema per agent-command-development-guide — add `<constraints>` block (NEVER commit/tag/push, ALWAYS return error field when malformed, etc.), `<process>` block summarizing the 5-step workflow up-front (was buried), `<output_format>` for the success JSON schema, `<error_handling>` for the three error codes (separates concerns from success). Markdown `#` headings retained only for high-level sections (Purpose, Inputs, classification rules, rewrite rules, caller profiles, invocation example); structural directives now use XML tags as the guide requires.
 - docs: trim `coding:release-changelog-assistant` `description:` frontmatter from 229-char paragraph to one-sentence summary per agent-command-development-guide; the long-form caller list + flag semantics live in the body, not the description.

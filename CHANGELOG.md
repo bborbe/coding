@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: add opt-in `--selector` mode to `/coding:pr-review` and `/coding:code-review` — replaces per-owner Task fanout (Step 4b-ii) with two in-session steps: Step 4c-sel CLASSIFY (narrows glob candidates via recall-optimized contract) and Step 4d-sel ADJUDICATE (reads only applicable rule blocks, emits findings in existing severity buckets); zero sub-agent spawns; default mode unchanged
+- refactor: extract selector-mode classify/adjudicate procedure to docs/selector-mode-guide.md — commands carry thin pointers (single source of truth; answers pr-reviewer command-thin + single-source-of-truth findings)
+- fix: selector-mode guide resolution is now fail-fast — explicit `GUIDE_OK`/`GUIDE_MISSING` echo, and on missing guide the review STOPS with a Must Fix toolchain failure instead of silently continuing mechanical-only (caught by MiniMax-M2.7 benchmark: weaker model skipped classify+adjudicate entirely when the guide path failed, presenting a judgment-less review as complete)
+
 ## v0.19.0
 - refactor!: BREAKING CHANGE — rename `coding:release-changelog-agent` → `coding:release-changelog-assistant` to match marketplace `<noun>-<role>.md` naming convention (`-assistant` / `-auditor`, not `-agent`). Coordinated rename: agent file `agents/release-changelog-agent.md` → `agents/release-changelog-assistant.md`, `name:` frontmatter, both callers' `subagent_type=` reference, README agents-table entry, llms.txt entry, and CHANGELOG mentions. Callers on v0.18.0 will fail to resolve until updated; v0.18.0 callers are bundled in this same commit so any installer of v0.19.0+ has the matching pair.
 - refactor: restructure `coding:release-changelog-assistant` body to XML schema per agent-command-development-guide — add `<constraints>` block (NEVER commit/tag/push, ALWAYS return error field when malformed, etc.), `<process>` block summarizing the 5-step workflow up-front (was buried), `<output_format>` for the success JSON schema, `<error_handling>` for the three error codes (separates concerns from success). Markdown `#` headings retained only for high-level sections (Purpose, Inputs, classification rules, rewrite rules, caller profiles, invocation example); structural directives now use XML tags as the guide requires.

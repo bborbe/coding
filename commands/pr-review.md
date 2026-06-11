@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+), Bash(git fetch:+), Bash(git worktree:+), Bash(git branch:+), Bash(rm -rf:+)
-argument-hint: "<target-branch> [short|standard|full]"
+argument-hint: "<target-branch> [short|standard|full|selector]"
 description: Review current branch diff against target branch (excludes vendor/node_modules)
 ---
 
@@ -80,6 +80,7 @@ cd <REPO_DIR> && git worktree remove /tmp/pr-review-<repo>-<SOURCE_BRANCH> --for
 
 - `short|quick|fast` → **Short mode** (manual review only)
 - `full|comprehensive|complete` → **Full mode** (all agents)
+- `--selector` or `selector` → **Selector mode** (in-session classify + adjudicate, zero sub-agent spawns)
 - Otherwise → **Standard mode** (4 core agents, default)
 
 ### Step 2: Project Detection
@@ -210,6 +211,31 @@ echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"tota
 
 The timing file `/tmp/pr-review-timing.jsonl` is purely diagnostic — it lets operators answer "is Owner X worth dispatching?" with data instead of intuition. Not part of the Step 5 user-facing report; include it in the cleanup step for the review worktree so it gets removed after Step 6.
 
+#### Selector mode: Steps 4c-sel and 4d-sel
+
+When the mode argument is `--selector` or `selector`: Steps 4.0, 4a, and 4b-i run unchanged. Skip Step 4b-ii. Resolve the guide and execute Steps 4c-sel and 4d-sel from it — zero sub-agent spawns.
+
+Run exactly this one command, once:
+
+```bash
+GUIDE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/selector-mode-guide.md"
+[ -f "$GUIDE" ] || GUIDE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/docs/selector-mode-guide.md"
+[ -f "$GUIDE" ] && echo "GUIDE_OK: $GUIDE" || echo "GUIDE_MISSING"
+```
+
+If it prints `GUIDE_MISSING`: report "selector guide unavailable" as a **Must Fix toolchain failure** in Step 5 and STOP the selector path — do NOT continue with a mechanical-findings-only review presented as a complete selector review (a review without the judgment tier silently misses every judgment-tier rule; same fail-fast discipline as Step 4.0). Do NOT investigate further (no `find`, no `ls`, no path probing).
+
+If it prints `GUIDE_OK`: Read the file at that path, then execute its **Step 4c-sel CLASSIFY** and **Step 4d-sel ADJUDICATE** with:
+
+- **DIFF** = the Step 0c diff (`git diff origin/<TARGET_BRANCH>...HEAD`)
+- **CANDIDATES** = the Step 4b-i `<rule-id> <owner>` output
+- **MECHANICAL_FINDINGS** = `/tmp/pr-review-findings.json`
+- **Working directory** = `REVIEW_DIR`
+
+On the guide's short-circuit condition the report line is `selector clean — no adjudication needed`. When the mode is anything else (short/standard/full), skip this section entirely.
+
+Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
+
 #### 4c: Context-specific conventions (kept from prior Step 2.5)
 
 Some review questions still benefit from a full-doc read even in dispatcher mode. Load these conventionally when the diff matches:
@@ -252,6 +278,10 @@ The script exits non-zero if any finding's `rule_id` is not in `rules/index.json
 
 #### Nice to Have (Optional)
 - Style, code organization, Go patch updates, tool updates, naming conventions, copyright headers
+
+#### Selector Mode: Classify Traceability (selector mode only)
+
+Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
 
 ### Step 6: Next Steps Recommendation
 

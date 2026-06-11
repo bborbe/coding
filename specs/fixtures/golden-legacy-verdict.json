@@ -1,0 +1,124 @@
+{
+  "fixture": "bborbe/maintainer#2",
+  "captured": "2026-06-11T15:47:39Z",
+  "owners_spawned": [
+    "agent-auditor",
+    "go-architecture-assistant",
+    "go-error-assistant",
+    "go-http-handler-assistant",
+    "go-metrics-assistant",
+    "go-quality-assistant",
+    "go-security-specialist",
+    "go-test-quality-assistant",
+    "go-time-assistant",
+    "godoc-assistant",
+    "license-assistant"
+  ],
+  "findings": [
+    {
+      "rule_id": "go-architecture/constructor-returns-interface",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 18,
+      "severity": "critical",
+      "owner": "go-architecture-assistant",
+      "message": "NewService1() returns *Service1 (concrete pointer) instead of an interface. The package declares no interface that Service1 implements, so the constructor leaks the concrete type to callers. Fix: declare a Service1 interface (e.g. `type Service1Iface interface { ... }`) in the same package and change the return type to it."
+    },
+    {
+      "rule_id": "go-architecture/no-globals-or-singletons",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 22,
+      "severity": "critical",
+      "owner": "go-architecture-assistant",
+      "message": "Package-level `var sharedService1 = NewService1()` creates a singleton dependency. This breaks test parallelism and hides the dependency graph. Fix: remove the package-level var and inject the dependency via constructor parameters."
+    },
+    {
+      "rule_id": "go-concurrency/no-raw-go-func",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 33,
+      "severity": "critical",
+      "owner": "go-architecture-assistant",
+      "message": "Raw `go func() { ... }()` is used outside a main entry point. Use `github.com/bborbe/run` strategies (e.g. `run.CancelOnFirstErrorWait`, `run.All`) instead. Raw goroutines require hand-rolled sync and risk leaks and races."
+    },
+    {
+      "rule_id": "go-errors/no-fmt-errorf",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 37,
+      "severity": "critical",
+      "owner": "go-error-assistant",
+      "message": "fmt.Errorf is forbidden in production code. Replace with `errors.Errorf(\"boom: %d\", 42)` from `github.com/bborbe/errors` (new error) or `errors.Wrapf(ctx, err, ...)` (wrapping an existing error). Rule go-errors/no-fmt-errorf."
+    },
+    {
+      "rule_id": "go-time/no-time-now-direct",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 29,
+      "severity": "critical",
+      "owner": "go-time-assistant",
+      "message": "time.Now() is called directly in production code. Inject `libtime.CurrentDateTimeGetter` and call its `Now(ctx)` method. Direct time.Now() makes tests non-deterministic. Rule go-time/no-time-now-direct."
+    },
+    {
+      "rule_id": "go-time/inject-getter-not-create",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 29,
+      "severity": "critical",
+      "owner": "go-time-assistant",
+      "message": "The Now() function creates a time value directly rather than delegating to an injected getter. This is the same root violation as no-time-now-direct. Fix: replace with an injected libtime.CurrentDateTimeGetter parameter. Rule go-time/inject-getter-not-create."
+    },
+    {
+      "rule_id": "go-library/semver-vprefix-tag-required",
+      "file": ".",
+      "line": 0,
+      "severity": "major",
+      "owner": "go-quality-assistant",
+      "message": "No vMAJOR.MINOR.PATCH git tags found in the repo. This is expected for this fixture branch (delete-this-pr-never, never merged), but noted per rule go-library/semver-vprefix-tag-required. Non-blocking for a test fixture."
+    },
+    {
+      "rule_id": "go-doc/exported-item-must-have-comment",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 16,
+      "severity": "major",
+      "owner": "godoc-assistant",
+      "message": "Exported type Service1 has a comment, but exported functions Now(), Run(), Boom() lack proper standalone doc comments (the inline comments on the line above describe the violation, not the function's purpose). Rule go-doc/exported-item-must-have-comment. Fix: add `// Now returns...`, `// Run starts...`, `// Boom returns...` doc comments."
+    },
+    {
+      "rule_id": "go-doc/comment-starts-with-name",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 17,
+      "severity": "nit",
+      "owner": "godoc-assistant",
+      "message": "The comment above Service1 says `// Service1 + NewService1: violates...` — starts with `Service1` correctly, but the comment describes the rule violation rather than the type's purpose. Per go-doc/comment-starts-with-name, doc comments should start with the identifier name and describe the type. Exempt as test fixture."
+    },
+    {
+      "rule_id": "go-doc/package-comment-in-doc-go",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 1,
+      "severity": "nit",
+      "owner": "godoc-assistant",
+      "message": "The package comment lives in violations.go rather than a dedicated doc.go. Rule go-doc/package-comment-in-doc-go. For a test fixture this is not blocking, but the pattern should be corrected in production code."
+    },
+    {
+      "rule_id": "go-licensing/source-file-header-required",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 1,
+      "severity": "major",
+      "owner": "license-assistant",
+      "message": "violations.go is missing the BSD-2-Clause 3-line copyright header. All public Go files outside vendor/ require this header per go-licensing/source-file-header-required. Fix: add the standard `// Copyright (c) 2026 Benjamin Borbe All rights reserved. // Use of this source code is governed by a BSD-style // license that can be found in the LICENSE file.` block."
+    },
+    {
+      "rule_id": "git-commit/imperative-mood",
+      "file": "@commits",
+      "line": 0,
+      "severity": "nit",
+      "owner": "agent-auditor",
+      "message": "Commit subject: `test(fixture): add scenario-004 violations fixture for bborbe/coding acceptance walks`. Subject starts with `test(fixture): add` — imperative mood is correct. No violation found for go-commit/imperative-mood."
+    },
+    {
+      "rule_id": "go-testing/libtime-injection-required",
+      "file": "pkg/scenarios-test-fixture/violations.go",
+      "line": 29,
+      "severity": "major",
+      "owner": "go-test-quality-assistant",
+      "message": "The Now() function uses time.Now() directly, which makes any test of this function non-deterministic. Rule go-testing/libtime-injection-required requires injecting libtime.CurrentDateTimeGetter so tests can supply a fixed time. Fix: add a TimeGetter parameter to Now() and call getter.Now(ctx)."
+    }
+  ],
+  "summary": "5 of 5 intended mechanical violations confirmed as Critical. Additional findings: missing BSD-2-Clause copyright header (Major), missing semver tag for shallow clone (Major), exported function doc comment gaps (Major), go-doc/package-comment-in-doc-go (Nit), git-commit/imperative-mood clean (no violation). Total: 6 Critical, 4 Major, 3 Nit. Owners spawned: 11. All finding rule_ids validated against rules/index.json — zero citation failures."
+}

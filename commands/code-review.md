@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+)
-argument-hint: "[short|standard|full] [directory]"
+argument-hint: "[short|standard|full|selector] [directory]"
 description: Perform a comprehensive code review of recent changes
 ---
 
@@ -20,6 +20,7 @@ Perform a code review with configurable depth based on mode.
 Parse the first argument to determine mode:
 - If first arg is `short|quick|fast` → **Short mode** (manual review only)
 - If first arg is `full|comprehensive|complete` → **Full mode** (all 13 agents)
+- If first arg is `--selector` or `selector` → **Selector mode** (in-session classify + adjudicate, zero sub-agent spawns)
 - Otherwise → **Standard mode** (4 core agents, default)
 
 Any remaining arguments are treated as the directory path.
@@ -179,6 +180,31 @@ echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"tota
 
 Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report. `code-review.md` has no formal cleanup step (the command works against the current branch in-place; there is no review-worktree to remove), so end the run with `rm -f /tmp/code-review-timing.jsonl` to keep the file from accumulating stale lines across reviews.
 
+#### Selector mode: Steps 4c-sel and 4d-sel
+
+When the mode argument is `--selector` or `selector`: Steps 4.0, 4a, and 4b-i run unchanged. Skip Step 4b-ii. Resolve the guide and execute Steps 4c-sel and 4d-sel from it — zero sub-agent spawns.
+
+Run exactly this one command, once:
+
+```bash
+GUIDE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/selector-mode-guide.md"
+[ -f "$GUIDE" ] || GUIDE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/docs/selector-mode-guide.md"
+[ -f "$GUIDE" ] && echo "GUIDE_OK: $GUIDE" || echo "GUIDE_MISSING"
+```
+
+If it prints `GUIDE_MISSING`: report "selector guide unavailable" as a **Must Fix toolchain failure** in Step 5 and STOP the selector path — do NOT continue with a mechanical-findings-only review presented as a complete selector review (a review without the judgment tier silently misses every judgment-tier rule; same fail-fast discipline as Step 4.0). Do NOT investigate further (no `find`, no `ls`, no path probing).
+
+If it prints `GUIDE_OK`: Read the file at that path, then execute its **Step 4c-sel CLASSIFY** and **Step 4d-sel ADJUDICATE** with:
+
+- **DIFF** = `git diff HEAD~1` (or directory diff as parsed in Step 1)
+- **CANDIDATES** = the Step 4b-i `<rule-id> <owner>` output
+- **MECHANICAL_FINDINGS** = `/tmp/code-review-findings.json`
+- **Working directory** = the reviewed directory
+
+On the guide's short-circuit condition the report line is `selector clean — no adjudication needed`. When the mode is anything else (short/standard/full), skip this section entirely.
+
+Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
+
 #### 4c: Context-specific conventions
 
 Load these conventionally when the diff matches:
@@ -224,6 +250,10 @@ Agent-reported important issues (error handling, architecture, factory/handler p
 
 #### Nice to Have (Optional)
 Agent-reported minor issues (style, documentation, naming conventions, version updates).
+
+#### Selector Mode: Classify Traceability (selector mode only)
+
+Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
 
 ### Step 6: Next Steps
 

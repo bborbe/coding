@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+)
-argument-hint: "[short|standard|full|selector] [directory]"
+argument-hint: "[short|full|selector] [directory]"
 description: Perform a comprehensive code review of recent changes
 ---
 
@@ -19,9 +19,8 @@ Perform a code review with configurable depth based on mode.
 
 Parse the first argument to determine mode:
 - If first arg is `short|quick|fast` → **Short mode** (manual review only)
-- If first arg is `full|comprehensive|complete` → **Full mode** (all 13 agents)
-- If first arg is `--selector` or `selector` → **Selector mode** (in-session classify + adjudicate, zero sub-agent spawns)
-- Otherwise → **Standard mode** (4 core agents, default)
+- If first arg is `full|comprehensive|complete` → **Full mode** (all agents, per-owner dispatch)
+- Otherwise (including `standard`, `selector`, `--selector`, or no token) → **Selector mode (default)** (in-session classify + adjudicate, zero sub-agent spawns)
 
 Any remaining arguments are treated as the directory path.
 
@@ -53,7 +52,7 @@ Store result for later:
 
 **3b. Run make precommit (Full mode only)**
 
-Running the full test suite is CI's job; the review needs the result, not a re-run. In **Standard** and **Short** mode, skip this step entirely and include in the Step 5 report: "precommit skipped (standard mode) — CI covers lint+test".
+Running the full test suite is CI's job; the review needs the result, not a re-run. In **Selector** and **Short** mode, skip this step entirely and include in the Step 5 report: "precommit skipped (selector mode) — CI covers lint+test".
 
 **Full mode only**: Check if Makefile exists and has a `precommit` target:
 1. Use Read tool to check if Makefile exists (will error if missing)
@@ -70,11 +69,11 @@ If Makefile doesn't exist or lacks `precommit` target, skip this step. If `make 
 
 ### Step 4: Dispatcher — ast-grep funnel → findings-scoped LLM adjudication
 
-Mirrors `commands/pr-review.md` Step 4. The funnel runs first (diff-scoped), then adjudication Tasks are spawned only for owners with findings or active judgment rules. **Standard mode**: zero LLM spawns when the funnel is clean and no judgment rules are active. **Full mode**: keeps today's behavior (all relevant owners + conditional agents).
+Mirrors `commands/pr-review.md` Step 4. The funnel runs first (diff-scoped), then adjudicates findings in-session. **Selector mode (the default)**: in-session classify + adjudicate, zero sub-agent spawns. **Full mode**: keeps per-owner dispatch (all relevant owners + conditional agents). **Short mode**: skips Step 4 entirely.
 
 **Short Mode**: No agents — skip to Step 5.
 
-**Early exit (standard mode)**: if NO changed file has extension `.go` or `.py` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `pyproject.toml`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the diff stat decides this — no tool calls needed.
+**Early exit**: if NO changed file has extension `.go` or `.py` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `pyproject.toml`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the diff stat decides this — no tool calls needed.
 - BUT: if LICENSE missing AND repo is public, add to "Should Fix":
   - "Missing LICENSE file"
   - "README missing license section" (check with Grep for `## License` in README.md)
@@ -103,9 +102,7 @@ RUNNER="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts
 
 Run exactly this one Bash call, once. Emits `{stats, findings_by_owner: {<agent-name>: [...findings]}, errors}` — read it from `/tmp/code-review-findings.json`. Do NOT spawn an agent for this step (the former `coding:ast-grep-runner` agent is deprecated). If the runner is missing or fails: note "mechanical funnel unavailable" for the Step 5 report and continue with Step 4b using judgment-rule triggers only — do NOT investigate (no `find`, no `which`, no path probing).
 
-#### 4b: Findings-scoped adjudication (standard mode)
-
-Compute the active judgment-rule set and dispatch owners selectively:
+#### 4b: Findings-scoped candidate computation
 
 **Step 4b-i: Active judgment rules** — compute which judgment-tier rules are triggered by the diff. Run:
 
@@ -129,60 +126,11 @@ jq -r --arg files "$CHANGED_FILES" '
 ' rules/index.json
 ```
 
-This produces a list of `<rule-id> <owner>` pairs whose trigger globs match at least one changed file. Rules with `trigger: ["@commits"]` are always included.
+This produces a list of `<rule-id> <owner>` pairs whose trigger globs match at least one changed file. Rules with `trigger: ["@commits"]` are always included. This output feeds both Selector mode (Steps 4c-sel/4d-sel) and Full mode (per-owner dispatch).
 
-**Step 4b-ii: Dispatch set** — the set of owners to spawn is:
+#### Selector mode (the default): Steps 4c-sel and 4d-sel
 
-```
-owners_to_spawn = (keys of findings_by_owner) ∪ (owners from active judgment rules)
-```
-
-If `owners_to_spawn` is empty AND `findings_by_owner` is empty, report "funnel clean — no adjudication needed" and proceed to Step 5. ZERO LLM spawns.
-
-Otherwise, spawn ONE Task per owner in `owners_to_spawn` **concurrently**. Owners NOT in the set are NOT spawned — no exceptions in standard mode. Each Task prompt:
-
-```
-coding:<owner> agent: "TARGET_DIR=<directory>.
-
-Pre-filtered mechanical findings for you (from ast-grep-runner):
-<findings_by_owner[<owner>] JSON, or empty array if none>
-
-Active judgment rules you own (from rules/index.json, triggered by this diff):
-<list of rule blocks — id + doc_path + applies_when — for this owner only>
-
-Adjudicate: for each mechanical finding, assign severity (Critical / Important / Optional), add a fix suggestion that cites the rule by ID. Drop any finding whose rule_id is not in the index — stale-walker bug, not your concern.
-
-Also scan the diff for each active judgment rule listed above and report violations you find. Read only changed files relevant to those rules.
-
-Review changed code only."
-```
-
-Run per-Owner dispatches **concurrently** — they're independent.
-
-**Timing instrumentation** (mirror of `commands/pr-review.md` Step 4b): **Only when `REVIEW_TIMING=1` is set in the environment** — otherwise skip this instrumentation entirely. Record wall-time of each per-Owner dispatch as a structured event so the funnel's per-Owner ROI is measurable, not anecdotal:
-
-```bash
-ts_start=$(date +%s%3N)
-# ... invoke coding:<owner> agent ...
-ts_end=$(date +%s%3N)
-echo "{\"event\":\"per_owner_adjudication\",\"owner\":\"<owner>\",\"findings_in\":<count>,\"wall_ms\":$((ts_end - ts_start))}" >> /tmp/code-review-timing.jsonl
-```
-
-Roll-up summary after all owners return:
-
-```bash
-# Filter to per_owner_adjudication events only — wc -l over-counts when the
-# file has stale lines from a prior unclean run or the summary line itself.
-total_ms=$(jq -s 'map(select(.event == "per_owner_adjudication") | .wall_ms) | add' /tmp/code-review-timing.jsonl)
-owners_invoked=$(grep -c '"event":"per_owner_adjudication"' /tmp/code-review-timing.jsonl)
-echo "{\"event\":\"per_owner_summary\",\"owners_invoked\":$owners_invoked,\"total_ms\":$total_ms}" >> /tmp/code-review-timing.jsonl
-```
-
-Diagnostic only — operators read it to answer "is Owner X worth dispatching?" with data. Not part of the Step 5 user-facing report. `code-review.md` has no formal cleanup step (the command works against the current branch in-place; there is no review-worktree to remove), so end the run with `rm -f /tmp/code-review-timing.jsonl` to keep the file from accumulating stale lines across reviews.
-
-#### Selector mode: Steps 4c-sel and 4d-sel
-
-When the mode argument is `--selector` or `selector`: Steps 4.0, 4a, and 4b-i run unchanged. Skip Step 4b-ii. Resolve the guide and execute Steps 4c-sel and 4d-sel from it — zero sub-agent spawns.
+Steps 4.0, 4a, and 4b-i run unchanged. Resolve the guide and execute Steps 4c-sel and 4d-sel from it — zero sub-agent spawns.
 
 Run exactly this one command, once:
 
@@ -201,9 +149,39 @@ If it prints `GUIDE_OK`: Read the file at that path, then execute its **Step 4c-
 - **MECHANICAL_FINDINGS** = `/tmp/code-review-findings.json`
 - **Working directory** = the reviewed directory
 
-On the guide's short-circuit condition the report line is `selector clean — no adjudication needed`. When the mode is anything else (short/standard/full), skip this section entirely.
+On the guide's short-circuit condition the report line is `selector clean — no adjudication needed`. Skip this section for short/full mode.
 
 Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
+
+#### Full mode: per-owner dispatch
+
+**Full mode only** — skip this section in selector and short mode.
+
+Compute the dispatch set from Step 4b-i and Step 4a findings:
+
+```
+owners_to_spawn = (keys of findings_by_owner) ∪ (owners from active judgment rules)
+```
+
+If `owners_to_spawn` is empty AND `findings_by_owner` is empty, report "funnel clean — no adjudication needed" and proceed to Step 5. ZERO LLM spawns.
+
+Otherwise, spawn ONE Task per owner in `owners_to_spawn` **concurrently** — they're independent. Each Task prompt:
+
+```
+coding:<owner> agent: "TARGET_DIR=<directory>.
+
+Pre-filtered mechanical findings for you (from ast-grep-runner):
+<findings_by_owner[<owner>] JSON, or empty array if none>
+
+Active judgment rules you own (from rules/index.json, triggered by this diff):
+<list of rule blocks — id + doc_path + applies_when — for this owner only>
+
+Adjudicate: for each mechanical finding, assign severity (Critical / Important / Optional), add a fix suggestion that cites the rule by ID. Drop any finding whose rule_id is not in the index — stale-walker bug, not your concern.
+
+Also scan the diff for each active judgment rule listed above and report violations you find. Read only changed files relevant to those rules.
+
+Review changed code only."
+```
 
 #### 4c: Context-specific conventions
 
@@ -217,6 +195,8 @@ Load these conventionally when the diff matches:
 | `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
 
 #### 4d: Citation validation
+
+**Full mode only** (selector mode's own citation call lives in the guide). Walk every finding from the per-owner agent reports and verify its `rule_id` field exists in `rules/index.json`. Drop findings citing missing IDs — they're hallucinations or stale-walker references. Log dropped findings to stderr.
 
 ```bash
 coding:simple-bash-runner agent: "bash scripts/validate-citations.sh <findings.json>"

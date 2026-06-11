@@ -47,12 +47,12 @@ else
   fail "short mode skip directive missing from pr-review.md or code-review.md"
 fi
 
-# Standard mode invokes the deterministic runner script (Step 4a is mandatory for
+# All modes (selector/full) invoke the deterministic runner script (Step 4a is mandatory for
 # the dispatcher). The former coding:ast-grep-runner agent is deprecated and must
 # NOT be invoked by either command.
 if grep -qE "scripts/ast-grep-runner\.sh" commands/code-review.md && \
    grep -qE "scripts/ast-grep-runner\.sh" commands/pr-review.md; then
-  ok "standard mode invokes scripts/ast-grep-runner.sh in both dispatcher commands"
+  ok "ast-grep-runner.sh invoked in both dispatcher commands"
 else
   fail "scripts/ast-grep-runner.sh not referenced in pr-review.md or code-review.md"
 fi
@@ -76,14 +76,24 @@ else
   fail "full mode references only $conditional_agents legacy-path agents (< 4) in code-review.md"
 fi
 
+# Default/otherwise token must route to Selector mode in both commands.
+if grep -qE "Selector mode \(the default\)|Selector mode \(default\)" commands/pr-review.md && \
+   grep -qE "Selector mode \(the default\)|Selector mode \(default\)" commands/code-review.md; then
+  ok "default/otherwise token routes to Selector mode (default) in both commands"
+else
+  fail "Selector mode (default) routing missing from pr-review.md or code-review.md"
+fi
+
 echo "=== 2/5 Per-language routing ==="
 
-# Per-Owner adjudication block present (Step 4b) — the routing surface.
-if grep -qE "Per-Owner adjudication|coding:<owner>|findings_by_owner" commands/code-review.md && \
-   grep -qE "Per-Owner adjudication|coding:<owner>|findings_by_owner" commands/pr-review.md; then
-  ok "Step 4b per-Owner adjudication block present in both dispatcher commands"
+# Full-mode per-owner dispatch block present — findings_by_owner feeds the dispatch set and
+# coding:<owner> agent prompts reference it. Per-owner dispatch lives in full mode only
+# (standard/selector path removed); the check asserts what remains true post-flip.
+if grep -qE "coding:<owner>|findings_by_owner" commands/code-review.md && \
+   grep -qE "coding:<owner>|findings_by_owner" commands/pr-review.md; then
+  ok "full-mode per-owner dispatch block (findings_by_owner / coding:<owner>) present in both dispatcher commands"
 else
-  fail "Step 4b per-Owner adjudication block missing from pr-review.md or code-review.md"
+  fail "full-mode per-owner dispatch block missing from pr-review.md or code-review.md"
 fi
 
 # Every owner referenced in rules/index.json must have a matching agent file in agents/.

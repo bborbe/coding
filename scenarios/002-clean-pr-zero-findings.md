@@ -1,5 +1,5 @@
 ---
-status: active
+status: outdated
 ---
 
 # Scenario 002: Zero-violation PR in standard mode produces empty findings, no false positives
@@ -38,6 +38,4 @@ Updated for funnel v2 (PR #48): runner output now lands in `/tmp/code-review-fin
 
 ---
 
-**Status**: updated for funnel v2 (PR #48), not yet walked. Requires a live Claude Code session; mark as walked once a session produces the stream-json transcript. Key new assertions vs v1: (1) findings path is `/tmp/code-review-findings.json` not an awk-extracted stdout block; (2) "funnel clean — no adjudication needed" message asserted; (3) zero `coding:*-assistant` subagent spawns verified from transcript.
-
-Selector-mode sibling journey: scenarios/005. These two files keep guarding the legacy default path until the default flip retires it.
+Outdated 2026-06-12: the default flipped to selector mode and the standard-mode per-owner dispatch was removed (full mode remains the per-owner deep sweep). Superseded by scenarios/005 (resp. 006).

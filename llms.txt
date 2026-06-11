@@ -66,6 +66,7 @@
 - [Git Workflow](docs/git-workflow.md): Branching strategy, PR process
 - [Changelog](docs/changelog-guide.md): CHANGELOG.md format and maintenance
 - [Definition of Done](docs/definition-of-done.md): Checklist for completed work
+- [Release Changelog Assistant](agents/release-changelog-assistant.md): Classify next semver bump from `## Unreleased` + optionally rewrite to conventional-prefix style (shared by `/coding:commit` Workflow B, `/coding:github-release`, K8s `agent/github-releaser`)
 
 ## Claude Code Authoring
 - [Agent & Command Development](docs/agent-command-development-guide.md): Standards for authoring agents and slash commands

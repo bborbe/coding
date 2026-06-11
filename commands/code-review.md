@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+)
-argument-hint: "[short|standard|full] [directory]"
+argument-hint: "[short|standard|full|selector] [directory]"
 description: Perform a comprehensive code review of recent changes
 ---
 

@@ -65,7 +65,7 @@ Abort with "No changes to commit" only if **both** are empty. If there are unrel
 ### Workflow B: Master Branch + CHANGELOG.md + Unreleased Section
 1. Run `make precommit` (if available)
 2. Get current version from latest git tag
-3. Invoke `release-changelog-agent` (flags: `majorBumpAllowed=false`, `rewriteChangelogEntries=false`) → classified `bump` → calculate new version
+3. Invoke `release-changelog-assistant` (flags: `majorBumpAllowed=false`, `rewriteChangelogEntries=false`) → classified `bump` → calculate new version
 4. Rename `## Unreleased` to `## vX.Y.Z` in CHANGELOG.md
 5. Commit with "release vX.Y.Z" message
 6. Create tag and push both commits and tag
@@ -294,14 +294,14 @@ else
 fi
 ```
 
-**Step B.3: Invoke `release-changelog-agent` for bump classification**
+**Step B.3: Invoke `release-changelog-assistant` for bump classification**
 
 Make sure cwd is `$PROJECT_DIR` (the agent reads `CHANGELOG.md` from cwd and extracts the `## Unreleased` block itself — no inline body passing). Then use the Task tool with the Workflow B profile (`majorBumpAllowed=false`, `rewriteChangelogEntries=false`). This preserves Workflow B's historical contract: bump is capped at `minor` (the operator must manually bump major), and bullets are NOT rewritten (pure passthrough — Workflow B keeps the sed-rename behavior).
 
 ```
 cd $PROJECT_DIR
 Task(
-  subagent_type="coding:release-changelog-agent",
+  subagent_type="coding:release-changelog-assistant",
   prompt="""
     current_version: $CURRENT_VERSION
     majorBumpAllowed: false

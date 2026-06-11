@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+), Bash(git fetch:+), Bash(git worktree:+), Bash(git branch:+), Bash(rm -rf:+)
-argument-hint: "<target-branch> [short|standard|full]"
+argument-hint: "<target-branch> [short|standard|full|selector]"
 description: Review current branch diff against target branch (excludes vendor/node_modules)
 ---
 

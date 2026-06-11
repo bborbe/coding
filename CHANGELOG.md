@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.20.0
 
 - feat: add opt-in `--selector` mode to `/coding:pr-review` and `/coding:code-review` — replaces per-owner Task fanout (Step 4b-ii) with two in-session steps: Step 4c-sel CLASSIFY (narrows glob candidates via recall-optimized contract) and Step 4d-sel ADJUDICATE (reads only applicable rule blocks, emits findings in existing severity buckets); zero sub-agent spawns; default mode unchanged
 - refactor: extract selector-mode classify/adjudicate procedure to docs/selector-mode-guide.md — commands carry thin pointers (single source of truth; answers pr-reviewer command-thin + single-source-of-truth findings)

@@ -21,9 +21,9 @@ allowed-tools:
   - Bash(sed:*)
   - Bash(cat:*)
   - Bash(head:*)
+  - Bash(mkdir -p /tmp/github-release:*)
   - Bash(mktemp:*)
-  - Bash(rm -rf /tmp:*)
-  - Bash(rm -rf /var:*)
+  - Bash(rm -rf /tmp/github-release:*)
   - Bash(gh pr create:*)
   - Bash(gh pr view:*)
   - Bash(gh pr merge:*)
@@ -84,7 +84,8 @@ case "$target" in
     ;;
   https://github.com/*|git@github.com:*)
     # URL form
-    tmp=$(mktemp -d)
+    mkdir -p /tmp/github-release
+    tmp=$(mktemp -d /tmp/github-release/tmp.XXXXXX)
     clone_url="$target"; clone_path="$tmp"
     git clone --quiet "$clone_url" "$tmp" || die "clone failed: $clone_url"
     workdir="$tmp"
@@ -92,7 +93,8 @@ case "$target" in
   */*)
     # owner/repo form (one slash, no scheme, no leading dot/slash/tilde)
     case "$target" in */*/*) die "ambiguous target: $target" ;; esac
-    tmp=$(mktemp -d)
+    mkdir -p /tmp/github-release
+    tmp=$(mktemp -d /tmp/github-release/tmp.XXXXXX)
     clone_url="git@github.com:${target}.git"; clone_path="$tmp"
     git clone --quiet "$clone_url" "$tmp" || die "clone failed: $clone_url"
     workdir="$tmp"
@@ -292,7 +294,7 @@ Poll `gh pr view --json state,mergeCommit` up to 5 min. On merge → checkout de
 - **Clean tree required** — no uncommitted changes for cwd / dir targets (cloned targets are clean by construction).
 - **Confirm before write** — `AskUserQuestion` y/n on the plan unless `--dry-run`.
 - **Dry-run safety** — zero git mutations, zero remote writes (read-only `gh api` GETs + `git clone` for URL targets are OK; cleanup still runs).
-- **Cleanup clones** — every exit path `rm -rf` the tmp clone dir. Don't leak `$(mktemp -d)`.
+- **Cleanup clones** — every exit path `rm -rf` the tmp clone dir under `/tmp/github-release/`. Don't leak `$(mktemp -d ...)`.
 - **Idempotency** — re-running after a successful release: tag collision check catches it; exit with `already released`.
 - **No `--force`, no `--no-verify`** — respect hooks and branch protection. PR fallback handles protection cleanly.
 - **No Claude attribution** in commit message or PR body.

@@ -45,11 +45,12 @@ Both review commands accept a `--selector` mode argument. When it is active, Ste
 
 ## Constraints
 
-- Markdown-only plugin repo: edits are confined to `commands/pr-review.md`, `commands/code-review.md`, and a `## Unreleased` CHANGELOG.md bullet. No Go, no script changes, no new scripts.
+- Markdown-only plugin repo: edits are confined to `commands/pr-review.md`, `commands/code-review.md`, `docs/selector-mode-guide.md`, and a `## Unreleased` CHANGELOG.md bullet. No Go, no script changes, no new scripts.
+- The selector-mode classify/adjudicate contracts now live in `docs/selector-mode-guide.md` (single source of truth); the command files carry thin pointers that resolve and execute the guide. AC6 literals (`--selector`, `selector clean — no adjudication needed`) remain in both command files.
 - The jq glob pre-filter (Step 4b-i) prose and behavior MUST NOT change — it is the candidate source and the structural guarantee that classify can only narrow.
 - `scripts/validate-citations.sh` is invoked unchanged; its contract (drop findings whose `rule_id` is absent from `rules/index.json`) is frozen.
 - The default (no-flag) Step 4 logic — early exit, 4.0 preflight, 4a runner, 4b-i jq, 4b-ii per-owner dispatch, timing instrumentation, 4c conventions, 4d citation — MUST remain byte-for-byte as today; selector mode is added alongside, not by editing the existing branch.
-- The two command files' selector sections MUST stay siblings: same step numbering (4c-sel CLASSIFY, 4d-sel ADJUDICATE), same contracts, same short-circuit string, differing only where the files already differ (`REVIEW_DIR` worktree vs in-place `directory`, diff source).
+- The two command files' selector sections MUST stay thin-pointer siblings: same step numbering references (4c-sel CLASSIFY, 4d-sel ADJUDICATE), same guide resolution chain, same short-circuit string, differing only in diff source and findings path.
 - `docs/dod.md` is the repo's Definition-of-Done gate; the implementation must satisfy it (CHANGELOG `## Unreleased` entry present; no personal paths introduced; `coding:` prefix on any agent reference).
 - Severity vocabulary is the files' existing report buckets — **Must Fix (Critical) / Should Fix (Important) / Nice to Have (Optional)**. Do not introduce new severity names. For AC1's golden comparison apply the deterministic map Critical↔`critical`, Important↔`major`, Optional↔`nit` (the golden JSON uses the bot's verdict schema vocabulary).
 - The golden baseline is committed in-repo at `specs/fixtures/golden-legacy-verdict.json` (13 findings frozen from the legacy per-owner pipeline on bborbe/maintainer#2, captured 2026-06-11) — AC1 is verifiable by anyone from this file. The broader architecture rationale (v2/v3 design evolution, external review) lives in the author's design notes; everything binding for implementation is in this spec.

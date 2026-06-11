@@ -11,6 +11,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 - feat: add opt-in `--selector` mode to `/coding:pr-review` and `/coding:code-review` — replaces per-owner Task fanout (Step 4b-ii) with two in-session steps: Step 4c-sel CLASSIFY (narrows glob candidates via recall-optimized contract) and Step 4d-sel ADJUDICATE (reads only applicable rule blocks, emits findings in existing severity buckets); zero sub-agent spawns; default mode unchanged
+- refactor: extract selector-mode classify/adjudicate procedure to docs/selector-mode-guide.md — commands carry thin pointers (single source of truth; answers pr-reviewer command-thin + single-source-of-truth findings)
 
 ## v0.19.0
 - refactor!: BREAKING CHANGE — rename `coding:release-changelog-agent` → `coding:release-changelog-assistant` to match marketplace `<noun>-<role>.md` naming convention (`-assistant` / `-auditor`, not `-agent`). Coordinated rename: agent file `agents/release-changelog-agent.md` → `agents/release-changelog-assistant.md`, `name:` frontmatter, both callers' `subagent_type=` reference, README agents-table entry, llms.txt entry, and CHANGELOG mentions. Callers on v0.18.0 will fail to resolve until updated; v0.18.0 callers are bundled in this same commit so any installer of v0.19.0+ has the matching pair.

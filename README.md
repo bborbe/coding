@@ -177,6 +177,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Skill Writing](docs/claude-code-skill-writing-guide.md) | Claude Code skill directory structure |
 | [Rule Block Schema](docs/rule-block-schema.md) | `### RULE` block contract and index schema |
 | [ast-grep Rule Writing Guide](docs/ast-grep-rule-writing-guide.md) | ast-grep YAML conventions for mechanical rule enforcement |
+| [Selector Mode Guide](docs/selector-mode-guide.md) | In-session classify + adjudicate procedure for `--selector` mode |
 
 ### Frontend
 

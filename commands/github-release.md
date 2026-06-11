@@ -1,6 +1,6 @@
 ---
 description: Release a git repo — cwd, a directory path, or `owner/repo` / GitHub URL (clone to tmp). Classify bump from `## Unreleased`, rewrite header, commit, tag, push. PR + auto-merge fallback for branch-protected repos.
-argument-hint: [target] [--dry-run]
+argument-hint: "[target] [--dry-run]"
 allowed-tools:
   - Bash(git clone:*)
   - Bash(git status:*)
@@ -23,7 +23,8 @@ allowed-tools:
   - Bash(head:*)
   - Bash(mkdir -p /tmp/github-release:*)
   - Bash(mktemp:*)
-  - Bash(rm -rf /tmp/github-release:*)
+  - Bash(mv CHANGELOG.md.new CHANGELOG.md)
+  - Bash(rm -rf /tmp/github-release/tmp.*:*)
   - Bash(gh pr create:*)
   - Bash(gh pr view:*)
   - Bash(gh pr merge:*)
@@ -71,6 +72,17 @@ Examples:
 ### 0. Resolve target
 
 ```bash
+# Helpers used throughout the workflow:
+die() { echo "ERROR: $*" >&2; exit 1; }
+default_branch() {
+  local b
+  b=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+  if [ -z "$b" ]; then git show-ref --verify --quiet refs/remotes/origin/master && b=master; fi
+  if [ -z "$b" ]; then git show-ref --verify --quiet refs/remotes/origin/main   && b=main;   fi
+  [ -n "$b" ] || die "cannot determine default branch (origin/HEAD unset, no master/main)"
+  echo "$b"
+}
+
 target="$1"   # may be empty
 
 case "$target" in
@@ -92,7 +104,10 @@ case "$target" in
     ;;
   */*)
     # owner/repo form (one slash, no scheme, no leading dot/slash/tilde)
-    case "$target" in */*/*) die "ambiguous target: $target" ;; esac
+    case "$target" in
+      */*/*)   die "ambiguous target: $target" ;;
+      *[:@]*)  die "invalid owner/repo target: $target (contains : or @ — refusing to construct git URL with embedded host)" ;;
+    esac
     mkdir -p /tmp/github-release
     tmp=$(mktemp -d /tmp/github-release/tmp.XXXXXX)
     clone_url="git@github.com:${target}.git"; clone_path="$tmp"
@@ -238,7 +253,7 @@ gh api "repos/$OWNER/$REPO/git/refs/tags/$next" --silent 2>/dev/null && die "tag
 ### 8. Rewrite header + commit
 
 ```bash
-sed -i.bak "s/^## Unreleased$/## ${next}/" CHANGELOG.md && rm CHANGELOG.md.bak
+awk -v n="$next" 'BEGIN{r=0} /^## Unreleased$/ && r==0 {print "## "n; r=1; next} {print}' CHANGELOG.md > CHANGELOG.md.new && mv CHANGELOG.md.new CHANGELOG.md
 git add CHANGELOG.md
 git commit -m "release ${next}"
 COMMIT_SHA=$(git rev-parse HEAD)

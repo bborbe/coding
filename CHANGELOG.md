@@ -10,6 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 - feat: add `/coding:github-release` command (relocated from personal `~/.claude/commands/github-release.md`) — direct release of a git repo (cwd, local dir, or `owner/repo` clone-to-tmp), with bump classification from `## Unreleased`, commit/tag/push, and PR + auto-merge fallback for branch-protected repos
+- fix: address `/coding:github-release` pr-reviewer findings — quote `argument-hint`, tighten allowed-tools `rm -rf` glob to mktemp-pattern (`/tmp/github-release/tmp.*`), reject owner/repo targets containing `:` or `@` (host-injection), swap sed→awk in CHANGELOG header rewrite (metachar-safe), define `die` + `default_branch` helper functions inline
 - refactor: scope `/coding:github-release` tmp clones to `/tmp/github-release/` (was bare `mktemp -d` landing in `$TMPDIR` — `/var/folders/...` on macOS, `/tmp` on Linux); tightens `allowed-tools` from `rm -rf /tmp:*` + `rm -rf /var:*` (overly broad, allowed `rm -rf /var` system dir) to `rm -rf /tmp/github-release:*` only
 
 ## v0.17.0

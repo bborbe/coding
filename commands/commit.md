@@ -296,16 +296,34 @@ fi
 
 **Step B.3: Analyze Unreleased changes**
 
-Read the content between `## Unreleased` and the next `## v` section to understand what changed.
-Use these entries to determine version increment type.
+Read the content between `## Unreleased` and the next `## v` section. Pass it to the `release-changelog-agent` sub-agent for bump classification.
 
-**Step B.4: Determine version increment**
+**Step B.4: Invoke `release-changelog-agent` for bump classification**
 
-Analyze the Unreleased entries to determine increment type (see "Version Increment Rules" section below).
+Use the Task tool to invoke the shared release agent with the Workflow B profile (`majorBumpAllowed=false`, `rewriteChangelogEntries=false`). This preserves Workflow B's historical contract: bump is capped at `minor` (the operator must manually bump major), and bullets are NOT rewritten (pure passthrough — Workflow B keeps the sed-rename behavior).
 
-Calculate new version:
-- From `v0.3.3`: patch -> `v0.3.4`, minor -> `v0.4.0`
+```
+Task(
+  subagent_type="release-changelog-agent",
+  prompt="""
+    current_version: $CURRENT_VERSION
+    majorBumpAllowed: false
+    rewriteChangelogEntries: false
+
+    unreleased_body:
+    <verbatim Unreleased section content from Step B.3>
+  """
+)
+```
+
+Parse the returned JSON. Use the `bump` field to compute the next version:
+
+- From `v0.3.3`: patch → `v0.3.4`, minor → `v0.4.0`
 - If no previous version: start with `v0.1.0`
+
+The `rewritten_unreleased` field will be empty (per the flag profile) — discard it. The `reasoning` field is informational.
+
+**Why these flags:** Workflow B is the operator's "I'm releasing manually right now" path. `majorBumpAllowed=false` matches the legacy "major requires manual edit" rule (preserved verbatim from the pre-agent Version Increment Rules below). `rewriteChangelogEntries=false` keeps Workflow B fast and offline — no rewrite call. For full AI rewrite + faithfulness review, use `/coding:github-release` instead (which sets both flags `true`).
 
 **Step B.5: Rename Unreleased to version**
 

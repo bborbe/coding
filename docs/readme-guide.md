@@ -27,7 +27,7 @@ Comprehensive (200-400 lines). Convince users to adopt.
 
 **Required sections:**
 - Description (1-2 sentences)
-- Badges (GoDoc, Go Report Card, CI)
+- Badges (GoDoc, Go Report Card, CI, DeepWiki)
 - Installation
 - Quick Start (copy-paste example)
 - Usage / Commands
@@ -65,6 +65,7 @@ Minimal (50-100 lines). Quick reference for daily work.
 [![Go Reference](https://pkg.go.dev/badge/github.com/bborbe/tool-name.svg)](https://pkg.go.dev/github.com/bborbe/tool-name)
 [![CI](https://github.com/bborbe/tool-name/actions/workflows/ci.yml/badge.svg)](https://github.com/bborbe/tool-name/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bborbe/tool-name)](https://goreportcard.com/report/github.com/bborbe/tool-name)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bborbe/tool-name)
 
 One-sentence description of what this tool does.
 
@@ -128,6 +129,7 @@ BSD-2-Clause
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/bborbe/library-name.svg)](https://pkg.go.dev/github.com/bborbe/library-name)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bborbe/library-name)](https://goreportcard.com/report/github.com/bborbe/library-name)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bborbe/library-name)
 
 One-sentence description of the library's purpose and value.
 
@@ -269,10 +271,12 @@ See [../docs/configuration.md](../docs/configuration.md) for full details.
 
 ### Badges
 
-Only include badges you actively maintain:
-- **Go Reference** — always for public Go projects
-- **CI** — only if CI is public and stable
-- **Go Report Card** — always for public Go projects
+Only include badges you actively maintain. All four below are zero-upkeep — external services pull state from the repo on demand.
+
+- **Go Reference** — always for public Go projects. Links to auto-generated GoDoc on pkg.go.dev so users find exported API without cloning.
+- **CI** — only if CI is public and stable. Green = tests pass on default branch right now; trust signal that the project isn't abandoned.
+- **Go Report Card** — always for public Go projects. Cheap quality signal: gofmt/vet/lint score.
+- **DeepWiki** — always for public projects. Auto-generated, queryable wiki of the whole codebase (internals + architecture, not just exported API). Lets visitors ask natural-language questions instead of grep'ing source.
 
 ### Installation
 

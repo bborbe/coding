@@ -1597,5 +1597,18 @@
     "trigger": [
       "**/*_test.go"
     ]
+  },
+  {
+    "anchor": "go-composition/no-same-package-private-helper-for-business-logic",
+    "applies_when": "a Go service package introduces new business logic (data transformation, validation, formatting) as a same-package private helper function called from a method, instead of behind an interface + constructor + struct + method seam.",
+    "doc_path": "docs/go-composition.md",
+    "enforcement": "judgment (semantic — distinguishing business-logic helpers needing a seam from trivial inline helpers requires reading the function body)",
+    "enforcement_type": "judgment",
+    "id": "go-composition/no-same-package-private-helper-for-business-logic",
+    "level": "MUST",
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
   }
 ]

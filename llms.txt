@@ -28,6 +28,7 @@
 ## Go — Infrastructure & Tools
 - [Makefile Commands](docs/go-makefile-commands.md): Standardized build targets
 - [Build Args](docs/go-build-args-guide.md): BUILD_GIT_VERSION/BUILD_GIT_COMMIT/BUILD_DATE injection across Makefile.docker, Dockerfile, Argument struct, and Prometheus `build_info` metric
+- [Tools Versioning](docs/go-tools-versioning-guide.md): `tools.env` + Makefile `go run pkg@$(VERSION)` pattern (replaces tools.go); discriminating-stderr vulncheck recipe that surfaces real govulncheck failures while swallowing the known x/tools generics panic
 - [Library Guide](docs/go-library-guide.md): Library structure, versioning, API design
 - [CLI Guide](docs/go-cli-guide.md): Command-line application patterns
 - [Validation](docs/go-validation-framework-guide.md): Input validation framework

@@ -207,6 +207,78 @@ If a repo has a standalone `errcheck:` target with `-ignore '(Close|Write|Fprint
 4. Drop `errcheck` from the `check:` target's dependency list
 5. Drop `ERRCHECK_VERSION` from `tools.env`
 
+## govulncheck: Discriminating Stderr Pattern
+
+The canonical `vulncheck:` target captures govulncheck's stderr to a temp file and decides whether to surface or swallow based on **content**, not blanket suppression. The pattern lives in `coding/templates/Makefile.service` and `Makefile.library`.
+
+### Why not `2>/dev/null`
+
+The naive `govulncheck ... 2>/dev/null | jq ...` pipeline solves one problem (the `golang.org/x/tools` v0.46.0 panic on generic `*types.TypeParam` in `RuntimeTypes`/`AllFunctions`) at the cost of another: **all** stderr is silenced — network errors, bad args, permission failures all produce `"No unignored vulnerabilities found"` with exit 0. False negatives masquerading as success.
+
+### Pattern
+
+```makefile
+VULNCHECK_IGNORE ?= GO-2026-4923 GO-2026-4514 GO-2022-0470 GO-2026-4772 GO-2026-4771
+
+# Known-benign govulncheck failure modes we swallow. golang.org/x/tools v0.46.0
+# panics on packages containing generic *types.TypeParam during SSA analysis
+# (govulncheck v1.3.0+ surface via RuntimeTypes/AllFunctions). We treat that as
+# "no findings" because the panic happens AFTER the package scan; any real
+# vulnerabilities would have been emitted as JSON on stdout before the panic.
+# Any OTHER govulncheck failure (network, bad args, permissions) is surfaced.
+.PHONY: vulncheck
+vulncheck:
+	@PKGS="$(shell go list -mod=mod ./... | grep -v /vendor/)"; \
+	IGNORE_JSON=$$(printf '%s\n' $(VULNCHECK_IGNORE) | jq -R . | jq -s .); \
+	ERR=$$(mktemp); \
+	trap 'rm -f "$$ERR"' EXIT INT TERM; \
+	OUT=$$(go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) -format json $$PKGS 2>$$ERR); \
+	RC=$$?; \
+	if [ $$RC -ne 0 ] && ! grep -qE "typesinternal\.ForEachElement|ForEachElement called on type containing" "$$ERR"; then \
+		echo "govulncheck failed (exit $$RC):" >&2; \
+		cat "$$ERR" >&2; \
+		exit $$RC; \
+	fi; \
+	REMAIN=$$(printf '%s' "$$OUT" | jq -rs --argjson ignore "$$IGNORE_JSON" '...'); \
+	... # full filter pipeline in template
+```
+
+Key design points:
+
+- **Stderr → temp file via `mktemp`.** Captured for inspection, never silenced.
+- **`trap 'rm -f "$ERR"' EXIT INT TERM`.** Cleans up on normal exit, Ctrl-C, and termination. Without it, an interrupted recipe between `mktemp` and any explicit `rm -f` leaks the file.
+- **Exit-code + content discrimination.** `[ $RC -ne 0 ] && ! grep -qE ...` surfaces stderr only when (a) govulncheck failed AND (b) the stderr does NOT match the known-benign panic signature. Anything else propagates with the original exit code.
+- **Robust grep on `typesinternal\.ForEachElement` OR the message.** The package + function name in the stack trace is stable across x/tools releases; the free-text message could be rephrased. Matching either keeps the swallow correct if upstream tweaks one or the other.
+- **`VULNCHECK_IGNORE` overridable.** Per-repo extension (e.g. transient stdlib vulns awaiting Go bump) is a one-variable change; no jq-filter edit.
+
+### Adding a new known-benign panic
+
+When a new upstream regression produces a non-fixable panic (rare; only do this if there's no compatible govulncheck version):
+
+1. Capture the exact panic stderr (run govulncheck locally, redirect stderr to a file).
+2. Identify a **stable** matcher: the panic-call's package + function name (e.g. `package/internal.Function`). Don't match the free-text message alone — it changes.
+3. Add to the `grep -qE` alternation: `"typesinternal\.ForEachElement|NewPanic.Identifier|ForEachElement called on type containing"`.
+4. Add a comment block above the recipe explaining when the new panic was introduced and which upstream commit/version fixes it (so the matcher can be retired later).
+
+### Adding a transient stdlib OSV ignore
+
+When Go ships a stdlib vuln whose fix lands in the next patch release, add the OSV ID to `VULNCHECK_IGNORE` with a multi-line continuation that documents the removal trigger. Existing example in `templates/Makefile.service` / `templates/Makefile.library`:
+
+```makefile
+# GO-2026-5037/5038/5039 are Go 1.26.3 stdlib vulns (crypto/x509, mime, net/textproto),
+# fixed in 1.26.4 — remove from this list once all CI runners and base images are on 1.26.4+.
+VULNCHECK_IGNORE ?= GO-2026-4923 GO-2026-4514 GO-2022-0470 GO-2026-4772 GO-2026-4771 \
+                    GO-2026-5037 GO-2026-5038 GO-2026-5039
+```
+
+Procedure:
+
+1. Add the OSV IDs to `VULNCHECK_IGNORE` via the line-continuation form above.
+2. Above the variable, add a comment block that names: the fixed Go version, the affected stdlib packages, and the explicit removal trigger.
+3. When the trigger is met (every CI runner and base image on the fix version), remove the IDs.
+
+This is preferred over disabling vulncheck or pinning govulncheck — the discriminating logic stays intact and other findings still surface.
+
 ## Migration Steps
 
 For each repo:

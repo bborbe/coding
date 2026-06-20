@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.23.0
 
 - feat: add RULE `go-composition/no-same-package-private-helper-for-business-logic` (MUST, judgment-tier, owner go-architecture-assistant) — flags new business logic added as a same-package private helper instead of behind an interface + constructor + struct + method seam. Closes the gap left by the cross-package version (which only matches `pkg.Func` syntax). Codified after PR bborbe/recurring-task-creator#16 shipped a private `buildFrontmatter` helper that local pr-review dismissed as "pre-existing pattern" (broken-windows fallacy).
 

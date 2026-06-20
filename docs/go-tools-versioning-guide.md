@@ -262,10 +262,20 @@ When a new upstream regression produces a non-fixable panic (rare; only do this 
 
 ### Adding a transient stdlib OSV ignore
 
-When Go ships a stdlib vuln (e.g. `GO-2026-5037`) whose fix lands in the next patch release:
+When Go ships a stdlib vuln whose fix lands in the next patch release, add the OSV ID to `VULNCHECK_IGNORE` with a multi-line continuation that documents the removal trigger. Existing example in `templates/Makefile.service` / `templates/Makefile.library`:
 
-1. Add the OSV ID to `VULNCHECK_IGNORE` in the repo's Makefile, with a comment naming the fix version: `GO-2026-5037 # crypto/x509 — fixed in Go 1.26.4`.
-2. When bumping Go to the fix version, remove the entry.
+```makefile
+# GO-2026-5037/5038/5039 are Go 1.26.3 stdlib vulns (crypto/x509, mime, net/textproto),
+# fixed in 1.26.4 — remove from this list once all CI runners and base images are on 1.26.4+.
+VULNCHECK_IGNORE ?= GO-2026-4923 GO-2026-4514 GO-2022-0470 GO-2026-4772 GO-2026-4771 \
+                    GO-2026-5037 GO-2026-5038 GO-2026-5039
+```
+
+Procedure:
+
+1. Add the OSV IDs to `VULNCHECK_IGNORE` via the line-continuation form above.
+2. Above the variable, add a comment block that names: the fixed Go version, the affected stdlib packages, and the explicit removal trigger.
+3. When the trigger is met (every CI runner and base image on the fix version), remove the IDs.
 
 This is preferred over disabling vulncheck or pinning govulncheck — the discriminating logic stays intact and other findings still surface.
 

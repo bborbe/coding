@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: add RULE `go-composition/no-same-package-private-helper-for-business-logic` (MUST, judgment-tier, owner go-architecture-assistant) — flags new business logic added as a same-package private helper instead of behind an interface + constructor + struct + method seam. Closes the gap left by the cross-package version (which only matches `pkg.Func` syntax). Codified after PR bborbe/recurring-task-creator#16 shipped a private `buildFrontmatter` helper that local pr-review dismissed as "pre-existing pattern" (broken-windows fallacy).
+
 ## v0.22.0
 
 - feat!: selector mode is now the DEFAULT for `/coding:pr-review` and `/coding:code-review` (was opt-in via `--selector`/`selector` token); callers passing `standard` now get selector behavior — BREAKING CHANGE for any tooling that relied on `standard` triggering per-owner Task dispatch

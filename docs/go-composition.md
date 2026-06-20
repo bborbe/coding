@@ -65,6 +65,88 @@ func NewRunner(scanner PromptScanner, executor Executor, releaser Releaser) Runn
 }
 ```
 
+### RULE go-composition/no-same-package-private-helper-for-business-logic (MUST)
+
+**Owner**: go-architecture-assistant
+**Applies when**: a Go service package introduces new business logic (data transformation, validation, formatting — anything beyond pure plumbing) as a same-package private helper function called from a method, instead of behind a small interface + constructor + struct + method seam.
+**Enforcement**: judgment (semantic — distinguishing "business logic that needs a seam" from "trivial inline helper" requires reading the function body; ast-grep cannot reliably classify intent because the call site is a bare identifier, not a `pkg.Func` selector). Companion rule `go-composition/no-package-function-calls-in-business-logic` handles the cross-package case via the mechanical funnel; this rule catches the same architectural smell in its same-package private-helper disguise.
+**Trigger**: **/*.go
+**Why**: A private helper is **just as much a hidden dependency as a cross-package call** — the constructor doesn't surface it, tests can't mock it, replacing the implementation requires editing every call site instead of swapping one constructor argument. The cross-package version is easy to spot (`pkg.Func()` syntax stands out); the same-package version is invisible (`helperFunc()` looks like a local variable until you grep). Both ship the same untestability, both break the same way under refactor. The interface + constructor + struct + method pattern is the universal answer (see go-architecture-patterns.md): every new capability gets its own seam, its own counterfeiter mock, its own *_test.go.
+
+**Concrete trigger** — flag in code review when:
+1. A new (or substantially-rewritten) function is added to a service package, AND
+2. Its body contains conditionals, loops, or non-trivial data transformation (not just one line of glue), AND
+3. It is called from a method on another type in the same package (the consumer would otherwise have to construct it or import a package-level reference), AND
+4. There is no companion interface + constructor + struct exposing the function as a method.
+
+**Exempt**:
+- Pure formatting helpers used only inside the same file by one caller, with no test surface (e.g. `func fmtIsoWeek(year, week int) string` in render.go).
+- Test helpers in `*_test.go` files (these have no production seam to maintain).
+- Generated code.
+
+#### Bad
+
+```go
+// publisher.go — buildFrontmatter is a private helper doing business logic
+// (default seeding, placeholder rendering, provenance override). It cannot
+// be mocked, has no isolated test, and locks Publisher's tests into testing
+// frontmatter behavior transitively through Publish().
+
+func buildFrontmatter(operator lib.TaskFrontmatter, slug string, date schedule.Date) lib.TaskFrontmatter {
+    out := lib.TaskFrontmatter{"status": "in_progress", "page_type": "task"}
+    for k, v := range operator {
+        if s, ok := v.(string); ok {
+            out[k] = renderTemplate(s, slug, date)
+            continue
+        }
+        out[k] = v
+    }
+    out["created_by"] = "recurring-task-creator"
+    return out
+}
+
+func (p *publisher) Publish(ctx context.Context, def schedule.TaskDefinition, date schedule.Date) error {
+    cmd := task.CreateCommand{
+        // ...
+        Frontmatter: buildFrontmatter(def.Frontmatter, def.Slug, date), // hidden dep
+    }
+}
+```
+
+#### Good
+
+```go
+// frontmatter.go — interface + constructor + struct + method. Mockable,
+// testable in isolation, swappable via constructor injection.
+
+//counterfeiter:generate -o ../../mocks/publisher-frontmatter-formatter.go --fake-name PublisherFrontmatterFormatter . FrontmatterFormatter
+type FrontmatterFormatter interface {
+    Format(operator lib.TaskFrontmatter, slug string, date schedule.Date) lib.TaskFrontmatter
+}
+
+func NewFrontmatterFormatter() FrontmatterFormatter { return &frontmatterFormatter{} }
+
+type frontmatterFormatter struct{}
+
+func (f *frontmatterFormatter) Format(/* ... */) lib.TaskFrontmatter { /* ... */ }
+
+// publisher.go — Publisher takes the formatter as a constructor dep.
+func NewPublisher(sender task.CreateCommandSender, formatter FrontmatterFormatter, dryRun bool) Publisher {
+    return &publisher{sender: sender, formatter: formatter, dryRun: dryRun}
+}
+
+func (p *publisher) Publish(ctx context.Context, def schedule.TaskDefinition, date schedule.Date) error {
+    cmd := task.CreateCommand{
+        // ...
+        Frontmatter: p.formatter.Format(def.Frontmatter, def.Slug, date), // injected
+    }
+}
+```
+
+**Test-file companion**: a `frontmatter_test.go` covers the formatter in isolation (every placeholder, every non-string passthrough, every default-vs-override edge); `publisher_test.go` can now either (a) keep using the real formatter for integration coverage, or (b) inject a `PublisherFrontmatterFormatter` counterfeiter mock to decouple Publisher's tests from formatter logic. Both are valid.
+
+**Codified 2026-06-20** after PR [bborbe/recurring-task-creator#16](https://github.com/bborbe/recurring-task-creator/pull/16) shipped `buildFrontmatter` as a private helper. The cross-package rule did not flag it (ast-grep pattern matches `pkg.Func`, not bare `func`). Local `/coding:pr-review` dismissed the related cross-package findings as "pre-existing patterns" — the *broken-windows fallacy* (existing pattern ≠ correct pattern; adding new code to a smelly file makes it smellier). User caught the missing interface seam manually post-review.
+
 ## Anti-Pattern: God Object
 
 ```go

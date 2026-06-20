@@ -334,6 +334,19 @@
     "owner": "go-architecture-assistant"
   },
   {
+    "anchor": "go-composition/no-same-package-private-helper-for-business-logic",
+    "applies_when": "a Go service package introduces new business logic (data transformation, validation, formatting — anything beyond pure plumbing) as a same-package private helper function called from a method, instead of behind a small interface + constructor + struct + method seam.",
+    "doc_path": "docs/go-composition.md",
+    "enforcement": "judgment (semantic — distinguishing \"business logic that needs a seam\" from \"trivial inline helper\" requires reading the function body; ast-grep cannot reliably classify intent because the call site is a bare identifier, not a `pkg.Func` selector). Companion rule `go-composition/no-package-function-calls-in-business-logic` handles the cross-package case via the mechanical funnel; this rule catches the same architectural smell in its same-package private-helper disguise.",
+    "enforcement_type": "judgment",
+    "id": "go-composition/no-same-package-private-helper-for-business-logic",
+    "level": "MUST",
+    "owner": "go-architecture-assistant",
+    "trigger": [
+      "**/*.go"
+    ]
+  },
+  {
     "anchor": "go-composition/small-interfaces-1-2-methods",
     "applies_when": "a Go interface declares 3+ methods spanning more than one logical capability — i.e. consumers of the interface use a subset of methods, and the unused-by-this-consumer methods are inferred from method-count plus call-site analysis.",
     "doc_path": "docs/go-composition.md",
@@ -1596,19 +1609,6 @@
     "owner": "go-test-quality-assistant",
     "trigger": [
       "**/*_test.go"
-    ]
-  },
-  {
-    "anchor": "go-composition/no-same-package-private-helper-for-business-logic",
-    "applies_when": "a Go service package introduces new business logic (data transformation, validation, formatting) as a same-package private helper function called from a method, instead of behind an interface + constructor + struct + method seam.",
-    "doc_path": "docs/go-composition.md",
-    "enforcement": "judgment (semantic — distinguishing business-logic helpers needing a seam from trivial inline helpers requires reading the function body)",
-    "enforcement_type": "judgment",
-    "id": "go-composition/no-same-package-private-helper-for-business-logic",
-    "level": "MUST",
-    "owner": "go-architecture-assistant",
-    "trigger": [
-      "**/*.go"
     ]
   }
 ]

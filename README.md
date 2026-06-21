@@ -94,6 +94,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Composition](docs/go-composition.md) | Struct embedding |
 | [Concurrency](docs/go-concurrency-patterns.md) | Goroutines, channels |
 | [State Machine](docs/go-state-machine-pattern.md) | Phase-dispatched workflows, resumable multi-step processes |
+| [Package Layout](docs/go-package-layout-guide.md) | Flat `pkg/` default; subpackage split triggers |
 
 ### Go — Code Quality
 

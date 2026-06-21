@@ -15,6 +15,7 @@
 - [Composition](docs/go-composition.md): Struct embedding and interface composition
 - [Concurrency](docs/go-concurrency-patterns.md): Goroutines, channels, sync primitives
 - [State Machine](docs/go-state-machine-pattern.md): Phase-dispatched state machines for long-running, resumable, multi-process workflows
+- [Package Layout](docs/go-package-layout-guide.md): Flat `pkg/` default; subpackage split triggers (independent reuse, versioning, cycle break, navigation friction, build-tag isolation)
 - [Design Patterns](docs/go-patterns.md): Common Go design patterns
 
 ## Go — Testing & Quality

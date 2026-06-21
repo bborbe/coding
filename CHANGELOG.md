@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.23.1
 
 - docs: add `docs/go-package-layout-guide.md` — flat `pkg/` default, five subpackage-split triggers (independent reuse, versioning, cycle break, navigation friction, build-tag isolation), conventional always-split exceptions (`pkg/factory/`, `pkg/handler/`), GOOD/BAD code pair, premature-split → flat migration steps. Indexed in README.md (Go — Architecture & Patterns), llms.txt, and CLAUDE.md Doc↔Agent table (owner: `go-architecture-assistant`).
 

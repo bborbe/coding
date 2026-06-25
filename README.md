@@ -170,6 +170,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [README Guide](docs/readme-guide.md) | README.md standards |
 | [PRD Guide](docs/prd-guide.md) | Product Requirements |
 | [ADR Guide](docs/adr-guide.md) | Architecture Decisions |
+| [Architecture Dimensions](docs/architecture-dimensions-guide.md) | Whole-codebase behavioral review — 8 dimensions (data flow, failure, concurrency, observability, drift) |
 | [Markdown & Todos](docs/markdown-todo-guide.md) | Formatting standards |
 
 ### Claude Code Authoring
@@ -219,6 +220,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `go-security-specialist` | `go-security-linting.md` | Vulnerabilities, OWASP |
 | `srp-checker` | — | Single Responsibility Principle (unit-level) |
 | `go-architecture-assistant` | — | Cross-unit architecture, naive extractions, layering, boundaries |
+| `architecture-dimensions-assistant` | `architecture-dimensions-guide.md` | Whole-codebase behavioral review — data flow, failure, concurrency, observability, drift |
 | `go-version-manager` | — | Go version currency |
 | `go-tooling-assistant` | `go-makefile-commands.md` | Makefile, tools.go |
 

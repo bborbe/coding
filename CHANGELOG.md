@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.24.0
 
 - feat: add `/coding:architecture-review [directory]` — deep whole-codebase architectural review (different altitude from `/coding:code-review`'s diff-scope and `/coding:audit-architecture`'s single-agent scan). Spawns two parallel agents: top-down structural (`go-architecture-assistant` / `python-architecture-assistant`) + dimensions pass (data flow, failure, concurrency, observability, drift). Consolidates into Must Fix / Should Fix / Could Fix with file:line citations and Top 5 highest-leverage fixes.
 

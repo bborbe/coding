@@ -60,6 +60,7 @@ Commit with changelog and version bump:
 |---------|-------------|
 | `/coding:pr-review` | Review pull request diff against standards |
 | `/coding:code-review [short\|standard\|full]` | Review code against guidelines (standard: 7 agents, full: 14) |
+| `/coding:architecture-review [directory]` | Deep whole-codebase architectural review — top-down + dimensions, consolidated Must/Should/Could |
 | `/coding:check-guides "task"` | Find relevant guides before implementation |
 | `/coding:commit` | Git commit with changelog and versioning |
 | `/coding:go-write-test [basic\|standard\|integration]` | Generate Go tests for changed files |

@@ -76,6 +76,7 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-boolean-combinator-pattern.md` | `go-architecture-assistant` |
 | `python-factory-pattern.md` | `python-architecture-assistant` |
 | `adr-guide.md` | `go-architecture-assistant` |
+| `architecture-dimensions-guide.md` | `architecture-dimensions-assistant` |
 
 Reference-only docs (patterns, setup guides) don't need agents.
 

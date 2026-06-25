@@ -85,6 +85,7 @@
 - [Documentation Guide](docs/documentation-guide.md): README, docs/, PRDs, ADRs
 - [PRD Guide](docs/prd-guide.md): Product Requirements Documents
 - [ADR Guide](docs/adr-guide.md): Architecture Decision Records
+- [Architecture Dimensions](docs/architecture-dimensions-guide.md): Whole-codebase behavioral review — 8 dimensions (data flow, failure, concurrency, observability, drift, blast radius, evolvability, cross-cutting consistency); paired with `architecture-dimensions-assistant` agent and `/coding:architecture-review` command
 - [Markdown & Todos](docs/markdown-todo-guide.md): Formatting standards
 
 ## Acceptance Scenarios

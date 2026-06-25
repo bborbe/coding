@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: extract `coding:architecture-dimensions-assistant` agent + `docs/architecture-dimensions-guide.md` — closes the v0.24.0 `/coding:architecture-review` MAJOR finding ("dimensions pass routes to generic `claude` with inline agent role"). The 8-dimension behavioral review checklist (data flow, failure, concurrency, observability, cross-cutting consistency, config/blast radius, evolvability, drift) is now a maintainable doc-paired agent. `/coding:architecture-review` Agent B now routes to the new agent with a one-line prompt instead of an inlined 200-word checklist. Indexed in README.md (Workflows & Documentation + Go agents table), llms.txt, and CLAUDE.md Doc↔Agent table.
+
 ## v0.24.0
 
 - feat: add `/coding:architecture-review [directory]` — deep whole-codebase architectural review (different altitude from `/coding:code-review`'s diff-scope and `/coding:audit-architecture`'s single-agent scan). Spawns two parallel agents: top-down structural (`go-architecture-assistant` / `python-architecture-assistant`) + dimensions pass (data flow, failure, concurrency, observability, drift). Consolidates into Must Fix / Should Fix / Could Fix with file:line citations and Top 5 highest-leverage fixes.

@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: add `docs/three-command-review-split.md` — design note locking the proposed shape for splitting the review commands into three distinct scopes (`/coding:pr-review` remote diff, `/coding:local-review` local pre-commit diff (renamed from current `/coding:code-review`), new `/coding:code-review` whole-codebase audit). No behavior change in this PR; the doc proposes a 5-PR migration plan (rename → deprecation stub → new behavior → flip deprecation) and the three mechanisms (severity filter, rule-id dedup, baseline file `.code-review-baseline.yaml`) that make whole-codebase review useful without drowning in pre-existing tech debt. Optional `golangci-lint` passthrough for Go projects.
+
 ## v0.25.0
 
 - feat: extract `coding:architecture-dimensions-assistant` agent + `docs/architecture-dimensions-guide.md` — closes the v0.24.0 `/coding:architecture-review` MAJOR finding ("dimensions pass routes to generic `claude` with inline agent role"). The 8-dimension behavioral review checklist (data flow, failure, concurrency, observability, cross-cutting consistency, config/blast radius, evolvability, drift) is now a maintainable doc-paired agent. `/coding:architecture-review` Agent B now routes to the new agent with a one-line prompt instead of an inlined 200-word checklist. Indexed in README.md (Workflows & Documentation + Go agents table), llms.txt, and CLAUDE.md Doc↔Agent table.

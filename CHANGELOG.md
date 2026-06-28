@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.25.1
 
 - docs: add `docs/three-command-review-split.md` — design note locking the proposed shape for splitting the review commands into three distinct scopes (`/coding:pr-review` remote diff, `/coding:local-review` local pre-commit diff (renamed from current `/coding:code-review`), new `/coding:code-review` whole-codebase audit). No behavior change in this PR; the doc proposes a 5-PR migration plan (rename → deprecation stub → new behavior → flip deprecation) and the three mechanisms (severity filter, rule-id dedup, baseline file `.code-review-baseline.yaml`) that make whole-codebase review useful without drowning in pre-existing tech debt. Optional `golangci-lint` passthrough for Go projects.
 

@@ -438,7 +438,7 @@ Import-time side effects: <count>.
 
 ## Integration
 
-- Runs alongside `python-quality-assistant` in `/coding:code-review full` — quality checks style/idioms, this checks cross-unit architecture and extract-quality
+- Runs alongside `python-quality-assistant` in `/coding:local-review full` — quality checks style/idioms, this checks cross-unit architecture and extract-quality
 - Invoked directly via `/coding:audit-architecture [directory]`
 - Read-only — never edits code
 

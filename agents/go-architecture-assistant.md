@@ -422,7 +422,7 @@ Package boundary violations: <count>.
 
 ## Integration
 
-- Runs alongside `srp-checker` in `/coding:code-review full` — SRP checks unit-level, this checks cross-unit and extraction-quality
+- Runs alongside `srp-checker` in `/coding:local-review full` — SRP checks unit-level, this checks cross-unit and extraction-quality
 - Invoked directly via `/coding:audit-architecture [directory]`
 - Read-only — never edits code
 

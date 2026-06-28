@@ -7,7 +7,7 @@ Opinionated coding guidelines, quality review agents, and slash commands for Go 
 
 ## Overview
 
-Writing consistent, idiomatic code across a large codebase is hard. This plugin bundles 50+ opinionated guides (Go architecture, error handling, testing, HTTP handlers, Python structure, Git workflow, documentation) together with specialized Claude Code agents that enforce them on your code. Install once, then run `/coding:code-review` or `/coding:pr-review` to review your work against the full ruleset.
+Writing consistent, idiomatic code across a large codebase is hard. This plugin bundles 50+ opinionated guides (Go architecture, error handling, testing, HTTP handlers, Python structure, Git workflow, documentation) together with specialized Claude Code agents that enforce them on your code. Install once, then run `/coding:local-review` or `/coding:pr-review` to review your work against the full ruleset.
 
 ## Requirements
 
@@ -38,8 +38,8 @@ Review your current branch against all guidelines:
 Review code in standard mode (7 agents) or full mode (14 agents):
 
 ```
-/coding:code-review standard
-/coding:code-review full
+/coding:local-review standard
+/coding:local-review full
 ```
 
 Find relevant guides before starting work:
@@ -59,7 +59,7 @@ Commit with changelog and version bump:
 | Command | Description |
 |---------|-------------|
 | `/coding:pr-review` | Review pull request diff against standards |
-| `/coding:code-review [short\|standard\|full]` | Review code against guidelines (standard: 7 agents, full: 14) |
+| `/coding:local-review [short\|standard\|full]` | Review code against guidelines (standard: 7 agents, full: 14) |
 | `/coding:architecture-review [directory]` | Deep whole-codebase architectural review — top-down + dimensions, consolidated Must/Should/Could |
 | `/coding:check-guides "task"` | Find relevant guides before implementation |
 | `/coding:commit` | Git commit with changelog and versioning |
@@ -258,7 +258,7 @@ End-to-end acceptance walks for the doc-driven review pipeline, following the [d
 | # | Scenario | Validates |
 |---|---|---|
 | 001 | [toolchain-preflight](scenarios/001-toolchain-preflight.md) | Step 4.0 / Step 0 preflight blocks exit 1 with documented stderr when `ast-grep` / `sg` is absent from PATH |
-| 002 | [clean-pr-zero-findings](scenarios/002-clean-pr-zero-findings.md) | `/coding:code-review master` against a zero-violation diff produces empty Must Fix / Should Fix / Nice to Have (no LLM hallucination) |
+| 002 | [clean-pr-zero-findings](scenarios/002-clean-pr-zero-findings.md) | `/coding:local-review master` against a zero-violation diff produces empty Must Fix / Should Fix / Nice to Have (no LLM hallucination) |
 | 003 | [scaling-funnel-100-files](scenarios/003-scaling-funnel-100-files.md) | 100-file synthetic fixture: mechanical funnel ≤30s, distinct Owners ≤30 (structural ceiling on Step 4b LLM calls) |
 | 004 | [findings-exist-path](scenarios/004-findings-exist-path.md) | `/coding:pr-review` against the stable test PR [bborbe/maintainer#2](https://github.com/bborbe/maintainer/pull/2): Step 4a surfaces ≥4 findings, every Owner has an agent file, citation discipline holds |
 

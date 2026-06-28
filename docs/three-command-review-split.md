@@ -105,12 +105,14 @@ PRs 2 + 3 + 5 ship within a single minor version cycle so the deprecation window
 - How `golangci-lint` failure interacts with the report (block, warn, ignore?)
 - Whether the baseline format should be shared with `golangci-lint`'s own `--new` flag mechanism (it does the same thing for its rules)
 
-## Open questions
+## Decisions (was: open questions)
 
-1. **Should `--refresh-baseline` require a clean working tree?** Generating a baseline from a tree with uncommitted work bakes accidental local cruft into the accepted set.
-2. **Baseline file location** — repo root (`.code-review-baseline.yaml`) or hidden (`.claude/code-review-baseline.yaml`)? Repo root is more discoverable; hidden is less noise.
-3. **Multi-project monorepos** — one baseline file or one per service? Monorepos with `subproject/` services may want per-project baselines to keep churn local.
-4. **How does the audit interact with `.claude-ignore` / `.gitignore`** — should the auditor skip ignored files? Almost certainly yes (don't audit `node_modules/`, `vendor/`, generated code), but worth deciding the override mechanism.
+Pinning defaults before PR 4 lands so the implementation has no design-time ambiguity left to resolve.
+
+1. **`--refresh-baseline` requires a clean working tree.** Generating a baseline from a tree with uncommitted work bakes accidental local cruft into the accepted set — exactly the failure mode the baseline guards against. The command refuses with a clear error if `git status --porcelain` is non-empty. (Originally posed as open question; rationale resolves it.)
+2. **Baseline file location: repo root, default `.code-review-baseline.yaml`, override via `--baseline-path=<path>`.** Repo root is discoverable (operators see it on `ls`, `git status` flags it after `--refresh-baseline`); the override exists for monorepo cases.
+3. **Multi-project monorepos: one baseline per repo by default; `--baseline-path` allows per-subproject baselines.** A `services/foo/.code-review-baseline.yaml` is supported via `/coding:code-review services/foo --baseline-path=services/foo/.code-review-baseline.yaml`. Most callers run the default.
+4. **`.gitignore` is respected, `.claude-ignore` is not introduced.** `git ls-files` already excludes `.gitignore`'d paths — the audit operates on tracked files only. No new ignore file needed; if an operator wants to exclude a tracked file from audit, the unit of exclusion is the baseline file (accepted finding) or a rule-specific override, not a separate ignore list.
 
 ## Related
 

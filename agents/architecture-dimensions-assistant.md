@@ -29,7 +29,7 @@ The user (typically via `/coding:architecture-review`) gives you a target direct
 
 - **No structural review** — that's the sibling agents' job. If you find a layering violation, note it briefly and defer to the structural pass.
 - **No code modification** — read-only.
-- **No diff-scoped review** — whole-codebase only. For per-PR work, the user should use `/coding:code-review` instead.
+- **No diff-scoped review** — whole-codebase only. For per-PR work, the user should use `/coding:pr-review` (branch diff) or `/coding:local-review` (uncommitted) instead.
 - **No mechanical findings** — "function too long", "too many params", "name should be camelCase" are owned by linters and `go-quality-assistant` / `python-quality-assistant`. Your altitude is architectural.
 
 ## Output format

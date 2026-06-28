@@ -89,8 +89,8 @@
 - [Markdown & Todos](docs/markdown-todo-guide.md): Formatting standards
 
 ## Acceptance Scenarios
-End-to-end acceptance walks for the doc-driven review pipeline (`/coding:code-review`, `/coding:pr-review`). Each scenario is a manually-walked checklist under `scenarios/`; status `active` = walked successfully at least once.
+End-to-end acceptance walks for the doc-driven review pipeline (`/coding:local-review`, `/coding:pr-review`). Each scenario is a manually-walked checklist under `scenarios/`; status `active` = walked successfully at least once.
 - [Scenario 001 — toolchain-preflight](scenarios/001-toolchain-preflight.md): Step 4.0 / Step 0 preflight blocks exit 1 with documented stderr when `ast-grep` / `sg` is absent from PATH
-- [Scenario 002 — clean-pr-zero-findings](scenarios/002-clean-pr-zero-findings.md): `/coding:code-review master` against a zero-violation diff produces empty Must Fix / Should Fix / Nice to Have
+- [Scenario 002 — clean-pr-zero-findings](scenarios/002-clean-pr-zero-findings.md): `/coding:local-review master` against a zero-violation diff produces empty Must Fix / Should Fix / Nice to Have
 - [Scenario 003 — scaling-funnel-100-files](scenarios/003-scaling-funnel-100-files.md): 100-file synthetic fixture, mechanical funnel ≤30s, distinct Owners ≤30
 - [Scenario 004 — findings-exist-path](scenarios/004-findings-exist-path.md): `/coding:pr-review` against bborbe/maintainer#2 — Step 4a surfaces ≥4 findings, every Owner has an agent file, citation discipline holds

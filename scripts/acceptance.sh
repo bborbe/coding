@@ -7,7 +7,7 @@
 # slash-command run).
 #
 #   1. Mode coverage — short/standard/full dispatch contracts in commands/
-#   2. Per-language routing — Go vs Python agent scope in code-review.md
+#   2. Per-language routing — Go vs Python agent scope in local-review.md (whole-codebase code-review.md has its own scope)
 #   3. Context loading — Step 2.5 file-glob → doc mapping consistency
 #   4. Broken-YAML isolation — ast-grep error on bad YAML doesn't mask
 #      findings from good YAMLs in the same dir
@@ -41,22 +41,22 @@ echo "=== 1/5 Mode coverage ==="
 
 # Short mode in both dispatcher commands must skip Step 4 entirely (no runner agent).
 if grep -qE "Short Mode.*No agents|Short Mode.*skip" commands/pr-review.md && \
-   grep -qE "Short Mode.*No agents|Short Mode.*skip" commands/code-review.md; then
-  ok "short mode skips Step 4 in both pr-review.md AND code-review.md"
+   grep -qE "Short Mode.*No agents|Short Mode.*skip" commands/local-review.md; then
+  ok "short mode skips Step 4 in both pr-review.md AND local-review.md"
 else
-  fail "short mode skip directive missing from pr-review.md or code-review.md"
+  fail "short mode skip directive missing from pr-review.md or local-review.md"
 fi
 
 # All modes (selector/full) invoke the deterministic runner script (Step 4a is mandatory for
 # the dispatcher). The former coding:ast-grep-runner agent is deprecated and must
 # NOT be invoked by either command.
-if grep -qE "scripts/ast-grep-runner\.sh" commands/code-review.md && \
+if grep -qE "scripts/ast-grep-runner\.sh" commands/local-review.md && \
    grep -qE "scripts/ast-grep-runner\.sh" commands/pr-review.md; then
   ok "ast-grep-runner.sh invoked in both dispatcher commands"
 else
-  fail "scripts/ast-grep-runner.sh not referenced in pr-review.md or code-review.md"
+  fail "scripts/ast-grep-runner.sh not referenced in pr-review.md or local-review.md"
 fi
-if grep -qE '^coding:ast-grep-runner agent' commands/code-review.md commands/pr-review.md; then
+if grep -qE '^coding:ast-grep-runner agent' commands/local-review.md commands/pr-review.md; then
   fail "deprecated coding:ast-grep-runner agent still invoked in a dispatcher command"
 else
   ok "deprecated coding:ast-grep-runner agent not invoked by either command"
@@ -66,22 +66,22 @@ fi
 # to RULE blocks yet (license, readme, shellcheck, context7, go-version-manager, …).
 conditional_agents=0
 for a in license-assistant readme-quality-assistant shellcheck-assistant context7-library-checker go-version-manager go-tooling-assistant; do
-  if grep -qE "$a" commands/code-review.md; then
+  if grep -qE "$a" commands/local-review.md; then
     conditional_agents=$((conditional_agents+1))
   fi
 done
 if [ "$conditional_agents" -ge 4 ]; then
-  ok "full mode references $conditional_agents legacy-path agents (≥ 4) in code-review.md"
+  ok "full mode references $conditional_agents legacy-path agents (≥ 4) in local-review.md"
 else
-  fail "full mode references only $conditional_agents legacy-path agents (< 4) in code-review.md"
+  fail "full mode references only $conditional_agents legacy-path agents (< 4) in local-review.md"
 fi
 
 # Default/otherwise token must route to Selector mode in both commands.
 if grep -qE "Selector mode \(the default\)|Selector mode \(default\)" commands/pr-review.md && \
-   grep -qE "Selector mode \(the default\)|Selector mode \(default\)" commands/code-review.md; then
+   grep -qE "Selector mode \(the default\)|Selector mode \(default\)" commands/local-review.md; then
   ok "default/otherwise token routes to Selector mode (default) in both commands"
 else
-  fail "Selector mode (default) routing missing from pr-review.md or code-review.md"
+  fail "Selector mode (default) routing missing from pr-review.md or local-review.md"
 fi
 
 echo "=== 2/5 Per-language routing ==="
@@ -89,11 +89,11 @@ echo "=== 2/5 Per-language routing ==="
 # Full-mode per-owner dispatch block present — findings_by_owner feeds the dispatch set and
 # coding:<owner> agent prompts reference it. Per-owner dispatch lives in full mode only
 # (standard/selector path removed); the check asserts what remains true post-flip.
-if grep -qE "coding:<owner>|findings_by_owner" commands/code-review.md && \
+if grep -qE "coding:<owner>|findings_by_owner" commands/local-review.md && \
    grep -qE "coding:<owner>|findings_by_owner" commands/pr-review.md; then
   ok "full-mode per-owner dispatch block (findings_by_owner / coding:<owner>) present in both dispatcher commands"
 else
-  fail "full-mode per-owner dispatch block missing from pr-review.md or code-review.md"
+  fail "full-mode per-owner dispatch block missing from pr-review.md or local-review.md"
 fi
 
 # Every owner referenced in rules/index.json must have a matching agent file in agents/.
@@ -126,10 +126,10 @@ echo "=== 3/5 Context loading (Step 2.5 globs) ==="
 
 # Each canonical context-doc mapping must be referenced in both dispatcher commands.
 for mapping in "teamvault-conventions.md" "go-k8s-binary-conventions.md" "k8s-manifest-guide.md" "changelog-guide.md"; do
-  if grep -qF "$mapping" commands/pr-review.md && grep -qF "$mapping" commands/code-review.md; then
+  if grep -qF "$mapping" commands/pr-review.md && grep -qF "$mapping" commands/local-review.md; then
     ok "Step 2.5 mapping '$mapping' present in both dispatcher commands"
   else
-    fail "Step 2.5 mapping '$mapping' missing from pr-review.md OR code-review.md"
+    fail "Step 2.5 mapping '$mapping' missing from pr-review.md OR local-review.md"
   fi
 done
 
@@ -174,7 +174,7 @@ echo "=== 5/5 Selector mode contracts ==="
 
 # (a) Both command files reference --selector token in Step 1 parse, the
 # short-circuit string, and the GUIDE_OK/GUIDE_MISSING fail-fast block.
-for cmd in commands/pr-review.md commands/code-review.md; do
+for cmd in commands/pr-review.md commands/local-review.md; do
   if grep -qE '\-\-selector|selector.*mode' "$cmd"; then
     ok "$cmd: --selector token present in Step 1 parse"
   else
@@ -216,10 +216,10 @@ else
   fail "selector guide missing verbatim recall contract sentence 'When uncertain, include.'"
 fi
 
-# (c) Sibling consistency: both pr-review.md and code-review.md reference the
+# (c) Sibling consistency: both pr-review.md and local-review.md reference the
 # same guide filename and the same step labels (4c-sel, 4d-sel).
 pr_guide=$(grep -oE 'selector-mode-guide\.md' commands/pr-review.md | head -1)
-cr_guide=$(grep -oE 'selector-mode-guide\.md' commands/code-review.md | head -1)
+cr_guide=$(grep -oE 'selector-mode-guide\.md' commands/local-review.md | head -1)
 if [ "$pr_guide" = "selector-mode-guide.md" ] && [ "$cr_guide" = "selector-mode-guide.md" ]; then
   ok "both commands reference the same guide filename: selector-mode-guide.md"
 else
@@ -227,7 +227,7 @@ else
 fi
 for label in '4c-sel' '4d-sel'; do
   pr_has=$(grep -c "$label" commands/pr-review.md || true)
-  cr_has=$(grep -c "$label" commands/code-review.md || true)
+  cr_has=$(grep -c "$label" commands/local-review.md || true)
   if [ "$pr_has" -ge 1 ] && [ "$cr_has" -ge 1 ]; then
     ok "step label '$label' present in both commands"
   else

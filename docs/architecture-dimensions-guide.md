@@ -9,7 +9,7 @@ How to review a whole codebase for **behavioral** architectural quality, complem
 - Before scaling a service (team, traffic, complexity)
 - Onboarding a codebase you didn't write
 
-**Do NOT use for diff review** — `/coding:code-review` and `/coding:pr-review` cover per-PR work.
+**Do NOT use for diff review** — `/coding:local-review` and `/coding:pr-review` cover per-PR work.
 
 ## Scope: structural vs behavioral
 
@@ -201,5 +201,5 @@ Exclude from review:
 
 - `coding:go-architecture-assistant` / `coding:python-architecture-assistant` — sibling structural pass; run in parallel via `/coding:architecture-review`
 - `coding:srp-checker` — unit-level SRP; this guide handles cross-cutting consistency
-- `/coding:code-review` — diff-scoped per-PR review (different altitude)
+- `/coding:local-review` — diff-scoped per-PR review (different altitude)
 - `/coding:audit-architecture` — quick single-agent structural scan (lighter alternative)

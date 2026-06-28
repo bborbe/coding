@@ -30,7 +30,7 @@ The check is **release-time only** — `make precommit` does NOT run it.
 Until a `scenarios/` regression suite exists, the operator must manually exercise:
 
 - Reload Claude Code with the plugin source mounted; verify `commands/`, `agents/`, `skills/` load without errors
-- Smoke-test at least one slash command (e.g. `/coding:code-review`) end-to-end
+- Smoke-test at least one slash command (e.g. `/coding:local-review`) end-to-end
 - Inspect any new docs added under `docs/` for broken cross-references not caught by `check-links`
 
 If any check fails, fix before tagging.

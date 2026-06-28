@@ -4,7 +4,7 @@ status: outdated
 
 # Scenario 002: Zero-violation PR in standard mode produces empty findings, no false positives
 
-Validates that a diff with no mechanical-rule violations flows through `/coding:code-review master standard` (Step 4.0 → 4a → 4b → 4c → 4d → 5) and produces a report with empty Must Fix / Should Fix / Nice to Have sections — locking down the regression risk that the LLM tier hallucinates findings to fill the void when the mechanical layer surfaces none.
+Validates that a diff with no mechanical-rule violations flows through `/coding:local-review master standard` (Step 4.0 → 4a → 4b → 4c → 4d → 5) and produces a report with empty Must Fix / Should Fix / Nice to Have sections — locking down the regression risk that the LLM tier hallucinates findings to fill the void when the mechanical layer surfaces none.
 
 Updated for funnel v2 (PR #48): runner output now lands in `/tmp/code-review-findings.json` (not an awk-extracted stdout block); zero LLM spawns are signalled by the dispatcher logging "funnel clean — no adjudication needed" when `findings_by_owner` is empty and no judgment rules are triggered by the README-only diff.
 
@@ -17,7 +17,7 @@ Updated for funnel v2 (PR #48): runner output now lands in `/tmp/code-review-fin
 
 ## Action
 
-- [ ] Run `/coding:code-review master` against `$WORK` in a fresh Claude Code session (standard mode is the default — do not pass a mode argument); tee stdout to `/tmp/code-review-stdout.log`, stderr to `/tmp/code-review-stderr.log`, capture exit code to `/tmp/code-review-exit`
+- [ ] Run `/coding:local-review master` against `$WORK` in a fresh Claude Code session (standard mode is the default — do not pass a mode argument); tee stdout to `/tmp/code-review-stdout.log`, stderr to `/tmp/code-review-stderr.log`, capture exit code to `/tmp/code-review-exit`
 
 ## Expected
 

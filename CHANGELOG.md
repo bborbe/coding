@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.26.0
 
 - **feat: split review commands into 3 distinct scopes.** Renames current `/coding:code-review` → `/coding:local-review` (preserving its diff-vs-`HEAD~1` semantics for pre-commit local checks), AND introduces a brand-new `/coding:code-review` that scans the WHOLE codebase via `git ls-files`. New command ships with severity filter (default-on: Must Fix + Should Fix only; `--include-optional` to opt in), rule-id dedup at consolidation (N occurrences → 1 summary with sample sites), and baseline file (`.code-review-baseline.yaml` via `--refresh-baseline`) so subsequent runs only flag NEW findings (drift since last sweep) rather than the operator's full accepted tech-debt set. Design rationale: `docs/three-command-review-split.md`. 10 reference sites updated across `llms.txt`, `README.md`, `scenarios/*`, and 4 agent definitions to point at `/coding:local-review` (preserving old semantics). **Migration**: sharp behavior cutover on the `/coding:code-review` slot — operators previously relying on its diff-vs-`HEAD~1` behavior must move to `/coding:local-review`. The contrast pair `pr-review` (remote, branch vs target) / `local-review` (local, pre-commit) reads cleanly; `code-review` takes the unmarked whole-codebase slot.
 

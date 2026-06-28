@@ -35,11 +35,19 @@ Review your current branch against all guidelines:
 /coding:pr-review
 ```
 
-Review code in standard mode (7 agents) or full mode (14 agents):
+Review local uncommitted changes in selector mode (default — zero LLM spawns, in-session classify + adjudicate) or full mode (per-owner dispatch, concurrent agents):
 
 ```
-/coding:local-review standard
-/coding:local-review full
+/coding:local-review            # selector mode (default)
+/coding:local-review full       # per-owner dispatch
+```
+
+Audit the whole codebase (severity-filtered, baseline-aware):
+
+```
+/coding:code-review              # whole codebase, Must Fix + Should Fix only
+/coding:code-review --include-optional         # add Nice to Have
+/coding:code-review --refresh-baseline         # write current findings to .code-review-baseline.yaml
 ```
 
 Find relevant guides before starting work:
@@ -58,8 +66,9 @@ Commit with changelog and version bump:
 
 | Command | Description |
 |---------|-------------|
-| `/coding:pr-review` | Review pull request diff against standards |
-| `/coding:local-review [short\|standard\|full]` | Review code against guidelines (standard: 7 agents, full: 14) |
+| `/coding:pr-review` | Branch diff vs target — selector mode default; full mode = per-owner dispatch |
+| `/coding:local-review [short\|selector\|full]` | Local uncommitted/recent diff vs `HEAD~1` — selector mode default |
+| `/coding:code-review [--include-optional] [--refresh-baseline]` | Whole-codebase audit — severity-filtered (Must + Should) + baseline-aware (`.code-review-baseline.yaml`) |
 | `/coding:architecture-review [directory]` | Deep whole-codebase architectural review — top-down + dimensions, consolidated Must/Should/Could |
 | `/coding:check-guides "task"` | Find relevant guides before implementation |
 | `/coding:commit` | Git commit with changelog and versioning |

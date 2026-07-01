@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.28.0
 
 - **feat: add `/coding:self-improve` command** — reviews the current session and proposes at most two durable, evidence-backed improvements to the Claude Code environment (memory/`CLAUDE.md` rules, commands, agents, skills). Two-phase: Report (read-only, ≤2 proposals ranked, routes each by scope) → Apply (only after explicit approval). Default outcome is "nothing worth keeping this session." Stays inline (analyzes the parent conversation; cannot be delegated to a sub-agent). Sibling to the audit-* commands, on the friction-removal side.
 

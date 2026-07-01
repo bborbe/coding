@@ -151,6 +151,22 @@ Multiple feature branches writing to `## Unreleased` will conflict. Resolution: 
 - fix: Remove stale container before run
 ```
 
+## Version Alignment Is Release-Time, Not Feature-PR-Time
+
+In repos with `.maintainer.yaml: release.autoRelease: true` (the bborbe default — coding, vault-cli, dark-factory, semantic-search, …), a feature PR:
+
+- adds bullets under `## Unreleased`
+- does **NOT** bump version strings in `plugin.json` / `marketplace.json` / `pyproject.toml` / `Cargo.toml`
+
+During development all version strings stay at the **last released** version and remain mutually equal — that is the correct, aligned state. The release agent renames `## Unreleased` → `## vX.Y.Z` and bumps every manifest together **post-merge**; the four-string alignment is a release-time gate (`make release-check`), not a feature-PR gate.
+
+**Review guidance — do NOT flag as a violation:**
+
+- an `## Unreleased` section above the latest `## vX.Y.Z`
+- manifest versions equal to the latest *released* `## vX.Y.Z` while `## Unreleased` holds pending bullets — they are aligned; `## Unreleased` is not a version string
+
+Only flag misalignment when the top **versioned** `## vX.Y.Z` entry disagrees with a manifest. `## Unreleased` never counts as a version.
+
 ## Validation
 
 - [ ] Every `## Unreleased` entry has a conventional prefix (`feat:`, `fix:`, etc.)
@@ -160,3 +176,4 @@ Multiple feature branches writing to `## Unreleased` will conflict. Resolution: 
 - [ ] No vague entries (`fix: fix bug`, `chore: update deps`)
 - [ ] Preamble present with SemVer link
 - [ ] Newest version at top
+- [ ] In an autoRelease repo, the feature PR did NOT bump manifest version strings — `## Unreleased` above the last released `## vX.Y.Z` with manifests still at that released version is correct, not a violation

@@ -80,6 +80,7 @@ Commit with changelog and version bump:
 | `/coding:audit-agent [file]` | Audit agent against Agent & Command Development Guide |
 | `/coding:audit-skill [path]` | Audit skill directory against Claude Code Skill Writing Guide |
 | `/coding:audit-slash-command [file]` | Audit slash command against Agent & Command Development Guide |
+| `/coding:self-improve` | Review THIS session; propose ≤2 durable improvements to memory/commands/agents/skills (inline, two-phase) |
 | `/coding:vscode [dir]` | Open VS Code in directory |
 | `/coding:intellij [dir]` | Open IntelliJ IDEA in directory |
 

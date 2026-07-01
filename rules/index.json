@@ -538,6 +538,20 @@
     ]
   },
   {
+    "anchor": "go-factory/main-holds-only-boot-lifecycle-config",
+    "applies_when": "a composition root (`main.go`, or a `Run` method on the app struct) holds a value that is built by a `Create*` factory or a `New*` constructor and then used *only* as an unchanged argument to a single subsequent call — no `if`/`switch` branches on it, no transformation, no `defer` on it. Also applies when `main.go` assembles a router, `run.Func`, or handler tree inline instead of delegating to a factory. Deciding whether a value is a pure pass-through vs. a config-driven decision requires reading the whole `Run` function, so this is judgment-tier, not mechanical.",
+    "doc_path": "docs/go-factory-pattern.md",
+    "enforcement": "judgment — the pass-through-vs-decision distinction needs whole-function reasoning across the composition root; there is no mechanical `.yml`. The reviewer confirms the value is neither branched on, transformed, nor lifecycle-managed before flagging.",
+    "enforcement_type": "judgment",
+    "id": "go-factory/main-holds-only-boot-lifecycle-config",
+    "level": "SHOULD",
+    "owner": "go-factory-pattern-assistant",
+    "trigger": [
+      "main.go",
+      "**/main.go"
+    ]
+  },
+  {
     "anchor": "go-factory/no-cleanup-return",
     "applies_when": "a Go function whose name starts with `Create` declared in a `*.go` file outside `*_test.go` and `vendor/` has a return type list that includes `func()` (a cleanup closure). Common shapes: `(T, func())`, `(T, func(), error)`, `(func(), error)`.",
     "doc_path": "docs/go-factory-pattern.md",

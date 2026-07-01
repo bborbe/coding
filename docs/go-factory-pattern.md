@@ -93,6 +93,8 @@ func CreateConsumerRun(provider kafka.SaramaClientProvider, db DB) run.Func {
 
 **Acceptable anonymous function:** Only when it directly calls a method (like `.Consume(ctx)`) with no additional logic — no `if`, no logging, no error wrapping. The returned type `run.Func` is `func(ctx) error`, so the closure body's signature returns `error` — but **the factory itself returns `run.Func`, not `error`**. That's the distinction.
 
+**Multi-statement wiring is still acceptable.** "No additional logic" limits the *kind* of statements, not the *count*. A `run.Func` closure may contain several pure-wiring statements — e.g. building a `mux.Router` and registering handlers on it — as long as none of them is logic: no `if`/`for`/`switch`, no error wrapping, no logging, no data transformation. Assembling a router and returning `server.Run(ctx)` is composition; a loop over routes or a conditional route is not. See section 11 for a full server-wiring factory.
+
 ### 4.4 List Composition
 ```go
 func CreateAuthenticators(cookie CookieGenerator, oauth GoogleOAuth) []Authenticator {
@@ -322,14 +324,13 @@ func main() {
         handler = pkg.CreateOpenHandler(userService)
     }
 
-    router := mux.NewRouter()
-    router.Handle("/users", handler)
-
-    http.NewServer(addr, router).ListenAndServe(ctx)
+    // Router assembly is pure wiring — it belongs in a factory, not main.
+    // main only decided `handler`; it does not touch the router. (Section 11.)
+    pkg.CreateServer(addr, handler).Run(ctx)
 }
 ```
 
-The `if cfg.AuthEnabled` lives in main, not inside a factory. Each factory takes already-validated inputs and returns a fully-configured object.
+The `if cfg.AuthEnabled` lives in main, not inside a factory. Each factory takes already-validated inputs and returns a fully-configured object. The router — `mux.NewRouter()`, `router.Handle(...)`, wrapping it in a server — is inert composition, so `CreateServer` owns it; main only keeps the config decision. Section 11 makes this boundary explicit.
 
 ## 9. Common Antipatterns
 
@@ -403,6 +404,69 @@ Test the **constructors** (`New*`) and their implementations instead. Test the *
 
 If you feel the need to test a factory, it probably contains logic that should be extracted. The exception: a one-line "implements interface X" compile-time assertion via `var _ Interface = (&Impl{})` — that's a build-time check, not a test.
 
+## 11. The main.go / factory boundary
+
+Sections 6.2 and 8 push config branching and lifecycle *into* `main.go`. This section states the **complementary half**: once those are there, *nothing else* should remain in `main.go Run`. Every value that main.go neither branches on nor owns the lifecycle of is inert plumbing — and inert plumbing belongs in a factory.
+
+**`main.go Run` keeps exactly three kinds of statement:**
+1. **Error-returning boot calls** — constructors that can fail at startup (`NewSyncProducer(...)`, `url.Parse(...)`). Section 7.
+2. **Lifecycle** — `defer x.Close()`. Section 6.2.
+3. **Config interpretation & branching** — turning env/flags into decisions (`if cfg.AuthEnabled`). Sections 6.2, 8.
+
+Anything else — building a service, wrapping it in a handler, assembling a router, composing a `run.Func` — is composition, and composition is the factory's job.
+
+**The pass-through test:** if main.go builds a value with one factory (or constructor) and then does nothing with it except pass it, unchanged, into exactly one more call, that value should not exist in main.go. Collapse it into the outer factory. A local that main.go never branches on, transforms, or `defer`s is not earning its place at the composition root.
+
+### ❌ BEFORE — main.go holds inert plumbing
+
+```go
+// main.go — the run.Func, the intermediate service, and the router all sit here
+func (a *application) createHttpServer(port int) run.Func {
+    return func(ctx context.Context) error {
+        service := factory.CreateOrderService(a.db, a.producer) // built here...
+        router := mux.NewRouter()
+        router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+        router.Path("/orders").
+            Handler(factory.CreateOrderHandler(service))        // ...only to be passed here
+        return libhttp.NewServerWithPort(port, router).Run(ctx)
+    }
+}
+```
+
+`service` is a pure pass-through: main.go makes no decision with it and never closes it. The whole `run.Func` — router included — is composition living in the wrong file. main.go is longer than its job.
+
+### ✅ AFTER — factory absorbs all composition; main.go wires config only
+
+```go
+// factory.go — the run.Func and its router live here; service is composed inline
+func CreateHttpServer(db DB, producer Producer, port int) run.Func {
+    return func(ctx context.Context) error {
+        router := mux.NewRouter()
+        router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
+        router.Path("/orders").
+            Handler(CreateOrderHandler(CreateOrderService(db, producer)))
+        return libhttp.NewServerWithPort(port, router).Run(ctx)
+    }
+}
+```
+
+```go
+// main.go Run — boot errors + lifecycle + config only, then hand off
+producer, err := kafka.NewSyncProducer(ctx, brokers) // (1) error-boot
+if err != nil {
+    return errors.Wrap(ctx, err, "create producer")
+}
+defer producer.Close()                               // (2) lifecycle
+return service.Run(ctx,
+    factory.CreateCommandConsumer(...),                 // (3) hand off — pure composition
+    factory.CreateHttpServer(db, producer, a.Port),
+)
+```
+
+The server closure — including the whole `mux` router assembly — is pure wiring: no `if`/`for`/`switch`, no error return from the factory itself (it returns `run.Func`), no lifecycle. That is exactly what section 4.3 permits, just with several registration statements instead of one.
+
+**Why this is a `SHOULD`, not a `MUST`:** leaving a pass-through in main.go doesn't break the factory's purity — the factory is still logic-free. It's a composition-root smell, not a factory violation. But it scatters the object graph across two files and inflates main.go past its three jobs, so collapse it unless there's a reason not to.
+
 ## Summary
 
 **Factory Checklist:**
@@ -414,6 +478,7 @@ If you feel the need to test a factory, it probably contains logic that should b
 - ✅ No `(_, cleanup, _)` return — cleanup lifecycle owned by `main.go` via `defer` (section 6.2)
 - ✅ Move complex logic to implementation files in `pkg/` (or `pkg/<subpkg>/` if `pkg/` is large) — NEVER inside `pkg/factory/`
 - ✅ Return interface types
+- ✅ `main.go Run` holds only boot errors, lifecycle (`defer`), and config branching — every pure-composition value (including `run.Func` server/consumer wiring) lives in a factory (section 11)
 
 ### RULE go-factory/no-error-return (MUST)
 
@@ -594,4 +659,46 @@ package factory
 func CreateRoundTripper() http.RoundTripper {
     return roundtripper.NewMocoRoundTripper()
 }
+```
+
+### RULE go-factory/main-holds-only-boot-lifecycle-config (SHOULD)
+
+**Owner**: go-factory-pattern-assistant
+**Applies when**: a composition root (`main.go`, or a `Run` method on the app struct) holds a value that is built by a `Create*` factory or a `New*` constructor and then used *only* as an unchanged argument to a single subsequent call — no `if`/`switch` branches on it, no transformation, no `defer` on it. Also applies when `main.go` assembles a router, `run.Func`, or handler tree inline instead of delegating to a factory. Deciding whether a value is a pure pass-through vs. a config-driven decision requires reading the whole `Run` function, so this is judgment-tier, not mechanical.
+**Enforcement**: judgment — the pass-through-vs-decision distinction needs whole-function reasoning across the composition root; there is no mechanical `.yml`. The reviewer confirms the value is neither branched on, transformed, nor lifecycle-managed before flagging.
+**Trigger**: main.go, **/main.go
+**Why**: sections 6.2 and 8 push config branching and lifecycle into `main.go`; this rule states the other half. Everything that is *not* a boot error, a lifecycle `defer`, or a config decision is composition and belongs in a factory. A pass-through value split across `main.go` and a factory scatters the object graph and inflates `main.go` beyond its three responsibilities. Unlike the four `MUST` factory rules, this is a `SHOULD`: it doesn't break the factory's purity (the factory stays logic-free), it's a composition-root smell.
+
+#### Bad
+
+```go
+// main.go — service is built here only to be passed straight through
+func (a *application) createHttpServer(port int) run.Func {
+    return func(ctx context.Context) error {
+        service := factory.CreateOrderService(a.db, a.producer)
+        router := mux.NewRouter()
+        router.Path("/orders").Handler(factory.CreateOrderHandler(service))
+        return libhttp.NewServerWithPort(port, router).Run(ctx)
+    }
+}
+```
+
+#### Good
+
+```go
+// factory.go — the run.Func, router, and intermediate service all live here
+func CreateHttpServer(db DB, producer Producer, port int) run.Func {
+    return func(ctx context.Context) error {
+        router := mux.NewRouter()
+        router.Path("/orders").
+            Handler(CreateOrderHandler(CreateOrderService(db, producer)))
+        return libhttp.NewServerWithPort(port, router).Run(ctx)
+    }
+}
+
+// main.go Run — boot errors + lifecycle + config only
+return service.Run(ctx,
+    factory.CreateCommandConsumer(...),
+    factory.CreateHttpServer(db, producer, a.Port),
+)
 ```

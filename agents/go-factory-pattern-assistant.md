@@ -119,6 +119,7 @@ For each `Create*` function, check:
 3. ⚠️ BackgroundRunHandler missing context capture
 4. ⚠️ Return concrete types instead of interfaces
 5. ⚠️ Missing test suite
+6. ⚠️ main.go composition-root smell — pass-through value or inline router/`run.Func`/handler tree that belongs in a factory (RULE `go-factory/main-holds-only-boot-lifecycle-config`, see docs/go-factory-pattern.md §11)
 
 **Code Quality (SUGGEST):**
 1. 💡 Magic numbers (24*time.Hour, etc.)

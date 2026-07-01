@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.28.1
 
 - docs: add "Version Alignment Is Release-Time, Not Feature-PR-Time" section to `docs/changelog-guide.md` — tells the PR reviewer that in autoRelease repos a feature PR keeps `## Unreleased` and does NOT bump the manifest version strings (release agent aligns them post-merge). Prevents the recurring false-positive "version alignment violation" the reviewer raised on every autoRelease feature PR that adds an Unreleased bullet. Adds a matching validation checklist item.
 

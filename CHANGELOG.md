@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- **feat: add `/coding:self-improve` command** — reviews the current session and proposes at most two durable, evidence-backed improvements to the Claude Code environment (memory/`CLAUDE.md` rules, commands, agents, skills). Two-phase: Report (read-only, ≤2 proposals ranked, routes each by scope) → Apply (only after explicit approval). Default outcome is "nothing worth keeping this session." Stays inline (analyzes the parent conversation; cannot be delegated to a sub-agent). Sibling to the audit-* commands, on the friction-removal side.
+
 ## v0.27.0
 
 - **feat: add factory rule `go-factory/main-holds-only-boot-lifecycle-config` (SHOULD)** to `docs/go-factory-pattern.md`. New §11 "The main.go / factory boundary" states the complementary positive rule to §6.2/§8: `main.go Run` keeps only boot errors, lifecycle (`defer`), and config branching — every pure-composition value (including `run.Func` server/consumer wiring) belongs in a factory. Adds the "pass-through test", tightens §4.3 ("no additional logic" limits statement *kind*, not *count* — multi-statement router wiring is fine), fixes the §8 example which previously modeled router assembly in main, and adds a Summary bullet. Regenerates `rules/index.json` (judgment-tier, trigger `**/main.go`) and surfaces the rule in `go-factory-pattern-assistant`.

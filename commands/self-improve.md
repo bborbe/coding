@@ -55,6 +55,13 @@ is close.
 | An independent responsibility | an agent |
 | Reusable multi-step capability with scripts/state | a skill |
 
+**Repair before route-around.** If an existing command / agent / skill *misfired*
+(wrong output, deadlock, needed a manual workaround), the fix belongs IN that
+artifact — repair the tool. Only fall back to a `CLAUDE.md` rule when the tool
+genuinely can't be changed (external constraint). A `CLAUDE.md` rule telling the
+operator to work around a broken tool is a symptom patch — rank it below fixing
+the tool.
+
 ### 6. Output
 Short. Max two proposals, ranked.
 

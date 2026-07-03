@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.28.2
 
 - docs: add "Repair before route-around" rule to `/coding:self-improve` — when an existing command/agent/skill misfires, fix that artifact instead of adding a `CLAUDE.md` workaround rule; only fall back to a memory rule when the tool genuinely can't be changed.
 

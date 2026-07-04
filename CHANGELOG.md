@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: add a worth-it rating rubric to `/coding:self-improve` Step 3 — gate-then-grade (hard evidence gate + weighted score: recurrence/cost/generality/repair, minus obvious-anyway) with propose/borderline/discard tiers, mirroring `/vault-cli:reflect`'s significance filter; surfaces a `Worth-it:` score per proposal so borderline candidates get an inspectable number instead of a coin-flip.
+
 ## v0.28.2
 
 - docs: add "Repair before route-around" rule to `/coding:self-improve` — when an existing command/agent/skill misfires, fix that artifact instead of adding a `CLAUDE.md` workaround rule; only fall back to a memory rule when the tool genuinely can't be changed.

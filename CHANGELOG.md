@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.29.0
 
 - feat: add a worth-it rating rubric to `/coding:self-improve` Step 3 — gate-then-grade (hard evidence gate + weighted score: recurrence/cost/generality/repair, minus obvious-anyway) with propose/borderline/discard tiers, mirroring `/vault-cli:reflect`'s significance filter; surfaces a `Worth-it:` score per proposal so borderline candidates get an inspectable number instead of a coin-flip.
 

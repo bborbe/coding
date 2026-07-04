@@ -34,12 +34,29 @@ Scan the transcript for:
 
 Ignore anything that happened once with no cost. One-offs never graduate.
 
-### 3. Keep-forever test
-For each candidate, both must hold or discard it:
-- **Recurrence:** plausibly recurs in 3+ future sessions?
-- **Evidence:** you can cite a verbatim quote + where it happened.
+### 3. Rate each candidate
+Gate first, then grade — the same shape as `/vault-cli:reflect`'s significance filter.
 
-Discard silently: one-offs, "nice to have," anything you can't quote.
+**Hard gate (no quote, no proposal):** can you cite a verbatim quote + where it
+happened? Fails the gate → discard silently.
+
+Passers get a **worth-it score**:
+
+| Signal | Weight |
+|---|---|
+| Recurrence — plausibly recurs in 3+ future sessions | +2 |
+| Cost — the miss cost real back-and-forth (retry, correction, wasted turns) | +1 |
+| Generality — the fix applies beyond this one task / project / file | +1 |
+| Repair — fixes a tool that misfired, not a new rule bolted on | +1 |
+| Obvious-anyway — the "fix" is just doing the naturally obvious thing | −2 |
+
+Tier by score:
+- **≥ 3 → propose** (ranked, max two)
+- **1–2 → borderline** — name it in one line under Rejected, don't propose
+- **≤ 0 → discard silently**
+
+The score makes borderline calls explicit and inspectable instead of a coin-flip;
+`Obvious-anyway −2` kills "just do it in the natural order" non-improvements.
 
 ### 4. Prefer editing over creating
 Does an existing rule / command / agent / skill almost cover this? If yes,
@@ -69,6 +86,7 @@ Short. Max two proposals, ranked.
 
 Per proposal:
 - **Change:** what, and where (exact target file / artifact)
+- **Worth-it:** <score> (e.g. recurrence +2, cost +1)
 - **Evidence:** verbatim quote(s) + how often
 - **Edit or new:** if new, why nothing existing fit
 - **Diff sketch:** the concrete line(s) to add or change

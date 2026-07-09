@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.30.0
 
 - feat: rewrite `/coding:self-improve` Step 5 routing to artifact-first, CLAUDE.md-last — routing table now leads with existing artifacts (command/agent/skill repair, runbooks, guides) and demotes memory files to last resort with a mandatory "which artifacts were checked" justification; adds a −1 scoring signal for proposals that route to a `CLAUDE.md` an existing artifact could own. Counters the observed bias of every session proposing new memory rules.
 - fix: `/coding:self-improve` audit follow-ups — add `allowed-tools` frontmatter (repo convention, 10/16 commands declare it), generalize Phase 2 apply-style rules beyond CLAUDE.md to all target artifact types, add mandatory `Artifacts checked:` line to the per-proposal output template, annotate the −1 scoring signal as judged-after-routing, fold the repair-before-route-around paragraph into the last-resort paragraph, refresh the stale frontmatter description.

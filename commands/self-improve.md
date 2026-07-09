@@ -1,5 +1,6 @@
 ---
-description: Review THIS session and propose at most two durable improvements to the Claude Code environment (memory/CLAUDE.md rules, commands, agents, skills). Default outcome is "nothing worth keeping."
+description: Review THIS session and propose at most two durable improvements to the Claude Code environment (commands, agents, skills, guides, runbooks, memory/CLAUDE.md rules). Default outcome is "nothing worth keeping."
+allowed-tools: Read, Edit, Glob, Grep
 ---
 
 # Self Improve
@@ -49,7 +50,7 @@ Passers get a **worth-it score**:
 | Generality — the fix applies beyond this one task / project / file | +1 |
 | Repair — fixes a tool that misfired, not a new rule bolted on | +1 |
 | Obvious-anyway — the "fix" is just doing the naturally obvious thing | −2 |
-| Routes to a `CLAUDE.md` though an existing artifact could own it | −1 |
+| Routes to a `CLAUDE.md` though an existing artifact could own it (judged after Step 5 routing) | −1 |
 
 Tier by score:
 - **≥ 3 → propose** (ranked, max two)
@@ -84,15 +85,11 @@ in the artifact that is already loaded when the mistake happens.
 **CLAUDE.md is the last resort, not the default.** Memory files must stay short
 and precise — every rule added there is prompt overhead in every future session.
 A proposal targeting a `CLAUDE.md` must name which artifacts were checked and
-why none could own the fix. A rule that merely restates what an artifact should
-enforce itself → fix the artifact instead.
-
-**Repair before route-around.** If an existing command / agent / skill *misfired*
-(wrong output, deadlock, needed a manual workaround), the fix belongs IN that
-artifact — repair the tool. Only fall back to a `CLAUDE.md` rule when the tool
-genuinely can't be changed (external constraint). A `CLAUDE.md` rule telling the
-operator to work around a broken tool is a symptom patch — rank it below fixing
-the tool.
+why none could own the fix (the `Artifacts checked:` output line). A rule that
+merely restates what an artifact should enforce itself, or tells the operator to
+work around a broken tool, is a symptom patch — repair the tool instead; fall
+back to a `CLAUDE.md` rule only when the tool genuinely can't be changed
+(external constraint).
 
 ### 6. Output
 Short. Max two proposals, ranked.
@@ -103,6 +100,7 @@ Per proposal:
 - **Change:** what, and where (exact target file / artifact)
 - **Worth-it:** <score> (e.g. recurrence +2, cost +1)
 - **Evidence:** verbatim quote(s) + how often
+- **Artifacts checked:** which existing artifacts were considered; mandatory when targeting a `CLAUDE.md` (name why none could own the fix)
 - **Edit or new:** if new, why nothing existing fit
 - **Diff sketch:** the concrete line(s) to add or change
 
@@ -119,7 +117,7 @@ Do NOT edit in Phase 1. Wait for the user to pick which proposals to accept.
 On approval:
 1. Read the target file before editing.
 2. Smallest change that captures the rule. No prose bloat.
-3. Memory/CLAUDE.md rules: match the existing terse, imperative bullet style.
+3. Match the target artifact's existing conventions — CLAUDE.md: terse imperative bullets; command/agent/skill: existing section structure and frontmatter; runbook: numbered step format; guide: existing rule format.
 4. Report what changed, one line per file.
 
 Never edit beyond the approved proposals. Never expand scope while applying.

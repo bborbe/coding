@@ -1,5 +1,6 @@
 ---
-description: Review THIS session and propose at most two durable improvements to the Claude Code environment (memory/CLAUDE.md rules, commands, agents, skills). Default outcome is "nothing worth keeping."
+description: Review THIS session and propose at most two durable improvements to the Claude Code environment (commands, agents, skills, guides, runbooks, memory/CLAUDE.md rules). Default outcome is "nothing worth keeping."
+allowed-tools: Read, Edit, Glob, Grep
 ---
 
 # Self Improve
@@ -49,6 +50,7 @@ Passers get a **worth-it score**:
 | Generality — the fix applies beyond this one task / project / file | +1 |
 | Repair — fixes a tool that misfired, not a new rule bolted on | +1 |
 | Obvious-anyway — the "fix" is just doing the naturally obvious thing | −2 |
+| Routes to a `CLAUDE.md` though an existing artifact could own it (judged after Step 5 routing) | −1 |
 
 Tier by score:
 - **≥ 3 → propose** (ranked, max two)
@@ -63,21 +65,31 @@ Does an existing rule / command / agent / skill almost cover this? If yes,
 propose a small edit to it. Only propose a NEW artifact when nothing existing
 is close.
 
-### 5. Route the fix by scope
+### 5. Route the fix — artifact first, CLAUDE.md last
+
+Before routing anything to a `CLAUDE.md`, check whether an existing artifact
+could own the fix: slash command, skill, agent, guide, runbook. The fix belongs
+in the artifact that is already loaded when the mistake happens.
+
 | The fix is a… | It belongs in… |
 |---|---|
-| Global preference / habit | your global Claude memory (global `CLAUDE.md`) |
-| Project convention | that project's `CLAUDE.md` |
+| Misfire OR gap in an existing command / agent / skill | that artifact (repair / extend it) |
+| Step missing from an operational procedure | the runbook that documents it |
+| Knowledge gap in a documented system | the guide that owns the topic |
 | The exact same prompt, retyped | a slash command |
 | An independent responsibility | an agent |
 | Reusable multi-step capability with scripts/state | a skill |
+| Project convention no artifact can enforce | that project's `CLAUDE.md` |
+| Global habit no artifact could ever own | global `CLAUDE.md` (last resort) |
 
-**Repair before route-around.** If an existing command / agent / skill *misfired*
-(wrong output, deadlock, needed a manual workaround), the fix belongs IN that
-artifact — repair the tool. Only fall back to a `CLAUDE.md` rule when the tool
-genuinely can't be changed (external constraint). A `CLAUDE.md` rule telling the
-operator to work around a broken tool is a symptom patch — rank it below fixing
-the tool.
+**CLAUDE.md is the last resort, not the default.** Memory files must stay short
+and precise — every rule added there is prompt overhead in every future session.
+A proposal targeting a `CLAUDE.md` must name which artifacts were checked and
+why none could own the fix (the `Artifacts checked:` output line). A rule that
+merely restates what an artifact should enforce itself, or tells the operator to
+work around a broken tool, is a symptom patch — repair the tool instead; fall
+back to a `CLAUDE.md` rule only when the tool genuinely can't be changed
+(external constraint).
 
 ### 6. Output
 Short. Max two proposals, ranked.
@@ -88,6 +100,7 @@ Per proposal:
 - **Change:** what, and where (exact target file / artifact)
 - **Worth-it:** <score> (e.g. recurrence +2, cost +1)
 - **Evidence:** verbatim quote(s) + how often
+- **Artifacts checked:** which existing artifacts were considered; mandatory when targeting a `CLAUDE.md` (name why none could own the fix)
 - **Edit or new:** if new, why nothing existing fit
 - **Diff sketch:** the concrete line(s) to add or change
 
@@ -104,7 +117,7 @@ Do NOT edit in Phase 1. Wait for the user to pick which proposals to accept.
 On approval:
 1. Read the target file before editing.
 2. Smallest change that captures the rule. No prose bloat.
-3. Memory/CLAUDE.md rules: match the existing terse, imperative bullet style.
+3. Match the target artifact's existing conventions — CLAUDE.md: terse imperative bullets; command/agent/skill: existing section structure and frontmatter; runbook: numbered step format; guide: existing rule format.
 4. Report what changed, one line per file.
 
 Never edit beyond the approved proposals. Never expand scope while applying.

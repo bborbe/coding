@@ -125,7 +125,16 @@ trivy:
 	trap 'rm -f "$$IGN"' EXIT INT TERM; \
 	printf '%s\n' $(TRIVY_IGNORE) > "$$IGN"; \
 	for f in .trivyignore $(ROOTDIR)/.trivyignore; do [ -f "$$f" ] && cat "$$f" >> "$$IGN"; done; \
-	trivy fs --ignorefile "$$IGN" --scanners vuln,secret --quiet --no-progress --disable-telemetry --exit-code 1 .
+	trivy fs \
+	--db-repository ghcr.io/aquasecurity/trivy-db \
+	--ignorefile "$$IGN" \
+	$(if $(wildcard .trivy-secret.yaml),--secret-config .trivy-secret.yaml,$(if $(wildcard $(ROOTDIR)/.trivy-secret.yaml),--secret-config $(ROOTDIR)/.trivy-secret.yaml,)) \
+	--scanners vuln,secret \
+	--skip-dirs vendor \
+	--quiet \
+	--no-progress \
+	--disable-telemetry \
+	--exit-code 1 .
 
 .PHONY: addlicense
 addlicense:

@@ -49,6 +49,7 @@ Passers get a **worth-it score**:
 | Generality — the fix applies beyond this one task / project / file | +1 |
 | Repair — fixes a tool that misfired, not a new rule bolted on | +1 |
 | Obvious-anyway — the "fix" is just doing the naturally obvious thing | −2 |
+| Routes to a `CLAUDE.md` though an existing artifact could own it | −1 |
 
 Tier by score:
 - **≥ 3 → propose** (ranked, max two)
@@ -63,14 +64,28 @@ Does an existing rule / command / agent / skill almost cover this? If yes,
 propose a small edit to it. Only propose a NEW artifact when nothing existing
 is close.
 
-### 5. Route the fix by scope
+### 5. Route the fix — artifact first, CLAUDE.md last
+
+Before routing anything to a `CLAUDE.md`, check whether an existing artifact
+could own the fix: slash command, skill, agent, guide, runbook. The fix belongs
+in the artifact that is already loaded when the mistake happens.
+
 | The fix is a… | It belongs in… |
 |---|---|
-| Global preference / habit | your global Claude memory (global `CLAUDE.md`) |
-| Project convention | that project's `CLAUDE.md` |
+| Misfire OR gap in an existing command / agent / skill | that artifact (repair / extend it) |
+| Step missing from an operational procedure | the runbook that documents it |
+| Knowledge gap in a documented system | the guide that owns the topic |
 | The exact same prompt, retyped | a slash command |
 | An independent responsibility | an agent |
 | Reusable multi-step capability with scripts/state | a skill |
+| Project convention no artifact can enforce | that project's `CLAUDE.md` |
+| Global habit no artifact could ever own | global `CLAUDE.md` (last resort) |
+
+**CLAUDE.md is the last resort, not the default.** Memory files must stay short
+and precise — every rule added there is prompt overhead in every future session.
+A proposal targeting a `CLAUDE.md` must name which artifacts were checked and
+why none could own the fix. A rule that merely restates what an artifact should
+enforce itself → fix the artifact instead.
 
 **Repair before route-around.** If an existing command / agent / skill *misfired*
 (wrong output, deadlock, needed a manual workaround), the fix belongs IN that

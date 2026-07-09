@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: checker templates exclude no-fix advisory GO-2026-5932 (`golang.org/x/crypto/openpgp`, unmaintained) — add it to `VULNCHECK_IGNORE` in `Makefile.library`/`Makefile.service`, and introduce a shared `TRIVY_IGNORE` baseline merged with any repo-local `.trivyignore` via a temp ignorefile (upgrades `Makefile.service`'s bare `trivy` target to honor an ignorefile). Propagates the exclusion to all consuming repos across both scanners.
+
 ## v0.30.0
 
 - feat: rewrite `/coding:self-improve` Step 5 routing to artifact-first, CLAUDE.md-last — routing table now leads with existing artifacts (command/agent/skill repair, runbooks, guides) and demotes memory files to last resort with a mandatory "which artifacts were checked" justification; adds a −1 scoring signal for proposals that route to a `CLAUDE.md` an existing artifact could own. Counters the observed bias of every session proposing new memory rules.

@@ -96,7 +96,7 @@ Setup confirmed:
 ```
 $ git ls-files '*.go' | wc -l
 100
-$ ast-grep --version  (resolves: /opt/local/bin/ast-grep)
+$ ast-grep --version  (resolves: /opt/homebrew/bin/ast-grep)
 ```
 
 Full scan (`scripts/ast-grep-runner.sh "$WORK"`):

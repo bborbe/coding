@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: migrate MacPorts paths to Homebrew across `shellcheck-assistant` (`/opt/local/bin/shellcheck` → `/opt/homebrew/bin/shellcheck` in allowed-tools + docs, drop `port install`), `license-assistant` (`gdate` for current year), and the toolchain-preflight/scaling/findings scenarios (`ast-grep` → `/opt/homebrew/bin/ast-grep`) — MacPorts was removed in the local MacPorts→Homebrew migration.
+
 ## v0.30.1
 
 - fix: checker templates exclude no-fix advisory GO-2026-5932 (`golang.org/x/crypto/openpgp`, unmaintained) — add it to `VULNCHECK_IGNORE` in `Makefile.library`/`Makefile.service`, and introduce a shared `TRIVY_IGNORE` baseline merged with any repo-local `.trivyignore` via a temp ignorefile, and align `Makefile.service`'s `trivy` target with `Makefile.library`'s full flag set (`--db-repository`, `--ignorefile`, `--secret-config`, `--skip-dirs vendor`). Propagates the exclusion to all consuming repos across both scanners.

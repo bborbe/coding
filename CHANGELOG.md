@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.30.2
 
 - fix: migrate MacPorts paths to Homebrew across `shellcheck-assistant` (`/opt/local/bin/shellcheck` → `/opt/homebrew/bin/shellcheck` in allowed-tools + docs, drop `port install`), `license-assistant` (`gdate` for current year), and the toolchain-preflight/scaling/findings scenarios (`ast-grep` → `/opt/homebrew/bin/ast-grep`) — MacPorts was removed in the local MacPorts→Homebrew migration.
 

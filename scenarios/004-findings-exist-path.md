@@ -81,7 +81,7 @@ After the scenario passes, the operator should record the measured `(findings_co
 Setup:
 
 ```
-$ ast-grep --version  (resolves: /opt/local/bin/ast-grep)
+$ ast-grep --version  (resolves: /opt/homebrew/bin/ast-grep)
 $ gh pr view 2 --repo bborbe/maintainer --json state,changedFiles -q ...
 state=OPEN changedFiles=1
 $ PR_SHA=536a6e79cef42a3711b55b219af5a12c81f0f087

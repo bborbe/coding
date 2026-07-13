@@ -4,7 +4,7 @@ description: Use proactively to check shell scripts for errors, portability issu
 model: sonnet
 tools: Read, Write, Edit, Glob, Grep, Bash
 color: Cyan
-allowed-tools: Bash(shellcheck:*), Bash(/opt/local/bin/shellcheck:*), Bash(command -v shellcheck:*)
+allowed-tools: Bash(shellcheck:*), Bash(/opt/homebrew/bin/shellcheck:*), Bash(command -v shellcheck:*)
 ---
 
 # Purpose
@@ -24,7 +24,7 @@ When invoked, you must follow these structured phases:
    - Include Makefiles and other files that may contain shell commands
 
 2. **Verify shellcheck availability:**
-   - Run: `command -v shellcheck` or check `/opt/local/bin/shellcheck` (MacPorts default location)
+   - Run: `command -v shellcheck` or check `/opt/homebrew/bin/shellcheck` (Homebrew default location)
    - If not available, report to user with installation instructions
 
 3. **Inventory all shell scripts:**
@@ -34,7 +34,7 @@ When invoked, you must follow these structured phases:
 ### 2. Analysis Phase
 
 1. **Run shellcheck on each script:**
-   - Execute: `shellcheck --format=json <absolute-path>` (or `/opt/local/bin/shellcheck` if not in PATH)
+   - Execute: `shellcheck --format=json <absolute-path>` (or `/opt/homebrew/bin/shellcheck` if not in PATH)
    - For scripts without shebangs, specify shell: `shellcheck --shell=bash --format=json <absolute-path>`
    - Capture all output including severity levels
 
@@ -240,10 +240,7 @@ All modified files verified with shellcheck.
 **Shellcheck Installation (if needed):**
 
 ```bash
-# macOS (MacPorts) - installs to /opt/local/bin/shellcheck
-sudo port install shellcheck
-
-# macOS (Homebrew)
+# macOS (Homebrew) - installs to /opt/homebrew/bin/shellcheck
 brew install shellcheck
 
 # Debian/Ubuntu

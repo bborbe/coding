@@ -83,7 +83,7 @@ Check for project markers:
 - Recommend re-invoking with "update" to apply fixes
 
 **Update Mode**:
-- Get current year using: `/opt/local/libexec/gnubin/date +%Y`
+- Get current year using: `gdate +%Y`
 - Create LICENSE file if missing (use detected or default license type)
 - Add README license section if missing
 - For Go: Run `make addlicense` to fix headers (if Makefile target exists)
@@ -205,7 +205,7 @@ This project is licensed under the [LICENSE_TYPE] License - see the [LICENSE](LI
 
 **Simple rule**: Don't overthink copyright years.
 
-- New files: Get current year via `/opt/local/libexec/gnubin/date +%Y`
+- New files: Get current year via `gdate +%Y`
 - Existing files: Keep original year
 - Updating years is OPTIONAL when modifying files
 - NEVER bulk update years just because it's a new year

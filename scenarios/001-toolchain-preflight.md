@@ -88,7 +88,7 @@ exit: 2
 stdout: {"stats":{"yamls_run":0,"findings_count":0,"elapsed_ms":0},"findings_by_owner":{},"errors":[{"kind":"missing-tool","tool":"ast-grep","detail":"ast-grep / sg binary not in PATH — install via: npm install -g @ast-grep/cli | brew install ast-grep"}]}
 ```
 
-Host ast-grep after all subshells: `/opt/local/bin/ast-grep`
+Host ast-grep after all subshells: `/opt/homebrew/bin/ast-grep`
 
 ### Results
 
@@ -100,6 +100,6 @@ Host ast-grep after all subshells: `/opt/local/bin/ast-grep`
 - [x] `jq -e '.errors[] | select(.kind == "missing-tool" and .tool == "ast-grep")'` exits `0` — PASS
 - [x] `.stats.yamls_run == 0` and `.findings_by_owner == {}` — PASS
 - [x] Wall-clock under 1 second (pr: 11ms, cr: 10ms, runner: 229ms — all well under 1s) — PASS
-- [x] Host `command -v ast-grep` still resolves (`/opt/local/bin/ast-grep`) — PASS
+- [x] Host `command -v ast-grep` still resolves (`/opt/homebrew/bin/ast-grep`) — PASS
 
 All 9 Expected items: **9/9 PASS**

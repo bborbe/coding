@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.32.1
 
 - refactor(changelog): convert rule `changelog/unreleased-entry-required` from judgment to **script tier** — deterministic check in `scripts/rule-checks.sh` (state-check on the PR-HEAD `## Unreleased` section) instead of model judgment. Fires reliably even on a weak review model (the maintainer bot's MiniMax reviewer was silently skipping the judgment funnel). `docs/changelog-guide.md` Enforcement line rewritten (→ `enforcement_type: script`), `@commits` Trigger dropped, `rules/index.json` regenerated. Trade-off: no trivial-diff waiver.
 

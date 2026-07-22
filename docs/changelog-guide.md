@@ -114,6 +114,37 @@ Every `## Unreleased` entry must start with a conventional prefix:
 
 dark-factory reads these prefixes to determine the version bump automatically. Any `feat:` entry → minor bump; everything else → patch bump.
 
+## Every Source-Changing PR Needs an Unreleased Entry (REQUIRED)
+
+### RULE changelog/unreleased-entry-required (SHOULD)
+
+**Owner**: agent-auditor
+**Applies when**: the repo root contains a `CHANGELOG.md` and the PR changes one or more non-vendored source files but adds no new bullet under the `## Unreleased` heading — i.e. `CHANGELOG.md` is absent from the diff, or is edited only outside its `## Unreleased` section. Waive only for diffs with no shippable, user-observable effect (comment- or whitespace-only edits, or edits confined to this changelog guide).
+**Enforcement**: judgment — confirm CHANGELOG.md exists at the repo root (test -f), then confirm the diff adds at least one `+`-prefixed bullet directly under the `## Unreleased` heading; flag when the file exists but no such bullet was added.
+**Trigger**: @commits
+**Why**: In an `autoRelease: true` repo the release agent renames `## Unreleased` → `## vX.Y.Z` after merge. A PR merged with an empty `## Unreleased` makes the release agent no-op — the change reaches `master` but never ships to consumers. Requiring one bullet per source-changing PR is the forcing function that keeps every merge releasable. Gate on `CHANGELOG.md` presence alone, not `autoRelease` — manual-release repos also need the section current for the human releaser.
+
+#### Bad
+
+```markdown
+# PR edits pkg/foo/foo.go and adds no CHANGELOG.md entry.
+# ## Unreleased stays empty → after merge the release agent has
+# nothing to promote → no version ships.
+```
+
+#### Good
+
+```markdown
+## Unreleased
+
+- feat: Add Foo.Bar to expose the widget count on the status endpoint
+```
+
+**Rules:**
+- Every PR that changes shippable source in a repo with a `CHANGELOG.md` adds at least one `## Unreleased` bullet (with a conventional prefix per the rule above).
+- Waivable only for diffs with no user-observable / shippable effect (comment or whitespace fixes, or edits to this guide).
+- Not a version-string bump — the entry is a bullet under `## Unreleased`, never a manifest edit (see § Version Alignment Is Release-Time).
+
 ## Entry Style
 
 **Format:** `- <prefix>: <what> [context]`

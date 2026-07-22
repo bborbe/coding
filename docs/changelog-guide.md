@@ -119,9 +119,8 @@ dark-factory reads these prefixes to determine the version bump automatically. A
 ### RULE changelog/unreleased-entry-required (SHOULD)
 
 **Owner**: agent-auditor
-**Applies when**: the repo root contains a `CHANGELOG.md` and the PR changes one or more non-vendored source files but adds no new bullet under the `## Unreleased` heading — i.e. `CHANGELOG.md` is absent from the diff, or is edited only outside its `## Unreleased` section. Waive only for diffs with no shippable, user-observable effect (comment- or whitespace-only edits, or edits confined to this changelog guide).
-**Enforcement**: judgment — confirm CHANGELOG.md exists at the repo root (test -f), then confirm the diff adds at least one `+`-prefixed bullet directly under the `## Unreleased` heading; flag when the file exists but no such bullet was added.
-**Trigger**: @commits
+**Applies when**: the repo root contains a `CHANGELOG.md`, the PR changes at least one non-vendored file, and the PR-HEAD `CHANGELOG.md` has no `-` bullet under its `## Unreleased` heading (the section is absent or empty).
+**Enforcement**: script (`scripts/rule-checks.sh`) — diff-scoped only; when ≥1 non-vendored file changed and `CHANGELOG.md` exists at the repo root, scan the `## Unreleased` section of the PR-HEAD `CHANGELOG.md` for a `-`/`*` bullet and flag when none is present. Deterministic state-check — does not depend on the review model executing a judgment step (so it fires reliably even on a weak review model). Trade-offs: no trivial-diff waiver (a comment/whitespace-only change still needs a bullet), and a `## Unreleased` already populated by an earlier unreleased merge suppresses the flag.
 **Why**: In an `autoRelease: true` repo the release agent renames `## Unreleased` → `## vX.Y.Z` after merge. A PR merged with an empty `## Unreleased` makes the release agent no-op — the change reaches `master` but never ships to consumers. Requiring one bullet per source-changing PR is the forcing function that keeps every merge releasable. Gate on `CHANGELOG.md` presence alone, not `autoRelease` — manual-release repos also need the section current for the human releaser.
 
 #### Bad
@@ -141,8 +140,8 @@ dark-factory reads these prefixes to determine the version bump automatically. A
 ```
 
 **Rules:**
-- Every PR that changes shippable source in a repo with a `CHANGELOG.md` adds at least one `## Unreleased` bullet (with a conventional prefix per the rule above).
-- Waivable only for diffs with no user-observable / shippable effect (comment or whitespace fixes, or edits to this guide).
+- Every PR that changes a non-vendored file in a repo with a `CHANGELOG.md` adds at least one `## Unreleased` bullet (with a conventional prefix per the rule above).
+- Deterministic state-check — the check reads the PR-HEAD `## Unreleased` section, not the diff, so it needs no base-branch resolution and fires regardless of the review model. It intentionally has **no** trivial-diff waiver.
 - Not a version-string bump — the entry is a bullet under `## Unreleased`, never a manifest edit (see § Version Alignment Is Release-Time).
 
 ## Entry Style

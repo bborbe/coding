@@ -193,6 +193,57 @@ check_changelog_preamble_frozen() {
 }
 
 # ---------------------------------------------------------------------------
+# RULE: changelog/unreleased-entry-required (SHOULD)
+# Deterministic state-check: a source-changing PR in a repo that HAS a
+# CHANGELOG.md must leave a `- ` bullet under `## Unreleased` (else the
+# autoRelease agent has nothing to promote post-merge). Diff-scoped only.
+# ---------------------------------------------------------------------------
+check_changelog_unreleased_entry_required() {
+  # Diff-scoped only — needs the PR's changed-file set to attribute the change.
+  # A whole-repo run (no changed-file filter) would flag every repo mid-cycle
+  # whose ## Unreleased is legitimately empty, so skip when unfiltered.
+  [ "${#CHANGED_FILES[@]}" -gt 0 ] || return 0
+
+  local cl="$TARGET_DIR/CHANGELOG.md"
+  [ -f "$cl" ] || return 0  # repo has no CHANGELOG → rule N/A
+
+  # Require at least one non-vendored changed file (something shippable).
+  local shippable=0 f
+  for f in "${CHANGED_FILES[@]}"; do
+    case "$f" in
+      */vendor/*|*/node_modules/*) ;;
+      *) shippable=1 ;;
+    esac
+  done
+  [ "$shippable" -eq 1 ] || return 0
+
+  # Does the PR-HEAD CHANGELOG have a non-empty `## Unreleased` section?
+  # Scan from the `## Unreleased` heading to the next `## ` heading for a
+  # list bullet (`- ` or `* `).
+  local has_bullet
+  has_bullet=$(awk '
+    /^## Unreleased[[:space:]]*$/ { inblk=1; next }
+    inblk && /^## / { inblk=0 }
+    inblk && /^[[:space:]]*[-*][[:space:]]/ { print "yes"; exit }
+  ' "$cl")
+  if [ "$has_bullet" = "yes" ]; then
+    return 0  # PASS — an Unreleased bullet is present
+  fi
+
+  # FLAG — anchor at the `## Unreleased` line if present, else line 1.
+  local uline
+  uline=$(grep -nE '^## Unreleased' "$cl" 2>/dev/null | head -1 | cut -d: -f1 || true)
+  emit_finding \
+    "agent-auditor" \
+    "changelog/unreleased-entry-required" \
+    "SHOULD" \
+    "$cl" \
+    "${uline:-1}" 0 \
+    "(no ## Unreleased bullet)" \
+    "PR changes source but CHANGELOG.md has no '## Unreleased' bullet. In an autoRelease repo the release agent promotes '## Unreleased' post-merge; with none, no version ships. Add a conventional-prefixed bullet under '## Unreleased'. See docs/changelog-guide.md."
+}
+
+# ---------------------------------------------------------------------------
 # RULE: git-commit/subject-under-50-chars (SHOULD)
 # Run when .git exists (PR scan context).
 # ---------------------------------------------------------------------------
@@ -511,6 +562,7 @@ check_skill_scripts_subdir() {
 check_license_file_required
 check_readme_license_section
 check_changelog_preamble_frozen
+check_changelog_unreleased_entry_required
 check_git_subject_length
 check_no_ai_attribution
 check_semver_tag

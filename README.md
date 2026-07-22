@@ -9,6 +9,8 @@ Opinionated coding guidelines, quality review agents, and slash commands for Go 
 
 Writing consistent, idiomatic code across a large codebase is hard. This plugin bundles 50+ opinionated guides (Go architecture, error handling, testing, HTTP handlers, Python structure, Git workflow, documentation) together with specialized Claude Code agents that enforce them on your code. Install once, then run `/coding:local-review` or `/coding:pr-review` to review your work against the full ruleset.
 
+The review rules also cover changelog hygiene, so every merge in an auto-release repository stays releasable.
+
 ## Requirements
 
 - [Claude Code](https://docs.claude.com/claude-code) CLI installed

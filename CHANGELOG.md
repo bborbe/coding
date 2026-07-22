@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.32.0
 
 - feat: Add review rule `changelog/unreleased-entry-required` (SHOULD, judgment, `@commits` trigger) in `docs/changelog-guide.md` — flags any PR that changes non-vendored source in a repo with a `CHANGELOG.md` but adds no `## Unreleased` bullet. Maps to `request-changes`, so the maintainer bot won't auto-merge a PR that would leave the release agent nothing to ship. Feeds `/coding:pr-review`, `/coding:code-review`, and the maintainer bot (which inlines `pr-review.md`) from the single rule index.
 

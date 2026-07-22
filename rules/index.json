@@ -139,16 +139,13 @@
   },
   {
     "anchor": "changelog/unreleased-entry-required",
-    "applies_when": "the repo root contains a `CHANGELOG.md` and the PR changes one or more non-vendored source files but adds no new bullet under the `## Unreleased` heading — i.e. `CHANGELOG.md` is absent from the diff, or is edited only outside its `## Unreleased` section. Waive only for diffs with no shippable, user-observable effect (comment- or whitespace-only edits, or edits confined to this changelog guide).",
+    "applies_when": "the repo root contains a `CHANGELOG.md`, the PR changes at least one non-vendored file, and the PR-HEAD `CHANGELOG.md` has no `-` bullet under its `## Unreleased` heading (the section is absent or empty).",
     "doc_path": "docs/changelog-guide.md",
-    "enforcement": "judgment — confirm CHANGELOG.md exists at the repo root (test -f), then confirm the diff adds at least one `+`-prefixed bullet directly under the `## Unreleased` heading; flag when the file exists but no such bullet was added.",
-    "enforcement_type": "judgment",
+    "enforcement": "script (`scripts/rule-checks.sh`) — diff-scoped only; when ≥1 non-vendored file changed and `CHANGELOG.md` exists at the repo root, scan the `## Unreleased` section of the PR-HEAD `CHANGELOG.md` for a `-`/`*` bullet and flag when none is present. Deterministic state-check — does not depend on the review model executing a judgment step (so it fires reliably even on a weak review model). Trade-offs: no trivial-diff waiver (a comment/whitespace-only change still needs a bullet), and a `## Unreleased` already populated by an earlier unreleased merge suppresses the flag.",
+    "enforcement_type": "script",
     "id": "changelog/unreleased-entry-required",
     "level": "SHOULD",
-    "owner": "agent-auditor",
-    "trigger": [
-      "@commits"
-    ]
+    "owner": "agent-auditor"
   },
   {
     "anchor": "claude-md/agent-context-not-user-docs",

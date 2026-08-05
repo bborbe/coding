@@ -76,8 +76,8 @@ if (problems.length > 0) {
 ### RULE node/config/env-read-at-boundary (MUST)
 
 **Owner**: node-quality-assistant
-**Applies when**: `process.env` is read outside the configuration module — in a handler, a service class, or any module other than `config.js`.
-**Enforcement**: `rules/node/env-read-at-boundary.yml` (JavaScript) and `rules/node/env-read-at-boundary-ts.yml` (TypeScript) flag `process.env.<VAR>` access; config, entrypoint, tooling-config and test files are excluded in the rule. The agent confirms the reading module is not itself a bootstrap module.
+**Applies when**: `process.env` is read outside the configuration module — in a handler, a service class, or any module other than `config.js`. Hand-run diagnostics under `tools/` or `scripts/` are exempt; they have no config module to route through.
+**Enforcement**: `rules/node/env-read-at-boundary.yml` (JavaScript) and `rules/node/env-read-at-boundary-ts.yml` (TypeScript) flag `process.env.<VAR>` access; config, entrypoint, tooling-config, `tools/`, `scripts/` and test files are excluded in the rule. The agent confirms the reading module is not itself a bootstrap module.
 **Trigger**: **/*.js, **/*.ts
 **Why**: environment scattered through modules makes the service's real configuration surface impossible to enumerate, defeats fail-fast validation (a typo in a rarely-hit code path fails in production rather than at boot), and makes tests depend on ambient process state instead of an injected value.
 

@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: Exempt `tools/` and `scripts/` from `node/config/env-read-at-boundary` — hand-run diagnostics have no config module to route through, and the rule was reporting them as violations. Found by running `/coding:code-review` against a real repo rather than fixtures
+
 ## v0.34.0
 
 - feat: Add ast-grep detectors for four Node rules (`structured-not-console`, `express-body-limit`, `unhandled-rejection-exits`, `env-read-at-boundary`), each shipped as a JavaScript + TypeScript pair with rule-tests — these move from judgment-tier to mechanical

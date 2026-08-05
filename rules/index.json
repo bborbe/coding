@@ -1442,9 +1442,9 @@
   },
   {
     "anchor": "node/config/env-read-at-boundary",
-    "applies_when": "`process.env` is read outside the configuration module — in a handler, a service class, or any module other than `config.js`.",
+    "applies_when": "`process.env` is read outside the configuration module — in a handler, a service class, or any module other than `config.js`. Hand-run diagnostics under `tools/` or `scripts/` are exempt; they have no config module to route through.",
     "doc_path": "docs/node-service-guide.md",
-    "enforcement": "`rules/node/env-read-at-boundary.yml` (JavaScript) and `rules/node/env-read-at-boundary-ts.yml` (TypeScript) flag `process.env.<VAR>` access; config, entrypoint, tooling-config and test files are excluded in the rule. The agent confirms the reading module is not itself a bootstrap module.",
+    "enforcement": "`rules/node/env-read-at-boundary.yml` (JavaScript) and `rules/node/env-read-at-boundary-ts.yml` (TypeScript) flag `process.env.<VAR>` access; config, entrypoint, tooling-config, `tools/`, `scripts/` and test files are excluded in the rule. The agent confirms the reading module is not itself a bootstrap module.",
     "enforcement_type": "mechanical",
     "id": "node/config/env-read-at-boundary",
     "level": "MUST",

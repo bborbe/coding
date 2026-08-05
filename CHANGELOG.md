@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: Add the Node stack to the `CLAUDE.md` Doc↔Agent table — `node-service-guide.md` and `node-makefile-commands.md` both map to `node-quality-assistant`. Node was the only stack absent from that table despite being fully present in `README.md`, `llms.txt`, `agents/` and `rules/index.json`. Found by `/coding:audit-guide`
+
 ## v0.34.2
 
 - fix: Skip `rules/node/*` entirely on frontend projects in `ast-grep-runner.sh` — backend service rules produced pure false positives on a Vue SPA (`console.*` is correct in a browser, which has no stdout/stderr split, no log aggregator and no Kubernetes probes). Detected via bundler config (`vite` / `next` / `astro` / `nuxt` / `svelte`) or `.vue` sources, matching the project detection the three review commands already document

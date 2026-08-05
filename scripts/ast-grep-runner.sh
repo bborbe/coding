@@ -146,6 +146,30 @@ jq -r '.[] | select(.enforcement | test("rules/[a-z0-9_-]+/[a-z0-9_-]+\\.yml"; "
   [ $r.id, $p, $r.owner, $r.level ] | @tsv' "$INDEX_FILE" > "$INVENTORY_FILE"
 
 # ---------------------------------------------------------------------------
+# 1b. Frontend detection — node/* rules are backend-service rules
+# ---------------------------------------------------------------------------
+# A browser application has no stdout/stderr split, no log aggregator and no
+# Kubernetes probes, so the node service rules do not apply to it and fire as
+# pure false positives (console.* is the correct tool in a browser). ast-grep
+# `ignores` cannot express this: they match paths, and both project types use
+# src/. Detect the project kind here instead, matching the same signals the
+# three review commands document.
+IS_FRONTEND=false
+for cfg in vite next astro nuxt svelte; do
+  if ls "$TARGET_DIR/$cfg.config."* >/dev/null 2>&1; then
+    IS_FRONTEND=true
+    break
+  fi
+done
+if [ "$IS_FRONTEND" = false ]; then
+  # Component sources are the second signal, for a frontend without a config
+  # file at the root we were handed.
+  if find "$TARGET_DIR" -maxdepth 3 -name '*.vue' -not -path '*/node_modules/*' 2>/dev/null | head -1 | grep -q .; then
+    IS_FRONTEND=true
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # 2. Run ast-grep per YAML
 # ---------------------------------------------------------------------------
 while IFS=$'\t' read -r rule_id yml_rel owner level; do
@@ -154,6 +178,13 @@ while IFS=$'\t' read -r rule_id yml_rel owner level; do
     append_error "missing-yaml" "\"rule_id\":$(jq -n --arg v "$rule_id" '$v'),\"path\":$(jq -n --arg v "$yml_rel" '$v')"
     continue
   fi
+
+  # Backend-service rules are skipped entirely on a frontend project.
+  case "$yml_rel" in
+    rules/node/*)
+      [ "$IS_FRONTEND" = true ] && continue
+      ;;
+  esac
 
   # Build scan target: either the changed-file list or the whole target dir
   SCAN_OUT="$TMPDIR_WORK/scan_$$.json"

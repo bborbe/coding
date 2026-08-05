@@ -1413,6 +1413,289 @@
     ]
   },
   {
+    "anchor": "node/architecture/inject-dependencies",
+    "applies_when": "an app or handler factory reads mutable module-level state instead of accepting it as a parameter.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks factory functions for references to module-scope mutable bindings.",
+    "enforcement_type": "judgment",
+    "id": "node/architecture/inject-dependencies",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "src/**/*.js",
+      "src/**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/config/data-not-behaviour",
+    "applies_when": "the configuration module exports domain predicates or business logic (for example an authorisation check) alongside its values. A `check()` validator is exempt — it validates the config itself.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent inspects exported function properties on the config object and classifies each as validation or domain logic.",
+    "enforcement_type": "judgment",
+    "id": "node/config/data-not-behaviour",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/config/env-read-at-boundary",
+    "applies_when": "`process.env` is read outside the configuration module — in a handler, a service class, or any module other than `config.js`.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent scans for `process.env` access outside the configuration module, ignoring the config and bootstrap modules themselves. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/config/env-read-at-boundary",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/config/validate-before-serving",
+    "applies_when": "the configuration module exports no validation function, or the entrypoint starts the server without calling it and exiting non-zero on failure.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent reads `config.js` for an exported validator and the entrypoint for a call preceding `listen`.",
+    "enforcement_type": "judgment",
+    "id": "node/config/validate-before-serving",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/health/liveness-has-no-dependencies",
+    "applies_when": "the `/healthz` handler queries a database, calls an external service, checks a connection state, or otherwise depends on anything outside the process.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent traces the liveness handler body for I/O and external calls.",
+    "enforcement_type": "judgment",
+    "id": "node/health/liveness-has-no-dependencies",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/health/readiness-returns-503",
+    "applies_when": "the readiness handler signals not-ready with a status other than 503 — typically 500.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent reads the readiness handler for the status code used on the not-ready branch. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/health/readiness-returns-503",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/http/error-handler-arity",
+    "applies_when": "a middleware intended as an error handler is registered with fewer than four parameters.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks `app.use` callbacks whose first parameter is named `err` or `error` for four declared parameters. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/http/error-handler-arity",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/http/explicit-body-limit",
+    "applies_when": "`express.json()` or `express.urlencoded()` is mounted without an explicit `limit`.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks `express.json()` and `express.urlencoded()` calls for an explicit `limit`. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/http/explicit-body-limit",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/k8s/grace-period-exceeds-shutdown-timeout",
+    "applies_when": "`terminationGracePeriodSeconds` in the Deployment is less than or equal to the service's `SHUTDOWN_TIMEOUT_MS` default or configured value.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent compares the manifest value against the config default and any env override in the same manifest.",
+    "enforcement_type": "judgment",
+    "id": "node/k8s/grace-period-exceeds-shutdown-timeout",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "k8s/**/*.yaml"
+    ]
+  },
+  {
+    "anchor": "node/k8s/scrape-annotation-matches-metrics",
+    "applies_when": "a Deployment is annotated `prometheus.io/scrape: 'true'` while the service exposes no `/metrics` route, or the service exposes `/metrics` while the Deployment carries no scrape annotation.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent cross-references the manifest annotations against the route table.",
+    "enforcement_type": "judgment",
+    "id": "node/k8s/scrape-annotation-matches-metrics",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "k8s/**/*.yaml",
+      "src/**/*.js",
+      "src/**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/lifecycle/crash-on-unhandled-rejection",
+    "applies_when": "`unhandledRejection` or `uncaughtException` is handled by logging and continuing, rather than logging and exiting non-zero.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent reads `unhandledRejection` and `uncaughtException` handler bodies for a non-zero exit. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/lifecycle/crash-on-unhandled-rejection",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/lifecycle/handles-sigterm",
+    "applies_when": "a long-running service registers no `SIGTERM` handler.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks entrypoint files containing a `listen` call for a `SIGTERM` handler registration. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/lifecycle/handles-sigterm",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "src/**/*.js",
+      "src/**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/lifecycle/readiness-fails-before-close",
+    "applies_when": "the signal handler calls `server.close()` without first flipping the readiness flag to false.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent reads the shutdown path for the ordering of the readiness mutation relative to `server.close()`.",
+    "enforcement_type": "judgment",
+    "id": "node/lifecycle/readiness-fails-before-close",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/lifecycle/shutdown-timer-unref",
+    "applies_when": "the shutdown forced-exit timer is created without `.unref()`.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks the shutdown timer for an `.unref()` call. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/lifecycle/shutdown-timer-unref",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/logging/errors-to-stderr",
+    "applies_when": "the logging module writes every level to the same stream, rather than sending `error` and `warn` to stderr and the rest to stdout.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent reads the log module's write target selection.",
+    "enforcement_type": "judgment",
+    "id": "node/logging/errors-to-stderr",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/logging/structured-not-console",
+    "applies_when": "`console.log`, `console.error`, or `console.warn` is called in service code under `src/`. Diagnostic scripts under `tools/` or `scripts/` are exempt — a terminal is their interface.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent scans `src/` for `console.<method>` calls, exempting diagnostic scripts under `tools/` and `scripts/`. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/logging/structured-not-console",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "src/**/*.js",
+      "src/**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/metrics/bounded-label-cardinality",
+    "applies_when": "a metric label is populated from a raw request path, a user identifier, or any other unbounded value rather than a matched route pattern.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks metric label values for `req.path`, `req.url`, or `req.originalUrl` used without a bounding fallback. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/metrics/bounded-label-cardinality",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/metrics/own-registry",
+    "applies_when": "metrics are registered on `prom-client`'s global default registry instead of an explicitly constructed `client.Registry()`.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks whether metrics are constructed with an explicit `registers` option against an owned registry, or fall through to the global default. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/metrics/own-registry",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "**/*.js",
+      "**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/metrics/service-exposes-metrics",
+    "applies_when": "a long-running service has no `/metrics` route, or no `prom-client` dependency in `package.json`.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks `package.json` for `prom-client` and the route table for a `/metrics` registration. One-shot CLI tools and scripts are exempt.",
+    "enforcement_type": "judgment",
+    "id": "node/metrics/service-exposes-metrics",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "package.json",
+      "src/**/*.js",
+      "src/**/*.ts"
+    ]
+  },
+  {
+    "anchor": "node/test/ephemeral-port",
+    "applies_when": "a test starts a server on a hardcoded port.",
+    "doc_path": "docs/node-service-guide.md",
+    "enforcement": "judgment — the agent checks `listen(...)` calls in test files for a hardcoded non-zero port. A mechanical detector is planned.",
+    "enforcement_type": "judgment",
+    "id": "node/test/ephemeral-port",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "test/**/*.js",
+      "test/**/*.ts",
+      "**/*.test.js",
+      "**/*.test.ts"
+    ]
+  },
+  {
     "anchor": "python-architecture/constructor-injection-only",
     "applies_when": "a Python service class receives a dependency (logger, repository, API client, validator, etc.) through a *method parameter* instead of through `__init__`. Related but distinct anti-patterns covered by other rules: dependency from a global module variable (see `python-architecture/main-py-composition-root`); post-construction `self.foo = bar.foo` mutation (see `python-ioc/dependencies-as-private-fields`, which mandates private-field storage that makes mutation socially difficult).",
     "doc_path": "docs/python-architecture-patterns.md",

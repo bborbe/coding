@@ -29,6 +29,7 @@ Any remaining arguments are treated as the directory path.
 Detect project type to determine which specialist agents to invoke:
 - **Go project**: Check for `*.go` files or `go.mod`
 - **Python project**: Check for `*.py` files or `pyproject.toml`/`requirements.txt`
+- **Node project**: Check for `package.json`. Distinguish backend service (no bundler config, no `.vue`/`.jsx`/`.tsx` sources → `node-quality-assistant` owns it) from frontend application (bundler config or component sources → the `node/*` service rules do NOT apply)
 - **Other languages**: Add detection as needed
 
 ### Step 3: Run Automated Checks (All Modes)
@@ -73,7 +74,9 @@ Mirrors `commands/pr-review.md` Step 4. The funnel runs first (diff-scoped), the
 
 **Short Mode**: No agents — skip to Step 5.
 
-**Early exit**: if NO changed file has extension `.go` or `.py` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `pyproject.toml`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the diff stat decides this — no tool calls needed.
+**Early exit**: if NO changed file has extension `.go`, `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, or `.vue` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `Makefile.*`, `pyproject.toml`, `package.json`, `tsconfig.json`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the diff stat decides this — no tool calls needed.
+
+Changed files under a `node_modules/`, `dist/`, `build/`, or `coverage/` path segment do not count toward this check — they are generated or installed, and a committed bundle is often a single minified multi-megabyte line.
 - BUT: if LICENSE missing AND repo is public, add to "Should Fix":
   - "Missing LICENSE file"
   - "README missing license section" (check with Grep for `## License` in README.md)

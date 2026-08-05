@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: Include `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, and `.vue` in the `code-review` file filter and in the `pr-review` / `local-review` early-exit conditions — Node and frontend sources were silently skipped by every review command
+- fix: Exclude `dist/`, `build/`, and `coverage/` path segments alongside `vendor/` and `node_modules/`, so committed bundles are not reviewed
+- feat: Detect Node projects via `package.json` in all three review commands, distinguishing backend services (owned by `node-quality-assistant`) from frontend applications (service rules do not apply)
+
 ## v0.32.2
 
 - docs: Add `docs/node-service-guide.md` — Node.js backend service contract: configuration, structured logging, liveness/readiness split, Prometheus metrics, graceful shutdown, express wiring, testing, and the source↔manifest Kubernetes couplings (20 rules)

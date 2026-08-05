@@ -36,15 +36,17 @@ Defaults are conservative — `selector` mode + Must Fix + Should Fix only — b
 Build the file-set the funnel processes:
 
 ```bash
-cd <directory> && git ls-files | grep -E '\.(go|py|md|yaml|yml|sh)$' > /tmp/code-review-filelist.txt
+cd <directory> && git ls-files | grep -E '\.(go|py|js|mjs|cjs|ts|tsx|vue|md|yaml|yml|sh)$' > /tmp/code-review-filelist.txt
 ```
 
-Exclude vendor + node_modules:
+Exclude vendored, installed, and generated trees:
 
 ```bash
-grep -v -E '^(vendor/|node_modules/|\.git/)' /tmp/code-review-filelist.txt > /tmp/code-review-files.txt
+grep -v -E '(^|/)(vendor|node_modules|dist|build|coverage|\.git)/' /tmp/code-review-filelist.txt > /tmp/code-review-files.txt
 mv /tmp/code-review-files.txt /tmp/code-review-filelist.txt
 ```
+
+`dist/`, `build/`, and `coverage/` matter once JavaScript and TypeScript are in scope: a committed bundle is generated, minified, and often a single multi-megabyte line. Reviewing it produces findings nobody can act on and can exhaust the context window on one file. The pattern is anchored to a path segment rather than the line start, so a nested `frontend/app/dist/` is excluded too.
 
 This is the **scope source** — every file the audit considers. Replaces the diff-based file list that `/coding:pr-review` and `/coding:local-review` use.
 

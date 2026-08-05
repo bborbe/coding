@@ -87,6 +87,9 @@ cd <REPO_DIR> && git worktree remove /tmp/pr-review-<repo>-<SOURCE_BRANCH> --for
 Detect project type in `REVIEW_DIR`:
 - **Go**: `go.mod` exists
 - **Python**: `pyproject.toml` or `requirements.txt` exists
+- **Node**: `package.json` exists. Distinguish the two flavours — they own different rule sets:
+  - **Backend service** — no bundler config (`vite.config.*`, `next.config.*`, `astro.config.*`) and no `.vue`/`.jsx`/`.tsx` sources. Owned by `node-quality-assistant`.
+  - **Frontend application** — bundler config or component sources present. The `node/*` service rules do NOT apply; see `vue3-typescript-frontend-guide.md` / `astro-development-guide.md`.
 
 ### Step 3: Run Automated Checks (All Modes)
 
@@ -109,7 +112,9 @@ The dispatcher runs the full mechanical+script funnel first (diff-scoped), then 
 
 **Short Mode**: No agents — skip to Step 5.
 
-**Early exit**: if NO changed file has extension `.go` or `.py` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `pyproject.toml`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the Step 0c diff stat decides this — no tool calls needed.
+**Early exit**: if NO changed file has extension `.go`, `.py`, `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, or `.vue` AND none matches `CHANGELOG.md`, `go.mod`, `LICENSE*`, `README.md`, `Makefile`, `Makefile.*`, `pyproject.toml`, `package.json`, `tsconfig.json`, `k8s/**`, `agents/**`, `commands/**`, `skills/**`, `docs/**` — the diff cannot match any rule. Skip Step 4 entirely; note "Step 4 skipped: no rule-relevant files changed" in the report. One glance at the Step 0c diff stat decides this — no tool calls needed.
+
+Changed files under a `node_modules/`, `dist/`, `build/`, or `coverage/` path segment do not count toward this check — they are generated or installed, and a committed bundle is often a single minified multi-megabyte line.
 
 #### 4.0: Toolchain preflight (fail-fast)
 

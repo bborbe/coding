@@ -77,6 +77,8 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `python-factory-pattern.md` | `python-architecture-assistant` |
 | `adr-guide.md` | `go-architecture-assistant` |
 | `architecture-dimensions-guide.md` | `architecture-dimensions-assistant` |
+| `node-service-guide.md` | `node-quality-assistant` |
+| `node-makefile-commands.md` | `node-quality-assistant` |
 
 Reference-only docs (patterns, setup guides) don't need agents.
 

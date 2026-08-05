@@ -1,0 +1,14 @@
+id: node/config/env-read-at-boundary-ts
+valid:
+  - |
+    function createOrderHandler({ orderTimeoutMs }) {
+      return async (req, res) => res.json(await fetchOrder(req.params.id, orderTimeoutMs));
+    }
+invalid:
+  - |
+    function createOrderHandler() {
+      return async (req, res) => {
+        const timeout = parseInt(process.env.ORDER_TIMEOUT_MS || '5000', 10);
+        res.json(await fetchOrder(req.params.id, timeout));
+      };
+    }

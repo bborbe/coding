@@ -1,0 +1,16 @@
+id: node/logging/structured-not-console-ts
+snapshots:
+  ? |
+    console.error('failed', err);
+  : labels:
+    - source: console.error('failed', err)
+      style: primary
+      start: 0
+      end: 28
+  ? |
+    console.log('order created', order.id);
+  : labels:
+    - source: console.log('order created', order.id)
+      style: primary
+      start: 0
+      end: 38

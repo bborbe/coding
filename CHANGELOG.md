@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: Add ast-grep detectors for four Node rules (`structured-not-console`, `express-body-limit`, `unhandled-rejection-exits`, `env-read-at-boundary`), each shipped as a JavaScript + TypeScript pair with rule-tests — these move from judgment-tier to mechanical
+- fix: Allow a rule to cite more than one ast-grep YAML in `ast-grep-runner.sh` and `check-coverage.sh` — ast-grep languages map to disjoint file extensions, so a rule holding for both JavaScript and TypeScript needs one detector per language and the previous first-match-only extraction silently dropped the second
+- fix: Accept a `-ts` / `-tsx` / `-js` suffix on a detector's `id:` in `check-coverage.sh`, so language variants keep unique ast-grep ids while mapping to one documented rule
+
 ## v0.33.0
 
 - fix: Include `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, and `.vue` in the `code-review` file filter and in the `pr-review` / `local-review` early-exit conditions — Node and frontend sources were silently skipped by every review command

@@ -45,20 +45,19 @@ for r in index:
     # Strip backticks the schema sometimes wraps paths in.
     enf_clean = enf.strip("` ")
     # Pull out the rules/... .yml path if present (judgment-only entries skip).
-    m = re.search(r"(rules/[a-z0-9_-]+/[a-z0-9_-]+\.yml)", enf_clean)
-    if not m:
-        continue
-    p = pathlib.Path(m.group(1))
-    if not p.exists():
-        missing_files.append((r["id"], str(p)))
+    # A rule may cite more than one YAML: ast-grep languages map to disjoint file
+    # extensions, so a rule holding for both JS and TS needs one detector per language.
+    for cited in re.findall(r"(rules/[a-z0-9_-]+/[a-z0-9_-]+\.yml)", enf_clean):
+        p = pathlib.Path(cited)
+        if not p.exists():
+            missing_files.append((r["id"], str(p)))
 
 # 2. Every YAML in rules/<lang>/ must be referenced by exactly one index entry.
 ref_paths = set()
 for r in index:
     enf = r.get("enforcement", "").strip("` ")
-    m = re.search(r"(rules/[a-z0-9_-]+/[a-z0-9_-]+\.yml)", enf)
-    if m:
-        ref_paths.add(pathlib.Path(m.group(1)))
+    for cited in re.findall(r"(rules/[a-z0-9_-]+/[a-z0-9_-]+\.yml)", enf):
+        ref_paths.add(pathlib.Path(cited))
 
 orphan_yamls = []
 for p in sorted(rules_dir.rglob("*.yml")):
@@ -76,7 +75,10 @@ for p in sorted(rules_dir.rglob("*.yml")):
             for line in f:
                 if line.startswith("id:"):
                     yaml_id = line.split(":", 1)[1].strip()
-                    if yaml_id not in valid_ids:
+                    # Language-variant detectors carry a suffix so their ids stay unique
+                    # within the ast-grep config, while mapping to one doc rule.
+                    base_id = re.sub(r"-(ts|tsx|js)$", "", yaml_id)
+                    if yaml_id not in valid_ids and base_id not in valid_ids:
                         id_mismatches.append((str(p), yaml_id))
                     break
     except OSError:

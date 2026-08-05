@@ -1,0 +1,17 @@
+id: node/http/explicit-body-limit
+language: javascript
+severity: warning
+message: |
+  express.json() / express.urlencoded() mounted without an explicit `limit`.
+  The 100kb default is invisible and rarely the right value; state it so the
+  accepted request size is a reviewed decision.
+  See docs/node-service-guide.md (RULE node/http/explicit-body-limit).
+rule:
+  any:
+    - pattern: express.json()
+    - pattern: express.urlencoded()
+ignores:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"

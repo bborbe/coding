@@ -1637,6 +1637,64 @@
     ]
   },
   {
+    "anchor": "node/make/install-from-lockfile",
+    "applies_when": "the `install` target runs `npm install` rather than `npm ci`.",
+    "doc_path": "docs/node-makefile-commands.md",
+    "enforcement": "judgment — the agent reads the `install` recipe.",
+    "enforcement_type": "judgment",
+    "id": "node/make/install-from-lockfile",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "Makefile",
+      "Makefile.*"
+    ]
+  },
+  {
+    "anchor": "node/make/required-targets",
+    "applies_when": "a Node service repository has no `Makefile`, or its `Makefile` is missing any of `install`, `precommit`, `format`, `lint`, `test`, `check`.",
+    "doc_path": "docs/node-makefile-commands.md",
+    "enforcement": "judgment — the agent reads the Makefile and its includes for the target set.",
+    "enforcement_type": "judgment",
+    "id": "node/make/required-targets",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "Makefile",
+      "Makefile.*",
+      "package.json"
+    ]
+  },
+  {
+    "anchor": "node/make/security-gates-in-check",
+    "applies_when": "the `check` target omits dependency-vulnerability scanning or secret detection.",
+    "doc_path": "docs/node-makefile-commands.md",
+    "enforcement": "judgment — the agent reads the `check` target's prerequisites.",
+    "enforcement_type": "judgment",
+    "id": "node/make/security-gates-in-check",
+    "level": "SHOULD",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "Makefile",
+      "Makefile.*"
+    ]
+  },
+  {
+    "anchor": "node/make/typecheck-for-typescript",
+    "applies_when": "the repository contains a `tsconfig.json` but no Makefile target running `tsc --noEmit` (or equivalent) reachable from `check`.",
+    "doc_path": "docs/node-makefile-commands.md",
+    "enforcement": "judgment — the agent checks for `tsconfig.json`, then for a type-checking target in the `check` dependency chain.",
+    "enforcement_type": "judgment",
+    "id": "node/make/typecheck-for-typescript",
+    "level": "MUST",
+    "owner": "node-quality-assistant",
+    "trigger": [
+      "tsconfig.json",
+      "Makefile",
+      "Makefile.*"
+    ]
+  },
+  {
     "anchor": "node/metrics/bounded-label-cardinality",
     "applies_when": "a metric label is populated from a raw request path, a user identifier, or any other unbounded value rather than a matched route pattern.",
     "doc_path": "docs/node-service-guide.md",

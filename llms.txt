@@ -63,6 +63,10 @@
 - [CLI Arguments](docs/python-cli-arguments-guide.md): argparse, BaseSettings, typer
 - [Makefile Commands](docs/python-makefile-commands.md): Build targets (uv, ruff, mypy, pytest)
 
+## Node.js
+- [Service Guide](docs/node-service-guide.md): Config, structured logging, health/readiness split, Prometheus metrics, graceful shutdown, express wiring, k8s couplings
+- [Makefile Commands](docs/node-makefile-commands.md): Build targets (npm ci, prettier, eslint, node --test, audit, trivy, tsc --noEmit)
+
 ## Development Workflows
 - [Git Commit](docs/git-commit-guide.md): Commit workflow, CHANGELOG, message format
 - [Git Workflow](docs/git-workflow.md): Branching strategy, PR process

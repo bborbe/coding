@@ -168,6 +168,13 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [CLI Arguments](docs/python-cli-arguments-guide.md) | argparse, BaseSettings |
 | [Makefile Commands](docs/python-makefile-commands.md) | Build targets |
 
+### Node.js
+
+| Guide | Description |
+|-------|-------------|
+| [Service Guide](docs/node-service-guide.md) | Config, logging, health, metrics, shutdown, k8s couplings |
+| [Makefile Commands](docs/node-makefile-commands.md) | Build targets |
+
 ### Workflows & Documentation
 
 | Guide | Description |
@@ -245,6 +252,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `readme-quality-assistant` | README.md completeness |
 | `shellcheck-assistant` | Shell script quality |
 | `python-quality-assistant` | Python code quality |
+| `node-quality-assistant` | Node.js service quality |
 | `python-architecture-assistant` | Cross-module architecture, naive extractions, layering, boundaries |
 | `context7-library-checker` | Library API currency |
 | `go-test-writer-assistant` | Generate Go tests |

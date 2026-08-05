@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: Add `docs/node-service-guide.md` — Node.js backend service contract: configuration, structured logging, liveness/readiness split, Prometheus metrics, graceful shutdown, express wiring, testing, and the source↔manifest Kubernetes couplings (20 rules)
+- docs: Add `docs/node-makefile-commands.md` — standard Makefile targets, include layout, security gates, and the `tsc --noEmit` requirement for TypeScript projects (4 rules)
+- docs: Add `agents/node-quality-assistant.md` — owner for the Node rule set
+- docs: Register Node guides in `README.md` and `llms.txt`
+
 ## v0.32.1
 
 - refactor(changelog): convert rule `changelog/unreleased-entry-required` from judgment to **script tier** — deterministic check in `scripts/rule-checks.sh` (state-check on the PR-HEAD `## Unreleased` section) instead of model judgment. Fires reliably even on a weak review model (the maintainer bot's MiniMax reviewer was silently skipping the judgment funnel). `docs/changelog-guide.md` Enforcement line rewritten (→ `enforcement_type: script`), `@commits` Trigger dropped, `rules/index.json` regenerated. Trade-off: no trivial-diff waiver.

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.32.2
 
 - docs: Add `docs/node-service-guide.md` — Node.js backend service contract: configuration, structured logging, liveness/readiness split, Prometheus metrics, graceful shutdown, express wiring, testing, and the source↔manifest Kubernetes couplings (20 rules)
 - docs: Add `docs/node-makefile-commands.md` — standard Makefile targets, include layout, security gates, and the `tsc --noEmit` requirement for TypeScript projects (4 rules)

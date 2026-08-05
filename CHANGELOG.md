@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.34.3
 
 - docs: Add the Node stack to the `CLAUDE.md` Doc↔Agent table — `node-service-guide.md` and `node-makefile-commands.md` both map to `node-quality-assistant`. Node was the only stack absent from that table despite being fully present in `README.md`, `llms.txt`, `agents/` and `rules/index.json`. Found by `/coding:audit-guide`
 

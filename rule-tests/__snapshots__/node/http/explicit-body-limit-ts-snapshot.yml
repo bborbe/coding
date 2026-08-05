@@ -1,0 +1,16 @@
+id: node/http/explicit-body-limit-ts
+snapshots:
+  ? |
+    app.use(express.json());
+  : labels:
+    - source: express.json()
+      style: primary
+      start: 8
+      end: 22
+  ? |
+    app.use(express.urlencoded());
+  : labels:
+    - source: express.urlencoded()
+      style: primary
+      start: 8
+      end: 28

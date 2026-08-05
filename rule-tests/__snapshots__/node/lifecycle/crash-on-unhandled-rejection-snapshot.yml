@@ -1,0 +1,14 @@
+id: node/lifecycle/crash-on-unhandled-rejection
+snapshots:
+  ? |
+    process.on('unhandledRejection', (reason) => {
+      log.error('unhandled rejection', { error: String(reason) });
+    });
+  : labels:
+    - source: |-
+        process.on('unhandledRejection', (reason) => {
+          log.error('unhandled rejection', { error: String(reason) });
+        })
+      style: primary
+      start: 0
+      end: 112

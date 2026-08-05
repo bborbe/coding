@@ -1,0 +1,24 @@
+id: node/lifecycle/crash-on-unhandled-rejection
+language: javascript
+severity: warning
+message: |
+  unhandledRejection / uncaughtException handler does not exit.
+  After an uncaught error the process state is unknown; continuing risks
+  corruption that is far harder to diagnose than a restart.
+  See docs/node-service-guide.md (RULE node/lifecycle/crash-on-unhandled-rejection).
+rule:
+  all:
+    - any:
+        - pattern: process.on('unhandledRejection', $HANDLER)
+        - pattern: process.on('uncaughtException', $HANDLER)
+        - pattern: process.on("unhandledRejection", $HANDLER)
+        - pattern: process.on("uncaughtException", $HANDLER)
+    - not:
+        has:
+          stopBy: end
+          pattern: process.exit($$$)
+ignores:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"

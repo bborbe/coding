@@ -1,0 +1,11 @@
+id: node/logging/structured-not-console
+valid:
+  - |
+    log.info('order created', { orderId: order.id });
+  - |
+    logger.error('failed', { error: err.message });
+invalid:
+  - |
+    console.log('order created', order.id);
+  - |
+    console.error('failed', err);

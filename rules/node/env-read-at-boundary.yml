@@ -1,0 +1,25 @@
+id: node/config/env-read-at-boundary
+language: javascript
+severity: warning
+message: |
+  process.env read outside the configuration module.
+  Scattered environment access defeats fail-fast validation and makes the
+  service's real configuration surface impossible to enumerate.
+  See docs/node-service-guide.md (RULE node/config/env-read-at-boundary).
+rule:
+  pattern: process.env.$VAR
+ignores:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"
+  - "**/config.js"
+  - "**/config.ts"
+  - "**/index.js"
+  - "**/index.ts"
+  - "*.config.js"
+  - "*.config.mjs"
+  - "*.config.ts"
+  - "test/**"
+  - "**/*.test.js"
+  - "**/*.test.ts"

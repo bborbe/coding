@@ -1,0 +1,22 @@
+id: node/logging/structured-not-console-ts
+language: typescript
+severity: warning
+message: |
+  console.* in service code emits unstructured, unlevelled text into the same
+  stream as structured records, breaking log-aggregation parsing.
+  Use the structured logger (log.info / log.error) instead.
+  See docs/node-service-guide.md (RULE node/logging/structured-not-console).
+rule:
+  pattern: console.$METHOD($$$)
+ignores:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"
+  - "tools/**"
+  - "**/tools/**"
+  - "scripts/**"
+  - "**/scripts/**"
+  - "test/**"
+  - "**/*.test.js"
+  - "**/*.test.ts"

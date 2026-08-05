@@ -136,12 +136,14 @@ if [ ! -f "$INDEX_FILE" ]; then
 fi
 
 INVENTORY_FILE="$TMPDIR_WORK/inventory.tsv"
-jq -r '.[] | select(.enforcement | test("rules/[a-z0-9_-]+/[a-z0-9_-]+\\.yml"; "")) |
-  [ .id,
-    ( .enforcement | capture("(?<p>rules/[a-z0-9_-]+/[a-z0-9_-]+\\.yml)") | .p ),
-    .owner,
-    .level
-  ] | @tsv' "$INDEX_FILE" > "$INVENTORY_FILE"
+# A rule may cite MORE THAN ONE YAML. ast-grep maps each language to a fixed set
+# of file extensions with no overlap (`javascript` sees .js/.mjs/.cjs, `typescript`
+# sees .ts), so a rule that must hold for both needs one detector per language.
+# Emit one inventory row per cited YAML; the scan loop below runs each and
+# attributes every finding to the same rule id.
+jq -r '.[] | select(.enforcement | test("rules/[a-z0-9_-]+/[a-z0-9_-]+\\.yml"; "")) as $r |
+  ( $r.enforcement | [ scan("rules/[a-z0-9_-]+/[a-z0-9_-]+\\.yml") ] | unique | .[] ) as $p |
+  [ $r.id, $p, $r.owner, $r.level ] | @tsv' "$INDEX_FILE" > "$INVENTORY_FILE"
 
 # ---------------------------------------------------------------------------
 # 2. Run ast-grep per YAML

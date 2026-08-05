@@ -77,7 +77,7 @@ if (problems.length > 0) {
 
 **Owner**: node-quality-assistant
 **Applies when**: `process.env` is read outside the configuration module — in a handler, a service class, or any module other than `config.js`.
-**Enforcement**: judgment — the agent scans for `process.env` access outside the configuration module, ignoring the config and bootstrap modules themselves. A mechanical detector is planned.
+**Enforcement**: `rules/node/env-read-at-boundary.yml` (JavaScript) and `rules/node/env-read-at-boundary-ts.yml` (TypeScript) flag `process.env.<VAR>` access; config, entrypoint, tooling-config and test files are excluded in the rule. The agent confirms the reading module is not itself a bootstrap module.
 **Trigger**: **/*.js, **/*.ts
 **Why**: environment scattered through modules makes the service's real configuration surface impossible to enumerate, defeats fail-fast validation (a typo in a rarely-hit code path fails in production rather than at boot), and makes tests depend on ambient process state instead of an injected value.
 
@@ -173,7 +173,7 @@ function emit(level, msg, fields = {}) {
 
 **Owner**: node-quality-assistant
 **Applies when**: `console.log`, `console.error`, or `console.warn` is called in service code under `src/`. Diagnostic scripts under `tools/` or `scripts/` are exempt — a terminal is their interface.
-**Enforcement**: judgment — the agent scans `src/` for `console.<method>` calls, exempting diagnostic scripts under `tools/` and `scripts/`. A mechanical detector is planned.
+**Enforcement**: `rules/node/structured-not-console.yml` (JavaScript) and `rules/node/structured-not-console-ts.yml` (TypeScript) flag `console.<method>` calls; `tools/`, `scripts/`, and test files are excluded in the rule. The agent confirms the file is service code.
 **Trigger**: src/**/*.js, src/**/*.ts
 **Why**: `console.log` emits unstructured text interleaved into the same stream as structured records, so a single line breaks log-aggregation parsing for the whole stream. It also carries no level, which means it cannot be filtered in production and cannot be suppressed when a service gets noisy.
 
@@ -381,7 +381,7 @@ process.on('SIGTERM', () => {
 
 **Owner**: node-quality-assistant
 **Applies when**: `unhandledRejection` or `uncaughtException` is handled by logging and continuing, rather than logging and exiting non-zero.
-**Enforcement**: judgment — the agent reads `unhandledRejection` and `uncaughtException` handler bodies for a non-zero exit. A mechanical detector is planned.
+**Enforcement**: `rules/node/unhandled-rejection-exits.yml` (JavaScript) and `rules/node/unhandled-rejection-exits-ts.yml` (TypeScript) match `process.on("unhandledRejection"|"uncaughtException", ...)` whose handler contains no `process.exit`.
 **Trigger**: **/*.js, **/*.ts
 **Why**: after an uncaught exception the process is in an unknown state — a request may be half-written, a transaction half-applied, a lock still held. Continuing produces corruption that is far harder to diagnose than a restart. In Kubernetes a crash is cheap and observable: the pod restarts, the restart count increments, and an alert can fire on it.
 
@@ -417,7 +417,7 @@ app.use((err, _req, res, _next) => {
 
 **Owner**: node-quality-assistant
 **Applies when**: `express.json()` or `express.urlencoded()` is mounted without an explicit `limit`.
-**Enforcement**: judgment — the agent checks `express.json()` and `express.urlencoded()` calls for an explicit `limit`. A mechanical detector is planned.
+**Enforcement**: `rules/node/express-body-limit.yml` (JavaScript) and `rules/node/express-body-limit-ts.yml` (TypeScript) match `express.json()` / `express.urlencoded()` called with no arguments.
 **Trigger**: **/*.js, **/*.ts
 **Why**: the default limit is 100kb, which is either too permissive or too restrictive for most services and is invisible either way. Stating it makes the service's accepted request size a reviewed decision rather than a framework default nobody checked, and it is the cheapest available guard against memory exhaustion from oversized bodies.
 

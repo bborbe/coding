@@ -5,3 +5,5 @@
 /.dark-factory.log
 /prompts/log
 /specs/log
+/bench/results/
+/bench/.cache/

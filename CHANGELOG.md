@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- Add `bench/` — outcome tier of the test pyramid, scoring a review configuration against expected findings
+- Add `bench/prs.json` — 5-PR development fixture (Go ×2, TypeScript, Node, Python; 3–783 lines; one clean, one with documented defects; both merge strategies)
+- Document merged-PR diff reconstruction in `bench/README.md` — branch on parent count, since a squash fallback silently yields an empty diff that scores as a clean review
+- Gitignore `bench/results/` and `bench/.cache/` so run artifacts never ship in the plugin clone
+
 ## v0.34.3
 
 - docs: Add the Node stack to the `CLAUDE.md` Doc↔Agent table — `node-service-guide.md` and `node-makefile-commands.md` both map to `node-quality-assistant`. Node was the only stack absent from that table despite being fully present in `README.md`, `llms.txt`, `agents/` and `rules/index.json`. Found by `/coding:audit-guide`

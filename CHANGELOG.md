@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- bench: add `bench/run.py` — benchmark runner entrypoint with configuration-identity core (content hashing of `rules/`+`commands/`, manifest loading/validation, plugin-resolution preflight, CLI surface with mandatory `--model`/`--effort`/`--mode`, reserved `--golden` rejection, `--print-config-hash` helper)
+- bench: add `bench/testsupport.py` — shared test helpers (`make_coding_repo`, `make_verify_config_dir`, `stub_claude`, `with_path`)
+- bench: add `bench/test_config.py` — 17 unit tests covering AC6, AC9, AC11 and related acceptance criteria
+
 ## v0.35.0
 
 - Add `bench/` — outcome tier of the test pyramid, scoring a review configuration against expected findings

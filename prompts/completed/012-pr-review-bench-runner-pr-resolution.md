@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [002-pr-review-bench-runner]
+summary: Extended bench/run.py with PR resolution (git chokepoint, ensure_refs, resolve_diff_range, changed_files, prepare_worktree, resolve_pr), path helpers, fetch_url; rewrote process_pr stub; added bench/test_resolve.py with 12 unit tests covering AC2/AC3/AC7/AC8; extended bench/testsupport.py with git-repo helpers
+execution_id: coding-bench-runner-exec-012-pr-review-bench-runner-pr-resolution
+dark-factory-version: v0.192.9
 created: "2026-08-06T21:06:00Z"
 queued: "2026-08-06T21:40:07Z"
+started: "2026-08-06T21:45:57Z"
+completed: "2026-08-06T22:08:44Z"
 ---
 
 <summary>

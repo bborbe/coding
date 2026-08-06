@@ -13,6 +13,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - bench: add `bench/run.py` — benchmark runner entrypoint with configuration-identity core (content hashing of `rules/`+`commands/`, manifest loading/validation, plugin-resolution preflight, CLI surface with mandatory `--model`/`--effort`/`--mode`, reserved `--golden` rejection, `--print-config-hash` helper)
 - bench: add `bench/testsupport.py` — shared test helpers (`make_coding_repo`, `make_verify_config_dir`, `stub_claude`, `with_path`)
 - bench: add `bench/test_config.py` — 17 unit tests covering AC6, AC9, AC11 and related acceptance criteria
+- bench: extend `bench/run.py` with PR resolution (fetch from manifest URL into `bench/.cache/repos/`, isolated working copies via `git worktree`), parent-count diff-range branching (`^1..^2` for merge commits, manifest `base_sha..head_sha` for single-parent commits), empty-diff abort (`EMPTY DIFF` loud failure), per-PR failure isolation, and strategy-label mismatch reporting
+- bench: add `bench/test_resolve.py` — 12 unit tests covering AC2, AC3, AC7, AC8 and related acceptance criteria (`parent_count`, `empty_diff`, `git_invocation_confined_to_cache_repos`, `fetch_url`)
+- bench: extend `bench/testsupport.py` with git-repo helpers (`init_git_repo`, `commit_file`, `make_merge_repo`, `make_squash_repo`, `make_empty_diff_repo`, `stub_git`, `make_manifest`)
 
 ## v0.35.0
 

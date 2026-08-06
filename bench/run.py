@@ -17,11 +17,14 @@
 # Python 3 standard library only — no third-party dependencies.
 
 import argparse
+import dataclasses
 import hashlib
 import json
 import os
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 
 # ----------------------------------------------------------------------
@@ -183,6 +186,249 @@ def safe_pr_key(pr_id: str) -> str:
     Assumes pr_id already passed PR_ID_RE validation.
     """
     return pr_id.replace("#", "_")
+
+
+# ----------------------------------------------------------------------
+# Path helpers
+# ----------------------------------------------------------------------
+def repos_root(cache_root: pathlib.Path) -> pathlib.Path:
+    return cache_root / "repos"
+
+
+def repo_cache_dir(cache_root: pathlib.Path, owner: str, repo: str) -> pathlib.Path:
+    return repos_root(cache_root) / owner / repo
+
+
+def worktree_dir(cache_root: pathlib.Path, owner: str, repo: str, number: int) -> pathlib.Path:
+    return repos_root(cache_root) / owner / f"{repo}__pr{number}"
+
+
+def assert_under(path: pathlib.Path, root: pathlib.Path) -> pathlib.Path:
+    """Resolve both paths and verify path is strictly under root.
+
+    Raises BenchError if resolved path equals root or is not a sub-path.
+    The message names both path and root and states the runner only touches its own cache.
+    """
+    resolved = path.resolve()
+    root_resolved = root.resolve()
+    if resolved == root_resolved or not resolved.is_relative_to(root_resolved):
+        raise BenchError(
+            f"path {path!r} is not under root {root!r}; "
+            f"the runner only ever touches its own cache at {root!r}"
+        )
+    return resolved
+
+
+# ----------------------------------------------------------------------
+# Git helpers
+# ----------------------------------------------------------------------
+def fetch_url(owner: str, repo: str) -> str:
+    """Build GitHub fetch URL from manifest owner/repo pair.
+
+    The runner never reads or depends on a remote named 'origin'.
+    """
+    return f"https://github.com/{owner}/{repo}"
+
+
+def git(args, *, repo_dir: pathlib.Path, cache_root: pathlib.Path,
+        check: bool = True, timeout: int = 600) -> subprocess.CompletedProcess:
+    """Single git subprocess chokepoint — every git invocation goes through here.
+
+    - Always uses -C <repo_dir>; never cwd= or shell strings.
+    - repo_dir must already exist.
+    - assert_under runs before subprocess to catch escaped manifest values.
+    - subprocess.TimeoutExpired propagates; callers convert it to per-PR failures.
+    """
+    target = assert_under(repo_dir, repos_root(cache_root))
+    cmd = ["git", "-C", str(target), *args]
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if check and proc.returncode != 0:
+        raise BenchError(
+            f"git {' '.join(args)} failed in {target} (exit {proc.returncode}): "
+            f"{proc.stderr.strip()}"
+        )
+    return proc
+
+
+def ensure_refs(cache_root: pathlib.Path, entry: dict) -> pathlib.Path:
+    """Prepare repo cache dir so entry's three SHAs are locally reachable.
+
+    Returns the repo directory path.
+    """
+    repo_dir = repo_cache_dir(cache_root, entry["owner"], entry["repo"])
+    repo_dir.mkdir(parents=True, exist_ok=True)
+
+    # Init if not a git repo
+    if not (repo_dir / ".git").exists():
+        git(["init", "--quiet"], repo_dir=repo_dir, cache_root=cache_root)
+
+    # Offline short-circuit: check if all three SHAs resolve locally
+    for sha_field in ("merge_sha", "base_sha", "head_sha"):
+        sha = entry[sha_field]
+        proc = git(["cat-file", "-e", f"{sha}^{{commit}}"],
+                   repo_dir=repo_dir, cache_root=cache_root, check=False)
+        if proc.returncode != 0:
+            break
+    else:
+        # All three SHAs resolved — skip fetch
+        return repo_dir
+
+    # Fetch from manifest URL (never 'origin')
+    url = fetch_url(entry["owner"], entry["repo"])
+    git([
+        "fetch", "--no-tags", "--force", url,
+        f"+pull/{entry['number']}/head:refs/bench/pr{entry['number']}/head",
+        "+refs/heads/*:refs/remotes/origin/*",
+    ], repo_dir=repo_dir, cache_root=cache_root)
+
+    return repo_dir
+
+
+def resolve_diff_range(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+                       entry: dict) -> tuple[str, str, str, int, list]:
+    """Resolve the correct diff range by inspecting the merge commit's parent count.
+
+    Returns (diff_range, base_endpoint, head_endpoint, parent_count, notes).
+    """
+    out = git(
+        ["rev-list", "--parents", "-n", "1", entry["merge_sha"]],
+        repo_dir=repo_dir, cache_root=cache_root,
+    ).stdout.split()
+
+    if not out:
+        raise BenchError(
+            f"{entry['id']}: cannot resolve merge commit {entry['merge_sha']}"
+        )
+
+    n_parents = len(out) - 1
+    notes: list = []
+
+    if n_parents >= 2:
+        base = f"{entry['merge_sha']}^1"
+        head = f"{entry['merge_sha']}^2"
+    elif n_parents == 1:
+        base = entry["base_sha"]
+        head = entry["head_sha"]
+    else:
+        raise BenchError(
+            f"{entry['id']}: merge commit {entry['merge_sha']} has no parents; "
+            f"cannot reconstruct a diff range"
+        )
+
+    # Strategy-label mismatch: report but use correct range
+    label = entry.get("merge_strategy", "")
+    if label == "merge-commit" and n_parents == 1:
+        notes.append(f"strategy mismatch (manifest={label}, parents={n_parents})")
+    elif label == "squash" and n_parents >= 2:
+        notes.append(f"strategy mismatch (manifest={label}, parents={n_parents})")
+
+    return f"{base}..{head}", base, head, n_parents, notes
+
+
+def changed_files(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+                 diff_range: str) -> list[str]:
+    """Return sorted list of files changed in the diff range."""
+    proc = git(["diff", "--name-only", diff_range],
+               repo_dir=repo_dir, cache_root=cache_root)
+    return [ln for ln in proc.stdout.splitlines() if ln.strip()]
+
+
+@dataclasses.dataclass
+class PrCheckout:
+    pr_id: str
+    repo_dir: pathlib.Path
+    worktree: pathlib.Path
+    base_branch: str
+    head_branch: str
+    diff_range: str
+    base_sha: str
+    head_sha: str
+    changed_files: int
+    parent_count: int
+    notes: list
+
+
+def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+                    entry: dict, base_endpoint: str,
+                    head_endpoint: str) -> PrCheckout:
+    """Resolve endpoints to SHAs, publish remote-tracking refs, create working copy.
+
+    Returns PrCheckout with all resolved fields.
+    """
+    wt = worktree_dir(cache_root, entry["owner"], entry["repo"], entry["number"])
+    base_branch = f"bench-base-{entry['number']}"
+    head_branch = f"bench-pr-{entry['number']}"
+
+    base_sha = git(
+        ["rev-parse", f"{base_endpoint}^{{commit}}"],
+        repo_dir=repo_dir, cache_root=cache_root,
+    ).stdout.strip()
+    head_sha = git(
+        ["rev-parse", f"{head_endpoint}^{{commit}}"],
+        repo_dir=repo_dir, cache_root=cache_root,
+    ).stdout.strip()
+
+    # Publish remote-tracking refs so /coding:pr-review can resolve origin/<branch>
+    git(["update-ref", f"refs/remotes/origin/{base_branch}", base_sha],
+        repo_dir=repo_dir, cache_root=cache_root)
+    git(["update-ref", f"refs/remotes/origin/{head_branch}", head_sha],
+        repo_dir=repo_dir, cache_root=cache_root)
+
+    # Tear down any stale copy from a previous run
+    git(["worktree", "remove", "--force", str(wt)],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+    if wt.exists():
+        assert_under(wt, repos_root(cache_root))
+        shutil.rmtree(wt, ignore_errors=True)
+    git(["branch", "-D", head_branch],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+    git(["worktree", "prune"], repo_dir=repo_dir, cache_root=cache_root, check=False)
+
+    # Validate worktree path before creating
+    assert_under(wt, repos_root(cache_root))
+    git(["worktree", "add", "--force", "-b", head_branch, str(wt), head_sha],
+        repo_dir=repo_dir, cache_root=cache_root)
+
+    return PrCheckout(
+        pr_id=entry["id"],
+        repo_dir=repo_dir,
+        worktree=wt,
+        base_branch=base_branch,
+        head_branch=head_branch,
+        diff_range="",  # filled by caller
+        base_sha=base_sha,
+        head_sha=head_sha,
+        changed_files=0,  # filled by caller
+        parent_count=0,  # filled by caller
+        notes=[],  # filled by caller
+    )
+
+
+def resolve_pr(cache_root: pathlib.Path, entry: dict) -> PrCheckout:
+    """Tie together ensure_refs → resolve_diff_range → changed_files → empty-diff gate → prepare_worktree.
+
+    Raises BenchError (never returns) if diff range is empty.
+    """
+    repo_dir = ensure_refs(cache_root, entry)
+    diff_range, base_endpoint, head_endpoint, n_parents, notes = resolve_diff_range(
+        cache_root, repo_dir, entry
+    )
+
+    files = changed_files(cache_root, repo_dir, diff_range)
+    if not files:
+        raise BenchError(
+            f"EMPTY DIFF: {entry['id']} resolved range {diff_range} contains zero changed files. "
+            f"This is never recorded as a zero-finding review — two independent code paths produce "
+            f"this state and both look identical to a genuinely clean PR. "
+            f"Re-verify the SHAs with: gh api repos/{entry['owner']}/{entry['repo']}/compare/{entry['base_sha']}...{entry['head_sha']} --jq '.files | length'"
+        )
+
+    checkout = prepare_worktree(cache_root, repo_dir, entry, base_endpoint, head_endpoint)
+    checkout.diff_range = diff_range
+    checkout.changed_files = len(files)
+    checkout.parent_count = n_parents
+    checkout.notes = notes
+    return checkout
 
 
 # ----------------------------------------------------------------------
@@ -353,6 +599,10 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
                 rc_hash=rc_hash,
                 prs_version=manifest["version"],
             )
+        except subprocess.TimeoutExpired as err:
+            outcome, detail = "failed", "timeout"
+        except OSError as err:
+            outcome, detail = "failed", str(err)
         except BenchError as err:
             outcome, detail = "failed", str(err)
         outcomes.append((pr_id, f"{outcome}: {detail}"))
@@ -373,13 +623,16 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
                model: str, effort: str, mode: str,
                config_dir: pathlib.Path, cfg_hash: str,
                rc_hash: str, prs_version: str) -> tuple[str, str]:
-    """Process a single PR — stub for prompt 2 of spec 002.
+    """Process a single PR — resolution complete, review invocation stubbed.
 
-    PR resolution (prompt 2) and review invocation (prompt 3) are not yet
-    implemented.  This stub loudly fails so the gap cannot be mistaken for
-    success.
+    PR resolution (this prompt) reconstructs the diff range and prepares the
+    working copy inside the runner's cache. Review invocation ships in prompt 3.
     """
-    return ("failed", "pr resolution not yet implemented (prompt 2 of spec 002)")
+    checkout = resolve_pr(cache_root, entry)
+    notes_suffix = ""
+    if checkout.notes:
+        notes_suffix = "; " + "; ".join(checkout.notes)
+    return ("failed", f"review invocation not yet implemented (prompt 3 of spec 002){notes_suffix}")
 
 
 # ----------------------------------------------------------------------

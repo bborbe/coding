@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.35.0
 
 - Add `bench/` — outcome tier of the test pyramid, scoring a review configuration against expected findings
 - Add `bench/prs.json` — 5-PR development fixture (Go ×2, TypeScript, Node, Python; 3–783 lines; one clean, one with documented defects; both merge strategies)

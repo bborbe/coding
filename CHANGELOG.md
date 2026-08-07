@@ -10,16 +10,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- bench: add `bench/run.py` — benchmark runner entrypoint with configuration-identity core (content hashing of `rules/`+`commands/`, manifest loading/validation, plugin-resolution preflight, CLI surface with mandatory `--model`/`--effort`/`--mode`, reserved `--golden` rejection, `--print-config-hash` helper)
-- bench: add `bench/testsupport.py` — shared test helpers (`make_coding_repo`, `make_verify_config_dir`, `stub_claude`, `with_path`)
-- bench: add `bench/test_config.py` — 17 unit tests covering AC6, AC9, AC11 and related acceptance criteria
-- bench: extend `bench/run.py` with PR resolution (fetch from manifest URL into `bench/.cache/repos/`, isolated working copies via `git worktree`), parent-count diff-range branching (`^1..^2` for merge commits, manifest `base_sha..head_sha` for single-parent commits), empty-diff abort (`EMPTY DIFF` loud failure), per-PR failure isolation, and strategy-label mismatch reporting
-- bench: add `bench/test_resolve.py` — 12 unit tests covering AC2, AC3, AC7, AC8 and related acceptance criteria (`parent_count`, `empty_diff`, `git_invocation_confined_to_cache_repos`, `fetch_url`)
-- bench: extend `bench/testsupport.py` with git-repo helpers (`init_git_repo`, `commit_file`, `make_merge_repo`, `make_squash_repo`, `make_empty_diff_repo`, `stub_git`, `make_manifest`)
-- bench: extend `bench/run.py` with review invocation (`/coding:pr-review` via isolated `CLAUDE_CONFIG_DIR=$HOME/.claude-verify` + `DISABLE_AUTOUPDATER=1`, mode-aware raw-output cache, findings harvester normalising to `{path,line,rule_id,body}`, append-only ledger via atomic `os.replace`, single-instance `BenchLock` guard)
-- bench: add `bench/test_review.py` — 13 unit tests covering AC4, AC5, AC10 and related acceptance criteria (cache-hit, mode-change-cache-miss, harvest-normalise, ledger-atomicity, second-runner-lock, failure-isolation)
-- bench: add `bench/testdata/sample-report.md` — fixture for AC10 harvester verification
-
+- bench: add `make bench` and `make bench-test` Makefile targets; wire `bench-test` into `make precommit` so bench unit tests gate every later change
+- bench: rewrite `bench/README.md` to document the shipped runner (CLI surface, exit codes, result row schema, fixed invariants, safety invariant) and replace the parent-derived squash diff snippet with the spec's authoritative `base_sha..head_sha` rule
+- bench: add `__pycache__/` to `.gitignore` so bytecode produced by the precommit-gated test suite does not appear as untracked files
 ## v0.35.0
 
 - Add `bench/` — outcome tier of the test pyramid, scoring a review configuration against expected findings

@@ -1,7 +1,16 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-json check-index check-coverage check-acceptance
+precommit: check-links check-json check-index check-coverage check-acceptance bench-test
+
+.PHONY: bench
+bench:
+	@python3 bench/run.py $(BENCH_ARGS)
+
+.PHONY: bench-test
+bench-test:
+	@echo "bench-test: running bench unit tests..."
+	@python3 -m unittest discover -s bench -p 'test_*.py' 2>&1
 
 .PHONY: check-acceptance
 check-acceptance:

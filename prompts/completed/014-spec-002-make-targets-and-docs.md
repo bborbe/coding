@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [002-pr-review-bench-runner]
+summary: 'Packaged benchmark runner: added make bench and make bench-test targets wired into precommit, rewrote bench/README.md with corrected squash diff-range rule and full runner docs, added __pycache__ to .gitignore, and recorded all changes in CHANGELOG.md ## Unreleased'
+execution_id: coding-bench-runner-exec-014-spec-002-make-targets-and-docs
+dark-factory-version: v0.192.9
 created: "2026-08-06T22:29:56Z"
 queued: "2026-08-06T22:39:41Z"
+started: "2026-08-07T07:44:29Z"
+completed: "2026-08-07T07:47:56Z"
 ---
 
 <summary>

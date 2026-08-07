@@ -18,14 +18,18 @@
 
 import argparse
 import dataclasses
+import datetime
 import hashlib
 import json
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 
 # ----------------------------------------------------------------------
 # Module constants
@@ -217,6 +221,113 @@ def assert_under(path: pathlib.Path, root: pathlib.Path) -> pathlib.Path:
             f"the runner only ever touches its own cache at {root!r}"
         )
     return resolved
+
+
+# ----------------------------------------------------------------------
+# Cache and ledger path helpers
+# ----------------------------------------------------------------------
+def reviews_root(cache_root: pathlib.Path) -> pathlib.Path:
+    return cache_root / "reviews"
+
+
+def failures_root(cache_root: pathlib.Path) -> pathlib.Path:
+    return cache_root / "failures"
+
+
+def cache_key(cfg_hash: str, pr_id: str) -> str:
+    return f"{cfg_hash}__{safe_pr_key(pr_id)}"
+
+
+def cache_row_path(cache_root: pathlib.Path, cfg_hash: str, pr_id: str) -> pathlib.Path:
+    return reviews_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}.json"
+
+
+def cache_raw_path(cache_root: pathlib.Path, cfg_hash: str, pr_id: str) -> pathlib.Path:
+    return reviews_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}.stdout.txt"
+
+
+def failure_log_path(cache_root: pathlib.Path, cfg_hash: str, pr_id: str) -> pathlib.Path:
+    return failures_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}.stderr.txt"
+
+
+def ledger_path(results_dir: pathlib.Path) -> pathlib.Path:
+    return results_dir / "results.jsonl"
+
+
+def lock_path(results_dir: pathlib.Path) -> pathlib.Path:
+    return results_dir / ".lock"
+
+
+# ----------------------------------------------------------------------
+# Single-instance lock
+# ----------------------------------------------------------------------
+class BenchLock:
+    """Single-instance lock that aborts if another bench run is active."""
+
+    def __init__(self, results_dir: pathlib.Path) -> None:
+        self._results_dir = results_dir
+        self._fd = None
+
+    def __enter__(self) -> "BenchLock":
+        lp = lock_path(self._results_dir)
+        try:
+            self._fd = os.open(
+                str(lp),
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o644,
+            )
+        except FileExistsError:
+            raise BenchError(
+                f"another bench run is in progress; "
+                f"remove the lock file to clear it: {lp}"
+            )
+        ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        os.write(self._fd, f"{os.getpid()} {ts}\n".encode("utf-8"))
+        os.close(self._fd)
+        self._fd = None
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if self._fd is not None:
+            os.close(self._fd)
+            self._fd = None
+        try:
+            os.unlink(lock_path(self._results_dir))
+        except FileNotFoundError:
+            pass
+
+
+# ----------------------------------------------------------------------
+# Atomic append-only ledger
+# ----------------------------------------------------------------------
+def atomic_write_bytes(path: pathlib.Path, data: bytes) -> None:
+    """Write data atomically to path via rename from a same-directory temp file."""
+    tmp = tempfile.NamedTemporaryFile(
+        dir=str(path.parent),
+        delete=False,
+    )
+    try:
+        tmp.write(data)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp.close()
+        os.replace(tmp.name, str(path))
+    except Exception:
+        try:
+            os.unlink(tmp.name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def append_row(results_dir: pathlib.Path, row: dict) -> None:
+    """Append one JSON row to the ledger atomically."""
+    lp = ledger_path(results_dir)
+    existing = b""
+    if lp.exists():
+        existing = lp.read_bytes()
+    encoded = json.dumps(row, sort_keys=True, ensure_ascii=False).encode("utf-8") + b"\n"
+    atomic_write_bytes(lp, existing + encoded)
 
 
 # ----------------------------------------------------------------------
@@ -498,6 +609,196 @@ def check_plugin_resolution(coding_repo: pathlib.Path, config_dir: pathlib.Path,
 
 
 # ----------------------------------------------------------------------
+# Review invocation
+# ----------------------------------------------------------------------
+def build_review_argv(*, model: str, effort: str, mode: str,
+                       base_branch: str) -> list[str]:
+    """Build the claude argv for a /coding:pr-review invocation."""
+    return [
+        "claude",
+        "--print",
+        "--model", model,
+        "--effort", effort,
+        "--permission-mode", "bypassPermissions",
+        f"/coding:pr-review {base_branch} {mode}",
+    ]
+
+
+def review_env(config_dir: pathlib.Path) -> dict:
+    """Build the environment for an isolated review subprocess."""
+    env = dict(os.environ)
+    env["CLAUDE_CONFIG_DIR"] = str(config_dir)
+    env["DISABLE_AUTOUPDATER"] = "1"
+    return env
+
+
+def invoke_review(*, argv: list[str], worktree: pathlib.Path,
+                  cache_root: pathlib.Path,
+                  config_dir: pathlib.Path) -> subprocess.CompletedProcess:
+    """Run the review subprocess and return the completed process."""
+    assert_under(worktree, repos_root(cache_root))
+    return subprocess.run(
+        argv,
+        cwd=str(worktree),
+        env=review_env(config_dir),
+        capture_output=True,
+        text=True,
+        timeout=REVIEW_TIMEOUT_SECONDS,
+    )
+
+
+# ----------------------------------------------------------------------
+# Harvesting
+# ----------------------------------------------------------------------
+def load_rule_ids(coding_repo: pathlib.Path) -> set:
+    """Load all rule IDs from the rules/index.json file.
+
+    Tries coding_repo first; falls back to REPO_ROOT (for test environments
+    where coding_repo is a minimal temp directory without the full index).
+    """
+    index_path = coding_repo / "rules" / "index.json"
+    if not index_path.is_file():
+        index_path = REPO_ROOT / "rules" / "index.json"
+    try:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as err:
+        raise BenchError(f"cannot load rules/index.json from {coding_repo}: {err}")
+    if not isinstance(data, list):
+        raise BenchError(f"rules/index.json is not a JSON list: {index_path}")
+    return {entry["id"] for entry in data if "id" in entry}
+
+
+def _extract_rule_id(text: str, known_rule_ids: set) -> str | None:
+    """Extract the first rule ID token from text, or None."""
+    for token in re.split(r"[\s`\(\)\[\],:]+", text):
+        if token in known_rule_ids:
+            return token
+    return None
+
+
+def _extract_path_line(text: str, known_rule_ids: set) -> tuple[str | None, int | None]:
+    """Extract the first path:line reference from text, skipping known rule IDs.
+
+    A path:line is a token containing a dot extension followed by :NN.
+    A token that is a known rule ID is never treated as a path.
+    """
+    # Find all potential path:line matches
+    for m in re.finditer(r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_./-]+):(\d+)", text):
+        candidate = m.group(1)
+        if candidate not in known_rule_ids:
+            return candidate, int(m.group(2))
+    return None, None
+
+
+def _normalize_body(lines: list[str]) -> str:
+    """Strip bullet marker and join continuation lines into one whitespace-collapsed string."""
+    body = lines[0]
+    if body.startswith(("*", "-")):
+        body = body[1:].lstrip()
+    body = " ".join([body] + lines[1:])
+    body = re.sub(r"\s+", " ", body).strip()
+    return body
+
+
+def harvest(report_text: str, known_rule_ids: set) -> list:
+    """Normalize a /coding:pr-review Step 5 report into a list of findings.
+
+    Returns a list of dicts, each with keys: path, line, rule_id, body.
+    """
+    findings: list = []
+    current_section: str | None = None
+    current_finding_lines: list[str] = []
+    section_names = {"must fix", "should fix", "nice to have"}
+
+    def flush_finding():
+        nonlocal current_finding_lines, current_section, findings
+        if not current_finding_lines or current_section is None:
+            return
+        text = " ".join(current_finding_lines)
+        body = _normalize_body(current_finding_lines)
+        # Skip the "None." empty-section sentinel
+        if body.strip() in ("None.", "None"):
+            current_finding_lines = []
+            return
+        rule_id = _extract_rule_id(text, known_rule_ids)
+        path, line_num = _extract_path_line(text, known_rule_ids)
+        findings.append({
+            "path": path,
+            "line": line_num,
+            "rule_id": rule_id,
+            "body": body,
+        })
+        current_finding_lines = []
+
+    lines = report_text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        heading_match = re.match(r"^#{1,6}\s+(.+)$", line)
+        if heading_match:
+            heading_text = heading_match.group(1).strip()
+            # Strip trailing severity annotation like (Critical)
+            heading_text = re.sub(r"\s*\([^)]+\)\s*$", "", heading_text).strip()
+            heading_lower = heading_text.lower()
+            if heading_lower in section_names:
+                flush_finding()
+                current_section = heading_lower
+                current_finding_lines = []
+            else:
+                # Any other heading (including traceability) ends the current section
+                flush_finding()
+                current_section = None
+                current_finding_lines = []
+            i += 1
+            continue
+
+        if current_section is not None:
+            stripped = line.strip()
+            bullet_match = re.match(r"^\s{0,3}([-*])\s+(.+)$", stripped)
+            if bullet_match:
+                flush_finding()
+                current_finding_lines = [bullet_match.group(2)]
+            elif stripped:
+                current_finding_lines.append(stripped)
+        i += 1
+
+    flush_finding()
+    return findings
+
+
+# ----------------------------------------------------------------------
+# Result row assembly
+# ----------------------------------------------------------------------
+def build_row(*, checkout: PrCheckout, cfg_hash: str, rc_hash: str,
+               model: str, effort: str, mode: str, prs_version: str,
+               review_command: str, started_at: str,
+               duration_seconds: float, findings: list,
+               raw_output_ref: str) -> dict:
+    """Build a result row from a completed review."""
+    return {
+        "config_hash": cfg_hash,
+        "rules_commands_hash": rc_hash,
+        "model": model,
+        "effort": effort,
+        "mode": mode,
+        "prs_version": prs_version,
+        "pr_id": checkout.pr_id,
+        "base_sha": checkout.base_sha,
+        "head_sha": checkout.head_sha,
+        "diff_range": checkout.diff_range,
+        "changed_files": checkout.changed_files,
+        "parent_count": checkout.parent_count,
+        "notes": checkout.notes,
+        "review_command": review_command,
+        "started_at": started_at,
+        "duration_seconds": round(duration_seconds, 3),
+        "findings": findings,
+        "raw_output_ref": raw_output_ref,
+        "runner_version": RUNNER_VERSION,
+    }
+
+
+# ----------------------------------------------------------------------
 # CLI surface
 # ----------------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
@@ -577,62 +878,145 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
 
     cfg_hash = config_hash(rc_hash, model, effort, mode, manifest["version"])
 
+    results_dir.mkdir(parents=True, exist_ok=True)
+    known_rule_ids = load_rule_ids(coding_repo)
+
     print(
         f"config {cfg_hash[:16]} rules+commands {rc_hash[:16]} "
         f"model={model} effort={effort} mode={mode} prs={manifest['version']}"
     )
 
-    outcomes: list[tuple[str, str]] = []
-    for entry in manifest["prs"]:
-        pr_id = entry["id"]
-        try:
-            outcome, detail = process_pr(
-                entry=entry,
-                coding_repo=coding_repo,
-                results_dir=results_dir,
-                cache_root=cache_root,
-                model=model,
-                effort=effort,
-                mode=mode,
-                config_dir=config_dir,
-                cfg_hash=cfg_hash,
-                rc_hash=rc_hash,
-                prs_version=manifest["version"],
-            )
-        except subprocess.TimeoutExpired as err:
-            outcome, detail = "failed", "timeout"
-        except OSError as err:
-            outcome, detail = "failed", str(err)
-        except BenchError as err:
-            outcome, detail = "failed", str(err)
-        outcomes.append((pr_id, f"{outcome}: {detail}"))
+    with BenchLock(results_dir):
+        outcomes: list[tuple[str, str]] = []
+        for entry in manifest["prs"]:
+            pr_id = entry["id"]
+            try:
+                outcome, detail = process_pr(
+                    entry=entry,
+                    coding_repo=coding_repo,
+                    results_dir=results_dir,
+                    cache_root=cache_root,
+                    model=model,
+                    effort=effort,
+                    mode=mode,
+                    config_dir=config_dir,
+                    cfg_hash=cfg_hash,
+                    rc_hash=rc_hash,
+                    prs_version=manifest["version"],
+                    known_rule_ids=known_rule_ids,
+                )
+            except subprocess.TimeoutExpired as err:
+                outcome, detail = "failed", "timeout"
+            except OSError as err:
+                outcome, detail = "failed", str(err)
+            except BenchError as err:
+                outcome, detail = "failed", str(err)
+            outcomes.append((pr_id, f"{outcome}: {detail}"))
 
-    n_ok = sum(1 for _, d in outcomes if d.startswith("ok:"))
-    n_cached = sum(1 for _, d in outcomes if d.startswith("cache hit:"))
-    n_failed = sum(1 for _, d in outcomes if d.startswith("failed:"))
+        n_ok = sum(1 for _, d in outcomes if d.startswith("ok:"))
+        n_cached = sum(1 for _, d in outcomes if d.startswith("cache hit:"))
+        n_failed = sum(1 for _, d in outcomes if d.startswith("failed:"))
 
-    for pr_id, outcome in outcomes:
-        print(f"{pr_id}: {outcome}")
-    print(f"summary: {n_ok} ok, {n_cached} cache hit, {n_failed} failed")
+        for pr_id, outcome in outcomes:
+            print(f"{pr_id}: {outcome}")
+        print(f"summary: {n_ok} ok, {n_cached} cache hit, {n_failed} failed")
 
-    return 0 if n_failed == 0 else 1
+        return 0 if n_failed == 0 else 1
 
 
 def process_pr(*, entry: dict, coding_repo: pathlib.Path,
                results_dir: pathlib.Path, cache_root: pathlib.Path,
                model: str, effort: str, mode: str,
                config_dir: pathlib.Path, cfg_hash: str,
-               rc_hash: str, prs_version: str) -> tuple[str, str]:
-    """Process a single PR — resolution complete, review invocation stubbed.
+               rc_hash: str, prs_version: str,
+               known_rule_ids: set) -> tuple[str, str]:
+    """Process a single PR: cache check, resolve, review, harvest, ledger."""
+    pr_id = entry["id"]
 
-    PR resolution (this prompt) reconstructs the diff range and prepares the
-    working copy inside the runner's cache. Review invocation ships in prompt 3.
-    """
+    # 1. Cache check — before any git work
+    row_path = cache_row_path(cache_root, cfg_hash, pr_id)
+    if row_path.exists():
+        try:
+            row = json.loads(row_path.read_text(encoding="utf-8"))
+            n_findings = len(row.get("findings", []))
+            return ("cache hit", f"cached ({row_path.name}): {n_findings} findings")
+        except (json.JSONDecodeError, OSError):
+            pass  # treat corrupt cache as miss
+
+    # 2. Resolve PR
     checkout = resolve_pr(cache_root, entry)
-    notes_suffix = ""
-    if checkout.notes:
-        notes_suffix = "; " + "; ".join(checkout.notes)
-    return ("failed", f"review invocation not yet implemented (prompt 3 of spec 002){notes_suffix}")
+
+    # 3. Build argv and invoke review
+    argv = build_review_argv(
+        model=model,
+        effort=effort,
+        mode=mode,
+        base_branch=checkout.base_branch,
+    )
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    t0 = time.monotonic()
+
+    try:
+        proc = invoke_review(
+            argv=argv,
+            worktree=checkout.worktree,
+            cache_root=cache_root,
+            config_dir=config_dir,
+        )
+    except subprocess.TimeoutExpired as err:
+        # Write failure log
+        failures_root(cache_root).mkdir(parents=True, exist_ok=True)
+        failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
+        stderr_bytes = err.stderr or b""
+        if isinstance(stderr_bytes, str):
+            stderr_bytes = stderr_bytes.encode("utf-8")
+        failure_log.write_bytes(stderr_bytes)
+        raise
+
+    if proc.returncode != 0:
+        failures_root(cache_root).mkdir(parents=True, exist_ok=True)
+        failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
+        failure_log.write_bytes(proc.stderr.encode("utf-8") if proc.stderr else b"")
+        raise BenchError(f"{pr_id}: review invocation failed: exit {proc.returncode}")
+
+    duration_seconds = time.monotonic() - t0
+
+    # 5. Write raw stdout verbatim before any parsing
+    reviews_root(cache_root).mkdir(parents=True, exist_ok=True)
+    raw_path = cache_raw_path(cache_root, cfg_hash, pr_id)
+    atomic_write_bytes(raw_path, proc.stdout.encode("utf-8"))
+
+    # 6. Harvest findings
+    findings = harvest(proc.stdout, known_rule_ids)
+
+    # 7. Build row and append to ledger
+    review_command = shlex.join(argv)
+    # raw_output_ref: relative to REPO_ROOT if under it, else absolute
+    try:
+        raw_output_ref = str(raw_path.relative_to(REPO_ROOT))
+    except ValueError:
+        raw_output_ref = str(raw_path)
+
+    row = build_row(
+        checkout=checkout,
+        cfg_hash=cfg_hash,
+        rc_hash=rc_hash,
+        model=model,
+        effort=effort,
+        mode=mode,
+        prs_version=prs_version,
+        review_command=review_command,
+        started_at=started_at,
+        duration_seconds=duration_seconds,
+        findings=findings,
+        raw_output_ref=raw_output_ref,
+    )
+    append_row(results_dir, row)
+
+    # 8. Write cache marker
+    atomic_write_bytes(row_path, json.dumps(row, sort_keys=True).encode("utf-8"))
+
+    return ("ok", f"{len(findings)} findings in {duration_seconds:.3f}s")
 
 
 # ----------------------------------------------------------------------

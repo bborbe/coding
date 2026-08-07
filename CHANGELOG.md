@@ -16,6 +16,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - bench: extend `bench/run.py` with PR resolution (fetch from manifest URL into `bench/.cache/repos/`, isolated working copies via `git worktree`), parent-count diff-range branching (`^1..^2` for merge commits, manifest `base_sha..head_sha` for single-parent commits), empty-diff abort (`EMPTY DIFF` loud failure), per-PR failure isolation, and strategy-label mismatch reporting
 - bench: add `bench/test_resolve.py` — 12 unit tests covering AC2, AC3, AC7, AC8 and related acceptance criteria (`parent_count`, `empty_diff`, `git_invocation_confined_to_cache_repos`, `fetch_url`)
 - bench: extend `bench/testsupport.py` with git-repo helpers (`init_git_repo`, `commit_file`, `make_merge_repo`, `make_squash_repo`, `make_empty_diff_repo`, `stub_git`, `make_manifest`)
+- bench: extend `bench/run.py` with review invocation (`/coding:pr-review` via isolated `CLAUDE_CONFIG_DIR=$HOME/.claude-verify` + `DISABLE_AUTOUPDATER=1`, mode-aware raw-output cache, findings harvester normalising to `{path,line,rule_id,body}`, append-only ledger via atomic `os.replace`, single-instance `BenchLock` guard)
+- bench: add `bench/test_review.py` — 13 unit tests covering AC4, AC5, AC10 and related acceptance criteria (cache-hit, mode-change-cache-miss, harvest-normalise, ledger-atomicity, second-runner-lock, failure-isolation)
+- bench: add `bench/testdata/sample-report.md` — fixture for AC10 harvester verification
 
 ## v0.35.0
 

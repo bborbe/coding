@@ -91,8 +91,20 @@ def stub_claude(bin_dir: pathlib.Path, counter_file: pathlib.Path,
     """
     counter_file = pathlib.Path(counter_file)
     body = (
-        f"printf '%s\\n' '$*' >> '{counter_file}'\n"
+        f"printf '%s\\n' \"$*\" >> '{counter_file}'\n"
         f"cat <<'REPORT_EOF'\n{report_text}\nREPORT_EOF"
+    )
+    return make_stub_bin(bin_dir, "claude", body)
+
+
+def stub_claude_failing(bin_dir: pathlib.Path, counter_file: pathlib.Path,
+                         exit_code: int = 3) -> pathlib.Path:
+    """Install a stub `claude` that appends args to counter_file and exits with exit_code."""
+    counter_file = pathlib.Path(counter_file)
+    body = (
+        f"printf '%s\\n' \"$*\" >> '{counter_file}'\n"
+        f"printf 'stub failure\\n' >&2\n"
+        f"exit {exit_code}"
     )
     return make_stub_bin(bin_dir, "claude", body)
 
@@ -255,3 +267,15 @@ def make_manifest(path: pathlib.Path, entries: list, version: str = "test-1") ->
     path = pathlib.Path(path)
     path.write_text(json.dumps(manifest), encoding="utf-8")
     return path
+
+
+def seed_cached_repo(cache_root: pathlib.Path, owner: str, repo: str,
+                     builder) -> dict:
+    """Seed a repository under cache_root/repos/owner/repo using the given builder.
+
+    builder is one of: make_merge_repo, make_squash_repo, make_empty_diff_repo.
+    Returns the builder's result dict.
+    """
+    repo_path = cache_root / "repos" / owner / repo
+    repo_path.mkdir(parents=True, exist_ok=True)
+    return builder(repo_path)

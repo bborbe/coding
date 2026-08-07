@@ -268,8 +268,8 @@ class TestEveryGitStaysUnderCacheRepos(unittest.TestCase):
             manifest_path = td / "manifest.json"
             testsupport.make_manifest(manifest_path, manifest_entries)
 
-            plugin_src = testsupport.make_coding_repo(td / "repo")
-            cfg = testsupport.make_verify_config_dir(td / "cfg", plugin_src,
+            plugin_src = testsupport.build_coding_repo(td / "repo")
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
                                                      use_known_marketplaces=True)
 
             # Save and modify os.environ to put stub_git on PATH
@@ -398,7 +398,7 @@ class TestFailingPrDoesNotAbortRemainingPrs(unittest.TestCase):
             cfg_dir = td / ".claude-verify"
             cfg_dir.mkdir(parents=True)
             plugin_dest = td / "repo"
-            testsupport.make_coding_repo(plugin_dest)
+            testsupport.build_coding_repo(plugin_dest)
             (cfg_dir / "plugins").mkdir(parents=True)
             import json
             km = {

@@ -19,7 +19,7 @@ class TestContentHash(unittest.TestCase):
         """Two dirs with byte-identical rules/+commands/ but different git history
         produce the same hash.  Mutating one byte produces a different hash."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            repo_a = testsupport.make_coding_repo(
+            repo_a = testsupport.build_coding_repo(
                 pathlib.Path(tmpdir) / "a",
                 rules={"go/sample.yml": "id: go/sample\nlevel: MUST\n"},
                 commands={"sample.md": "# Sample\n"},
@@ -31,7 +31,7 @@ class TestContentHash(unittest.TestCase):
             (b_root / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
             (b_root / ".git" / "config").write_text("[core]\n", encoding="utf-8")
             (b_root / "junk.txt").write_text("untracked garbage\n", encoding="utf-8")
-            testsupport.make_coding_repo(
+            testsupport.build_coding_repo(
                 b_root,
                 rules={"go/sample.yml": "id: go/sample\nlevel: MUST\n"},
                 commands={"sample.md": "# Sample\n"},
@@ -55,7 +55,7 @@ class TestContentHash(unittest.TestCase):
     def test_content_hash_is_order_independent(self):
         """Files created in reverse order produce the same hash."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            repo_a = testsupport.make_coding_repo(
+            repo_a = testsupport.build_coding_repo(
                 pathlib.Path(tmpdir) / "a",
                 rules={"go/a.yml": "id: go/a\n", "go/b.yml": "id: go/b\n"},
                 commands={"x.md": "# x\n", "y.md": "# y\n"},
@@ -178,17 +178,17 @@ class TestPluginResolution(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
             # Two coding repos with different content
-            repo_a = testsupport.make_coding_repo(
+            repo_a = testsupport.build_coding_repo(
                 td / "repo_a",
                 rules={"go/a.yml": "id: go/a\n"},
                 commands={"a.md": "# a\n"},
             )
-            repo_b = testsupport.make_coding_repo(
+            repo_b = testsupport.build_coding_repo(
                 td / "repo_b",
                 rules={"go/b.yml": "id: go/b\n"},  # different content
                 commands={"b.md": "# b\n"},
             )
-            cfg = testsupport.make_verify_config_dir(td / "cfg", repo_b)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", repo_b)
 
             bin_dir = td / "bin"
             counter = td / "counter"
@@ -223,8 +223,8 @@ class TestPluginResolution(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
-            plugin_src = testsupport.make_coding_repo(td / "src")
-            cfg = testsupport.make_verify_config_dir(td / "cfg", plugin_src,
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
                                                      use_known_marketplaces=True)
             resolved = run.resolve_plugin_path(cfg)
             self.assertEqual(resolved, plugin_src)
@@ -236,8 +236,8 @@ class TestPluginResolution(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
-            plugin_src = testsupport.make_coding_repo(td / "src")
-            cfg = testsupport.make_verify_config_dir(td / "cfg", plugin_src,
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
                                                      use_known_marketplaces=False)
             resolved = run.resolve_plugin_path(cfg)
             expected = cfg / "plugins" / "marketplaces" / "coding"
@@ -299,7 +299,7 @@ class TestCliContract(unittest.TestCase):
         import pathlib
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
-            repo = testsupport.make_coding_repo(td / "repo")
+            repo = testsupport.build_coding_repo(td / "repo")
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--print-config-hash", "--coding-repo", str(repo)],
@@ -326,8 +326,8 @@ class TestCliContract(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             # Set up an isolated config dir whose plugin matches --coding-repo
-            plugin_src = testsupport.make_coding_repo(pathlib.Path(tmpdir) / "repo")
-            cfg = testsupport.make_verify_config_dir(
+            plugin_src = testsupport.build_coding_repo(pathlib.Path(tmpdir) / "repo")
+            cfg = testsupport.build_verify_config_dir(
                 pathlib.Path(tmpdir) / "cfg", plugin_src, use_known_marketplaces=True
             )
             for flag in ["--model", "--effort"]:

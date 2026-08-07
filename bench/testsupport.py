@@ -12,7 +12,7 @@ import stat
 import subprocess
 
 
-def make_coding_repo(root: pathlib.Path, *, rules=None, commands=None) -> pathlib.Path:
+def build_coding_repo(root: pathlib.Path, *, rules=None, commands=None) -> pathlib.Path:
     """Create a temporary coding-repo structure under root.
 
     Creates root/"rules" and root/"commands" directories and writes the given
@@ -39,7 +39,7 @@ def make_coding_repo(root: pathlib.Path, *, rules=None, commands=None) -> pathli
     return root
 
 
-def make_verify_config_dir(root: pathlib.Path, plugin_src: pathlib.Path,
+def build_verify_config_dir(root: pathlib.Path, plugin_src: pathlib.Path,
                            *, use_known_marketplaces: bool = False) -> pathlib.Path:
     """Create an isolated .claude-verify directory under root.
 

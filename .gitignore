@@ -7,3 +7,4 @@
 /specs/log
 /bench/results/
 /bench/.cache/
+__pycache__/

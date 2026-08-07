@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- bench: add `make bench` and `make bench-test` Makefile targets; wire `bench-test` into `make precommit` so bench unit tests gate every later change
+- bench: rewrite `bench/README.md` to document the shipped runner (CLI surface, exit codes, result row schema, fixed invariants, safety invariant) and replace the parent-derived squash diff snippet with the spec's authoritative `base_sha..head_sha` rule
+- bench: add `__pycache__/` to `.gitignore` so bytecode produced by the precommit-gated test suite does not appear as untracked files
 ## v0.35.0
 
 - Add `bench/` — outcome tier of the test pyramid, scoring a review configuration against expected findings

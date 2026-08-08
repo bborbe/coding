@@ -10,9 +10,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- fix: bench runner — ordered list items (`1.`, `2.`, `10.`) now open findings exactly as unordered items do; items inside fenced code blocks are ignored
-- fix: bench runner — item-body normaliser no longer strips one asterisk from a leading bold run, preserving `**path**` references in finding text
-- test: bench — add 5 new tests covering ordered/unordered list recognition, fenced-item suppression, and leading-bold-run preservation; add sha256 digest verification for 4 verbatim capture fixtures
+- fix: bench runner — a trailing bold-label block (`**Notes:**`, `**Summary:**`) now ends a findings section, so housekeeping bullets after a clean review are no longer invented as findings
+- fix: bench runner — numbered/ordered items open a finding exactly as bullets do, so the reviewer's most severe tier is no longer dropped; a list item inside a fenced code block opens nothing; the item's leading bold run survives marker stripping verbatim
+- fix: bench runner — `path`, `line` and `rule_id` are read from the reviewer's own markers: the item's leading bold reference for path/line, and the inline `*(rule: \`<id>\`)*` tag for rule id, recorded literally and independent of the runner's `rules/index.json`; the head-anchored legacy backtick shape retained as an index-gated fallback only when no inline tag is present
+- fix: bench runner — an item inside a severity section that yields no attribution now fails the PR loudly with `UNATTRIBUTABLE FINDING`, leaving no ledger row and no row marker while preserving the raw capture, in the same class as the existing `NOT A REVIEW` gate
+- docs: bench — document the harvest contract in `bench/README.md` § "Reading review output" (what ends a section, what opens a finding, where attribution comes from, when a finding cannot be attributed) and add four verbatim-capture fixtures that lock it down
 
 ## v0.35.3
 

@@ -94,26 +94,60 @@ The rejection names the PR, names each missing section on its own `missing secti
 
 ### What ends a findings section
 
-A findings section's content ends at the **next markdown heading of any level**, at a **thematic break** (`---`, `***` or `___` on its own line), or at **end of input** — whichever comes first. Section names are matched as headings at any level; a mention in prose, in a bold run, or inside a fenced code block is not a heading.
+A findings section's content ends at the **next markdown heading of any level**, at a **thematic break**, at a **bold-run line outside a fenced code block** (`**` as the first non-whitespace content of a line), or at **end of input** — whichever comes first. Section names are matched as headings at any level; a mention in prose, in a bold run, or inside a fenced code block is not a heading. The terminating heading's level carries no information and is not used: level varies run to run inside a single mode, so relying on it would make boundary determination a property of the template rather than of the output.
 
-> **Why heading level carries no information.** The command's template renders sections at one level and captured live output rendered them at another, so level is not evidence of anything.
+The two bold-label shapes observed defeating the old boundary were `**Notes:**` and `**Summary**:` — housekeeping blocks appended after a clean review whose trailing bullets were then harvested as findings.
+
+> **Why a bold label ends a section.** A review whose three severity sections all read `None.` — the correct answer, zero — was harvested as three findings, verbatim the three bullets of a trailing `**Notes:**` block. A bold label introduces a new block, and everything under it belongs to that block.
 
 ### What opens a finding
 
-Inside a findings section, a finding starts when a **list item** begins (`-` or `*`). Subsequent non-list lines extend the finding already open. Prose appearing in a section **before** any list item — most importantly the mandated `None.` sentinel — contributes no finding and cannot be extended by anything that follows.
+Both list styles open a finding: an **unordered item** (`-` or `*` followed by whitespace) and an **ordered/numbered item** (a run of digits followed by `.` and whitespace). Numbered items need not start at 1 and are not limited to one digit. Subsequent non-list lines extend the item already open. A line inside a fenced code block is ordinary text and opens nothing. Prose appearing in a section **before** the first list item — most importantly the mandated `None.` sentinel — contributes no finding and cannot be extended by anything that follows. Only the list marker is stripped from the body; the item's leading bold run survives intact.
 
-> **Why the sentinel cannot be extended.** Real review output carries a diff summary and a closing status panel after the last section. Before the boundary rules existed, those lines were appended as continuation lines to the still-open `None.` buffer, defeating the sentinel check and emitting the accumulated text as one finding with no path, line or rule id.
+> **Why numbered items matter most.** The reviewer writes its more severe tiers as numbered lists. A capture carrying five numbered Should Fix items harvested to two — the two Nice to Have bullets — so the parser lost precisely the findings that matter most, and left no trace of the loss.
 
-All three section names — **Must Fix**, **Should Fix**, **Nice to Have** — are mandatory; the gate accepts a report as a review only when all three appear as headings.
+### Where attribution comes from
+
+`path` and `line` are read from the **bold run at the head of the item**, in the shapes the reviewer writes. A path or line appearing only in the item's trailing prose is not used when the leading bold run supplies one; no path is ever inferred by searching the repository and no line is guessed from surrounding text.
+
+`rule_id` has **two sources, in strict priority order**:
+
+1. The item's own inline `*(rule: \`<id>\`)*` marker. When present it always wins and is recorded as the literal string the reviewer wrote, **whether or not that id appears in `rules/index.json`**.
+2. Only when no inline marker is present, a backticked token at the very head of the item that **is a member of `rules/index.json`**. This legacy shape is what three findings in `bench/testdata/sample-report.md` depend on. It stays index-gated: at the head of an item, an unknown backticked token is far more likely to be a file path or symbol than a rule name.
+
+Under either source, an id named in the item's prose, in the item's tail, in a traceability table, or anywhere outside the item is never attributed to it.
+
+The four observed bold-reference shapes and their resulting `path` and `line` values:
+
+| Bold reference shape | `path` | `line` |
+|---|---|---|
+| `**bench/run.py:1037**` | `bench/run.py` | `1037` |
+| `**README.md**` | `README.md` | `None` |
+| `**src/server.go:42**` | `src/server.go` | `42` |
+| `**pkg/config.ts:18-24**` | `pkg/config.ts` | `18` |
+
+> **Why the inline marker is not validated against the rule index.** A tag naming a renamed rule, a rule added since the index was written, or a review run against a different rules revision would otherwise yield `null` — attribution would become a property of the runner's bookkeeping rather than of the reviewer's output. The instrument records what the reviewer claimed; reconciling that against the shipped rule set is the scorer's job, and coupling the two hides rule drift instead of surfacing it. The head-anchored legacy source keeps its index gate because it has no explicit marker to trust: there, membership is the only signal that a backticked token is a rule name at all.
+
+### When a finding cannot be attributed
+
+An item inside a severity section that yields neither a `path` nor a `rule_id` cannot be keyed, cannot be matched against a golden set, and is never written as a body-only finding. Such a PR fails with `UNATTRIBUTABLE FINDING` — in the same class as the existing `NOT A REVIEW` gate: no ledger row, no `<key>.json` row marker, the PR listed as failed, remaining PRs still processed, process exits non-zero.
+
+The two gates differ in what they leave behind. `NOT A REVIEW` fires before the raw-output write and leaves nothing; `UNATTRIBUTABLE FINDING` fires after it, so the `<key>.stdout.txt` stays on disk and the review is re-harvestable after a parser fix without spending tokens again. A both-stream failure artifact is written under `bench/.cache/failures/`. There is no opt-out.
+
+> **Why a body-only finding is refused.** A finding with no path and no rule id is an unmatchable measurement dressed as a data point. A false rejection costs one operator decision and a re-run; a false acceptance writes an unscoreable row into an append-only ledger.
 
 ### Fixtures
 
-| Fixture | Origin | Harvests to |
-|---|---|---|
-| `bench/testdata/sample-report.md` | derived from the review command's Step 5 template, `####` headings | 3 findings |
-| `bench/testdata/real-capture-report.md` | verbatim capture of live review output, `##` headings, all three sections `None.`, trailing prose | 0 findings |
+| Fixture | Origin | `sha256` | Harvests to |
+|---|---|---|---|
+| `bench/testdata/capture-notes-block-h2.md` | verbatim capture, `node-skeleton#2` short mode, `##` headings, all three sections `None.` with a trailing `**Notes:**` block | `6427028bef301ff822cca6dbf9308896f1899ac5a972ed3fddc276f2216552b9` | 0 findings, 0 unattributable |
+| `bench/testdata/capture-numbered-findings-h3.md` | verbatim capture, `python-skeleton#3` full mode, `###` headings, five numbered Should Fix items with inline rule tags plus a positive-notes list | `5530049fa4d116dc5762b69c9c9498ff0865c0ae0c6b1de7b3ae4cc846643e93` | 5 findings, 2 unattributable |
+| `bench/testdata/capture-traceability-h4.md` | verbatim capture, `node-skeleton#2` full mode, `####` headings, one bold-headed finding plus a 22-row traceability table | `2922746bb95bdb3a67a683942531362271d8f3ccd558067d910146e054bcfe7c` | 1 finding, 0 unattributable |
+| `bench/testdata/capture-summary-trailer-h4.md` | verbatim capture, `github-pr-review-agent#11` short mode, `####` headings, all three sections `None.` with a `**Summary:**` trailer | `36e15eca61133033d81687f87a82b044333c6a7465508d1757f8493361137e79` | 0 findings, 0 unattributable |
+| `bench/testdata/sample-report.md` | derived from the review command's Step 5 template, `####` headings | `de40c00e7d3c452fa7475be9fa6541426058a96dba91487460aa53be0bd186ae` | 3 findings |
+| `bench/testdata/real-capture-report.md` | verbatim capture of live review output, `##` headings, all three sections `None.`, trailing prose | `be1400f065d6b856910e7ac91c7f4801598b57afb444f55cf2e257a43619f4db` | 0 findings |
 
-Both defects this section documents survived 42 green unit tests because the tests were built from the same template the parser was built from. A fixture for a new defect must be a **capture of real output**, not a transcription of the template.
+Both defects this section documents survived 42 green unit tests because the tests were built from the same template the parser was built from. Every capture checked in before this change carried zero findings — no fixture had ever exercised the parser against a real finding, which is how this defect family reached five occurrences. A fixture for a new defect must be a **capture of real output**, not a transcription of the template.
 
 ## Verifying an entry without cloning
 
@@ -135,7 +169,10 @@ These are deliberately not configurable:
 - **Plugin load path:** the runner hashes the directory named by the isolated config directory's `installed_plugins.json` record (the directory Claude Code really loads from), not the marketplace path; there is no fallback when the record is absent, unreadable, stale, out-of-tree, scope-mismatched, or hash-mismatched
 - **Two-ref guarantee:** the prepared working copy carries exactly the checked-out head branch and the two synthetic remote-tracking refs for that PR; every other branch, tag and the default-branch symref are removed on every run
 - **Required section names:** `Must Fix`, `Should Fix`, `Nice to Have` — all three mandatory in every review report; output missing any one is rejected before cache write
-- **List-item markers:** only `-` and `*` open a finding; prose before the first list item cannot form a finding
+- **List-item markers:** both `-` and `*` unordered items and digit-run ordered items open a finding; prose before the first list item cannot form one; a list item inside a fenced code block opens nothing
+- **Section terminators:** next heading of any level, thematic break, bold-run line outside a fence, end of input
+- **Inline rule tag:** `*(rule: \`<id>\`)*` is read positionally from the item and recorded verbatim; it is **not** validated against `rules/index.json`; the head-anchored backtick fallback is **index-gated** (only used when no inline tag is present and the token is a known rule id)
+- **Unattributable-item rejection:** `UNATTRIBUTABLE FINDING` fires when an item inside a severity section yields neither `path` nor `rule_id`; no ledger row, no row marker, no opt-out
 - **Stderr excerpt bound:** at most 2,000 bytes of rejected output are printed to stderr (truncation is marked)
 
 ## Safety invariant

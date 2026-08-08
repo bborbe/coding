@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [005-bug-bench-harvest-finding-extraction]
+summary: 'Documented harvest contract in bench/README.md § Reading review output (4 sub-sections), extended fixtures table to 6 rows, rewrote CHANGELOG.md ## Unreleased with 5 bullets covering the whole of spec 005'
+execution_id: coding-exec-026-spec-005-harvest-contract-docs-and-changelog
+dark-factory-version: v0.192.9
 created: "2026-08-08T11:44:00Z"
 queued: "2026-08-08T12:14:20Z"
+started: "2026-08-08T12:41:45Z"
+completed: "2026-08-08T12:45:00Z"
 ---
 
 <summary>

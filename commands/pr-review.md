@@ -255,6 +255,20 @@ The script exits non-zero if any finding's `rule_id` is not in `rules/index.json
 
 **MANDATORY**: Always include all three headers. Write "None." if empty.
 
+**MANDATORY**: Every finding must be attributable. Write each finding as a list item that **begins** with a bold file reference, and append the rule tag when the finding comes from a rule:
+
+```
+- **`pkg/server/handler.go:42`** — ctx.Done() is never checked in this loop, so shutdown hangs. *(rule: `go-context/cancellation-check`)*
+```
+
+- The item's **first** bold run must **be** the file reference and nothing else — not a summary phrase, not a heading, not the issue's name. `- **Inconsistent due_date choice**` is wrong even though it is bold and first; `- **`task/x.yaml:24`** — inconsistent due_date choice` is right.
+- Accepted shapes, and only these: ``**`path:LINE`**``, ``**`path`**`` (whole file), ``**`path:START-END`**``.
+- A path mentioned later in the prose does not count. Never infer a path you did not see in the diff.
+- Append ``*(rule: `<id>`)*`` verbatim when the finding maps to a rule id from `rules/index.json`; omit it when the finding is not rule-derived.
+- A finding you cannot tie to a file is not reportable as a finding. Put general remarks under a separate `**Notes:**` block after the three sections, never as a bullet inside one.
+
+This applies to every severity section and to all three modes.
+
 #### Must Fix (Critical)
 - Security vulnerabilities, context.Background() in business logic, concurrency bugs, data correctness, transaction deadlocks, business logic in factories, SRP violations (3+ concerns), outdated Go (2+ minor behind), missing test suites, manual mocks, direct time in tests
 

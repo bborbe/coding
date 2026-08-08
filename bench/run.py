@@ -55,6 +55,10 @@ REQUIRED_ENTRY_FIELDS = (
     "merge_strategy", "merge_sha", "base_sha", "head_sha", "changed_files",
 )
 
+# Gate constants (frozen invariants — not configurable)
+NON_REVIEW_MARKER = "NOT A REVIEW"
+REJECTION_EXCERPT_BYTES = 2000
+
 # ----------------------------------------------------------------------
 # Exceptions
 # ----------------------------------------------------------------------
@@ -730,6 +734,47 @@ def iter_report_lines(report_text: str):
             yield (line, in_fence)
 
 
+def missing_sections(report_text: str) -> list[str]:
+    """Return the required findings-section names absent from report_text, in canonical order.
+
+    A section counts as present only when it appears as a markdown heading at any
+    level 1-6 outside a fenced code block.  The words appearing in prose, in a
+    bold run, or inside a fence do not count.  Returns [] when all three are present.
+    """
+    present: set[str] = set()
+    for line, in_fence in iter_report_lines(report_text):
+        if in_fence:
+            continue
+        name = heading_section_name(line)
+        if name is not None:
+            present.add(name)
+    return [name for name in REQUIRED_SECTION_NAMES if name not in present]
+
+
+def rejection_excerpt(text: str, limit: int = REJECTION_EXCERPT_BYTES) -> str:
+    """Return at most limit bytes of text's UTF-8 prefix, marked when truncated."""
+    encoded = text.encode("utf-8")
+    total = len(encoded)
+    if total <= limit:
+        return text
+    prefix = encoded[:limit].decode("utf-8", errors="ignore")
+    return f"{prefix}\n[... truncated, {total} bytes total]"
+
+
+def non_review_report(pr_id: str, missing: list[str], stdout_text: str) -> str:
+    """Build the multi-line stderr diagnosis for output rejected as a non-review."""
+    total = len(stdout_text.encode("utf-8"))
+    excerpt = rejection_excerpt(stdout_text)
+    return (
+        f"{NON_REVIEW_MARKER}: {pr_id}\n"
+        f"missing sections: {', '.join(missing)}\n"
+        f"no ledger row and no cache entry were written; this PR is retried on the next run\n"
+        f"--- rejected output excerpt ({total} bytes total) ---\n"
+        f"{excerpt}\n"
+        f"--- end excerpt ---"
+    )
+
+
 def _normalize_body(lines: list[str]) -> str:
     """Strip bullet marker and join continuation lines into one whitespace-collapsed string."""
     body = lines[0]
@@ -1011,6 +1056,14 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
         failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
         failure_log.write_bytes(proc.stderr.encode("utf-8") if proc.stderr else b"")
         raise BenchError(f"{pr_id}: review invocation failed: exit {proc.returncode}")
+
+    # 4. Sanity gate — reject non-review output before anything is written
+    missing = missing_sections(proc.stdout)
+    if missing:
+        print(non_review_report(pr_id, missing, proc.stdout), file=sys.stderr)
+        raise BenchError(
+            f"{NON_REVIEW_MARKER}: {pr_id}: missing sections: {', '.join(missing)}"
+        )
 
     duration_seconds = time.monotonic() - t0
 

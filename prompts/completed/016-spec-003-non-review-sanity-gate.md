@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [003-bench-review-sanity-and-harvest-boundary]
+summary: 'Added non-review sanity gate to bench/run.py: rejects output missing Must Fix/Should Fix/Nice to Have headings before caching or harvesting, wired after the non-zero-exit check and before atomic_write_bytes, with bounded stderr diagnosis and 6 new tests'
+execution_id: coding-bench-harvest-exec-016-spec-003-non-review-sanity-gate
+dark-factory-version: v0.192.9
 created: "2026-08-08T02:35:00Z"
 queued: "2026-08-08T00:49:09Z"
+started: "2026-08-08T00:52:57Z"
+completed: "2026-08-08T00:57:27Z"
 ---
 
 <summary>

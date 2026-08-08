@@ -97,6 +97,36 @@ def stub_claude(bin_dir: pathlib.Path, counter_file: pathlib.Path,
     return make_stub_bin(bin_dir, "claude", body)
 
 
+def review_report(*, must_fix: str | None = "None.", should_fix: str | None = "None.",
+                  nice_to_have: str | None = "None.", heading_level: int = 2,
+                  preamble: str = "", trailing: str = "") -> str:
+    """Build a review-shaped stub payload.
+
+    Renders the three mandatory sections at heading_level, in the order Must Fix,
+    Should Fix, Nice to Have, each carrying the given body.  Passing None for a
+    section omits that section entirely, which is how a non-review payload is
+    built.  preamble is emitted before the first section and trailing after the
+    last one, both verbatim and both empty by default.
+    """
+    hashes = "#" * heading_level
+    parts = [preamble]
+    for name, body in [
+        ("Must Fix", must_fix),
+        ("Should Fix", should_fix),
+        ("Nice to Have", nice_to_have),
+    ]:
+        if body is not None:
+            annotation = "(Critical)" if name == "Must Fix" else "(Important)" if name == "Should Fix" else "(Optional)"
+            parts.append(f"{hashes} {name} {annotation}")
+            parts.append(body)
+    parts.append(trailing)
+    return "\n".join(parts)
+
+
+# Module-level clean review for common use
+CLEAN_REVIEW_REPORT = review_report()
+
+
 def stub_claude_failing(bin_dir: pathlib.Path, counter_file: pathlib.Path,
                          exit_code: int = 3) -> pathlib.Path:
     """Install a stub `claude` that appends args to counter_file and exits with exit_code."""

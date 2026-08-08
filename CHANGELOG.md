@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.35.3
 
 - fix: bench runner — the start-up check now hashes the directory Claude Code actually loads the coding plugin from, taken from the isolated config directory's install record, and aborts the whole run by name when no record exists, when it cannot be parsed, when it names a directory missing on disk, when it points outside that config directory's own cache tree, or when it applies only to a different working directory; a passing check prints the resolved directory, the recorded version and the content hash
 - fix: bench runner — the working copy handed to the review now carries exactly the checked-out head branch and the two synthetic remote-tracking branches for that pull request, with every upstream branch, every tag and the default-branch pointer removed on every run, so identical inputs stop producing a clarifying question instead of a review

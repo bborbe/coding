@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [005-bug-bench-harvest-finding-extraction]
+summary: 'Implemented positional attribution extraction: rule_id from inline marker (verbatim, no index check) and head-anchored fallback (index-gated), path/line from leading bold reference in four observed shapes, replacing the whole-item membership scan'
+execution_id: coding-exec-024-spec-005-attribution-from-reviewer-markers
+dark-factory-version: v0.192.9
 created: "2026-08-08T11:42:00Z"
 queued: "2026-08-08T12:14:19Z"
+started: "2026-08-08T12:29:43Z"
+completed: "2026-08-08T12:33:54Z"
 ---
 
 <summary>

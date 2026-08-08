@@ -51,6 +51,13 @@ FENCE_RE = re.compile(r"^ {0,3}(?:```|~~~)")
 BULLET_RE = re.compile(r"^\s{0,3}([-*])\s+(.+)$")
 ORDERED_ITEM_RE = re.compile(r"^\s{0,3}\d+\.\s+(.+)$")
 BOLD_RUN_START_RE = re.compile(r"^\s*\*\*")
+# Attribution extraction patterns
+RULE_TAG_RE = re.compile(r"\*\(rule:\s*`([^`]+)`\)")
+HEAD_RULE_TAG_RE = re.compile(r"^`([^`]+)`")
+LEADING_BOLD_RE = re.compile(r"^\*\*(.+?)\*\*")
+PATH_LINE_RE = re.compile(r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_./-]+):(\d+)")
+BACKTICK_TOKEN_RE = re.compile(r"`([^`\s]+)`")
+LINE_MENTION_RE = re.compile(r"(?i)\blines?\s*~?\s*(\d+)")
 _SECTION_BY_LOWER = {name.lower(): name for name in REQUIRED_SECTION_NAMES}
 REQUIRED_ENTRY_FIELDS = (
     "id", "owner", "repo", "number",
@@ -1012,14 +1019,6 @@ def load_rule_ids(coding_repo: pathlib.Path) -> set:
     return {entry["id"] for entry in data if "id" in entry}
 
 
-def _extract_rule_id(text: str, known_rule_ids: set) -> str | None:
-    """Extract the first rule ID token from text, or None."""
-    for token in re.split(r"[\s`\(\)\[\],:]+", text):
-        if token in known_rule_ids:
-            return token
-    return None
-
-
 def _extract_path_line(text: str, known_rule_ids: set) -> tuple[str | None, int | None]:
     """Extract the first path:line reference from text, skipping known rule IDs.
 
@@ -1027,11 +1026,82 @@ def _extract_path_line(text: str, known_rule_ids: set) -> tuple[str | None, int 
     A token that is a known rule ID is never treated as a path.
     """
     # Find all potential path:line matches
-    for m in re.finditer(r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_./-]+):(\d+)", text):
+    for m in PATH_LINE_RE.finditer(text):
         candidate = m.group(1)
         if candidate not in known_rule_ids:
             return candidate, int(m.group(2))
     return None, None
+
+
+def extract_attribution(body: str, known_rule_ids: set) -> tuple[str | None, int | None, str | None]:
+    """Return (path, line, rule_id) for one finding item, read from the item's own markers.
+
+    rule_id, in priority order:
+      1. the item's own inline `*(rule: `<id>`)*` marker — recorded as the literal
+         string the reviewer wrote, whether or not it appears in rules/index.json;
+      2. otherwise a backticked token at the very head of the item that is a member
+         of known_rule_ids (the shape the review template emits when it tags a
+         finding by leading its body with the rule id);
+      3. otherwise None.
+    An id named anywhere else in the item, or anywhere outside it, is never used.
+
+    path/line, in priority order:
+      1. the bold run at the head of the item, when it names a path;
+      2. otherwise the first path:line reference anywhere in the item that is not
+         a known rule id;
+      3. otherwise (None, None).
+    When the leading bold run supplies a path, line is taken from that bold run and
+    from nowhere else — a line number appearing only in the item's trailing prose is
+    not used.  No path is ever inferred by searching the repository and no line is
+    ever guessed from surrounding text.
+    """
+    # rule_id — source 1: inline *(rule: `id`)* tag, verbatim, no index check
+    m = RULE_TAG_RE.search(body)
+    if m:
+        rule_id = m.group(1)
+        # path/line from bold run at head of item
+        bold_m = LEADING_BOLD_RE.match(body)
+        if bold_m:
+            ref = bold_m.group(1)
+            path_m = PATH_LINE_RE.search(ref)
+            if path_m:
+                return path_m.group(1), int(path_m.group(2)), rule_id
+            # try backtick token with dot as path
+            tok_m = BACKTICK_TOKEN_RE.search(ref)
+            if tok_m:
+                token = tok_m.group(1)
+                if "." in token:
+                    line_m = LINE_MENTION_RE.search(ref)
+                    line = int(line_m.group(1)) if line_m else None
+                    return token, line, rule_id
+        # fall through to step 2 for path/line
+    else:
+        rule_id = None
+        # rule_id — source 2: head-anchored backtick token, index-gated
+        head_m = HEAD_RULE_TAG_RE.match(body)
+        if head_m:
+            token = head_m.group(1)
+            if token in known_rule_ids:
+                rule_id = token
+
+    # path/line — source 1: bold run at head of item
+    bold_m = LEADING_BOLD_RE.match(body)
+    if bold_m:
+        ref = bold_m.group(1)
+        path_m = PATH_LINE_RE.search(ref)
+        if path_m:
+            return path_m.group(1), int(path_m.group(2)), rule_id
+        tok_m = BACKTICK_TOKEN_RE.search(ref)
+        if tok_m:
+            token = tok_m.group(1)
+            if "." in token:
+                line_m = LINE_MENTION_RE.search(ref)
+                line = int(line_m.group(1)) if line_m else None
+                return token, line, rule_id
+
+    # path/line — source 2: whole-item scan (existing _extract_path_line logic)
+    path, line = _extract_path_line(body, known_rule_ids)
+    return path, line, rule_id
 
 
 def heading_section_name(line: str) -> str | None:
@@ -1166,14 +1236,12 @@ def harvest(report_text: str, known_rule_ids: set) -> HarvestResult:
         nonlocal current_finding_lines, current_section, findings
         if not current_finding_lines or current_section is None:
             return
-        text = " ".join(current_finding_lines)
         body = _normalize_body(current_finding_lines)
         # Skip the "None." empty-section sentinel (exact equality only)
         if body.strip() in ("None.", "None"):
             current_finding_lines = []
             return
-        rule_id = _extract_rule_id(text, known_rule_ids)
-        path, line_num = _extract_path_line(text, known_rule_ids)
+        path, line_num, rule_id = extract_attribution(body, known_rule_ids)
         findings.append({
             "path": path,
             "line": line_num,

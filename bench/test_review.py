@@ -1948,6 +1948,261 @@ class TestBodyPreservesLeadingBoldRun(unittest.TestCase):
             result.unattributable, [],
             f"expected empty unattributable, got: {result.unattributable}"
         )
+        # AC9 completion: path is read from the leading bold reference
+        self.assertEqual(
+            result.findings[0]["path"], "src/config.ts",
+            f"expected path src/config.ts from leading bold reference, got: {result.findings[0]['path']}"
+        )
+
+
+class TestNumberedCaptureFindingsCarryAttribution(unittest.TestCase):
+    """AC5: the five previously-dropped numbered findings carry the capture's attribution."""
+
+    def test_numbered_capture_findings_carry_attribution(self):
+        text = (run.BENCH_DIR / "testdata" / "capture-numbered-findings-h3.md").read_text()
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(text, ids)
+
+        expected = [
+            ("CHANGELOG.md", 18, "changelog/conventional-prefix-required"),
+            ("README.md", 76, "readme/user-facing-not-agent-context"),
+            (".github/workflows/ci.yml", 32, None),
+            ("Makefile.precommit", None, None),
+            ("Makefile.precommit", None, None),
+        ]
+        observed = [(f["path"], f["line"], f["rule_id"]) for f in result.findings[:5]]
+        self.assertEqual(
+            observed, expected,
+            f"first five findings: expected {expected}, got: {observed}"
+        )
+        self.assertEqual(
+            len(result.findings), 7,
+            f"expected 7 total findings, got: {len(result.findings)}"
+        )
+
+
+class TestRuleIdComesFromTheItemsOwnMarkers(unittest.TestCase):
+    """AC7: rule_id comes from the item's own markers in priority order."""
+
+    def test_case_a_tag_with_unknown_id_yields_literal(self):
+        # Case A: an item tagged with an id absent from rules/index.json yields that literal
+        known_ids = run.load_rule_ids(run.REPO_ROOT)
+        self.assertNotIn(
+            "made-up/not-in-the-index", known_ids,
+            "test precondition: made-up/not-in-the-index must not be in the index"
+        )
+
+        report = (
+            "## Must Fix (Critical)\n"
+            "- **`src/x.py:1`** something is wrong here. *(rule: `made-up/not-in-the-index`)*\n"
+        )
+        result = run.harvest(report, known_ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            result.findings[0]["rule_id"], "made-up/not-in-the-index",
+            f"Case A: expected literal rule_id, got: {result.findings[0]['rule_id']}"
+        )
+
+    def test_case_b_prose_names_different_rule_before_marker_yields_marker(self):
+        # Case B: prose names a different real rule before the item's own marker
+        known_ids = run.load_rule_ids(run.REPO_ROOT)
+        real_ids = sorted(known_ids)
+        id_a, id_b = real_ids[0], real_ids[1] if len(real_ids) > 1 else real_ids[0]
+        if id_a == id_b:
+            id_b = next((r for r in known_ids if r != id_a), id_a)
+        self.assertNotEqual(id_a, id_b, "test needs two distinct rule IDs")
+
+        report = (
+            f"## Must Fix (Critical)\n"
+            f"- **{id_a}** is wrong here. *(rule: `{id_b}`)*\n"
+        )
+        result = run.harvest(report, known_ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            result.findings[0]["rule_id"], id_b,
+            f"Case B: expected marker id {id_b}, got: {result.findings[0]['rule_id']}"
+        )
+
+    def test_case_c_no_marker_head_token_in_index_yields_that_id(self):
+        # Case C: no marker, head-anchored backtick token IS in index
+        known_ids = run.load_rule_ids(run.REPO_ROOT)
+        real_id = next((rid for rid in known_ids if "/" in rid), None)
+        self.assertIsNotNone(real_id, "test needs a real rule ID with a slash")
+
+        report = (
+            f"## Must Fix (Critical)\n"
+            f"- `{real_id}`: a finding in src/x.py:1\n"
+        )
+        result = run.harvest(report, known_ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            result.findings[0]["rule_id"], real_id,
+            f"Case C: expected head token {real_id}, got: {result.findings[0]['rule_id']}"
+        )
+
+    def test_case_d_no_marker_head_token_not_in_index_yields_none(self):
+        # Case D: no marker, head-anchored backtick token NOT in index
+        known_ids = run.load_rule_ids(run.REPO_ROOT)
+        self.assertNotIn(
+            "not-a-real-rule-id", known_ids,
+            "test precondition: not-a-real-rule-id must not be in the index"
+        )
+
+        report = (
+            "## Must Fix (Critical)\n"
+            "- `not-a-real-rule-id`: a finding in src/x.py:7\n"
+        )
+        result = run.harvest(report, known_ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertIsNone(
+            result.findings[0]["rule_id"],
+            f"Case D: expected rule_id None, got: {result.findings[0]['rule_id']}"
+        )
+        self.assertEqual(
+            result.findings[0]["path"], "src/x.py",
+            f"Case D: expected path src/x.py, got: {result.findings[0]['path']}"
+        )
+        self.assertEqual(
+            result.findings[0]["line"], 7,
+            f"Case D: expected line 7, got: {result.findings[0]['line']}"
+        )
+
+
+class TestPathAndLineComeFromTheLeadingBoldReference(unittest.TestCase):
+    """AC8: path and line come from the leading bold reference."""
+
+    def test_changelog_dot_md_colon_18(self):
+        report = "## Must Fix (Critical)\n- **`CHANGELOG.md:18`** something.\n"
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            (result.findings[0]["path"], result.findings[0]["line"]),
+            ("CHANGELOG.md", 18),
+            f"expected (CHANGELOG.md, 18), got: ({result.findings[0]['path']}, {result.findings[0]['line']})"
+        )
+
+    def test_readme_md_with_lines_76_to_94(self):
+        report = "## Must Fix (Critical)\n- **`README.md` \"Security gates\" section (~lines 76-94)** something.\n"
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            (result.findings[0]["path"], result.findings[0]["line"]),
+            ("README.md", 76),
+            f"expected (README.md, 76), got: ({result.findings[0]['path']}, {result.findings[0]['line']})"
+        )
+
+    def test_github_workflows_ci_yml_colon_32(self):
+        report = "## Must Fix (Critical)\n- **`.github/workflows/ci.yml:32`** something.\n"
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            (result.findings[0]["path"], result.findings[0]["line"]),
+            (".github/workflows/ci.yml", 32),
+            f"expected (.github/workflows/ci.yml, 32), got: ({result.findings[0]['path']}, {result.findings[0]['line']})"
+        )
+
+    def test_ci_plus_makefile_precommit(self):
+        report = "## Must Fix (Critical)\n- **CI + `Makefile.precommit`** something.\n"
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            (result.findings[0]["path"], result.findings[0]["line"]),
+            ("Makefile.precommit", None),
+            f"expected (Makefile.precommit, None), got: ({result.findings[0]['path']}, {result.findings[0]['line']})"
+        )
+
+    def test_leading_bold_takes_precedence_over_trailing_prose(self):
+        # Negative case: leading bold names a/b.py:10, trailing prose mentions c/d.py:99
+        report = (
+            "## Must Fix (Critical)\n"
+            "- **`a/b.py:10`** something is wrong.\n"
+            "More prose here, mentioning c/d.py:99 in passing.\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            (result.findings[0]["path"], result.findings[0]["line"]),
+            ("a/b.py", 10),
+            f"expected (a/b.py, 10) from leading bold, got: ({result.findings[0]['path']}, {result.findings[0]['line']})"
+        )
+
+    def test_bold_run_with_path_only_ignores_trailing_line_prose(self):
+        # Negative case: leading bold names a/b.py only, prose mentions line 42
+        report = (
+            "## Must Fix (Critical)\n"
+            "- **`a/b.py`** something is wrong.\n"
+            "More prose here, referencing line 42.\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            (result.findings[0]["path"], result.findings[0]["line"]),
+            ("a/b.py", None),
+            f"expected (a/b.py, None) — line in prose is not used when bold supplies path, got: ({result.findings[0]['path']}, {result.findings[0]['line']})"
+        )
+
+    def test_bold_run_without_line_does_not_use_trailing_full_path_line(self):
+        # Discriminating negative case: leading bold names a/b.py only, trailing prose
+        # carries a full c/d.py:99 reference — the trailing reference must NOT be used
+        report = (
+            "## Must Fix (Critical)\n"
+            "- **`a/b.py`** something is wrong.\n"
+            "More prose here, mentioning c/d.py:99 in passing.\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            (result.findings[0]["path"], result.findings[0]["line"]),
+            ("a/b.py", None),
+            f"expected (a/b.py, None) — trailing c/d.py:99 must not be used when bold already supplied path, got: ({result.findings[0]['path']}, {result.findings[0]['line']})"
+        )
+
+
+class TestExtractedValuesAreDataNotPaths(unittest.TestCase):
+    """Safety: extracted path values are never opened or accessed as filesystem paths."""
+
+    def test_etc_passwd_path_is_recorded_without_filesystem_access(self):
+        # A finding emitting ../../etc/passwd:1 must produce a ledger row with that
+        # string and no filesystem access.
+        report = "## Must Fix (Critical)\n- **`../../etc/passwd:1`** something.\n"
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            result.findings[0]["path"], "../../etc/passwd",
+            f"expected ../../etc/passwd, got: {result.findings[0]['path']}"
+        )
+        self.assertEqual(result.findings[0]["line"], 1)
+
+
+class TestTraceabilityTableDoesNotContributeRuleIds(unittest.TestCase):
+    """AC10 Case B regression: rule ids from a traceability table outside sections are not attributed."""
+
+    def test_traceability_capture_rule_ids_not_from_table(self):
+        text = (run.BENCH_DIR / "testdata" / "capture-traceability-h4.md").read_text()
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(text, ids)
+
+        # The 22-row traceability table is outside any severity section.
+        # No finding should carry a rule_id from that table.
+        table_ids = re.findall(r"^\| ([a-z][a-z0-9/-]+) \|", text, re.MULTILINE)
+        self.assertEqual(
+            len(table_ids), 22,
+            f"traceability table must have 22 rows, got: {len(table_ids)}"
+        )
+        for finding in result.findings:
+            if finding.get("rule_id") is not None:
+                self.assertNotIn(
+                    finding["rule_id"], table_ids,
+                    f"rule_id {finding['rule_id']!r} must not come from traceability table"
+                )
 
 
 if __name__ == "__main__":

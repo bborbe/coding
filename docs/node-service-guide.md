@@ -517,8 +517,20 @@ spec:
 
 New services are TypeScript; the rules above apply unchanged to `.ts` sources. Node runs `.ts` directly by stripping type annotations, so no build step is required — but stripping does **not** type-check, so `tsc --noEmit` must run in `make check` or the annotations are decoration. Prefer erasable syntax (string-literal unions over `enum`, explicit field assignment over constructor parameter properties) so the no-build-step property holds.
 
+## Structural Smells
+
+Named once, language-agnostically, in `code-smell-vocabulary.md` — use those terms in review findings rather than restating them. TypeScript/Node-specific fixes:
+
+| Smell | Node fix |
+|---|---|
+| Primitive obsession | Branded types (`type UserId = string & {readonly _brand: unique symbol}`) or a Zod schema over bare `string` |
+| Data clumps | An interface or Zod object over repeated positional arguments |
+| Long parameter list | A single options object — the idiomatic JS form |
+| Feature envy | Move the function to the module owning the data; see § Dependency Injection |
+
 ## Related
 
+- `code-smell-vocabulary.md` — the twelve structural smells, shared across languages
 - `node-makefile-commands.md` — build, test, and check targets
 - `k8s-manifest-guide.md` — generic manifest conventions
 - `go-http-service-guide.md` — the equivalent contract in Go

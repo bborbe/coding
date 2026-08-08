@@ -712,6 +712,15 @@ service-name/
 
 ## 11. Common Antipatterns to Avoid
 
+Structural smells are named once, language-agnostically, in [code-smell-vocabulary.md](code-smell-vocabulary.md) — use those terms in review findings rather than restating them. The Go-specific fixes below are the idiom layer on top of that vocabulary:
+
+| Smell | Go fix |
+|---|---|
+| Primitive obsession | Named types (`type UserID string`) over bare `string` / `int`; see § 8 Core Types |
+| Data clumps | A struct with a `New*` constructor over repeated positional parameters |
+| Long parameter list | Functional options (`go-functional-options-pattern.md`) or a config struct |
+| Feature envy | Move the method to the type owning the data; see § 7 Dependency Injection |
+
 ### DON'T: Create custom pointer helper functions
 ```go
 // DON'T DO THIS

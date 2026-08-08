@@ -196,6 +196,28 @@ def stub_claude_failing(bin_dir: pathlib.Path, counter_file: pathlib.Path,
     return make_stub_bin(bin_dir, "claude", body)
 
 
+def stub_claude_streams(bin_dir: pathlib.Path, counter_file: pathlib.Path, *,
+                        stdout_text: str = "", stderr_text: str = "",
+                        exit_code: int = 0, sleep_seconds: int = 0) -> pathlib.Path:
+    """Install a stub `claude` with independent control of both streams.
+
+    Appends its args to counter_file, writes stdout_text to stdout and stderr_text
+    to stderr (each omitted entirely when its argument is empty, so a genuinely
+    empty stream can be reproduced), sleeps sleep_seconds, then exits exit_code.
+    Both payloads are written before the sleep so a caller that kills the process
+    on a timeout still captures them.
+    """
+    counter_file = pathlib.Path(counter_file)
+    body = (
+        f"printf '%s\\n' \"$*\" >> '{counter_file}'\n"
+        f"cat <<'STDOUT_EOF'\n{stdout_text}\nSTDOUT_EOF\n"
+        f"cat <<'STDERR_EOF' >&2\n{stderr_text}\nSTDERR_EOF\n"
+        + (f"sleep {sleep_seconds}\n" if sleep_seconds else "")
+        + f"exit {exit_code}\n"
+    )
+    return make_stub_bin(bin_dir, "claude", body)
+
+
 def with_path(bin_dir: pathlib.Path) -> dict:
     """Return a copy of os.environ with bin_dir prepended to PATH."""
     env = dict(os.environ)

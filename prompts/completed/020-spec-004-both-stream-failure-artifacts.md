@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [004-bench-review-environment-control]
+summary: Added both-stream failure artifact to all three failure paths in bench/run.py, with 6 new tests covering AC10/AC11/AC12 and the diagnostic-not-cache-entry constraint
+execution_id: coding-bench-env-exec-020-spec-004-both-stream-failure-artifacts
+dark-factory-version: v0.192.9
 created: "2026-08-08T08:07:00Z"
 queued: "2026-08-08T08:19:41Z"
+started: "2026-08-08T08:41:26Z"
+completed: "2026-08-08T08:45:25Z"
 ---
 
 <summary>

@@ -64,6 +64,12 @@ DEFAULT_BRANCH_SYMREF = "refs/remotes/origin/HEAD"
 NON_REVIEW_MARKER = "NOT A REVIEW"
 REJECTION_EXCERPT_BYTES = 2000
 
+# Failure artifact constants (frozen literals — tests grep for them and the README quotes them)
+FAILURE_ARTIFACT_SUFFIX = ".failure.txt"
+FAILURE_STDOUT_LABEL = "--- subprocess stdout ---"
+FAILURE_STDERR_LABEL = "--- subprocess stderr ---"
+FAILURE_EMPTY_STREAM_MARKER = "(empty)"
+
 # Plugin resolution constants
 PLUGIN_NAME = "coding"
 INSTALLED_PLUGINS_FILENAME = "installed_plugins.json"
@@ -316,8 +322,72 @@ def cache_raw_path(cache_root: pathlib.Path, cfg_hash: str, pr_id: str) -> pathl
     return reviews_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}.stdout.txt"
 
 
-def failure_log_path(cache_root: pathlib.Path, cfg_hash: str, pr_id: str) -> pathlib.Path:
-    return failures_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}.stderr.txt"
+def failure_artifact_path(cache_root: pathlib.Path, cfg_hash: str,
+                          pr_id: str) -> pathlib.Path:
+    """Path of the both-stream diagnostic for one failed (PR, configuration) pair."""
+    return failures_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}{FAILURE_ARTIFACT_SUFFIX}"
+
+
+def stream_text(value) -> str:
+    """Return a captured subprocess stream as text, whatever shape it arrived in.
+
+    A stream is str (CompletedProcess under text=True), bytes (TimeoutExpired,
+    which ignores text mode) or None (never captured).  bytes are decoded as UTF-8
+    with errors="replace" so a truncated multi-byte sequence from a killed process
+    still produces a readable artifact instead of raising.  None becomes "".
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+def failure_artifact_text(*, pr_id: str, reason: str, stdout, stderr) -> str:
+    """Render both captured streams into one labelled diagnostic document.
+
+    Layout, in this order: a first line naming the PR and the reason it failed,
+    then FAILURE_STDOUT_LABEL followed by the stdout text, then
+    FAILURE_STDERR_LABEL followed by the stderr text.  A stream that is empty or
+    whitespace-only is rendered as FAILURE_EMPTY_STREAM_MARKER under its own label
+    rather than omitted — an omitted section is indistinguishable from a section
+    the writer forgot, which is the ambiguity that made the observed misdiagnosis
+    possible.  Neither stream is truncated: the bounded excerpt belongs to the
+    v0.35.2 gate's stderr report, and the artifact is the unbounded copy.
+    """
+    lines = [f"failure: {pr_id} — {reason}"]
+
+    stdout_text = stream_text(stdout)
+    lines.append(FAILURE_STDOUT_LABEL)
+    if stdout_text.strip():
+        lines.append(stdout_text)
+    else:
+        lines.append(FAILURE_EMPTY_STREAM_MARKER)
+
+    stderr_text = stream_text(stderr)
+    lines.append(FAILURE_STDERR_LABEL)
+    if stderr_text.strip():
+        lines.append(stderr_text)
+    else:
+        lines.append(FAILURE_EMPTY_STREAM_MARKER)
+
+    return "\n".join(lines) + "\n"
+
+
+def write_failure_artifact(cache_root: pathlib.Path, cfg_hash: str, pr_id: str,
+                           *, reason: str, stdout, stderr) -> pathlib.Path:
+    """Write the both-stream diagnostic for a failed review and return its path.
+
+    Creates failures_root(cache_root) when absent and writes through
+    atomic_write_bytes.  Writes nothing under bench/.cache/reviews/, appends no
+    ledger row, and never makes a failed PR look cached on the next run — the
+    artifact is a diagnostic, not a cache entry.
+    """
+    failures_root(cache_root).mkdir(parents=True, exist_ok=True)
+    path = failure_artifact_path(cache_root, cfg_hash, pr_id)
+    text = failure_artifact_text(pr_id=pr_id, reason=reason, stdout=stdout, stderr=stderr)
+    atomic_write_bytes(path, text.encode("utf-8"))
+    return path
 
 
 def ledger_path(results_dir: pathlib.Path) -> pathlib.Path:
@@ -1306,24 +1376,24 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
             config_dir=config_dir,
         )
     except subprocess.TimeoutExpired as err:
-        # Write failure log
-        failures_root(cache_root).mkdir(parents=True, exist_ok=True)
-        failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
-        stderr_bytes = err.stderr or b""
-        if isinstance(stderr_bytes, str):
-            stderr_bytes = stderr_bytes.encode("utf-8")
-        failure_log.write_bytes(stderr_bytes)
+        write_failure_artifact(cache_root, cfg_hash, pr_id,
+                              reason="timeout", stdout=err.stdout, stderr=err.stderr)
         raise
 
     if proc.returncode != 0:
-        failures_root(cache_root).mkdir(parents=True, exist_ok=True)
-        failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
-        failure_log.write_bytes(proc.stderr.encode("utf-8") if proc.stderr else b"")
+        write_failure_artifact(cache_root, cfg_hash, pr_id,
+                              reason=f"exit {proc.returncode}",
+                              stdout=proc.stdout, stderr=proc.stderr)
         raise BenchError(f"{pr_id}: review invocation failed: exit {proc.returncode}")
 
     # 4. Sanity gate — reject non-review output before anything is written
     missing = missing_sections(proc.stdout)
     if missing:
+        write_failure_artifact(
+            cache_root, cfg_hash, pr_id,
+            reason=f"{NON_REVIEW_MARKER}: missing sections: {', '.join(missing)}",
+            stdout=proc.stdout, stderr=proc.stderr,
+        )
         print(non_review_report(pr_id, missing, proc.stdout), file=sys.stderr)
         raise BenchError(
             f"{NON_REVIEW_MARKER}: {pr_id}: missing sections: {', '.join(missing)}"

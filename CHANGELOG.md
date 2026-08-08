@@ -13,6 +13,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - fix: bench runner — replace the plugin-resolution preflight so it hashes the directory named by the isolated config directory's `installed_plugins.json` record (the directory Claude Code really loads from) instead of the marketplace path; abort before any review starts when the record is absent, unreadable, names a stale path, names a path outside the plugin cache tree, or applies only to a different working directory; print one resolution line naming the load path, recorded version, and full content hash
 - fix: bench runner — delete the `known_marketplaces.json`/`installLocation` resolver and all fallback paths; the install record is the only source
 - fix: bench runner — the recorded `installPath` is validated to lie under `<config_dir>/plugins/cache/` before it is read
+- fix: bench runner — every failed review now leaves a `bench/.cache/failures/*.failure.txt` artifact containing both subprocess output streams (each labelled, empty streams marked explicitly) instead of a `*.stderr.txt` that held only stderr and silently discarded the stdout half where the real error lived
 
 ## v0.35.2
 

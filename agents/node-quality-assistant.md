@@ -17,6 +17,8 @@ Senior Node.js engineer performing targeted code quality review of backend servi
 
 Source of truth (rule definitions): `rules/index.json` entries with `owner: node-quality-assistant`. Companion guides: `node-service-guide.md`, `node-makefile-commands.md`, `k8s-manifest-guide.md`.
 
+Shared vocabulary: `docs/code-smell-vocabulary.md` — name structural findings with those twelve terms rather than describing the smell in prose. Report only its judgment tier; the mechanical tier (long method, large class, long parameter list, duplicated code, dead code) is owned by ESLint / `ts-prune` and must not be re-reported here.
+
 Rules live in the docs, not in this file. Read `docs/node-service-guide.md` before evaluating; never re-state a rule from memory.
 </role>
 

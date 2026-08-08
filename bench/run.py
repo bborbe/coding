@@ -71,6 +71,7 @@ DEFAULT_BRANCH_SYMREF = "refs/remotes/origin/HEAD"
 
 # Gate constants (frozen invariants — not configurable)
 NON_REVIEW_MARKER = "NOT A REVIEW"
+UNATTRIBUTABLE_MARKER = "UNATTRIBUTABLE FINDING"
 REJECTION_EXCERPT_BYTES = 2000
 
 # Failure artifact constants (frozen literals — tests grep for them and the README quotes them)
@@ -1178,6 +1179,30 @@ def non_review_report(pr_id: str, missing: list[str], stdout_text: str) -> str:
     )
 
 
+def unattributable_report(pr_id: str, items: list, stdout_text: str) -> str:
+    """Build the multi-line stderr diagnosis for a review carrying unkeyable items.
+
+    Names the PR, then each offending item's severity section and its text
+    verbatim.  The item block is passed through the same bounded excerpt the
+    NOT A REVIEW gate uses, so a runaway subprocess cannot flood the terminal.
+    """
+    total = len(stdout_text.encode("utf-8"))
+    item_blocks = []
+    for item in items:
+        item_text = f"[{item['section']}] {item['body']}"
+        item_blocks.append(rejection_excerpt(item_text))
+
+    return (
+        f"{UNATTRIBUTABLE_MARKER}: {pr_id}\n"
+        f"{len(items)} unattributable item(s)\n"
+        + "\n\n".join(item_blocks) + "\n"
+        f"no ledger row and no row marker were written; this PR is retried on the next run\n"
+        f"--- subprocess stdout ({total} bytes total) ---\n"
+        f"{rejection_excerpt(stdout_text)}\n"
+        f"--- end excerpt ---"
+    )
+
+
 def list_item_body(stripped_line: str) -> str | None:
     """Return the item text when stripped_line opens a list item, else None.
 
@@ -1209,13 +1234,11 @@ def _normalize_body(lines: list[str]) -> str:
 class HarvestResult:
     """The two-part outcome of harvesting one review report.
 
-    findings       — items inside a severity section that carry an attribution.
-    unattributable — items inside a severity section that carry none.  Reserved
-                     here and always empty; populated by the unattributable-item
-                     gate, which classifies items once attribution extraction
-                     exists.  It is a separate component precisely so a caller
-                     can distinguish "nothing was found" from "something was
-                     found and could not be keyed" (spec 005 AC3).
+    findings       — items inside a severity section that carry a path or rule_id.
+    unattributable — items inside a severity section that carry neither.  Only
+                     items inside a severity section are ever classified; content
+                     outside one (positive notes, traceability table, etc.) opens
+                     no item at all and appears in neither component.
     """
     findings: list
     unattributable: list
@@ -1229,11 +1252,12 @@ def harvest(report_text: str, known_rule_ids: set) -> HarvestResult:
     has keys: path, line, rule_id, body.
     """
     findings: list = []
+    unattributable: list = []
     current_section: str | None = None
     current_finding_lines: list[str] = []
 
     def flush_finding():
-        nonlocal current_finding_lines, current_section, findings
+        nonlocal current_finding_lines, current_section, findings, unattributable
         if not current_finding_lines or current_section is None:
             return
         body = _normalize_body(current_finding_lines)
@@ -1242,12 +1266,18 @@ def harvest(report_text: str, known_rule_ids: set) -> HarvestResult:
             current_finding_lines = []
             return
         path, line_num, rule_id = extract_attribution(body, known_rule_ids)
-        findings.append({
-            "path": path,
-            "line": line_num,
-            "rule_id": rule_id,
-            "body": body,
-        })
+        if path is None and rule_id is None:
+            unattributable.append({
+                "section": current_section,
+                "body": body,
+            })
+        else:
+            findings.append({
+                "path": path,
+                "line": line_num,
+                "rule_id": rule_id,
+                "body": body,
+            })
         current_finding_lines = []
 
     for line, in_fence in iter_report_lines(report_text):
@@ -1284,7 +1314,7 @@ def harvest(report_text: str, known_rule_ids: set) -> HarvestResult:
             current_finding_lines.append(stripped)
 
     flush_finding()
-    return HarvestResult(findings=findings, unattributable=[])
+    return HarvestResult(findings=findings, unattributable=unattributable)
 
 
 # ----------------------------------------------------------------------
@@ -1521,6 +1551,24 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     # 6. Harvest findings
     harvested = harvest(proc.stdout, known_rule_ids)
     findings = harvested.findings
+
+    # 6a. Unattributable-item gate — a finding that cannot be keyed is a parse
+    #     failure, not a body-only finding.  Fires *after* the step-5 raw write,
+    #     so the raw capture stays on disk and is re-harvestable after a fix,
+    #     and *before* the ledger append and the row-marker write, so the PR is
+    #     retried next run (the cache check keys on the row marker alone).
+    if harvested.unattributable:
+        n = len(harvested.unattributable)
+        write_failure_artifact(
+            cache_root, cfg_hash, pr_id,
+            reason=f"{UNATTRIBUTABLE_MARKER}: {n} unattributable item(s)",
+            stdout=proc.stdout, stderr=proc.stderr,
+        )
+        print(unattributable_report(pr_id, harvested.unattributable, proc.stdout),
+              file=sys.stderr)
+        raise BenchError(
+            f"{UNATTRIBUTABLE_MARKER}: {pr_id}: {n} unattributable item(s)"
+        )
 
     # 7. Build row and append to ledger
     review_command = shlex.join(argv)

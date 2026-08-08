@@ -1,8 +1,12 @@
 ---
-status: approved
+status: completed
 spec: [005-bug-bench-harvest-finding-extraction]
+execution_id: coding-exec-025-spec-005-unattributable-item-rejection
+dark-factory-version: v0.192.9
 created: "2026-08-08T11:43:00Z"
 queued: "2026-08-08T12:14:19Z"
+started: "2026-08-08T12:33:56Z"
+completed: "2026-08-08T12:41:44Z"
 ---
 
 <summary>

@@ -23,10 +23,10 @@ import testsupport
 # ----------------------------------------------------------------------
 # Shared test harness helpers
 # ----------------------------------------------------------------------
-def run_one_pr_with_payload(td: pathlib.Path, payload: str) -> tuple[int, str, pathlib.Path, pathlib.Path]:
+def run_one_pr_with_payload(td: pathlib.Path, payload: str) -> tuple[int, str, str, pathlib.Path, pathlib.Path]:
     """Run bench over a one-PR temp manifest with the given stub payload.
 
-    Returns (returncode, captured_stderr, results_dir, cache_root).
+    Returns (returncode, captured_stdout, captured_stderr, results_dir, cache_root).
     The stub claude is installed on PATH before the call.
     """
     td = pathlib.Path(td)
@@ -65,20 +65,22 @@ def run_one_pr_with_payload(td: pathlib.Path, payload: str) -> tuple[int, str, p
     plugin_src = testsupport.build_coding_repo(td / "repo")
     cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
+    captured_stdout = io.StringIO()
     captured_stderr = io.StringIO()
-    with contextlib.redirect_stderr(captured_stderr):
-        with mock.patch.dict(os.environ, env):
-            rc = run.run_bench(
-                coding_repo=plugin_src,
-                manifest_path=manifest_path,
-                results_dir=results_dir,
-                cache_root=cache_root,
-                model="test-model",
-                effort="high",
-                mode="short",
-                config_dir=cfg,
-            )
-    return rc, captured_stderr.getvalue(), results_dir, cache_root
+    with contextlib.redirect_stdout(captured_stdout):
+        with contextlib.redirect_stderr(captured_stderr):
+            with mock.patch.dict(os.environ, env):
+                rc = run.run_bench(
+                    coding_repo=plugin_src,
+                    manifest_path=manifest_path,
+                    results_dir=results_dir,
+                    cache_root=cache_root,
+                    model="test-model",
+                    effort="high",
+                    mode="short",
+                    config_dir=cfg,
+                )
+    return rc, captured_stdout.getvalue(), captured_stderr.getvalue(), results_dir, cache_root
 
 
 def run_one_pr_with_streams(td: pathlib.Path, *, stdout_text: str = "",
@@ -418,7 +420,7 @@ class TestHarvestKeepsFindingWithoutAnyRuleId(unittest.TestCase):
 
     def test_harvest_keeps_finding_without_any_rule_id(self):
         report = """#### Must Fix (Critical)
-- This finding has no rule ID at all but should still be kept.
+- **`src/x.py:4`** This finding has no rule ID at all but should still be kept.
 """
         ids = run.load_rule_ids(run.REPO_ROOT)
         result = run.harvest(report, ids)
@@ -627,7 +629,7 @@ class TestRawOutputIsCachedVerbatim(unittest.TestCase):
             bin_dir = td / "bin"
             counter = td / "counter"
             report_text = testsupport.review_report(
-                must_fix="- `agent-cmd/command-thin`: sample finding at `agents/x.md:12`."
+                must_fix="- **`agents/x.md:12`** sample finding."
             )
             stub = testsupport.stub_claude(bin_dir, counter, report_text)
             env = testsupport.with_path(bin_dir)
@@ -1072,7 +1074,7 @@ class TestNonReviewOutputIsRejected(unittest.TestCase):
     def test_non_review_output_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
-            rc, stderr, results_dir, cache_root = run_one_pr_with_payload(
+            rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
                 td, "Unknown command: /coding:pr-review"
             )
 
@@ -1111,7 +1113,7 @@ class TestSectionNamesOutsideHeadingsDoNotSatisfyTheGate(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
-            rc, stderr, results_dir, cache_root = run_one_pr_with_payload(td, payload)
+            rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(td, payload)
 
             self.assertEqual(rc, 1)
             self.assertIn(run.NON_REVIEW_MARKER, stderr)
@@ -1138,7 +1140,7 @@ class TestMissingSectionNamesAreReportedExactly(unittest.TestCase):
         # Case A: Nice to Have absent
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
-            rc, stderr, results_dir, cache_root = run_one_pr_with_payload(
+            rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
                 td, testsupport.review_report(nice_to_have=None)
             )
             self.assertEqual(rc, 1)
@@ -1162,7 +1164,7 @@ class TestMissingSectionNamesAreReportedExactly(unittest.TestCase):
         # Case B: Should Fix and Nice to Have absent
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
-            rc, stderr, results_dir, cache_root = run_one_pr_with_payload(
+            rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
                 td, testsupport.review_report(should_fix=None, nice_to_have=None)
             )
             self.assertEqual(rc, 1)
@@ -1201,7 +1203,7 @@ class TestReviewShapedOutputAtEitherHeadingLevelProducesARow(unittest.TestCase):
         for level in (2, 4):
             with tempfile.TemporaryDirectory() as td:
                 td = pathlib.Path(td)
-                rc, stderr, results_dir, cache_root = run_one_pr_with_payload(
+                rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
                     td, testsupport.review_report(heading_level=level)
                 )
 
@@ -1976,8 +1978,8 @@ class TestNumberedCaptureFindingsCarryAttribution(unittest.TestCase):
             f"first five findings: expected {expected}, got: {observed}"
         )
         self.assertEqual(
-            len(result.findings), 7,
-            f"expected 7 total findings, got: {len(result.findings)}"
+            len(result.findings), 5,
+            f"expected 5 total findings, got: {len(result.findings)}"
         )
 
 
@@ -2203,6 +2205,159 @@ class TestTraceabilityTableDoesNotContributeRuleIds(unittest.TestCase):
                     finding["rule_id"], table_ids,
                     f"rule_id {finding['rule_id']!r} must not come from traceability table"
                 )
+
+
+# ----------------------------------------------------------------------
+# Tests for the unattributable-item gate (spec 005 AC11, AC12, AC13)
+# ----------------------------------------------------------------------
+class TestNiceToHaveBulletsAreReportedUnattributable(unittest.TestCase):
+    """AC13: the unattributed items in the real capture are reported as such."""
+
+    def test_nice_to_have_bullets_reported_unattributable(self):
+        text = (run.BENCH_DIR / "testdata" / "capture-numbered-findings-h3.md").read_text()
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(text, ids)
+
+        self.assertEqual(
+            len(result.unattributable), 2,
+            f"expected 2 unattributable items, got: {len(result.unattributable)}"
+        )
+        for u in result.unattributable:
+            self.assertEqual(
+                u["section"], "Nice to Have",
+                f"section must be 'Nice to Have', got: {u['section']}"
+            )
+
+        # Verify verbatim bodies (whitespace-collapsed as harvest does)
+        self.assertEqual(
+            result.unattributable[0]["body"],
+            "Manual Trivy apt-install (update/install/repo-key) duplicates the maintained `aquasecurity/setup-trivy` action — adds ~30-60s/run and maintenance surface with no caching/pinning."
+        )
+        self.assertEqual(
+            result.unattributable[1]["body"],
+            "Commit subject `switch build backend to hatchling and add conventional changelog prefixes` is 73 chars (soft cap 50) — FYI only, not in the active rule set."
+        )
+
+        # The five Should Fix findings are still present
+        expected = [
+            ("CHANGELOG.md", 18, "changelog/conventional-prefix-required"),
+            ("README.md", 76, "readme/user-facing-not-agent-context"),
+            (".github/workflows/ci.yml", 32, None),
+            ("Makefile.precommit", None, None),
+            ("Makefile.precommit", None, None),
+        ]
+        observed = [(f["path"], f["line"], f["rule_id"]) for f in result.findings[:5]]
+        self.assertEqual(observed, expected)
+
+
+class TestUnattributableItemFailsThePrLoudly(unittest.TestCase):
+    """AC11: an unattributable item fails the PR loudly with no row and no cache marker."""
+
+    def test_unattributable_item_fails_the_pr_loudly(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
+                td,
+                testsupport.review_report(
+                    should_fix="- an item with neither a file reference nor a rule tag, so it cannot be keyed."
+                ),
+            )
+
+            # Run must fail
+            self.assertNotEqual(rc, 0, "run must exit non-zero for unattributable item")
+
+            # The frozen literal appears in stderr
+            self.assertIn("UNATTRIBUTABLE FINDING", stderr)
+            self.assertEqual(
+                run.UNATTRIBUTABLE_MARKER, "UNATTRIBUTABLE FINDING",
+                "UNATTRIBUTABLE_MARKER is a frozen spec invariant"
+            )
+            # PR id and section name in diagnosis
+            self.assertIn("test#1", stderr)
+            self.assertIn("Should Fix", stderr)
+            # Item text verbatim
+            self.assertIn(
+                "an item with neither a file reference nor a rule tag",
+                stderr,
+            )
+
+            # No ledger row
+            ledger = run.ledger_path(results_dir)
+            if ledger.exists():
+                rows = [json.loads(ln) for ln in ledger.read_text().splitlines()]
+            else:
+                rows = []
+            self.assertEqual(len(rows), 0, "no ledger row for unattributable review")
+
+            # Exactly one file under reviews_root: the raw stdout, no .json marker
+            reviews = run.reviews_root(cache_root)
+            if reviews.exists():
+                stdout_files = list(reviews.glob("*.stdout.txt"))
+                json_files = list(reviews.glob("*.json"))
+            else:
+                stdout_files, json_files = [], []
+            self.assertEqual(
+                len(stdout_files), 1,
+                "exactly one .stdout.txt file expected (the raw capture)"
+            )
+            self.assertEqual(
+                len(json_files), 0,
+                "zero .json row markers for unattributable review"
+            )
+
+            # Failure artifact exists and contains the item text
+            failures = run.failures_root(cache_root)
+            if failures.exists():
+                failure_files = list(failures.glob("*"))
+            else:
+                failure_files = []
+            self.assertGreater(
+                len(failure_files), 0,
+                "at least one failure artifact must exist"
+            )
+            # Read first failure artifact and check it contains the item text
+            failure_text = failure_files[0].read_text()
+            self.assertIn(
+                "an item with neither a file reference nor a rule tag",
+                failure_text,
+            )
+
+            # Stdout summary reports 1 failed
+            self.assertIn("1 failed", stdout)
+
+
+class TestAttributedItemStillProducesARow(unittest.TestCase):
+    """AC12: an item with a path reference exits 0 and produces a row and cache marker."""
+
+    def test_attributed_item_still_produces_a_row(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
+                td,
+                testsupport.review_report(
+                    should_fix="- **`src/x.py:4`** an item with a file reference and no rule tag."
+                ),
+            )
+
+            # Run must succeed
+            self.assertEqual(rc, 0, "run must exit 0 for attributed item")
+
+            # One ledger row with the finding
+            ledger = run.ledger_path(results_dir)
+            rows = [json.loads(ln) for ln in ledger.read_text().splitlines()]
+            self.assertEqual(len(rows), 1, "exactly 1 ledger row expected")
+            self.assertEqual(rows[0]["findings"][0]["path"], "src/x.py")
+            self.assertEqual(rows[0]["findings"][0]["line"], 4)
+
+            # Two files under reviews_root: raw stdout + one json marker
+            reviews = run.reviews_root(cache_root)
+            stdout_files = list(reviews.glob("*.stdout.txt"))
+            json_files = list(reviews.glob("*.json"))
+            self.assertEqual(len(stdout_files), 1, "one .stdout.txt file expected (the raw capture)")
+            self.assertEqual(
+                len(json_files), 1,
+                "exactly one .json row marker for attributed review"
+            )
 
 
 if __name__ == "__main__":

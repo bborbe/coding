@@ -140,9 +140,12 @@ Pick one plausible next feature. Count files / packages you'd touch.
 **Check:**
 
 - Shotgun surgery → abstraction is at the wrong altitude.
-- Touching one file → boundary is right OR abstraction is premature (does the feature actually need swap-in/swap-out?).
+- Divergent change — the same file keeps changing for unrelated reasons → one module is carrying several jobs.
+- Touching one file → boundary is right OR speculative generality (does the feature actually need swap-in/swap-out?).
 - Dead-code dispatch — config field exists but runtime always picks one path? (Silent misconfiguration.)
 - Asymmetric abstractions — one provider has its own package, another is hardcoded in a "generic" package?
+
+These three terms are defined in [code-smell-vocabulary.md](code-smell-vocabulary.md); here they act as evolvability probes, not as a structural checklist. The vocabulary's other nine smells are structural and belong to the sibling assistants per the scope table above — do not report them from this pass.
 
 **Severity:**
 

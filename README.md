@@ -188,6 +188,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [PRD Guide](docs/prd-guide.md) | Product Requirements |
 | [ADR Guide](docs/adr-guide.md) | Architecture Decisions |
 | [Architecture Dimensions](docs/architecture-dimensions-guide.md) | Whole-codebase behavioral review — 8 dimensions (data flow, failure, concurrency, observability, drift) |
+| [Code Smell Vocabulary](docs/code-smell-vocabulary.md) | Fowler's 12 structural smells, language-agnostic — shared by the Go/Python/Node review passes |
 | [Markdown & Todos](docs/markdown-todo-guide.md) | Formatting standards |
 
 ### Claude Code Authoring

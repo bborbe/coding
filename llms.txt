@@ -90,6 +90,7 @@
 - [PRD Guide](docs/prd-guide.md): Product Requirements Documents
 - [ADR Guide](docs/adr-guide.md): Architecture Decision Records
 - [Architecture Dimensions](docs/architecture-dimensions-guide.md): Whole-codebase behavioral review — 8 dimensions (data flow, failure, concurrency, observability, drift, blast radius, evolvability, cross-cutting consistency); paired with `architecture-dimensions-assistant` agent and `/coding:architecture-review` command
+- [Code Smell Vocabulary](docs/code-smell-vocabulary.md): Fowler's 12 structural code smells as one-line definitions, language-agnostic; shared by `go-architecture-assistant`, `python-architecture-assistant`, `node-quality-assistant`; splits mechanical-tier (linter-owned) from judgment-tier smells
 - [Markdown & Todos](docs/markdown-todo-guide.md): Formatting standards
 
 ## Acceptance Scenarios

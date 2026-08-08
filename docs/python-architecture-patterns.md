@@ -558,8 +558,20 @@ def test_user_service_integration():
     assert fake_repo.find_by_id(1).name == "Alice"
 ```
 
+## Structural Smells
+
+Named once, language-agnostically, in [code-smell-vocabulary.md](code-smell-vocabulary.md) — use those terms in review findings rather than restating them. Python-specific fixes:
+
+| Smell | Python fix |
+|---|---|
+| Primitive obsession | `NewType("UserID", str)` or a Pydantic model over bare `str` / `dict` |
+| Data clumps | A `@dataclass` / Pydantic model over repeated keyword arguments |
+| Long parameter list | A config dataclass, or keyword-only arguments with defaults |
+| Feature envy | Move the method to the class owning the data; see § 1 Constructor Injection |
+
 ## Related Documentation
 
+- [code-smell-vocabulary.md](code-smell-vocabulary.md) - The twelve structural smells, shared across languages
 - [python-project-structure.md](python-project-structure.md) - Project layout, pyproject.toml, src/ layout, test organization
 - [python-factory-pattern.md](python-factory-pattern.md) - Detailed factory patterns, antipatterns, file organization
 - [python-ioc-guide.md](python-ioc-guide.md) - Detailed DI patterns, Protocol vs ABC, async patterns

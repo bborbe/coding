@@ -480,6 +480,32 @@ import "slices"
 slices.Contains(s, v)
 ```
 
+## Verbose Output — `-v` Alone Does Not Show Spec Names
+
+Ginkgo v2's default reporter prints dots. Spec and `Entry` descriptions appear **only when a spec fails**. `go test -v` sets `-test.v`, not `-ginkgo.v`:
+
+```bash
+go test -count=1 ./pkg/foo/ -v            | grep -c "updates checkbox to in-progress"   # → 0
+go test -count=1 ./pkg/foo/ -v -ginkgo.v  | grep -c "updates checkbox to in-progress"   # → 2
+```
+
+This matters when a verification step, CI check, or agent prompt asserts a named test exists:
+
+```bash
+# BAD — returns 0 against a passing suite, so the check is satisfiable only by broken tests
+go test ./pkg/foo/... -v | grep -c "<spec name>"
+
+# GOOD
+go test ./pkg/foo/... -v -ginkgo.v | grep -c "<spec name>"
+```
+
+`-v -args -ginkgo.v` also works; note `-args` applies to every test binary matched by a `./...` pattern.
+
+Two related traps when writing such checks:
+
+- **`grep -c` exits non-zero when the count is 0.** If the pass condition *is* zero ("confirm the `break` was removed"), the command reports success by exiting failure. Append `|| true`.
+- **A new test description that is a superstring of an existing one defeats any grep pinning the existing one** — `grep -c "prose before the wikilink is a mention"` still matches after someone adds `decoration then prose before the wikilink is a mention`, so the guard passes even if the pinned test is deleted. Never let a new description contain an existing one as a substring; prefer pinning on a fixture literal.
+
 ## Best Practices
 
 1. **Clear hierarchy** — `Describe` (unit under test) → `Context` (scenario) → `It` (single assertion or tightly coupled set).

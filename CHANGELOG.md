@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: go-testing-guide — document that `go test -v` alone does not enable Ginkgo's verbose reporter, so spec descriptions print only on failure and any `grep -c "<spec name>"` check is satisfiable only by broken tests; use `-v -ginkgo.v`. Adds the two related traps for such checks: `grep -c` exits non-zero when the count is 0 (which is often the pass condition), and a new test description that is a superstring of an existing one defeats any grep pinning the existing one
+
 ## v0.35.4
 
 - fix: bench runner — a trailing bold-label block (`**Notes:**`, `**Summary:**`) now ends a findings section, so housekeeping bullets after a clean review are no longer invented as findings

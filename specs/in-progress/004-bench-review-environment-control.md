@@ -1,11 +1,12 @@
 ---
-status: prompted
+status: verifying
 tags:
     - dark-factory
     - spec
 approved: "2026-08-08T07:45:32Z"
 generating: "2026-08-08T07:45:58Z"
 prompted: "2026-08-08T07:56:15Z"
+verifying: "2026-08-08T08:48:08Z"
 branch: dark-factory/bench-review-environment-control
 ---
 

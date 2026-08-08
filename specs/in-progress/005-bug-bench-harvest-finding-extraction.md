@@ -1,11 +1,12 @@
 ---
-status: prompted
+status: verifying
 tags:
     - dark-factory
     - spec
 approved: "2026-08-08T11:24:09Z"
 generating: "2026-08-08T12:14:23Z"
 prompted: "2026-08-08T12:14:23Z"
+verifying: "2026-08-08T12:45:01Z"
 branch: dark-factory/bug-bench-harvest-finding-extraction
 ---
 

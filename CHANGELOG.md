@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.35.2
 
 - fix: bench runner — add a sanity gate that rejects review output not structurally a review (missing any of Must Fix, Should Fix, Nice to Have headings) before the raw output cache write; rejected output produces no ledger row, no cache entry, the PR is listed as failed, and remaining PRs still run
 - fix: bench runner — fix findings section boundary: a section now ends at the next heading, a thematic break, or end of input, and only a list item (`-` or `*`) opens a finding, so trailing summary prose in a real review can no longer be appended to the `None.` sentinel and emitted as a phantom finding

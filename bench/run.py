@@ -55,6 +55,11 @@ REQUIRED_ENTRY_FIELDS = (
     "merge_strategy", "merge_sha", "base_sha", "head_sha", "changed_files",
 )
 
+# Ref pruning (frozen invariant — the prepared working copy offers one target branch)
+KEEP_REF_NAMESPACE = "refs/bench/keep"
+PRUNED_REF_NAMESPACES = ("refs/heads", "refs/remotes", "refs/tags")
+DEFAULT_BRANCH_SYMREF = "refs/remotes/origin/HEAD"
+
 # Gate constants (frozen invariants — not configurable)
 NON_REVIEW_MARKER = "NOT A REVIEW"
 REJECTION_EXCERPT_BYTES = 2000
@@ -259,6 +264,33 @@ def path_is_under(path: pathlib.Path, root: pathlib.Path) -> bool:
     resolved = pathlib.Path(path).resolve()
     root_resolved = pathlib.Path(root).resolve()
     return resolved != root_resolved and resolved.is_relative_to(root_resolved)
+
+
+def keep_ref_name(number: int, label: str) -> str:
+    """Full refname under KEEP_REF_NAMESPACE holding one manifest SHA for this PR.
+
+    label is one of "merge", "base", "head".  These refs live outside refs/heads/
+    and refs/remotes/, so they keep the manifest's commits reachable without
+    appearing in `git branch -a` and without becoming a target-branch candidate.
+    """
+    return f"{KEEP_REF_NAMESPACE}/{number}/{label}"
+
+
+def synthetic_ref_names(number: int) -> tuple[str, str, str]:
+    """The exact three refs a prepared working copy is allowed to carry.
+
+    Returns (refs/heads/bench-pr-<n>, refs/remotes/origin/bench-base-<n>,
+    refs/remotes/origin/bench-pr-<n>) — the checked-out head branch and the two
+    synthetic remote-tracking refs prepare_worktree publishes.  The branch names
+    must stay byte-identical to the f-strings prepare_worktree already builds
+    (`bench-base-{number}`, `bench-pr-{number}`); derive them from one place so
+    they cannot drift.
+    """
+    return (
+        f"refs/heads/bench-pr-{number}",
+        f"refs/remotes/origin/bench-base-{number}",
+        f"refs/remotes/origin/bench-pr-{number}",
+    )
 
 
 # ----------------------------------------------------------------------
@@ -554,6 +586,10 @@ def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
     git(["worktree", "add", "--force", "-b", head_branch, str(wt), head_sha],
         repo_dir=repo_dir, cache_root=cache_root)
 
+    # Anchor manifest SHAs before pruning, then prune to exactly the synthetic refs
+    publish_keep_refs(cache_root, repo_dir, entry)
+    prune_refs(cache_root, repo_dir, entry["number"])
+
     return PrCheckout(
         pr_id=entry["id"],
         repo_dir=repo_dir,
@@ -567,6 +603,56 @@ def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
         parent_count=0,  # filled by caller
         notes=[],  # filled by caller
     )
+
+
+def publish_keep_refs(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+                      entry: dict) -> None:
+    """Anchor the manifest's three SHAs under refs/bench/keep/<number>/ before pruning.
+
+    Without these the merge commit becomes unreachable the moment the upstream
+    branches are deleted, and a later git gc could discard it — which would break
+    ensure_refs' offline short-circuit and force a network fetch on every run.
+    """
+    number = entry["number"]
+    for label, sha_field in [("merge", "merge_sha"), ("base", "base_sha"), ("head", "head_sha")]:
+        git(
+            ["update-ref", keep_ref_name(number, label), entry[sha_field]],
+            repo_dir=repo_dir, cache_root=cache_root, check=False,
+        )
+
+
+def prune_refs(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+               number: int) -> list[str]:
+    """Reduce repo_dir to exactly the three synthetic refs for this PR.
+
+    Deletes every ref under refs/heads/, refs/remotes/ and refs/tags/ that is not
+    one of synthetic_ref_names(number), and unsets the default-branch symref, so
+    `git branch -a` in the prepared working copy enumerates exactly one head branch
+    and two remote-tracking refs and the reviewer has no alternative target to ask
+    about.  Returns the refnames deleted, sorted, for logging and assertions.
+
+    Idempotent: a second call over an already-pruned repository deletes nothing and
+    returns [].  Every git invocation goes through git(), so the destructive step
+    inherits the safety invariant that repo_dir lies under bench/.cache/repos/.
+    """
+    # Remove the default-branch symref (absent → exit 128, which is fine)
+    git(["symbolic-ref", "-d", DEFAULT_BRANCH_SYMREF],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+
+    # Enumerate all refs in the namespaces we prune
+    proc = git(
+        ["for-each-ref", "--format=%(refname)", *PRUNED_REF_NAMESPACES],
+        repo_dir=repo_dir, cache_root=cache_root,
+    )
+    all_refs = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    keep = set(synthetic_ref_names(number))
+    to_delete = sorted(r for r in all_refs if r not in keep)
+
+    for refname in to_delete:
+        git(["update-ref", "-d", refname],
+            repo_dir=repo_dir, cache_root=cache_root, check=False)
+
+    return to_delete
 
 
 def resolve_pr(cache_root: pathlib.Path, entry: dict) -> PrCheckout:

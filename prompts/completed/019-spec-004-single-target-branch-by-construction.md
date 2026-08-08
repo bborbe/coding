@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [004-bench-review-environment-control]
+summary: 'Added ref pruning to bench runner: after prepare_worktree the working copy carries exactly one head branch and two synthetic remote-tracking refs — no upstream branches, tags, or default-branch symref'
+execution_id: coding-bench-env-exec-019-spec-004-single-target-branch-by-construction
+dark-factory-version: v0.192.9
 created: "2026-08-08T08:06:00Z"
 queued: "2026-08-08T08:19:41Z"
+started: "2026-08-08T08:37:41Z"
+completed: "2026-08-08T08:41:24Z"
 ---
 
 <summary>

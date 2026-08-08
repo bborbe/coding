@@ -303,6 +303,63 @@ def make_merge_repo(path: pathlib.Path) -> dict:
     }
 
 
+def make_upstream_shaped_repo(path: pathlib.Path) -> dict:
+    """Build a merge repo that also carries the refs a real upstream clone carries.
+
+    Calls make_merge_repo(path), then adds, all pointing at the merge commit:
+      refs/remotes/origin/main
+      refs/remotes/origin/feature/streaming-playback
+      refs/remotes/origin/fix/lead-silence-startup-clipping
+      refs/remotes/origin/HEAD  (a symbolic ref to refs/remotes/origin/main)
+      refs/heads/upstream-extra
+      refs/tags/v1.0
+    This reproduces the ref set observed in the failing live run recorded in
+    spec 004 (Reference: observed evidence, D5).  Returns make_merge_repo's dict.
+    """
+    info = make_merge_repo(path)
+
+    # Detect default branch name
+    default_branch = subprocess.run(
+        ["git", "-C", str(path), "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+    # Detect the merge commit SHA
+    merge_sha = info["merge_sha"]
+
+    # Add the upstream remote-tracking branches pointing at the merge commit
+    for ref_name in [
+        "refs/remotes/origin/main",
+        "refs/remotes/origin/feature/streaming-playback",
+        "refs/remotes/origin/fix/lead-silence-startup-clipping",
+    ]:
+        subprocess.run(
+            ["git", "-C", str(path), "update-ref", ref_name, merge_sha],
+            check=True, capture_output=True, text=True,
+        )
+
+    # Set origin/HEAD as a symbolic ref to origin/main
+    subprocess.run(
+        ["git", "-C", str(path), "symbolic-ref",
+         "refs/remotes/origin/HEAD", "refs/remotes/origin/main"],
+        check=True, capture_output=True, text=True,
+    )
+
+    # Add an extra head branch
+    subprocess.run(
+        ["git", "-C", str(path), "update-ref", "refs/heads/upstream-extra", merge_sha],
+        check=True, capture_output=True, text=True,
+    )
+
+    # Add a tag
+    subprocess.run(
+        ["git", "-C", str(path), "tag", "v1.0", merge_sha],
+        check=True, capture_output=True, text=True,
+    )
+
+    return info
+
+
 def make_squash_repo(path: pathlib.Path) -> dict:
     """Build a single-parent repo where head_sha == merge_sha (squash shape)."""
     path = init_git_repo(path)

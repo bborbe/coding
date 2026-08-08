@@ -3,10 +3,12 @@
 
 import contextlib
 from contextlib import nullcontext
+import hashlib
 import io
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -379,7 +381,8 @@ class TestHarvestNormalizesSampleReport(unittest.TestCase):
     def test_harvest_normalizes_sample_report(self):
         text = (run.BENCH_DIR / "testdata" / "sample-report.md").read_text()
         known_ids = run.load_rule_ids(run.REPO_ROOT)
-        findings = run.harvest(text, known_ids)
+        result = run.harvest(text, known_ids)
+        findings = result.findings
 
         # Expected: 3 findings (Must Fix x2, Should Fix x1)
         # The Nice to Have section ("None.") and traceability section produce 0 findings
@@ -418,7 +421,8 @@ class TestHarvestKeepsFindingWithoutAnyRuleId(unittest.TestCase):
 - This finding has no rule ID at all but should still be kept.
 """
         ids = run.load_rule_ids(run.REPO_ROOT)
-        findings = run.harvest(report, ids)
+        result = run.harvest(report, ids)
+        findings = result.findings
         self.assertEqual(len(findings), 1)
         self.assertIsNone(findings[0]["rule_id"])
         self.assertIn("no rule ID", findings[0]["body"])
@@ -432,7 +436,8 @@ class TestHarvestIgnoresEmptySection(unittest.TestCase):
 None.
 """
         ids = run.load_rule_ids(run.REPO_ROOT)
-        findings = run.harvest(report, ids)
+        result = run.harvest(report, ids)
+        findings = result.findings
         self.assertEqual(len(findings), 0)
 
 
@@ -915,8 +920,11 @@ class TestRealCaptureHarvestsToZeroFindings(unittest.TestCase):
     def test_real_capture_harvests_to_zero_findings(self):
         text = (run.BENCH_DIR / "testdata" / "real-capture-report.md").read_text()
         ids = run.load_rule_ids(run.REPO_ROOT)
-        findings = run.harvest(text, ids)
+        result = run.harvest(text, ids)
+        findings = result.findings
+        unattributable = result.unattributable
         self.assertEqual(findings, [], f"real capture must harvest to zero findings, got: {findings}")
+        self.assertEqual(unattributable, [], f"real capture must harvest to zero unattributable, got: {unattributable}")
 
 
 class TestTrailingProseDoesNotSwallowARealFinding(unittest.TestCase):
@@ -939,7 +947,8 @@ class TestTrailingProseDoesNotSwallowARealFinding(unittest.TestCase):
             f"**Summary:** This is the closing panel prose.\n"
             f"Some additional context about what was reviewed.\n"
         )
-        findings = run.harvest(report, known_ids)
+        result = run.harvest(report, known_ids)
+        findings = result.findings
         self.assertEqual(len(findings), 1, f"expected exactly 1 finding, got: {findings}")
         f = findings[0]
         self.assertEqual(f["path"], "src/foo.go")
@@ -969,7 +978,8 @@ class TestHeadingLevelDoesNotChangeHarvest(unittest.TestCase):
         )
 
         reports = {level: report_template(level) for level in ("##", "###", "####")}
-        harvests = {level: run.harvest(text, known_ids) for level, text in reports.items()}
+        results = {level: run.harvest(text, known_ids) for level, text in reports.items()}
+        harvests = {level: r.findings for level, r in results.items()}
 
         self.assertEqual(
             harvests["##"],
@@ -999,7 +1009,8 @@ class TestSectionNameInProseOrFenceIsNotAHeading(unittest.TestCase):
     def test_fence_contains_heading_not_a_section(self):
         known_ids = run.load_rule_ids(run.REPO_ROOT)
         report = "```\n## Must Fix (Critical)\n- a finding\n```\n"
-        findings = run.harvest(report, known_ids)
+        result = run.harvest(report, known_ids)
+        findings = result.findings
         self.assertEqual(findings, [], f"fenced heading must not open a section, got: {findings}")
 
 
@@ -1018,7 +1029,8 @@ class TestThematicBreakEndsASection(unittest.TestCase):
             f"**Summary:** This is trailing prose that must not be appended to the finding.\n"
             f"Another paragraph of closing remarks.\n"
         )
-        findings = run.harvest(report, known_ids)
+        result = run.harvest(report, known_ids)
+        findings = result.findings
         self.assertEqual(len(findings), 1, f"expected 1 finding, got: {findings}")
         self.assertNotIn("Summary", findings[0]["body"])
         self.assertNotIn("trailing prose", findings[0]["body"])
@@ -1043,7 +1055,8 @@ class TestProseBeforeAListItemOpensNothing(unittest.TestCase):
             f"## Nice to Have (Optional)\n"
             f"None.\n"
         )
-        findings = run.harvest(report, known_ids)
+        result = run.harvest(report, known_ids)
+        findings = result.findings
         self.assertEqual(len(findings), 1, f"expected 1 finding, got: {findings}")
         self.assertNotIn("None.", findings[0]["body"])
         self.assertEqual(findings[0]["path"], "bar.go")
@@ -1596,6 +1609,345 @@ class TestFailureArtifactIsNotACacheEntry(unittest.TestCase):
                 ]
                 self.assertEqual(len(rows), 0,
                     f"no ledger rows for failed runs in {rd}")
+
+
+class TestCaptureFixturesMatchPublishedDigests(unittest.TestCase):
+    """AC2: four operator-installed verbatim capture fixtures match their published digests."""
+
+    FIXTURES = [
+        ("bench/testdata/capture-notes-block-h2.md",
+         "6427028bef301ff822cca6dbf9308896f1899ac5a972ed3fddc276f2216552b9",
+         17),
+        ("bench/testdata/capture-numbered-findings-h3.md",
+         "5530049fa4d116dc5762b69c9c9498ff0865c0ae0c6b1de7b3ae4cc846643e93",
+         28),
+        ("bench/testdata/capture-traceability-h4.md",
+         "2922746bb95bdb3a67a683942531362271d8f3ccd558067d910146e054bcfe7c",
+         57),
+        ("bench/testdata/capture-summary-trailer-h4.md",
+         "36e15eca61133033d81687f87a82b044333c6a7465508d1757f8493361137e79",
+         21),
+    ]
+
+    def test_each_fixture_matches_its_published_sha256_and_line_count(self):
+        for rel_path, expected_sha256, expected_lines in self.FIXTURES:
+            with self.subTest(fixture=rel_path):
+                path = run.BENCH_DIR / rel_path.replace("bench/", "")
+                observed_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+                observed_lines = len(path.read_text().splitlines())
+                self.assertEqual(
+                    observed_sha256, expected_sha256,
+                    f"fixture {rel_path}: expected sha256 {expected_sha256}, got {observed_sha256}"
+                )
+                self.assertEqual(
+                    observed_lines, expected_lines,
+                    f"fixture {rel_path}: expected {expected_lines} lines, got {observed_lines}"
+                )
+
+
+class TestNotesBlockCaptureHarvestsToNothing(unittest.TestCase):
+    """AC3: trailing notes block harvests to nothing at all."""
+
+    def test_notes_block_capture_harvests_to_empty_findings_and_empty_unattributable(self):
+        text = (run.BENCH_DIR / "testdata" / "capture-notes-block-h2.md").read_text()
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(text, ids)
+        self.assertEqual(
+            result.findings, [],
+            f"notes-block capture must yield empty findings, got: {result.findings}"
+        )
+        self.assertEqual(
+            result.unattributable, [],
+            f"notes-block capture must yield empty unattributable, got: {result.unattributable}"
+        )
+
+
+class TestBoldLabelTerminatorIsGeneral(unittest.TestCase):
+    """AC4: bold-run terminator is general, not a hardcoded label."""
+
+    def test_case_a_notes_block_with_three_bullets_yields_nothing(self):
+        report = (
+            "## Must Fix (Critical)\n"
+            "None.\n"
+            "\n"
+            "**Notes:**\n"
+            "- precommit skipped\n"
+            "- npm ci was not run\n"
+            "- LICENSE file present\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(result.findings, [],
+            f"Case A: expected empty findings, got: {result.findings}")
+        self.assertEqual(result.unattributable, [],
+            f"Case A: expected empty unattributable, got: {result.unattributable}")
+
+    def test_case_b_summary_label_with_prose_and_bullet_yields_nothing(self):
+        report = (
+            "## Must Fix (Critical)\n"
+            "None.\n"
+            "\n"
+            "**Summary:** This is a closing panel.\n"
+            "- precommit skipped\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(result.findings, [],
+            f"Case B: expected empty findings, got: {result.findings}")
+        self.assertEqual(result.unattributable, [],
+            f"Case B: expected empty unattributable, got: {result.unattributable}")
+
+    def test_case_c_one_real_finding_before_notes_block_yields_only_that_finding(self):
+        report = (
+            "## Must Fix (Critical)\n"
+            "- **`src/foo.py:7`** the one real finding, which must survive.\n"
+            "\n"
+            "**Notes:**\n"
+            "- this bullet must not appear\n"
+            "- nor this one\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(len(result.findings), 1,
+            f"Case C: expected exactly 1 finding, got: {result.findings}")
+        self.assertEqual(result.unattributable, [],
+            f"Case C: expected empty unattributable, got: {result.unattributable}")
+        self.assertEqual(result.findings[0]["path"], "src/foo.py")
+        self.assertEqual(result.findings[0]["line"], 7)
+        self.assertIn("the one real finding", result.findings[0]["body"])
+        self.assertNotIn("this bullet must not appear", result.findings[0]["body"])
+        self.assertNotIn("nor this one", result.findings[0]["body"])
+
+
+class TestContentOutsideASeveritySectionIsNeverAFinding(unittest.TestCase):
+    """AC10: content outside a severity section is never a finding and never unattributable."""
+
+    def test_case_a_numbered_findings_positive_notes_bullets_not_in_harvest(self):
+        # Substrings that occur exactly once in the ### Positive notes bullets:
+        #   fixture line 23: "build-backend switch is clean"
+        #   fixture line 24: "mktemp"
+        #   fixture line 25: "S104"
+        #   fixture line 26: "TestClient"
+        # Each was chosen because it occurs exactly once in the fixture and that
+        # one occurrence is inside a ### Positive notes bullet.  "hatchling" and
+        # "pip-audit" are disqualified: "hatchling" appears twice (line 20 is a
+        # Nice to Have finding, line 23 is positive notes); "pip-audit" appears
+        # three times (lines 15, 24, 24).  "ruff " appears twice (lines 5, 25).
+        text = (run.BENCH_DIR / "testdata" / "capture-numbered-findings-h3.md").read_text()
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(text, ids)
+
+        self.assertTrue(
+            result.findings or result.unattributable,
+            "corpus is non-degenerate: harvest returned something"
+        )
+
+        # All four positive-notes substrings must be absent from both components
+        positive_substrings = (
+            "build-backend switch is clean",  # line 23
+            "mktemp",                         # line 24
+            "S104",                           # line 25
+            "TestClient",                     # line 26
+        )
+        for substr in positive_substrings:
+            for finding in result.findings:
+                self.assertNotIn(
+                    substr, finding["body"],
+                    f"substring {substr!r} must not appear in findings body"
+                )
+            for item in result.unattributable:
+                self.assertNotIn(
+                    substr, item.get("body", ""),
+                    f"substring {substr!r} must not appear in unattributable body"
+                )
+
+    def test_case_b_traceability_table_rule_ids_not_in_harvest(self):
+        text = (run.BENCH_DIR / "testdata" / "capture-traceability-h4.md").read_text()
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(text, ids)
+
+        # Collect rule IDs from the traceability table (fixture lines 33-54, 22 rows)
+        table_ids = re.findall(r"^\| ([a-z][a-z0-9/-]+) \|", text, re.MULTILINE)
+        self.assertEqual(
+            len(table_ids), 22,
+            f"traceability table must have 22 rows, got: {len(table_ids)} — "
+            "check regex anchoring (re.MULTILINE required)"
+        )
+
+        for finding in result.findings:
+            self.assertNotIn(
+                finding.get("rule_id"), table_ids,
+                f"rule_id {finding.get('rule_id')!r} must not come from traceability table"
+            )
+
+    def test_case_c_both_zero_finding_captures_harvest_to_empty(self):
+        for rel_path in (
+            "bench/testdata/real-capture-report.md",
+            "bench/testdata/capture-summary-trailer-h4.md",
+        ):
+            with self.subTest(fixture=rel_path):
+                text = (run.BENCH_DIR / rel_path.replace("bench/", "")).read_text()
+                ids = run.load_rule_ids(run.REPO_ROOT)
+                result = run.harvest(text, ids)
+                self.assertEqual(
+                    result.findings, [],
+                    f"{rel_path}: expected empty findings, got: {result.findings}"
+                )
+                self.assertEqual(
+                    result.unattributable, [],
+                    f"{rel_path}: expected empty unattributable, got: {result.unattributable}"
+                )
+
+
+class TestHeadingLevelIsIrrelevantToTermination(unittest.TestCase):
+    """AC14: heading level is irrelevant to termination and harvesting."""
+
+    def test_heading_level_does_not_change_harvest_at_different_levels(self):
+        known_ids = run.load_rule_ids(run.REPO_ROOT)
+        real_rule_id = next((rid for rid in known_ids if "/" in rid), None)
+        self.assertIsNotNone(real_rule_id)
+
+        # Render identical content at ##, ###, #### — each carrying one finding followed
+        # by a **Notes:** block and two more bullets.  The finding must appear at every
+        # level, and all three harvests must be equal.
+        def make_report(level):
+            return (
+                f"{level} Must Fix (Critical)\n"
+                f"- **`src/foo.py:7`** a finding that must appear at every level.\n"
+                f"\n"
+                f"**Notes:**\n"
+                f"- this bullet must not appear\n"
+                f"- nor this one\n"
+            )
+
+        results = {lvl: run.harvest(make_report(lvl), known_ids) for lvl in ("##", "###", "####")}
+        findings = {lvl: r.findings for lvl, r in results.items()}
+
+        # Per-level assertions — each level must yield exactly one finding
+        for lvl in ("##", "###", "####"):
+            with self.subTest(level=lvl):
+                self.assertEqual(len(findings[lvl]), 1,
+                    f"{lvl}: expected exactly 1 finding, got: {findings[lvl]}")
+                self.assertEqual(findings[lvl][0]["path"], "src/foo.py")
+                self.assertEqual(findings[lvl][0]["line"], 7)
+                self.assertEqual(results[lvl].unattributable, [],
+                    f"{lvl}: expected empty unattributable, got: {results[lvl].unattributable}")
+
+        # Three-way equality — empty results compare equal, so per-level assertions
+        # are required alongside this equality check
+        self.assertEqual(
+            findings["##"], findings["###"],
+            f"## vs ###: {findings['##']} vs {findings['###']}"
+        )
+        self.assertEqual(
+            findings["##"], findings["####"],
+            f"## vs ####: {findings['##']} vs {findings['####']}"
+        )
+
+    def test_h3_terminates_open_h2_section(self):
+        known_ids = run.load_rule_ids(run.REPO_ROOT)
+        real_rule_id = next((rid for rid in known_ids if "/" in rid), None)
+        self.assertIsNotNone(real_rule_id)
+
+        report = (
+            "## Must Fix (Critical)\n"
+            f"- `{real_rule_id}`: a real finding in file.go:99\n"
+            "### Some other heading\n"
+            "- this bullet must not appear\n"
+        )
+        result = run.harvest(report, known_ids)
+        self.assertEqual(len(result.findings), 1,
+            f"expected exactly 1 finding, got: {result.findings}")
+
+    def test_h2_terminates_open_h4_section(self):
+        known_ids = run.load_rule_ids(run.REPO_ROOT)
+        real_rule_id = next((rid for rid in known_ids if "/" in rid), None)
+        self.assertIsNotNone(real_rule_id)
+
+        report = (
+            "#### Must Fix (Critical)\n"
+            f"- `{real_rule_id}`: a real finding in file.go:99\n"
+            "## Some other heading\n"
+            "- this bullet must not appear\n"
+        )
+        result = run.harvest(report, known_ids)
+        self.assertEqual(len(result.findings), 1,
+            f"expected exactly 1 finding, got: {result.findings}")
+
+
+class TestOrderedAndUnorderedItemsBothOpenFindings(unittest.TestCase):
+    """AC6: ordered and unordered list items both open findings, in document order."""
+
+    def test_ordered_and_unordered_items_yield_findings_in_document_order(self):
+        # Mixing unordered (-, *) and ordered (3., 4., 10.) styles.
+        # Ordered numbering starts at 3 and includes a two-digit marker.
+        # Every item carries a path in backticks so paths are extractable (prompt 3).
+        report = (
+            "## Must Fix (Critical)\n"
+            "- **`a/one.py:1`** first item, unordered dash.\n"
+            "* **`a/two.py:2`** second item, unordered star.\n"
+            "3. **`a/three.py:3`** third item, ordered starting at three.\n"
+            "4. **`a/four.py:4`** fourth item.\n"
+            "10. **`a/ten.py:10`** fifth item, two-digit marker.\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        findings = result.findings
+
+        self.assertEqual(
+            len(findings), 5,
+            f"expected 5 findings, got {len(findings)}: {[f['body'] for f in findings]}"
+        )
+        paths = [f["path"] for f in findings]
+        self.assertEqual(
+            paths, ["a/one.py", "a/two.py", "a/three.py", "a/four.py", "a/ten.py"],
+            f"paths must be in document order, got: {paths}"
+        )
+
+    def test_ordered_item_inside_fence_yields_nothing(self):
+        # An ordered item inside a fenced block is example text, not a finding.
+        # Both findings and unattributable must be empty.
+        report = (
+            "## Should Fix (Important)\n"
+            "None.\n"
+            "\n"
+            "```\n"
+            "1. this ordered item is inside a fence and is not a finding\n"
+            "```\n"
+        )
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(report, ids)
+        self.assertEqual(
+            result.findings, [],
+            f"expected empty findings, got: {result.findings}"
+        )
+        self.assertEqual(
+            result.unattributable, [],
+            f"expected empty unattributable (not an unattributable item), got: {result.unattributable}"
+        )
+
+
+class TestBodyPreservesLeadingBoldRun(unittest.TestCase):
+    """AC9: the list-item body preserves a leading bold run verbatim."""
+
+    def test_traceability_capture_bold_run_survives_normalization(self):
+        text = (run.BENCH_DIR / "testdata" / "capture-traceability-h4.md").read_text()
+        ids = run.load_rule_ids(run.REPO_ROOT)
+        result = run.harvest(text, ids)
+
+        self.assertEqual(
+            len(result.findings), 1,
+            f"expected 1 finding, got {len(result.findings)}: {[f['body'] for f in result.findings]}"
+        )
+        observed_body = result.findings[0]["body"]
+        self.assertTrue(
+            observed_body.startswith("**No test coverage for"),
+            f"leading bold run was mangled, got: {observed_body[:60]!r}"
+        )
+        self.assertEqual(
+            result.unattributable, [],
+            f"expected empty unattributable, got: {result.unattributable}"
+        )
 
 
 if __name__ == "__main__":

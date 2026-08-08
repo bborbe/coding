@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: bench runner — ordered list items (`1.`, `2.`, `10.`) now open findings exactly as unordered items do; items inside fenced code blocks are ignored
+- fix: bench runner — item-body normaliser no longer strips one asterisk from a leading bold run, preserving `**path**` references in finding text
+- test: bench — add 5 new tests covering ordered/unordered list recognition, fenced-item suppression, and leading-bold-run preservation; add sha256 digest verification for 4 verbatim capture fixtures
+
 ## v0.35.3
 
 - fix: bench runner — the start-up check now hashes the directory Claude Code actually loads the coding plugin from, taken from the isolated config directory's install record, and aborts the whole run by name when no record exists, when it cannot be parsed, when it names a directory missing on disk, when it points outside that config directory's own cache tree, or when it applies only to a different working directory; a passing check prints the resolved directory, the recorded version and the content hash

@@ -49,6 +49,8 @@ SEVERITY_SUFFIX_RE = re.compile(r"\s*\([^)]+\)\s*$")
 THEMATIC_BREAK_RE = re.compile(r"^ {0,3}(?:-{3,}|\*{3,}|_{3,}) *$")
 FENCE_RE = re.compile(r"^ {0,3}(?:```|~~~)")
 BULLET_RE = re.compile(r"^\s{0,3}([-*])\s+(.+)$")
+ORDERED_ITEM_RE = re.compile(r"^\s{0,3}\d+\.\s+(.+)$")
+BOLD_RUN_START_RE = re.compile(r"^\s*\*\*")
 _SECTION_BY_LOWER = {name.lower(): name for name in REQUIRED_SECTION_NAMES}
 REQUIRED_ENTRY_FIELDS = (
     "id", "owner", "repo", "number",
@@ -1106,20 +1108,55 @@ def non_review_report(pr_id: str, missing: list[str], stdout_text: str) -> str:
     )
 
 
+def list_item_body(stripped_line: str) -> str | None:
+    """Return the item text when stripped_line opens a list item, else None.
+
+    Both list styles the reviewer uses open a finding: an unordered item
+    (`-` or `*` followed by whitespace) and an ordered item (a run of digits
+    followed by `.` and whitespace).  The marker is removed; nothing else about
+    the text is changed, so a leading bold run survives intact.
+    """
+    m = BULLET_RE.match(stripped_line)
+    if m:
+        return m.group(2)
+    m = ORDERED_ITEM_RE.match(stripped_line)
+    if m:
+        return m.group(1)
+    return None
+
+
 def _normalize_body(lines: list[str]) -> str:
-    """Strip bullet marker and join continuation lines into one whitespace-collapsed string."""
-    body = lines[0]
-    if body.startswith(("*", "-")):
-        body = body[1:].lstrip()
-    body = " ".join([body] + lines[1:])
-    body = re.sub(r"\s+", " ", body).strip()
-    return body
+    """Join an item's lines into one whitespace-collapsed string.
+
+    The list marker was already removed by list_item_body; nothing else is
+    stripped, so the item's leading bold run is preserved verbatim.
+    """
+    body = " ".join(lines)
+    return re.sub(r"\s+", " ", body).strip()
 
 
-def harvest(report_text: str, known_rule_ids: set) -> list:
-    """Normalize a /coding:pr-review Step 5 report into a list of findings.
+@dataclasses.dataclass
+class HarvestResult:
+    """The two-part outcome of harvesting one review report.
 
-    Returns a list of dicts, each with keys: path, line, rule_id, body.
+    findings       — items inside a severity section that carry an attribution.
+    unattributable — items inside a severity section that carry none.  Reserved
+                     here and always empty; populated by the unattributable-item
+                     gate, which classifies items once attribution extraction
+                     exists.  It is a separate component precisely so a caller
+                     can distinguish "nothing was found" from "something was
+                     found and could not be keyed" (spec 005 AC3).
+    """
+    findings: list
+    unattributable: list
+
+
+def harvest(report_text: str, known_rule_ids: set) -> HarvestResult:
+    """Normalize a /coding:pr-review Step 5 report into a HarvestResult.
+
+    Returns a HarvestResult with two lists: findings (attributed items) and
+    unattributable (items with no path and no rule_id).  Each finding dict
+    has keys: path, line, rule_id, body.
     """
     findings: list = []
     current_section: str | None = None
@@ -1161,18 +1198,25 @@ def harvest(report_text: str, known_rule_ids: set) -> list:
                 current_finding_lines = []
                 continue
 
+            if BOLD_RUN_START_RE.match(line):
+                flush_finding()
+                current_section = None
+                current_finding_lines = []
+                continue
+
         if current_section is None:
             continue
 
         stripped = line.strip()
-        if stripped and BULLET_RE.match(stripped):
+        item = list_item_body(stripped) if (stripped and not in_fence) else None
+        if item is not None:
             flush_finding()
-            current_finding_lines = [BULLET_RE.match(stripped).group(2)]
+            current_finding_lines = [item]
         elif stripped and current_finding_lines:
             current_finding_lines.append(stripped)
 
     flush_finding()
-    return findings
+    return HarvestResult(findings=findings, unattributable=[])
 
 
 # ----------------------------------------------------------------------
@@ -1407,7 +1451,8 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     atomic_write_bytes(raw_path, proc.stdout.encode("utf-8"))
 
     # 6. Harvest findings
-    findings = harvest(proc.stdout, known_rule_ids)
+    harvested = harvest(proc.stdout, known_rule_ids)
+    findings = harvested.findings
 
     # 7. Build row and append to ledger
     review_command = shlex.join(argv)

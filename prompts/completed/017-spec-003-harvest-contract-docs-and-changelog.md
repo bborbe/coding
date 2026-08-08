@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [003-bench-review-sanity-and-harvest-boundary]
+summary: Documented harvest contract in bench/README.md and consolidated Unreleased changelog entry covering all of spec 003
+execution_id: coding-bench-harvest-exec-017-spec-003-harvest-contract-docs-and-changelog
+dark-factory-version: v0.192.9
 created: "2026-08-08T02:35:00Z"
 queued: "2026-08-08T00:49:10Z"
+started: "2026-08-08T00:57:29Z"
+completed: "2026-08-08T00:59:20Z"
 ---
 
 <summary>

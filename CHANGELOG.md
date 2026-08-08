@@ -10,8 +10,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- fix: bench runner — give the findings harvester explicit section end boundaries (thematic break or end of input) so trailing summary prose in a real review can never be appended to the `None.` sentinel of an empty section and emitted as a phantom finding; add a verbatim-capture fixture derived from the actual 2026-08-08 `tts-mcp#20` output that produced the defect, plus tests locking the new contract
-- fix: bench runner — add a sanity gate that rejects output which is not structurally a review (missing any of the three mandatory sections: Must Fix, Should Fix, Nice to Have) before the raw output is cached and before harvesting; rejected output produces no ledger row and no cache entry, the PR is listed as failed, and remaining PRs still run
+- fix: bench runner — add a sanity gate that rejects review output not structurally a review (missing any of Must Fix, Should Fix, Nice to Have headings) before the raw output cache write; rejected output produces no ledger row, no cache entry, the PR is listed as failed, and remaining PRs still run
+- fix: bench runner — fix findings section boundary: a section now ends at the next heading, a thematic break, or end of input, and only a list item (`-` or `*`) opens a finding, so trailing summary prose in a real review can no longer be appended to the `None.` sentinel and emitted as a phantom finding
+- docs: bench — document the harvest contract in `bench/README.md` (what ends a section, what opens a finding, the three mandatory sections, the fixture table); add verbatim-capture fixture `bench/testdata/real-capture-report.md` that locks the boundary fix
 
 ## v0.35.1
 

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.35.6
 
 - fix: pr-review — every finding must now lead with a bold file reference (``**`path:LINE`**``, ``**`path`**`` or ``**`path:START-END`**``) and carry the inline `*(rule: <id>)*` tag when it maps to a rule, so a finding is always attributable to a location. The first bold run must *be* the reference, not a summary phrase; a path appearing only in the item's prose does not count and no path may be inferred that was not in the diff. General remarks belong in a trailing `**Notes:**` block, never as a bullet inside a severity section. Measured before the change: 6 of 15 benchmark review attempts (40%) were rejected as unattributable, non-deterministically — after it, 10 of 10 findings across two runs carry a path and no attempt was rejected
 

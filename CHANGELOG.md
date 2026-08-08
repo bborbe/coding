@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: bench runner — give the findings harvester explicit section end boundaries (thematic break or end of input) so trailing summary prose in a real review can never be appended to the `None.` sentinel of an empty section and emitted as a phantom finding; add a verbatim-capture fixture derived from the actual 2026-08-08 `tts-mcp#20` output that produced the defect, plus tests locking the new contract
+
 ## v0.35.1
 
 - bench: add `make bench` and `make bench-test` Makefile targets; wire `bench-test` into `make precommit` so bench unit tests gate every later change

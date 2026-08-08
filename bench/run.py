@@ -55,9 +55,32 @@ REQUIRED_ENTRY_FIELDS = (
     "merge_strategy", "merge_sha", "base_sha", "head_sha", "changed_files",
 )
 
+# Ref pruning (frozen invariant — the prepared working copy offers one target branch)
+KEEP_REF_NAMESPACE = "refs/bench/keep"
+PRUNED_REF_NAMESPACES = ("refs/heads", "refs/remotes", "refs/tags")
+DEFAULT_BRANCH_SYMREF = "refs/remotes/origin/HEAD"
+
 # Gate constants (frozen invariants — not configurable)
 NON_REVIEW_MARKER = "NOT A REVIEW"
 REJECTION_EXCERPT_BYTES = 2000
+
+# Failure artifact constants (frozen literals — tests grep for them and the README quotes them)
+FAILURE_ARTIFACT_SUFFIX = ".failure.txt"
+FAILURE_STDOUT_LABEL = "--- subprocess stdout ---"
+FAILURE_STDERR_LABEL = "--- subprocess stderr ---"
+FAILURE_EMPTY_STREAM_MARKER = "(empty)"
+
+# Plugin resolution constants
+PLUGIN_NAME = "coding"
+INSTALLED_PLUGINS_FILENAME = "installed_plugins.json"
+
+# Preflight abort markers (frozen literals — tests and the README quote them)
+PLUGIN_RESOLUTION_MISMATCH_MARKER = "PLUGIN RESOLUTION MISMATCH"
+NO_INSTALL_RECORD_MARKER = "NO PLUGIN INSTALL RECORD"
+UNREADABLE_INSTALL_RECORD_MARKER = "UNREADABLE PLUGIN INSTALL RECORD"
+STALE_INSTALL_PATH_MARKER = "STALE PLUGIN INSTALL PATH"
+OUT_OF_TREE_INSTALL_PATH_MARKER = "PLUGIN INSTALL PATH OUT OF TREE"
+SCOPE_MISMATCH_MARKER = "PLUGIN INSTALL SCOPE MISMATCH"
 
 # ----------------------------------------------------------------------
 # Exceptions
@@ -234,6 +257,48 @@ def assert_under(path: pathlib.Path, root: pathlib.Path) -> pathlib.Path:
     return resolved
 
 
+def installed_plugins_path(config_dir: pathlib.Path) -> pathlib.Path:
+    return config_dir / "plugins" / INSTALLED_PLUGINS_FILENAME
+
+
+def plugin_cache_root(config_dir: pathlib.Path) -> pathlib.Path:
+    return config_dir / "plugins" / "cache"
+
+
+def path_is_under(path: pathlib.Path, root: pathlib.Path) -> bool:
+    """True when path resolves strictly under root (never equal to it)."""
+    resolved = pathlib.Path(path).resolve()
+    root_resolved = pathlib.Path(root).resolve()
+    return resolved != root_resolved and resolved.is_relative_to(root_resolved)
+
+
+def keep_ref_name(number: int, label: str) -> str:
+    """Full refname under KEEP_REF_NAMESPACE holding one manifest SHA for this PR.
+
+    label is one of "merge", "base", "head".  These refs live outside refs/heads/
+    and refs/remotes/, so they keep the manifest's commits reachable without
+    appearing in `git branch -a` and without becoming a target-branch candidate.
+    """
+    return f"{KEEP_REF_NAMESPACE}/{number}/{label}"
+
+
+def synthetic_ref_names(number: int) -> tuple[str, str, str]:
+    """The exact three refs a prepared working copy is allowed to carry.
+
+    Returns (refs/heads/bench-pr-<n>, refs/remotes/origin/bench-base-<n>,
+    refs/remotes/origin/bench-pr-<n>) — the checked-out head branch and the two
+    synthetic remote-tracking refs prepare_worktree publishes.  The branch names
+    must stay byte-identical to the f-strings prepare_worktree already builds
+    (`bench-base-{number}`, `bench-pr-{number}`); derive them from one place so
+    they cannot drift.
+    """
+    return (
+        f"refs/heads/bench-pr-{number}",
+        f"refs/remotes/origin/bench-base-{number}",
+        f"refs/remotes/origin/bench-pr-{number}",
+    )
+
+
 # ----------------------------------------------------------------------
 # Cache and ledger path helpers
 # ----------------------------------------------------------------------
@@ -257,8 +322,72 @@ def cache_raw_path(cache_root: pathlib.Path, cfg_hash: str, pr_id: str) -> pathl
     return reviews_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}.stdout.txt"
 
 
-def failure_log_path(cache_root: pathlib.Path, cfg_hash: str, pr_id: str) -> pathlib.Path:
-    return failures_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}.stderr.txt"
+def failure_artifact_path(cache_root: pathlib.Path, cfg_hash: str,
+                          pr_id: str) -> pathlib.Path:
+    """Path of the both-stream diagnostic for one failed (PR, configuration) pair."""
+    return failures_root(cache_root) / f"{cache_key(cfg_hash, pr_id)}{FAILURE_ARTIFACT_SUFFIX}"
+
+
+def stream_text(value) -> str:
+    """Return a captured subprocess stream as text, whatever shape it arrived in.
+
+    A stream is str (CompletedProcess under text=True), bytes (TimeoutExpired,
+    which ignores text mode) or None (never captured).  bytes are decoded as UTF-8
+    with errors="replace" so a truncated multi-byte sequence from a killed process
+    still produces a readable artifact instead of raising.  None becomes "".
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+def failure_artifact_text(*, pr_id: str, reason: str, stdout, stderr) -> str:
+    """Render both captured streams into one labelled diagnostic document.
+
+    Layout, in this order: a first line naming the PR and the reason it failed,
+    then FAILURE_STDOUT_LABEL followed by the stdout text, then
+    FAILURE_STDERR_LABEL followed by the stderr text.  A stream that is empty or
+    whitespace-only is rendered as FAILURE_EMPTY_STREAM_MARKER under its own label
+    rather than omitted — an omitted section is indistinguishable from a section
+    the writer forgot, which is the ambiguity that made the observed misdiagnosis
+    possible.  Neither stream is truncated: the bounded excerpt belongs to the
+    v0.35.2 gate's stderr report, and the artifact is the unbounded copy.
+    """
+    lines = [f"failure: {pr_id} — {reason}"]
+
+    stdout_text = stream_text(stdout)
+    lines.append(FAILURE_STDOUT_LABEL)
+    if stdout_text.strip():
+        lines.append(stdout_text)
+    else:
+        lines.append(FAILURE_EMPTY_STREAM_MARKER)
+
+    stderr_text = stream_text(stderr)
+    lines.append(FAILURE_STDERR_LABEL)
+    if stderr_text.strip():
+        lines.append(stderr_text)
+    else:
+        lines.append(FAILURE_EMPTY_STREAM_MARKER)
+
+    return "\n".join(lines) + "\n"
+
+
+def write_failure_artifact(cache_root: pathlib.Path, cfg_hash: str, pr_id: str,
+                           *, reason: str, stdout, stderr) -> pathlib.Path:
+    """Write the both-stream diagnostic for a failed review and return its path.
+
+    Creates failures_root(cache_root) when absent and writes through
+    atomic_write_bytes.  Writes nothing under bench/.cache/reviews/, appends no
+    ledger row, and never makes a failed PR look cached on the next run — the
+    artifact is a diagnostic, not a cache entry.
+    """
+    failures_root(cache_root).mkdir(parents=True, exist_ok=True)
+    path = failure_artifact_path(cache_root, cfg_hash, pr_id)
+    text = failure_artifact_text(pr_id=pr_id, reason=reason, stdout=stdout, stderr=stderr)
+    atomic_write_bytes(path, text.encode("utf-8"))
+    return path
 
 
 def ledger_path(results_dir: pathlib.Path) -> pathlib.Path:
@@ -470,6 +599,22 @@ class PrCheckout:
     notes: list
 
 
+@dataclasses.dataclass
+class PluginInstallRecord:
+    plugin_key: str
+    scope: str
+    install_path: pathlib.Path
+    version: str
+    project_path: pathlib.Path | None
+
+
+@dataclasses.dataclass
+class PluginResolution:
+    load_path: pathlib.Path
+    version: str
+    content_hash: str
+
+
 def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
                     entry: dict, base_endpoint: str,
                     head_endpoint: str) -> PrCheckout:
@@ -511,6 +656,10 @@ def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
     git(["worktree", "add", "--force", "-b", head_branch, str(wt), head_sha],
         repo_dir=repo_dir, cache_root=cache_root)
 
+    # Anchor manifest SHAs before pruning, then prune to exactly the synthetic refs
+    publish_keep_refs(cache_root, repo_dir, entry)
+    prune_refs(cache_root, repo_dir, entry["number"])
+
     return PrCheckout(
         pr_id=entry["id"],
         repo_dir=repo_dir,
@@ -524,6 +673,56 @@ def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
         parent_count=0,  # filled by caller
         notes=[],  # filled by caller
     )
+
+
+def publish_keep_refs(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+                      entry: dict) -> None:
+    """Anchor the manifest's three SHAs under refs/bench/keep/<number>/ before pruning.
+
+    Without these the merge commit becomes unreachable the moment the upstream
+    branches are deleted, and a later git gc could discard it — which would break
+    ensure_refs' offline short-circuit and force a network fetch on every run.
+    """
+    number = entry["number"]
+    for label, sha_field in [("merge", "merge_sha"), ("base", "base_sha"), ("head", "head_sha")]:
+        git(
+            ["update-ref", keep_ref_name(number, label), entry[sha_field]],
+            repo_dir=repo_dir, cache_root=cache_root, check=False,
+        )
+
+
+def prune_refs(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+               number: int) -> list[str]:
+    """Reduce repo_dir to exactly the three synthetic refs for this PR.
+
+    Deletes every ref under refs/heads/, refs/remotes/ and refs/tags/ that is not
+    one of synthetic_ref_names(number), and unsets the default-branch symref, so
+    `git branch -a` in the prepared working copy enumerates exactly one head branch
+    and two remote-tracking refs and the reviewer has no alternative target to ask
+    about.  Returns the refnames deleted, sorted, for logging and assertions.
+
+    Idempotent: a second call over an already-pruned repository deletes nothing and
+    returns [].  Every git invocation goes through git(), so the destructive step
+    inherits the safety invariant that repo_dir lies under bench/.cache/repos/.
+    """
+    # Remove the default-branch symref (absent → exit 128, which is fine)
+    git(["symbolic-ref", "-d", DEFAULT_BRANCH_SYMREF],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+
+    # Enumerate all refs in the namespaces we prune
+    proc = git(
+        ["for-each-ref", "--format=%(refname)", *PRUNED_REF_NAMESPACES],
+        repo_dir=repo_dir, cache_root=cache_root,
+    )
+    all_refs = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    keep = set(synthetic_ref_names(number))
+    to_delete = sorted(r for r in all_refs if r not in keep)
+
+    for refname in to_delete:
+        git(["update-ref", "-d", refname],
+            repo_dir=repo_dir, cache_root=cache_root, check=False)
+
+    return to_delete
 
 
 def resolve_pr(cache_root: pathlib.Path, entry: dict) -> PrCheckout:
@@ -570,53 +769,185 @@ def verify_config_dir() -> pathlib.Path:
     return pathlib.Path(home) / VERIFY_CONFIG_DIR_NAME
 
 
-def resolve_plugin_path(config_dir: pathlib.Path) -> pathlib.Path:
-    """Resolve the coding plugin path from the isolated config directory.
+def load_install_records(config_dir: pathlib.Path) -> list[PluginInstallRecord]:
+    """Read every install record the config dir holds for the coding plugin.
 
-    If config_dir/plugins/known_marketplaces.json exists and contains a usable
-    "coding" entry with a non-empty installLocation, that path is returned.
-    Otherwise falls back to config_dir/plugins/marketplaces/coding.
+    Records are returned in file order.  Raises BenchError naming the record file
+    when the file is absent, unreadable, not JSON, structurally wrong, or holds no
+    entry for the plugin.  There is no fallback: an unresolvable record aborts.
     """
-    known = config_dir / "plugins" / "known_marketplaces.json"
-    if known.is_file():
-        try:
-            data = json.loads(known.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as err:
-            raise BenchError(f"cannot parse {known}: {err}")
-        coding_entry = data.get("coding", {})
-        install_location = coding_entry.get("installLocation", "")
-        if install_location and isinstance(install_location, str):
-            return pathlib.Path(install_location)
-    return config_dir / "plugins" / "marketplaces" / "coding"
+    record_file = installed_plugins_path(config_dir)
+    if not record_file.is_file():
+        raise BenchError(
+            f"{NO_INSTALL_RECORD_MARKER}: {record_file} does not exist; "
+            f"the isolated config directory {config_dir} holds no install record "
+            f"for plugin {PLUGIN_NAME!r}. Install the plugin into that config "
+            f"directory and re-run."
+        )
+    try:
+        data = json.loads(record_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as err:
+        raise BenchError(
+            f"{UNREADABLE_INSTALL_RECORD_MARKER}: cannot read {record_file}: {err}"
+        )
+    if not isinstance(data, dict) or not isinstance(data.get("plugins"), dict):
+        raise BenchError(
+            f"{UNREADABLE_INSTALL_RECORD_MARKER}: {record_file} has no 'plugins' object"
+        )
+
+    records: list[PluginInstallRecord] = []
+    for key, entries in data["plugins"].items():
+        if key != PLUGIN_NAME and not key.startswith(PLUGIN_NAME + "@"):
+            continue
+        if not isinstance(entries, list):
+            raise BenchError(
+                f"{UNREADABLE_INSTALL_RECORD_MARKER}: "
+                f"{record_file}: entry {key!r} is not a list of records"
+            )
+        for elem in entries:
+            if not isinstance(elem, dict):
+                raise BenchError(
+                    f"{UNREADABLE_INSTALL_RECORD_MARKER}: "
+                    f"{record_file}: entry {key!r} is not a list of records"
+                )
+            install_path_str = str(elem.get("installPath", ""))
+            if not install_path_str:
+                raise BenchError(
+                    f"{UNREADABLE_INSTALL_RECORD_MARKER}: {record_file}: "
+                    f"entry {key!r} has no 'installPath'"
+                )
+            records.append(PluginInstallRecord(
+                plugin_key=key,
+                scope=str(elem.get("scope", "")),
+                install_path=pathlib.Path(install_path_str),
+                version=str(elem.get("version", "")),
+                project_path=(
+                    pathlib.Path(str(elem["projectPath"]))
+                    if elem.get("projectPath") else None
+                ),
+            ))
+
+    if not records:
+        raise BenchError(
+            f"{NO_INSTALL_RECORD_MARKER}: {record_file} holds no install record "
+            f"for plugin {PLUGIN_NAME!r}; the isolated config directory {config_dir} "
+            f"will not load it. Install the plugin into that config directory and re-run."
+        )
+    return records
+
+
+def record_applies(record: PluginInstallRecord, review_root: pathlib.Path) -> bool:
+    """True when this record is one Claude Code would load for the review's cwd.
+
+    A user-scoped record always applies.  A project-scoped record applies only when
+    review_root is the recorded project path or lives under it.  Any other scope
+    value never applies.
+    """
+    if record.scope == "user":
+        return True
+    if record.scope == "project":
+        if record.project_path is None:
+            return False
+        rp = review_root.resolve()
+        pp = record.project_path.resolve()
+        return rp == pp or rp.is_relative_to(pp)
+    return False
+
+
+def select_install_record(records: list[PluginInstallRecord],
+                          *, config_dir: pathlib.Path,
+                          review_root: pathlib.Path) -> PluginInstallRecord:
+    """Return the first record that applies to this run, or abort naming all of them."""
+    for record in records:
+        if record_applies(record, review_root):
+            return record
+
+    # No record applied — abort with full diagnostics
+    lines = []
+    for record in records:
+        pp = str(record.project_path) if record.project_path else "<none>"
+        lines.append(
+            f"[scope={record.scope} projectPath={pp} "
+            f"version={record.version} installPath={record.install_path}]"
+        )
+    raise BenchError(
+        f"{SCOPE_MISMATCH_MARKER}: no applicable install record for plugin "
+        f"{PLUGIN_NAME!r} in {installed_plugins_path(config_dir)}; "
+        f"records: {' '.join(lines)}; "
+        f"review_root={review_root}; "
+        f"install the plugin at user scope in {config_dir}"
+    )
+
+
+def resolve_plugin_load_path(config_dir: pathlib.Path,
+                             review_root: pathlib.Path) -> PluginResolution:
+    """Resolve and hash the directory the review will really load the plugin from."""
+    records = load_install_records(config_dir)
+    record = select_install_record(records, config_dir=config_dir, review_root=review_root)
+
+    # Out-of-tree guard — validate before reading anything from the path
+    if not path_is_under(record.install_path, plugin_cache_root(config_dir)):
+        raise BenchError(
+            f"{OUT_OF_TREE_INSTALL_PATH_MARKER}: install path {record.install_path} "
+            f"recorded in {installed_plugins_path(config_dir)} is not under "
+            f"{plugin_cache_root(config_dir)}; refusing to read a plugin from outside "
+            f"the isolated config directory's own plugin tree"
+        )
+
+    # Stale-path guard
+    if not record.install_path.is_dir():
+        raise BenchError(
+            f"{STALE_INSTALL_PATH_MARKER}: {installed_plugins_path(config_dir)} records "
+            f"version {record.version} at {record.install_path}, which does not exist "
+            f"on disk; the plugin will not load and every slash command would be unknown. "
+            f"Reinstall the plugin and re-run."
+        )
+
+    # Hash the recorded path
+    try:
+        digest = content_hash(record.install_path)
+    except BenchError as err:
+        raise BenchError(
+            f"{STALE_INSTALL_PATH_MARKER}: {installed_plugins_path(config_dir)} records "
+            f"version {record.version} at {record.install_path}, which is not a usable "
+            f"plugin directory: {err}"
+        )
+
+    return PluginResolution(
+        load_path=record.install_path,
+        version=record.version,
+        content_hash=digest,
+    )
 
 
 def check_plugin_resolution(coding_repo: pathlib.Path, config_dir: pathlib.Path,
-                            expected_hash: str) -> pathlib.Path:
+                            expected_hash: str,
+                            review_root: pathlib.Path) -> PluginResolution:
     """Verify the isolated config dir will load the coding plugin from coding_repo.
 
-    Raises BenchError (PLUGIN RESOLUTION MISMATCH) if the plugin actually
-    resolved to a path whose rules/+commands/ content differs from
-    expected_hash.  Runs before any review is invoked.
+    Resolves the load path from the install record, hashes it, and raises
+    BenchError (PLUGIN RESOLUTION MISMATCH) when that hash differs from
+    expected_hash.  Runs before any PR is resolved and before any review subprocess
+    starts.
     """
-    plugin_path = resolve_plugin_path(config_dir)
-
-    if not plugin_path.is_dir():
-        actual = "<missing>"
-    else:
-        try:
-            actual = content_hash(plugin_path)
-        except BenchError:
-            actual = "<no-rules-or-commands>"
-
-    if actual != expected_hash:
+    resolution = resolve_plugin_load_path(config_dir, review_root)
+    if resolution.content_hash != expected_hash:
         raise BenchError(
-            f"PLUGIN RESOLUTION MISMATCH: config_dir={config_dir} "
-            f"plugin_path={plugin_path} actual_hash={actual} "
+            f"{PLUGIN_RESOLUTION_MISMATCH_MARKER}: config_dir={config_dir} "
+            f"load_path={resolution.load_path} recorded_version={resolution.version} "
+            f"actual_hash={resolution.content_hash} "
             f"coding_repo={coding_repo} expected_hash={expected_hash} "
             f"refusing to record a configuration hash that did not run"
         )
+    return resolution
 
-    return plugin_path
+
+def resolution_line(resolution: PluginResolution) -> str:
+    """One-line statement of what the preflight resolved, for the operator to cross-check."""
+    return (
+        f"plugin load path: {resolution.load_path} "
+        f"version={resolution.version} hash={resolution.content_hash}"
+    )
 
 
 # ----------------------------------------------------------------------
@@ -952,7 +1283,10 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
     rc_hash = content_hash(coding_repo)
 
     # Abort before any review if the isolated config would load a different plugin
-    check_plugin_resolution(coding_repo, config_dir, rc_hash)
+    resolution = check_plugin_resolution(
+        coding_repo, config_dir, rc_hash, repos_root(cache_root)
+    )
+    print(resolution_line(resolution))
 
     cfg_hash = config_hash(rc_hash, model, effort, mode, manifest["version"])
 
@@ -1042,24 +1376,24 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
             config_dir=config_dir,
         )
     except subprocess.TimeoutExpired as err:
-        # Write failure log
-        failures_root(cache_root).mkdir(parents=True, exist_ok=True)
-        failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
-        stderr_bytes = err.stderr or b""
-        if isinstance(stderr_bytes, str):
-            stderr_bytes = stderr_bytes.encode("utf-8")
-        failure_log.write_bytes(stderr_bytes)
+        write_failure_artifact(cache_root, cfg_hash, pr_id,
+                              reason="timeout", stdout=err.stdout, stderr=err.stderr)
         raise
 
     if proc.returncode != 0:
-        failures_root(cache_root).mkdir(parents=True, exist_ok=True)
-        failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
-        failure_log.write_bytes(proc.stderr.encode("utf-8") if proc.stderr else b"")
+        write_failure_artifact(cache_root, cfg_hash, pr_id,
+                              reason=f"exit {proc.returncode}",
+                              stdout=proc.stdout, stderr=proc.stderr)
         raise BenchError(f"{pr_id}: review invocation failed: exit {proc.returncode}")
 
     # 4. Sanity gate — reject non-review output before anything is written
     missing = missing_sections(proc.stdout)
     if missing:
+        write_failure_artifact(
+            cache_root, cfg_hash, pr_id,
+            reason=f"{NON_REVIEW_MARKER}: missing sections: {', '.join(missing)}",
+            stdout=proc.stdout, stderr=proc.stderr,
+        )
         print(non_review_report(pr_id, missing, proc.stdout), file=sys.stderr)
         raise BenchError(
             f"{NON_REVIEW_MARKER}: {pr_id}: missing sections: {', '.join(missing)}"

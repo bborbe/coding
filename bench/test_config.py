@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Unit tests for bench/run.py — AC6, AC9, AC11 and related container tests."""
 
+import contextlib
+import io
+import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import run
 import testsupport
@@ -213,51 +218,10 @@ class TestPluginResolution(unittest.TestCase):
             self.assertTrue(msg.startswith("PLUGIN RESOLUTION MISMATCH"), msg)
             self.assertIn("actual_hash=", msg)
             self.assertIn("expected_hash=", msg)
+            # The message must name the resolved load path
+            self.assertIn("load_path=", msg)
             # Counter file must not exist or have 0 lines — zero reviews invoked
             self.assertFalse(counter.exists() and counter.read_text().strip())
-
-    def test_plugin_resolution_honors_install_location(self):
-        """With use_known_marketplaces=True pointing at the same repo,
-        resolve_plugin_path returns exactly plugin_src."""
-        import pathlib
-
-        with tempfile.TemporaryDirectory() as td:
-            td = pathlib.Path(td)
-            plugin_src = testsupport.build_coding_repo(td / "src")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
-            resolved = run.resolve_plugin_path(cfg)
-            self.assertEqual(resolved, plugin_src)
-
-    def test_plugin_resolution_falls_back_to_marketplaces_dir(self):
-        """With no known_marketplaces.json, resolve_plugin_path returns
-        <cfg>/plugins/marketplaces/coding."""
-        import pathlib
-
-        with tempfile.TemporaryDirectory() as td:
-            td = pathlib.Path(td)
-            plugin_src = testsupport.build_coding_repo(td / "src")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=False)
-            resolved = run.resolve_plugin_path(cfg)
-            expected = cfg / "plugins" / "marketplaces" / "coding"
-            self.assertEqual(resolved, expected)
-
-    def test_known_marketplaces_invalid_json_raises(self):
-        """Malformed known_marketplaces.json raises BenchError naming the file."""
-        import pathlib
-
-        with tempfile.TemporaryDirectory() as td:
-            td = pathlib.Path(td)
-            cfg = td / ".claude-verify"
-            cfg.mkdir(parents=True)
-            (cfg / "plugins").mkdir(parents=True)
-            (cfg / "plugins" / "known_marketplaces.json").write_text(
-                "{ this is not json", encoding="utf-8"
-            )
-            with self.assertRaises(run.BenchError) as ctx:
-                run.resolve_plugin_path(cfg)
-            self.assertIn("known_marketplaces.json", str(ctx.exception))
 
     def test_verify_config_dir_without_home_raises(self):
         """Without HOME set, verify_config_dir raises BenchError naming .claude-verify.
@@ -328,7 +292,7 @@ class TestCliContract(unittest.TestCase):
             # Set up an isolated config dir whose plugin matches --coding-repo
             plugin_src = testsupport.build_coding_repo(pathlib.Path(tmpdir) / "repo")
             cfg = testsupport.build_verify_config_dir(
-                pathlib.Path(tmpdir) / "cfg", plugin_src, use_known_marketplaces=True
+                pathlib.Path(tmpdir) / "cfg", plugin_src
             )
             for flag in ["--model", "--effort"]:
                 args = [
@@ -347,6 +311,498 @@ class TestCliContract(unittest.TestCase):
                     f"flag={flag} returncode={result.returncode} stderr={result.stderr}",
                 )
                 self.assertIn(flag, result.stderr)
+
+
+class TestPluginLoadPathResolution(unittest.TestCase):
+    """Plugin load-path resolution preflight tests (AC2-AC7, AC13)."""
+
+    def test_recorded_install_path_is_the_load_path(self):
+        """AC2 Case A: marketplace path identical, recorded load path mutated → mismatch."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            repo_good = testsupport.build_coding_repo(td / "repo_good")
+            repo_mutated = testsupport.build_coding_repo(
+                td / "repo_mutated",
+                rules={"go/sample.yml": "id: go/sample\nlevel: WONT\n"},
+            )
+
+            # Marketplace copy = good; recorded load path = mutated
+            cfg = testsupport.build_verify_config_dir(
+                td / "cfg", repo_mutated,
+                marketplace_src=repo_good,
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            with mock.patch.dict(os.environ, env):
+                with self.assertRaises(run.BenchError) as ctx:
+                    run.run_bench(
+                        coding_repo=repo_good,
+                        manifest_path=run.BENCH_DIR / "prs.json",
+                        results_dir=td / "results",
+                        cache_root=td / "cache",
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg,
+                    )
+            msg = str(ctx.exception)
+            self.assertTrue(msg.startswith("PLUGIN RESOLUTION MISMATCH"), msg)
+            expected_path = str(cfg / "plugins" / "cache" / "coding" / "coding" / "0.35.2")
+            self.assertIn(expected_path, msg)
+            self.assertIn("actual_hash=", msg)
+            self.assertIn("expected_hash=", msg)
+            # Zero reviews invoked
+            self.assertFalse(counter.exists() and counter.read_text().strip())
+
+    def test_marketplace_path_mismatch_does_not_block_the_run(self):
+        """AC2 Case B: load path matches, marketplace path mutated → run proceeds."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            repo_good = testsupport.build_coding_repo(td / "repo_good")
+            repo_mutated = testsupport.build_coding_repo(
+                td / "repo_mutated",
+                rules={"go/sample.yml": "id: go/sample\nlevel: WONT\n"},
+            )
+
+            # Recorded load path = good; marketplace = mutated
+            cfg = testsupport.build_verify_config_dir(
+                td / "cfg", repo_good,
+                marketplace_src=repo_mutated,
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            cache_root = td / "cache"
+            manifest_path = testsupport.seed_one_pr_manifest(td, cache_root)
+
+            with mock.patch.dict(os.environ, env):
+                rc = run.run_bench(
+                    coding_repo=repo_good,
+                    manifest_path=manifest_path,
+                    results_dir=td / "results",
+                    cache_root=cache_root,
+                    model="test-model",
+                    effort="high",
+                    mode="short",
+                    config_dir=cfg,
+                )
+            self.assertEqual(rc, 0)
+            # One review invoked
+            self.assertTrue(counter.exists() and counter.read_text().strip())
+
+    def test_recorded_version_is_hashed_not_the_newest_on_disk(self):
+        """AC3: record naming lower version proceeds; record naming wrong version mismatches."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            repo_low = testsupport.build_coding_repo(
+                td / "repo_low",
+                rules={"go/low.yml": "id: go/low\n"},
+            )
+            repo_high = testsupport.build_coding_repo(
+                td / "repo_high",
+                rules={"go/high.yml": "id: go/high\n"},
+            )
+
+            # Config names 0.16.0 but 9.99.0 is also on disk
+            bin_dir_a = td / "bin_a"
+            counter_a = td / "counter_a"
+            stub_a = testsupport.stub_claude(bin_dir_a, counter_a, testsupport.CLEAN_REVIEW_REPORT)
+            env_a = testsupport.with_path(bin_dir_a)
+            env_a["HOME"] = str(td)
+
+            cache_root_a = td / "cache_a"
+            cfg_a = testsupport.build_verify_config_dir(
+                td / "cfg_a", repo_low,
+                version="0.16.0",
+                extra_versions={"9.99.0": repo_high},
+            )
+            manifest_path_a = testsupport.seed_one_pr_manifest(td, cache_root_a)
+
+            with mock.patch.dict(os.environ, env_a):
+                rc_a = run.run_bench(
+                    coding_repo=repo_low,
+                    manifest_path=manifest_path_a,
+                    results_dir=td / "results_a",
+                    cache_root=cache_root_a,
+                    model="test-model",
+                    effort="high",
+                    mode="short",
+                    config_dir=cfg_a,
+                )
+            self.assertEqual(rc_a, 0)
+            self.assertTrue(counter_a.exists() and counter_a.read_text().strip())
+
+            # Config names 0.16.0 but --coding-repo matches 9.99.0 → mismatch
+            bin_dir_b = td / "bin_b"
+            counter_b = td / "counter_b"
+            stub_b = testsupport.stub_claude(bin_dir_b, counter_b, testsupport.CLEAN_REVIEW_REPORT)
+            env_b = testsupport.with_path(bin_dir_b)
+            env_b["HOME"] = str(td)
+
+            cache_root_b = td / "cache_b"
+            cfg_b = testsupport.build_verify_config_dir(
+                td / "cfg_b", repo_low,
+                version="0.16.0",
+                extra_versions={"9.99.0": repo_high},
+            )
+            manifest_path_b = testsupport.seed_one_pr_manifest(td, cache_root_b)
+
+            with mock.patch.dict(os.environ, env_b):
+                with self.assertRaises(run.BenchError) as ctx:
+                    run.run_bench(
+                        coding_repo=repo_high,
+                        manifest_path=manifest_path_b,
+                        results_dir=td / "results_b",
+                        cache_root=cache_root_b,
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg_b,
+                    )
+            msg = str(ctx.exception)
+            self.assertTrue(msg.startswith("PLUGIN RESOLUTION MISMATCH"), msg)
+            self.assertIn("0.16.0", msg)
+
+    def test_stale_install_path_aborts_before_any_review(self):
+        """AC4: record pointing to a non-existent directory aborts with STALE_INSTALL_PATH_MARKER."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            cfg_base = td / "cfg"
+            # stale_path must be under cfg's plugin tree but not exist
+            stale_path = cfg_base / ".claude-verify" / "plugins" / "cache" / "coding" / "coding" / "0.16.0-missing"
+
+            cfg = testsupport.build_verify_config_dir(
+                cfg_base, plugin_src,
+                version="0.16.0",
+                install_path=stale_path,
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            with mock.patch.dict(os.environ, env):
+                with self.assertRaises(run.BenchError) as ctx:
+                    run.run_bench(
+                        coding_repo=plugin_src,
+                        manifest_path=run.BENCH_DIR / "prs.json",
+                        results_dir=td / "results",
+                        cache_root=td / "cache",
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg,
+                    )
+            msg = str(ctx.exception)
+            self.assertIn(run.STALE_INSTALL_PATH_MARKER, msg)
+            self.assertIn("0.16.0", msg)
+            # Counter file 0 lines
+            self.assertFalse(counter.exists() and counter.read_text().strip())
+            # Results file unchanged
+            results_file = td / "results" / "results.jsonl"
+            self.assertFalse(results_file.exists())
+
+    def test_project_scoped_record_for_another_directory_aborts(self):
+        """AC5 Case A: project-scoped record for wrong directory aborts with SCOPE_MISMATCH_MARKER."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            elsewhere = td / "elsewhere"
+
+            cfg = testsupport.build_verify_config_dir(
+                td / "cfg", plugin_src,
+                scope="project",
+                project_path=elsewhere,
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            cache_root = td / "cache"
+            manifest_path = testsupport.seed_one_pr_manifest(td, cache_root)
+
+            with mock.patch.dict(os.environ, env):
+                with self.assertRaises(run.BenchError) as ctx:
+                    run.run_bench(
+                        coding_repo=plugin_src,
+                        manifest_path=manifest_path,
+                        results_dir=td / "results",
+                        cache_root=cache_root,
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg,
+                    )
+            msg = str(ctx.exception)
+            self.assertIn(run.SCOPE_MISMATCH_MARKER, msg)
+            self.assertIn(str(elsewhere), msg)
+            self.assertIn(str(run.repos_root(cache_root)), msg)
+            # Counter file 0 lines
+            self.assertFalse(counter.exists() and counter.read_text().strip())
+
+    def test_user_scoped_record_alongside_a_project_scoped_one_is_used(self):
+        """AC5 Case B: project-scoped first, user-scoped second → run proceeds."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            elsewhere = td / "elsewhere"
+            cfg_base = td / "cfg"
+
+            # Primary record: project-scoped (wrong), extra: user-scoped (valid)
+            cfg = testsupport.build_verify_config_dir(
+                cfg_base, plugin_src,
+                scope="project",
+                project_path=elsewhere,
+                extra_records=[{
+                    "scope": "user",
+                    "installPath": str(cfg_base / ".claude-verify" / "plugins" / "cache" / "coding" / "coding" / "0.35.2"),
+                    "version": "0.35.2",
+                    "installedAt": "2026-08-08T00:00:00.000Z",
+                    "lastUpdated": "2026-08-08T00:00:00.000Z",
+                }],
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            cache_root = td / "cache"
+            manifest_path = testsupport.seed_one_pr_manifest(td, cache_root)
+
+            with mock.patch.dict(os.environ, env):
+                rc = run.run_bench(
+                    coding_repo=plugin_src,
+                    manifest_path=manifest_path,
+                    results_dir=td / "results",
+                    cache_root=cache_root,
+                    model="test-model",
+                    effort="high",
+                    mode="short",
+                    config_dir=cfg,
+                )
+            self.assertEqual(rc, 0)
+            self.assertTrue(counter.exists() and counter.read_text().strip())
+
+    def test_missing_install_record_aborts_without_marketplace_fallback(self):
+        """AC6 case 1: no install record → NO_INSTALL_RECORD_MARKER; marketplace NOT in msg."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            # Write marketplace copy so we can prove it was NOT used as fallback
+            repo_good = testsupport.build_coding_repo(td / "repo_good")
+
+            cfg = testsupport.build_verify_config_dir(
+                td / "cfg", plugin_src,
+                marketplace_src=repo_good,
+                write_record=False,
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            with mock.patch.dict(os.environ, env):
+                with self.assertRaises(run.BenchError) as ctx:
+                    run.run_bench(
+                        coding_repo=repo_good,
+                        manifest_path=run.BENCH_DIR / "prs.json",
+                        results_dir=td / "results",
+                        cache_root=td / "cache",
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg,
+                    )
+            msg = str(ctx.exception)
+            self.assertIn(run.NO_INSTALL_RECORD_MARKER, msg)
+            record_file = run.installed_plugins_path(cfg)
+            self.assertIn(str(record_file), msg)
+            self.assertNotIn("marketplaces", msg.lower())
+            # Counter file 0 lines
+            self.assertFalse(counter.exists() and counter.read_text().strip())
+
+    def test_malformed_install_record_aborts_without_marketplace_fallback(self):
+        """AC6 case 2: malformed record → UNREADABLE_INSTALL_RECORD_MARKER; marketplace NOT in msg."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            repo_good = testsupport.build_coding_repo(td / "repo_good")
+
+            cfg = testsupport.build_verify_config_dir(
+                td / "cfg", plugin_src,
+                marketplace_src=repo_good,
+                record_text="{ this is not json",
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            with mock.patch.dict(os.environ, env):
+                with self.assertRaises(run.BenchError) as ctx:
+                    run.run_bench(
+                        coding_repo=repo_good,
+                        manifest_path=run.BENCH_DIR / "prs.json",
+                        results_dir=td / "results",
+                        cache_root=td / "cache",
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg,
+                    )
+            msg = str(ctx.exception)
+            self.assertIn(run.UNREADABLE_INSTALL_RECORD_MARKER, msg)
+            record_file = run.installed_plugins_path(cfg)
+            self.assertIn(str(record_file), msg)
+            self.assertNotIn("marketplaces", msg.lower())
+            # Counter file 0 lines
+            self.assertFalse(counter.exists() and counter.read_text().strip())
+
+    def test_out_of_tree_install_path_is_refused(self):
+        """AC6 case 3: install path outside plugin tree → OUT_OF_TREE_INSTALL_PATH_MARKER."""
+        import pathlib
+        import os
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            outside = td / "outside-plugin-tree"
+            testsupport.build_coding_repo(outside)
+            repo_good = testsupport.build_coding_repo(td / "repo_good")
+
+            cfg = testsupport.build_verify_config_dir(
+                td / "cfg", repo_good,
+                install_path=outside,
+                marketplace_src=repo_good,
+            )
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            with mock.patch.dict(os.environ, env):
+                with self.assertRaises(run.BenchError) as ctx:
+                    run.run_bench(
+                        coding_repo=outside,
+                        manifest_path=run.BENCH_DIR / "prs.json",
+                        results_dir=td / "results",
+                        cache_root=td / "cache",
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg,
+                    )
+            msg = str(ctx.exception)
+            self.assertIn(run.OUT_OF_TREE_INSTALL_PATH_MARKER, msg)
+            self.assertIn(str(outside), msg)
+            self.assertIn(str(run.plugin_cache_root(cfg)), msg)
+            self.assertNotIn("marketplaces", msg.lower())
+            # Counter file 0 lines
+            self.assertFalse(counter.exists() and counter.read_text().strip())
+
+    def test_passing_preflight_prints_one_resolution_line(self):
+        """AC7: successful run prints exactly one line with load path, version, and full hash."""
+        import pathlib
+        import os
+        import io
+        import contextlib
+
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+
+            plugin_src = testsupport.build_coding_repo(td / "src")
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            stub = testsupport.stub_claude(bin_dir, counter, testsupport.CLEAN_REVIEW_REPORT)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            cache_root = td / "cache"
+            manifest_path = testsupport.seed_one_pr_manifest(td, cache_root)
+
+            captured = io.StringIO()
+            with contextlib.redirect_stdout(captured):
+                with mock.patch.dict(os.environ, env):
+                    rc = run.run_bench(
+                        coding_repo=plugin_src,
+                        manifest_path=manifest_path,
+                        results_dir=td / "results",
+                        cache_root=cache_root,
+                        model="test-model",
+                        effort="high",
+                        mode="short",
+                        config_dir=cfg,
+                    )
+
+            self.assertEqual(rc, 0)
+            output = captured.getvalue()
+            expected_path = str(cfg / "plugins" / "cache" / "coding" / "coding" / "0.35.2")
+            expected_hash = run.content_hash(plugin_src)
+            matching_lines = [
+                ln for ln in output.splitlines()
+                if expected_path in ln and "0.35.2" in ln and expected_hash in ln
+            ]
+            self.assertEqual(
+                len(matching_lines), 1,
+                f"expected exactly 1 resolution line, got {len(matching_lines)}: {output!r}"
+            )
 
 
 if __name__ == "__main__":

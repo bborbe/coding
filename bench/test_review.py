@@ -2,6 +2,7 @@
 """Unit tests for bench/run.py review invocation, caching, harvesting, and ledger."""
 
 import contextlib
+from contextlib import nullcontext
 import io
 import json
 import os
@@ -60,8 +61,7 @@ def run_one_pr_with_payload(td: pathlib.Path, payload: str) -> tuple[int, str, p
     testsupport.make_manifest(manifest_path, manifest_entries)
 
     plugin_src = testsupport.build_coding_repo(td / "repo")
-    cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                             use_known_marketplaces=True)
+    cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
     captured_stderr = io.StringIO()
     with contextlib.redirect_stderr(captured_stderr):
@@ -77,6 +77,85 @@ def run_one_pr_with_payload(td: pathlib.Path, payload: str) -> tuple[int, str, p
                 config_dir=cfg,
             )
     return rc, captured_stderr.getvalue(), results_dir, cache_root
+
+
+def run_one_pr_with_streams(td: pathlib.Path, *, stdout_text: str = "",
+                            stderr_text: str = "", exit_code: int = 0,
+                            sleep_seconds: int = 0,
+                            timeout_seconds: int | None = None):
+    """Run bench over a one-PR temp manifest against a two-stream stub claude.
+
+    Same seeding as run_one_pr_with_payload (one merge repo under
+    <cache_root>/repos/testowner/repo_a, a one-entry manifest, a coding repo and an
+    isolated config dir, the stub on PATH), but installs stub_claude_streams and
+    captures stdout as well as stderr.  When timeout_seconds is given, run.
+    REVIEW_TIMEOUT_SECONDS is patched to it for the duration of the call so the
+    real timeout path can be exercised in about a second.
+
+    Returns (returncode, captured_stdout, captured_stderr, results_dir, cache_root,
+    counter_path).
+    """
+    td = pathlib.Path(td)
+    cache_root = td / "cache"
+    results_dir = td / "results"
+    results_dir.mkdir(parents=True)
+    bin_dir = td / "bin"
+    counter = td / "counter"
+    stub = testsupport.stub_claude_streams(
+        bin_dir, counter,
+        stdout_text=stdout_text, stderr_text=stderr_text,
+        exit_code=exit_code, sleep_seconds=sleep_seconds,
+    )
+    env = testsupport.with_path(bin_dir)
+    env["HOME"] = str(td)
+
+    # Seed one merge repo
+    repos_root = cache_root / "repos"
+    repos_root.mkdir(parents=True)
+    repo_a = repos_root / "testowner" / "repo_a"
+    repo_a.mkdir(parents=True)
+    info_a = testsupport.make_merge_repo(repo_a)
+
+    manifest_entries = [
+        {
+            "id": "test#1",
+            "owner": "testowner",
+            "repo": "repo_a",
+            "number": 1,
+            "merge_strategy": "merge-commit",
+            "merge_sha": info_a["merge_sha"],
+            "base_sha": info_a["base_sha"],
+            "head_sha": info_a["head_sha"],
+            "changed_files": 1,
+        },
+    ]
+    manifest_path = td / "manifest.json"
+    testsupport.make_manifest(manifest_path, manifest_entries)
+
+    plugin_src = testsupport.build_coding_repo(td / "repo")
+    cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
+
+    captured_stdout = io.StringIO()
+    captured_stderr = io.StringIO()
+    timeout_patch = (
+        mock.patch.object(run, "REVIEW_TIMEOUT_SECONDS", timeout_seconds)
+        if timeout_seconds is not None else nullcontext()
+    )
+    with contextlib.redirect_stdout(captured_stdout), \
+         contextlib.redirect_stderr(captured_stderr), \
+         timeout_patch, \
+         mock.patch.dict(os.environ, env):
+        rc = run.run_bench(
+            coding_repo=plugin_src,
+            manifest_path=manifest_path,
+            results_dir=results_dir,
+            cache_root=cache_root,
+            model="test-model",
+            effort="high",
+            mode="short",
+            config_dir=cfg,
+        )
+    return rc, captured_stdout.getvalue(), captured_stderr.getvalue(), results_dir, cache_root, counter
 
 
 class TestSecondRunIsCacheHit(unittest.TestCase):
@@ -132,8 +211,7 @@ class TestSecondRunIsCacheHit(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # First run
             with mock.patch.dict(os.environ, env):
@@ -221,8 +299,7 @@ class TestModeChangeIsCacheMiss(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # First run: selector mode
             with mock.patch.dict(os.environ, env):
@@ -416,14 +493,23 @@ class TestSecondRunnerExitsWithoutTouchingLedger(unittest.TestCase):
                 cfg_dir = results_dir / ".claude-verify"
                 cfg_dir.mkdir(parents=True, exist_ok=True)
                 (cfg_dir / "plugins").mkdir(parents=True, exist_ok=True)
-                km = {
-                    "coding": {
-                        "source": {"source": "github", "repo": "bborbe/coding"},
-                        "installLocation": str(run.REPO_ROOT),
+                # Create plugin cache directory and record in the new format
+                cache_dir = cfg_dir / "plugins" / "cache" / "coding" / "coding" / "0.35.2"
+                shutil.copytree(run.REPO_ROOT, cache_dir)
+                record = {
+                    "version": 2,
+                    "plugins": {
+                        "coding@coding": [{
+                            "scope": "user",
+                            "installPath": str(cache_dir),
+                            "version": "0.35.2",
+                            "installedAt": "2026-08-08T00:00:00.000Z",
+                            "lastUpdated": "2026-08-08T00:00:00.000Z",
+                        }]
                     }
                 }
-                (cfg_dir / "plugins" / "known_marketplaces.json").write_text(
-                    json.dumps(km), encoding="utf-8"
+                (cfg_dir / "plugins" / "installed_plugins.json").write_text(
+                    json.dumps(record), encoding="utf-8"
                 )
 
                 result = subprocess.run(
@@ -489,8 +575,7 @@ class TestRowCarriesEveryRequiredField(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -567,8 +652,7 @@ class TestRawOutputIsCachedVerbatim(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -639,8 +723,7 @@ class TestFailedReviewLeavesNoRowAndNoCacheEntry(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -675,7 +758,7 @@ class TestFailedReviewLeavesNoRowAndNoCacheEntry(unittest.TestCase):
 
             # Failure log exists
             failures = run.failures_root(cache_root)
-            failure_files = list(failures.glob("*.stderr.txt")) if failures.exists() else []
+            failure_files = list(failures.glob(f"*{run.FAILURE_ARTIFACT_SUFFIX}")) if failures.exists() else []
             self.assertEqual(len(failure_files), 1,
                 f"one failure log expected, found: {failure_files}")
 
@@ -730,8 +813,7 @@ class TestFailedPrDoesNotPreventLaterPrs(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -792,8 +874,7 @@ class TestCorruptCacheRowIsTreatedAsMiss(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # Compute cfg_hash to know where to write corrupt cache
             rc_hash = run.content_hash(plugin_src)
@@ -1165,8 +1246,7 @@ class TestGateDoesNotApplyToACacheHit(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc1 = run.run_bench(
@@ -1201,6 +1281,321 @@ class TestGateDoesNotApplyToACacheHit(unittest.TestCase):
                     )
 
             self.assertEqual(rc2, 0, "second run must be a cache hit (gate not applied)")
+
+
+class TestFailedReviewArtifactCarriesBothStreams(unittest.TestCase):
+    """AC10 Case A: a non-zero-exit failure artifact contains both stream labels and sentinels."""
+
+    def test_failed_review_artifact_carries_both_streams(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            rc, stdout, stderr, results_dir, cache_root, counter = run_one_pr_with_streams(
+                td,
+                stdout_text="STDOUT-SENTINEL-8F1",
+                stderr_text="STDERR-SENTINEL-C3A",
+                exit_code=3,
+            )
+
+            self.assertEqual(rc, 1, "run must exit 1 when review fails")
+
+            failures = run.failures_root(cache_root)
+            self.assertTrue(failures.exists())
+            artifact_files = list(failures.glob(f"*{run.FAILURE_ARTIFACT_SUFFIX}"))
+            self.assertEqual(len(artifact_files), 1,
+                f"exactly one artifact expected, found: {artifact_files}")
+
+            text = artifact_files[0].read_text(encoding="utf-8")
+
+            # Both labels present
+            self.assertIn(run.FAILURE_STDOUT_LABEL, text)
+            self.assertIn(run.FAILURE_STDERR_LABEL, text)
+
+            # Each sentinel in its own segment (not just anywhere in the file)
+            stdout_segment = text.split(run.FAILURE_STDOUT_LABEL)[1].split(run.FAILURE_STDERR_LABEL)[0]
+            stderr_segment = text.split(run.FAILURE_STDERR_LABEL)[1]
+            self.assertIn("STDOUT-SENTINEL-8F1", stdout_segment)
+            self.assertIn("STDERR-SENTINEL-C3A", stderr_segment)
+
+            # Ledger gained 0 rows
+            ledger = run.ledger_path(results_dir)
+            rows = [] if not ledger.exists() else [
+                json.loads(ln) for ln in ledger.read_text().splitlines()
+            ]
+            self.assertEqual(len(rows), 0, "no ledger row for failed review")
+
+            # No review cache entry
+            reviews = run.reviews_root(cache_root)
+            review_files = (
+                list(reviews.glob("*.json")) + list(reviews.glob("*.stdout.txt"))
+                if reviews.exists() else []
+            )
+            self.assertEqual(len(review_files), 0,
+                f"no review cache files expected, found: {review_files}")
+
+
+class TestFailedReviewArtifactMarksAnEmptyStreamEmpty(unittest.TestCase):
+    """AC10 Case B: an artifact for a stderr-only failure marks the empty stdout section."""
+
+    def test_failed_review_artifact_marks_an_empty_stream_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            rc, stdout, stderr, results_dir, cache_root, counter = run_one_pr_with_streams(
+                td,
+                stdout_text="STDOUT-SENTINEL-8F1",
+                stderr_text="",
+                exit_code=3,
+            )
+
+            self.assertEqual(rc, 1)
+
+            failures = run.failures_root(cache_root)
+            self.assertTrue(failures.exists())
+            artifact_files = list(failures.glob(f"*{run.FAILURE_ARTIFACT_SUFFIX}"))
+            self.assertEqual(len(artifact_files), 1)
+
+            text = artifact_files[0].read_text(encoding="utf-8")
+
+            # Both labels present
+            self.assertIn(run.FAILURE_STDOUT_LABEL, text)
+            self.assertIn(run.FAILURE_STDERR_LABEL, text)
+
+            # stdout segment contains the sentinel
+            stdout_segment = text.split(run.FAILURE_STDOUT_LABEL)[1].split(run.FAILURE_STDERR_LABEL)[0]
+            self.assertIn("STDOUT-SENTINEL-8F1", stdout_segment)
+
+            # stderr segment is present and marked empty
+            stderr_segment = text.split(run.FAILURE_STDERR_LABEL)[1]
+            self.assertIn(run.FAILURE_EMPTY_STREAM_MARKER, stderr_segment)
+            # The empty marker must appear in the stderr segment, not just anywhere
+            self.assertEqual(
+                stderr_segment.strip().startswith(run.FAILURE_EMPTY_STREAM_MARKER), True,
+                f"stderr segment must start with empty marker: {stderr_segment!r}"
+            )
+
+
+class TestTimeoutFailureArtifactCarriesBothStreams(unittest.TestCase):
+    """AC11 unit level: write_failure_artifact handles the mixed bytes/str timeout shape."""
+
+    def test_timeout_failure_artifact_carries_both_streams(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            err = subprocess.TimeoutExpired(
+                cmd=["claude"], timeout=1,
+                output=b"STDOUT-SENTINEL-8F1", stderr="STDERR-SENTINEL-C3A",
+            )
+            path = run.write_failure_artifact(
+                cache_root, "cfg", "test#1",
+                reason="timeout",
+                stdout=err.stdout, stderr=err.stderr,
+            )
+            text = path.read_text(encoding="utf-8")
+
+            self.assertIn(run.FAILURE_STDOUT_LABEL, text)
+            self.assertIn(run.FAILURE_STDERR_LABEL, text)
+            self.assertIn("STDOUT-SENTINEL-8F1", text)
+            self.assertIn("STDERR-SENTINEL-C3A", text)
+            self.assertTrue(path.name.endswith(run.FAILURE_ARTIFACT_SUFFIX))
+            # Artifact is not a cache entry
+            self.assertFalse(
+                run.reviews_root(cache_root).exists() or
+                list(run.reviews_root(cache_root).glob("*.json")) or
+                list(run.reviews_root(cache_root).glob("*.stdout.txt")),
+                "artifact must not create a review cache entry"
+            )
+
+
+class TestReviewTimeoutWritesBothStreamArtifact(unittest.TestCase):
+    """AC11 real path: a timeout produces an artifact with both streams."""
+
+    def test_review_timeout_writes_a_both_stream_artifact(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            rc, stdout, stderr, results_dir, cache_root, counter = run_one_pr_with_streams(
+                td,
+                stdout_text="STDOUT-SENTINEL-8F1",
+                stderr_text="STDERR-SENTINEL-C3A",
+                sleep_seconds=5,
+                timeout_seconds=1,
+            )
+
+            self.assertEqual(rc, 1, "run must exit 1 on timeout")
+            self.assertIn("failed", stdout)
+            self.assertIn("timeout", stdout)
+
+            failures = run.failures_root(cache_root)
+            self.assertTrue(failures.exists())
+            artifact_files = list(failures.glob(f"*{run.FAILURE_ARTIFACT_SUFFIX}"))
+            self.assertEqual(len(artifact_files), 1)
+
+            text = artifact_files[0].read_text(encoding="utf-8")
+            self.assertIn(run.FAILURE_STDOUT_LABEL, text)
+            self.assertIn(run.FAILURE_STDERR_LABEL, text)
+
+            stdout_segment = text.split(run.FAILURE_STDOUT_LABEL)[1].split(run.FAILURE_STDERR_LABEL)[0]
+            stderr_segment = text.split(run.FAILURE_STDERR_LABEL)[1]
+            self.assertIn("STDOUT-SENTINEL-8F1", stdout_segment)
+            self.assertIn("STDERR-SENTINEL-C3A", stderr_segment)
+
+            # Ledger gained 0 rows
+            ledger = run.ledger_path(results_dir)
+            rows = [] if not ledger.exists() else [
+                json.loads(ln) for ln in ledger.read_text().splitlines()
+            ]
+            self.assertEqual(len(rows), 0, "no ledger row for timeout")
+
+            # No review cache entry
+            reviews = run.reviews_root(cache_root)
+            review_files = (
+                list(reviews.glob("*.json")) + list(reviews.glob("*.stdout.txt"))
+                if reviews.exists() else []
+            )
+            self.assertEqual(len(review_files), 0)
+
+
+class TestNonReviewRejectionWritesBothStreamArtifact(unittest.TestCase):
+    """AC12: a non-review rejection produces an artifact with both streams."""
+
+    def test_non_review_rejection_writes_a_both_stream_artifact(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            rc, stdout, stderr, results_dir, cache_root, counter = run_one_pr_with_streams(
+                td,
+                stdout_text="Unknown command: /coding:pr-review",
+                stderr_text="STDERR-SENTINEL-C3A",
+                exit_code=0,
+            )
+
+            self.assertEqual(rc, 1, "run must exit 1 for non-review")
+
+            failures = run.failures_root(cache_root)
+            self.assertTrue(failures.exists())
+            artifact_files = list(failures.glob(f"*{run.FAILURE_ARTIFACT_SUFFIX}"))
+            self.assertEqual(len(artifact_files), 1)
+
+            text = artifact_files[0].read_text(encoding="utf-8")
+
+            # Both labels present
+            self.assertIn(run.FAILURE_STDOUT_LABEL, text)
+            self.assertIn(run.FAILURE_STDERR_LABEL, text)
+
+            # Both payloads present
+            self.assertIn("Unknown command: /coding:pr-review", text)
+            self.assertIn("STDERR-SENTINEL-C3A", text)
+
+            # Ledger gained 0 rows
+            ledger = run.ledger_path(results_dir)
+            rows = [] if not ledger.exists() else [
+                json.loads(ln) for ln in ledger.read_text().splitlines()
+            ]
+            self.assertEqual(len(rows), 0, "no ledger row for non-review")
+
+            # No review cache entry
+            reviews = run.reviews_root(cache_root)
+            review_files = (
+                list(reviews.glob("*.json")) + list(reviews.glob("*.stdout.txt"))
+                if reviews.exists() else []
+            )
+            self.assertEqual(len(review_files), 0)
+
+            # Gate semantics preserved: NON_REVIEW_MARKER still appears in captured stderr
+            self.assertIn(run.NON_REVIEW_MARKER, stderr)
+            self.assertIn("missing sections:", stderr)
+
+
+class TestFailureArtifactIsNotACacheEntry(unittest.TestCase):
+    """Artifact is diagnostic only — a second run invokes the review again."""
+
+    def test_failure_artifact_is_not_a_cache_entry(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            results_dir1 = td / "results1"
+            results_dir1.mkdir(parents=True)
+            results_dir2 = td / "results2"
+            results_dir2.mkdir(parents=True)
+            bin_dir = td / "bin"
+            counter = td / "counter"
+
+            stub = testsupport.stub_claude_streams(
+                bin_dir, counter,
+                stdout_text="STDOUT-SENTINEL-8F1",
+                stderr_text="STDERR-SENTINEL-C3A",
+                exit_code=3,
+            )
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            repos_root = cache_root / "repos"
+            repos_root.mkdir(parents=True)
+            repo_a = repos_root / "testowner" / "repo_a"
+            repo_a.mkdir(parents=True)
+            info_a = testsupport.make_merge_repo(repo_a)
+
+            manifest_entries = [
+                {
+                    "id": "test#1",
+                    "owner": "testowner",
+                    "repo": "repo_a",
+                    "number": 1,
+                    "merge_strategy": "merge-commit",
+                    "merge_sha": info_a["merge_sha"],
+                    "base_sha": info_a["base_sha"],
+                    "head_sha": info_a["head_sha"],
+                    "changed_files": 1,
+                },
+            ]
+            manifest_path = td / "manifest.json"
+            testsupport.make_manifest(manifest_path, manifest_entries)
+
+            plugin_src = testsupport.build_coding_repo(td / "repo")
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
+
+            # First run — fails and writes artifact
+            with mock.patch.dict(os.environ, env):
+                rc1 = run.run_bench(
+                    coding_repo=plugin_src,
+                    manifest_path=manifest_path,
+                    results_dir=results_dir1,
+                    cache_root=cache_root,
+                    model="test-model",
+                    effort="high",
+                    mode="short",
+                    config_dir=cfg,
+                )
+            self.assertEqual(rc1, 1)
+
+            # Counter should have one entry
+            lines_first = counter.read_text().splitlines()
+            self.assertEqual(len(lines_first), 1)
+
+            # Second run — review must be invoked again (not cached)
+            with mock.patch.dict(os.environ, env):
+                rc2 = run.run_bench(
+                    coding_repo=plugin_src,
+                    manifest_path=manifest_path,
+                    results_dir=results_dir2,
+                    cache_root=cache_root,
+                    model="test-model",
+                    effort="high",
+                    mode="short",
+                    config_dir=cfg,
+                )
+            self.assertEqual(rc2, 1)
+
+            # Counter must have two entries (no cache hit)
+            lines_second = counter.read_text().splitlines()
+            self.assertEqual(len(lines_second), 2,
+                "review must be invoked on second run — artifact is not a cache entry")
+
+            # Both runs' ledgers are empty
+            for rd in [results_dir1, results_dir2]:
+                ledger = run.ledger_path(rd)
+                rows = [] if not ledger.exists() else [
+                    json.loads(ln) for ln in ledger.read_text().splitlines()
+                ]
+                self.assertEqual(len(rows), 0,
+                    f"no ledger rows for failed runs in {rd}")
 
 
 if __name__ == "__main__":

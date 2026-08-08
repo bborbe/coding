@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: bench runner — the start-up check now hashes the directory Claude Code actually loads the coding plugin from, taken from the isolated config directory's install record, and aborts the whole run by name when no record exists, when it cannot be parsed, when it names a directory missing on disk, when it points outside that config directory's own cache tree, or when it applies only to a different working directory; a passing check prints the resolved directory, the recorded version and the content hash
+- fix: bench runner — the working copy handed to the review now carries exactly the checked-out head branch and the two synthetic remote-tracking branches for that pull request, with every upstream branch, every tag and the default-branch pointer removed on every run, so identical inputs stop producing a clarifying question instead of a review
+- fix: bench runner — a failed review now preserves both of the subprocess's output streams in one labelled artifact under `bench/.cache/failures/`, with an empty stream marked empty, because Claude Code writes its real errors to stdout while stderr carries incidental warnings and the discarded half once caused a wrong diagnosis
+- docs: bench — document the authentication variable an operator must export before a run and why the runner deliberately does not set it, the install-record shape the start-up check reads together with the conditions that abort a run, and the two-name guarantee for the working copy handed to the review, in `bench/README.md`
+
 ## v0.35.2
 
 - fix: bench runner — add a sanity gate that rejects review output not structurally a review (missing any of Must Fix, Should Fix, Nice to Have headings) before the raw output cache write; rejected output produces no ledger row, no cache entry, the PR is listed as failed, and remaining PRs still run

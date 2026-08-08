@@ -39,32 +39,89 @@ def build_coding_repo(root: pathlib.Path, *, rules=None, commands=None) -> pathl
     return root
 
 
-def build_verify_config_dir(root: pathlib.Path, plugin_src: pathlib.Path,
-                           *, use_known_marketplaces: bool = False) -> pathlib.Path:
-    """Create an isolated .claude-verify directory under root.
+def build_verify_config_dir(
+    root: pathlib.Path,
+    plugin_src: pathlib.Path,
+    *,
+    version: str = "0.35.2",
+    scope: str = "user",
+    project_path: pathlib.Path | None = None,
+    install_path: pathlib.Path | None = None,
+    extra_versions: dict | None = None,
+    extra_records: list | None = None,
+    marketplace_src: pathlib.Path | None = None,
+    record_text: str | None = None,
+    write_record: bool = True,
+) -> pathlib.Path:
+    """Create an isolated .claude-verify directory shaped like a real Claude Code config dir.
 
-    When use_known_marketplaces is False, copies plugin_src to
-    <cfg>/plugins/marketplaces/coding.  When True, writes known_marketplaces.json
-    pointing at plugin_src instead.  Returns the .claude-verify path.
+    Copies plugin_src to <cfg>/plugins/cache/coding/coding/<version> and writes
+    <cfg>/plugins/installed_plugins.json with one record for "coding@coding".
+
+    version         version string recorded and used as the cache directory name
+    scope           "user" or "project"
+    project_path    written as projectPath; required shape for scope="project"
+    install_path    overrides the recorded installPath (used to record a path that is
+                    stale, or one outside the config dir's plugin tree)
+    extra_versions  {version: source_dir} copied to additional cache version dirs
+    extra_records   raw record dicts appended after the primary record, in order
+    marketplace_src copied to <cfg>/plugins/marketplaces/coding when given, so a test
+                    can prove the marketplace path is not what gets hashed
+    record_text     when given, written verbatim as installed_plugins.json instead of
+                    the JSON structure (malformed-record cases)
+    write_record    when False, installed_plugins.json is not written at all
+    Returns the .claude-verify path.
     """
-    root = pathlib.Path(root)
-    cfg = root / ".claude-verify"
+    cfg = pathlib.Path(root) / ".claude-verify"
     cfg.mkdir(parents=True, exist_ok=True)
 
-    if use_known_marketplaces:
-        (cfg / "plugins").mkdir(parents=True, exist_ok=True)
-        known = {
-            "coding": {
-                "source": {"source": "github", "repo": "bborbe/coding"},
-                "installLocation": str(plugin_src),
-            }
+    # Build the cache directory structure
+    cache_root = cfg / "plugins" / "cache" / "coding" / "coding"
+    default_install_path = cache_root / version
+
+    # Copy plugin_src to the default version directory
+    shutil.copytree(plugin_src, default_install_path)
+
+    # Copy extra versions
+    for extra_ver, extra_src in (extra_versions or {}).items():
+        extra_dest = cache_root / extra_ver
+        if extra_dest.exists():
+            shutil.rmtree(extra_dest)
+        shutil.copytree(extra_src, extra_dest)
+
+    # Copy marketplace source if given
+    if marketplace_src is not None:
+        mkt_dir = cfg / "plugins" / "marketplaces" / "coding"
+        if mkt_dir.exists():
+            shutil.rmtree(mkt_dir)
+        shutil.copytree(marketplace_src, mkt_dir)
+
+    # Write installed_plugins.json
+    if write_record and record_text is not None:
+        record_file = cfg / "plugins" / "installed_plugins.json"
+        record_file.write_text(record_text, encoding="utf-8")
+    elif write_record:
+        records = []
+        # Primary record
+        primary = {
+            "scope": scope,
+            "installPath": str(install_path) if install_path is not None else str(default_install_path),
+            "version": version,
+            "installedAt": "2026-08-08T00:00:00.000Z",
+            "lastUpdated": "2026-08-08T00:00:00.000Z",
         }
-        (cfg / "plugins" / "known_marketplaces.json").write_text(
-            json.dumps(known), encoding="utf-8"
+        if project_path is not None:
+            primary["projectPath"] = str(project_path)
+        records.append(primary)
+        # Extra records
+        for extra in (extra_records or []):
+            records.append(extra)
+
+        record_file = cfg / "plugins" / "installed_plugins.json"
+        record_file.write_text(
+            json.dumps({"version": 2, "plugins": {"coding@coding": records}}, indent=2),
+            encoding="utf-8",
         )
-    else:
-        dest = cfg / "plugins" / "marketplaces" / "coding"
-        shutil.copytree(plugin_src, dest)
 
     return cfg
 
@@ -135,6 +192,28 @@ def stub_claude_failing(bin_dir: pathlib.Path, counter_file: pathlib.Path,
         f"printf '%s\\n' \"$*\" >> '{counter_file}'\n"
         f"printf 'stub failure\\n' >&2\n"
         f"exit {exit_code}"
+    )
+    return make_stub_bin(bin_dir, "claude", body)
+
+
+def stub_claude_streams(bin_dir: pathlib.Path, counter_file: pathlib.Path, *,
+                        stdout_text: str = "", stderr_text: str = "",
+                        exit_code: int = 0, sleep_seconds: int = 0) -> pathlib.Path:
+    """Install a stub `claude` with independent control of both streams.
+
+    Appends its args to counter_file, writes stdout_text to stdout and stderr_text
+    to stderr (each omitted entirely when its argument is empty, so a genuinely
+    empty stream can be reproduced), sleeps sleep_seconds, then exits exit_code.
+    Both payloads are written before the sleep so a caller that kills the process
+    on a timeout still captures them.
+    """
+    counter_file = pathlib.Path(counter_file)
+    body = (
+        f"printf '%s\\n' \"$*\" >> '{counter_file}'\n"
+        f"cat <<'STDOUT_EOF'\n{stdout_text}\nSTDOUT_EOF\n"
+        f"cat <<'STDERR_EOF' >&2\n{stderr_text}\nSTDERR_EOF\n"
+        + (f"sleep {sleep_seconds}\n" if sleep_seconds else "")
+        + f"exit {exit_code}\n"
     )
     return make_stub_bin(bin_dir, "claude", body)
 
@@ -246,6 +325,61 @@ def make_merge_repo(path: pathlib.Path) -> dict:
     }
 
 
+def add_upstream_shaped_refs(path: pathlib.Path, merge_sha: str) -> None:
+    """Add the refs a real upstream clone carries, all pointing at merge_sha.
+
+    Adds:
+      refs/remotes/origin/main
+      refs/remotes/origin/feature/streaming-playback
+      refs/remotes/origin/fix/lead-silence-startup-clipping
+      refs/remotes/origin/HEAD  (a symbolic ref to refs/remotes/origin/main)
+      refs/heads/upstream-extra
+      refs/tags/v1.0
+    """
+    # Add the upstream remote-tracking branches pointing at the merge commit
+    for ref_name in [
+        "refs/remotes/origin/main",
+        "refs/remotes/origin/feature/streaming-playback",
+        "refs/remotes/origin/fix/lead-silence-startup-clipping",
+    ]:
+        subprocess.run(
+            ["git", "-C", str(path), "update-ref", ref_name, merge_sha],
+            check=True, capture_output=True, text=True,
+        )
+
+    # Set origin/HEAD as a symbolic ref to origin/main
+    subprocess.run(
+        ["git", "-C", str(path), "symbolic-ref",
+         "refs/remotes/origin/HEAD", "refs/remotes/origin/main"],
+        check=True, capture_output=True, text=True,
+    )
+
+    # Add an extra head branch
+    subprocess.run(
+        ["git", "-C", str(path), "update-ref", "refs/heads/upstream-extra", merge_sha],
+        check=True, capture_output=True, text=True,
+    )
+
+    # Add a tag
+    subprocess.run(
+        ["git", "-C", str(path), "tag", "v1.0", merge_sha],
+        check=True, capture_output=True, text=True,
+    )
+
+
+def make_upstream_shaped_repo(path: pathlib.Path) -> dict:
+    """Build a merge repo that also carries the refs a real upstream clone carries.
+
+    Calls make_merge_repo(path), then delegates the ref setup to
+    add_upstream_shaped_refs.  This reproduces the ref set observed in the
+    failing live run recorded in spec 004 (Reference: observed evidence, D5).
+    Returns make_merge_repo's dict.
+    """
+    info = make_merge_repo(path)
+    add_upstream_shaped_refs(path, info["merge_sha"])
+    return info
+
+
 def make_squash_repo(path: pathlib.Path) -> dict:
     """Build a single-parent repo where head_sha == merge_sha (squash shape)."""
     path = init_git_repo(path)
@@ -297,6 +431,37 @@ def make_manifest(path: pathlib.Path, entries: list, version: str = "test-1") ->
     path = pathlib.Path(path)
     path.write_text(json.dumps(manifest), encoding="utf-8")
     return path
+
+
+def seed_one_pr_manifest(td: pathlib.Path, cache_root: pathlib.Path) -> pathlib.Path:
+    """Seed one merge repo under cache_root and write a one-entry manifest.
+
+    Creates <cache_root>/repos/testowner/repo_a via make_merge_repo and writes
+    <td>/manifest.json with a single entry id "test#1", number 1, merge_strategy
+    "merge-commit" and that repo's three SHAs.  Returns the manifest path.
+    """
+    repos_root = cache_root / "repos"
+    repos_root.mkdir(parents=True, exist_ok=True)
+    repo_a = repos_root / "testowner" / "repo_a"
+    repo_a.mkdir(parents=True, exist_ok=True)
+    info_a = make_merge_repo(repo_a)
+
+    manifest_entries = [
+        {
+            "id": "test#1",
+            "owner": "testowner",
+            "repo": "repo_a",
+            "number": 1,
+            "merge_strategy": "merge-commit",
+            "merge_sha": info_a["merge_sha"],
+            "base_sha": info_a["base_sha"],
+            "head_sha": info_a["head_sha"],
+            "changed_files": 1,
+        },
+    ]
+    manifest_path = td / "manifest.json"
+    make_manifest(manifest_path, manifest_entries)
+    return manifest_path
 
 
 def seed_cached_repo(cache_root: pathlib.Path, owner: str, repo: str,

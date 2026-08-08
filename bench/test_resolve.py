@@ -4,6 +4,7 @@
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,7 @@ import unittest
 
 import run
 import testsupport
+from unittest import mock
 
 
 class TestDiffRangeBranchesOnParentCount(unittest.TestCase):
@@ -269,8 +271,7 @@ class TestEveryGitStaysUnderCacheRepos(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # Save and modify os.environ to put stub_git on PATH
             old_path = os.environ.get("PATH", "")
@@ -400,15 +401,24 @@ class TestFailingPrDoesNotAbortRemainingPrs(unittest.TestCase):
             plugin_dest = td / "repo"
             testsupport.build_coding_repo(plugin_dest)
             (cfg_dir / "plugins").mkdir(parents=True)
+            # Create plugin cache directory and record in the new format
             import json
-            km = {
-                "coding": {
-                    "source": {"source": "github", "repo": "bborbe/coding"},
-                    "installLocation": str(plugin_dest),
+            cache_dir = cfg_dir / "plugins" / "cache" / "coding" / "coding" / "0.35.2"
+            shutil.copytree(plugin_dest, cache_dir)
+            record = {
+                "version": 2,
+                "plugins": {
+                    "coding@coding": [{
+                        "scope": "user",
+                        "installPath": str(cache_dir),
+                        "version": "0.35.2",
+                        "installedAt": "2026-08-08T00:00:00.000Z",
+                        "lastUpdated": "2026-08-08T00:00:00.000Z",
+                    }]
                 }
             }
-            (cfg_dir / "plugins" / "known_marketplaces.json").write_text(
-                json.dumps(km), encoding="utf-8"
+            (cfg_dir / "plugins" / "installed_plugins.json").write_text(
+                json.dumps(record), encoding="utf-8"
             )
 
             old_home = os.environ.get("HOME", "")
@@ -491,6 +501,216 @@ class TestWorktreeCreatedUnderReposRoot(unittest.TestCase):
                 capture_output=True, text=True, check=True,
             )
             self.assertEqual(base_ref_result.stdout.strip(), checkout.base_sha)
+
+
+def observed_branches(worktree: pathlib.Path) -> list[str]:
+    """Sorted `git branch -a` names with the checkout markers stripped.
+
+    Strips the leading two characters git uses for the current-branch marker
+    ("* ", "+ " or "  ") so the comparison is over ref names, not decoration.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(worktree), "branch", "-a"],
+        capture_output=True, text=True, check=True,
+    )
+    names = []
+    for ln in result.stdout.splitlines():
+        stripped = ln.strip()
+        if stripped:
+            # Remove the two-character checkout marker if present
+            if len(stripped) >= 2 and stripped[1] == " ":
+                stripped = stripped[2:]
+            names.append(stripped)
+    return sorted(names)
+
+
+class TestPreparedWorkingCopyOffersOneTargetBranch(unittest.TestCase):
+    """AC8: prepared working copy enumerates exactly one target branch."""
+
+    def test_prepared_working_copy_offers_exactly_one_target_branch(self):
+        """After resolve_pr the worktree shows only bench-pr-N and two origin/bench-* refs."""
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            repo = cache_root / "repos" / "testowner" / "testrepo"
+            repo.mkdir(parents=True, exist_ok=True)
+            info = testsupport.make_upstream_shaped_repo(repo)
+
+            entry = {
+                "id": "test#42",
+                "owner": "testowner",
+                "repo": "testrepo",
+                "number": 42,
+                "merge_strategy": "merge-commit",
+                "merge_sha": info["merge_sha"],
+                "base_sha": info["base_sha"],
+                "head_sha": info["head_sha"],
+                "changed_files": 1,
+            }
+
+            checkout = run.resolve_pr(cache_root, entry)
+
+            # Assert branch list is exactly the three synthetic refs
+            branches = observed_branches(checkout.worktree)
+            expected = ["bench-pr-42", "remotes/origin/bench-base-42", "remotes/origin/bench-pr-42"]
+            self.assertEqual(
+                branches, expected,
+                f"observed branches = {branches!r}, expected {expected!r}"
+            )
+
+            # Checked-out branch is bench-pr-42
+            branch_result = subprocess.run(
+                ["git", "-C", str(checkout.worktree), "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True, text=True, check=True,
+            )
+            self.assertEqual(branch_result.stdout.strip(), "bench-pr-42")
+
+            # origin/HEAD symref is absent
+            sym_result = subprocess.run(
+                ["git", "-C", str(checkout.worktree), "symbolic-ref",
+                 "refs/remotes/origin/HEAD"],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(sym_result.returncode, 0,
+                "refs/remotes/origin/HEAD must not exist after pruning")
+
+            # Tags are absent
+            tag_result = subprocess.run(
+                ["git", "-C", str(checkout.worktree), "tag"],
+                capture_output=True, text=True, check=True,
+            )
+            self.assertEqual(tag_result.stdout.strip(), "",
+                f"expected no tags, got: {tag_result.stdout!r}")
+
+            # Upstream branch names do not appear
+            upstream_names = ["feature/streaming-playback", "fix/lead-silence-startup-clipping", "main"]
+            branch_output = subprocess.run(
+                ["git", "-C", str(checkout.worktree), "branch", "-a"],
+                capture_output=True, text=True, check=True,
+            ).stdout
+            for name in upstream_names:
+                self.assertNotIn(name, branch_output,
+                    f"upstream branch {name!r} must not appear in branch output")
+
+    def test_ref_pruning_is_idempotent_and_keeps_manifest_commits_reachable(self):
+        """Second resolve_pr needs no fetch; gc-prune still leaves manifest SHAs reachable."""
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            repo = cache_root / "repos" / "testowner" / "testrepo"
+            repo.mkdir(parents=True, exist_ok=True)
+            info = testsupport.make_upstream_shaped_repo(repo)
+
+            entry = {
+                "id": "test#42",
+                "owner": "testowner",
+                "repo": "testrepo",
+                "number": 42,
+                "merge_strategy": "merge-commit",
+                "merge_sha": info["merge_sha"],
+                "base_sha": info["base_sha"],
+                "head_sha": info["head_sha"],
+                "changed_files": 1,
+            }
+
+            # First resolve_pr
+            checkout1 = run.resolve_pr(cache_root, entry)
+            branches1 = observed_branches(checkout1.worktree)
+
+            # Record git calls during the second resolve_pr
+            calls: list[list[str]] = []
+            real_git = run.git
+
+            def recording_git(args, **kwargs):
+                calls.append(list(args))
+                return real_git(args, **kwargs)
+
+            with mock.patch.object(run, "git", recording_git):
+                checkout2 = run.resolve_pr(cache_root, entry)
+
+            # Branches are identical after second resolve_pr
+            branches2 = observed_branches(checkout2.worktree)
+            self.assertEqual(branches2, branches1,
+                f"second resolve_pr changed branches: {branches2!r} vs {branches1!r}")
+            self.assertEqual(branches2,
+                ["bench-pr-42", "remotes/origin/bench-base-42", "remotes/origin/bench-pr-42"])
+
+            # No fetch in the second call
+            fetch_calls = [c for c in calls if c[0] == "fetch"]
+            self.assertEqual(fetch_calls, [],
+                f"second resolve_pr must not fetch, but recorded: {calls!r}")
+
+            # Force gc, then verify all manifest SHAs still exist
+            subprocess.run(
+                ["git", "-C", str(checkout2.repo_dir), "gc", "--prune=now", "--quiet"],
+                capture_output=True, check=True,
+            )
+            for sha_field, sha in [("merge_sha", entry["merge_sha"]),
+                                     ("base_sha", entry["base_sha"]),
+                                     ("head_sha", entry["head_sha"])]:
+                rc = subprocess.run(
+                    ["git", "-C", str(checkout2.repo_dir), "cat-file", "-e",
+                     f"{sha}^{{commit}}"],
+                    capture_output=True, text=True,
+                ).returncode
+                self.assertEqual(rc, 0,
+                    f"{sha_field} {sha} must exist after gc --prune=now")
+
+    def test_prune_refs_refuses_a_repo_outside_the_cache(self):
+        """prune_refs on a repo outside bench/.cache/repos/ raises BenchError."""
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            outside = testsupport.init_git_repo(td / "outside-the-cache")
+            testsupport.commit_file(outside, "f.txt", "c\n", "f")
+
+            with self.assertRaises(run.BenchError) as ctx:
+                run.prune_refs(cache_root, outside, 1)
+            msg = str(ctx.exception)
+            self.assertIn(str(outside), msg)
+            self.assertIn(str(run.repos_root(cache_root)), msg)
+
+            # The outside repo was not mutated — still has its branch
+            ref_result = subprocess.run(
+                ["git", "-C", str(outside), "for-each-ref",
+                 "--format=%(refname)", "refs/heads"],
+                capture_output=True, text=True, check=True,
+            )
+            self.assertTrue(ref_result.stdout.strip(),
+                "outside repo must still have its refs/heads/* refs after refused prune")
+
+    def test_prune_refs_is_a_no_op_on_an_already_pruned_repo(self):
+        """Calling prune_refs on an already-pruned repo returns [] and changes nothing."""
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            repo = cache_root / "repos" / "testowner" / "testrepo"
+            repo.mkdir(parents=True, exist_ok=True)
+            info = testsupport.make_upstream_shaped_repo(repo)
+
+            entry = {
+                "id": "test#42",
+                "owner": "testowner",
+                "repo": "testrepo",
+                "number": 42,
+                "merge_strategy": "merge-commit",
+                "merge_sha": info["merge_sha"],
+                "base_sha": info["base_sha"],
+                "head_sha": info["head_sha"],
+                "changed_files": 1,
+            }
+
+            checkout = run.resolve_pr(cache_root, entry)
+            branches_before = observed_branches(checkout.worktree)
+
+            # Direct call to prune_refs on already-pruned repo
+            result = run.prune_refs(cache_root, checkout.repo_dir, 42)
+
+            self.assertEqual(result, [],
+                f"prune_refs on already-pruned repo must return [], got {result!r}")
+            branches_after = observed_branches(checkout.worktree)
+            self.assertEqual(branches_after, branches_before,
+                f"branches must be unchanged after second prune: {branches_after!r} vs {branches_before!r}")
 
 
 if __name__ == "__main__":

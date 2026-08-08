@@ -8,9 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## v0.35.5
+## Unreleased
 
 - fix: pr-review — every finding must now lead with a bold file reference (``**`path:LINE`**``, ``**`path`**`` or ``**`path:START-END`**``) and carry the inline `*(rule: <id>)*` tag when it maps to a rule, so a finding is always attributable to a location. The first bold run must *be* the reference, not a summary phrase; a path appearing only in the item's prose does not count and no path may be inferred that was not in the diff. General remarks belong in a trailing `**Notes:**` block, never as a bullet inside a severity section. Measured before the change: 6 of 15 benchmark review attempts (40%) were rejected as unattributable, non-deterministically — after it, 10 of 10 findings across two runs carry a path and no attempt was rejected
+
+## v0.35.5
 
 - docs: go-testing-guide — document that `go test -v` alone does not enable Ginkgo's verbose reporter, so spec descriptions print only on failure and any `grep -c "<spec name>"` check is satisfiable only by broken tests; use `-v -ginkgo.v`. Adds the two related traps for such checks: `grep -c` exits non-zero when the count is 0 (which is often the pass condition), and a new test description that is a superstring of an existing one defeats any grep pinning the existing one
 

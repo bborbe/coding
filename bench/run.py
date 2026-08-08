@@ -49,6 +49,15 @@ SEVERITY_SUFFIX_RE = re.compile(r"\s*\([^)]+\)\s*$")
 THEMATIC_BREAK_RE = re.compile(r"^ {0,3}(?:-{3,}|\*{3,}|_{3,}) *$")
 FENCE_RE = re.compile(r"^ {0,3}(?:```|~~~)")
 BULLET_RE = re.compile(r"^\s{0,3}([-*])\s+(.+)$")
+ORDERED_ITEM_RE = re.compile(r"^\s{0,3}\d+\.\s+(.+)$")
+BOLD_RUN_START_RE = re.compile(r"^\s*\*\*")
+# Attribution extraction patterns
+RULE_TAG_RE = re.compile(r"\*\(rule:\s*`([^`]+)`\)")
+HEAD_RULE_TAG_RE = re.compile(r"^`([^`]+)`")
+LEADING_BOLD_RE = re.compile(r"^\*\*(.+?)\*\*")
+PATH_LINE_RE = re.compile(r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_./-]+):(\d+)")
+BACKTICK_TOKEN_RE = re.compile(r"`([^`\s]+)`")
+LINE_MENTION_RE = re.compile(r"(?i)\blines?\s*~?\s*(\d+)")
 _SECTION_BY_LOWER = {name.lower(): name for name in REQUIRED_SECTION_NAMES}
 REQUIRED_ENTRY_FIELDS = (
     "id", "owner", "repo", "number",
@@ -62,6 +71,7 @@ DEFAULT_BRANCH_SYMREF = "refs/remotes/origin/HEAD"
 
 # Gate constants (frozen invariants — not configurable)
 NON_REVIEW_MARKER = "NOT A REVIEW"
+UNATTRIBUTABLE_MARKER = "UNATTRIBUTABLE FINDING"
 REJECTION_EXCERPT_BYTES = 2000
 
 # Failure artifact constants (frozen literals — tests grep for them and the README quotes them)
@@ -1010,14 +1020,6 @@ def load_rule_ids(coding_repo: pathlib.Path) -> set:
     return {entry["id"] for entry in data if "id" in entry}
 
 
-def _extract_rule_id(text: str, known_rule_ids: set) -> str | None:
-    """Extract the first rule ID token from text, or None."""
-    for token in re.split(r"[\s`\(\)\[\],:]+", text):
-        if token in known_rule_ids:
-            return token
-    return None
-
-
 def _extract_path_line(text: str, known_rule_ids: set) -> tuple[str | None, int | None]:
     """Extract the first path:line reference from text, skipping known rule IDs.
 
@@ -1025,11 +1027,82 @@ def _extract_path_line(text: str, known_rule_ids: set) -> tuple[str | None, int 
     A token that is a known rule ID is never treated as a path.
     """
     # Find all potential path:line matches
-    for m in re.finditer(r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_./-]+):(\d+)", text):
+    for m in PATH_LINE_RE.finditer(text):
         candidate = m.group(1)
         if candidate not in known_rule_ids:
             return candidate, int(m.group(2))
     return None, None
+
+
+def extract_attribution(body: str, known_rule_ids: set) -> tuple[str | None, int | None, str | None]:
+    """Return (path, line, rule_id) for one finding item, read from the item's own markers.
+
+    rule_id, in priority order:
+      1. the item's own inline `*(rule: `<id>`)*` marker — recorded as the literal
+         string the reviewer wrote, whether or not it appears in rules/index.json;
+      2. otherwise a backticked token at the very head of the item that is a member
+         of known_rule_ids (the shape the review template emits when it tags a
+         finding by leading its body with the rule id);
+      3. otherwise None.
+    An id named anywhere else in the item, or anywhere outside it, is never used.
+
+    path/line, in priority order:
+      1. the bold run at the head of the item, when it names a path;
+      2. otherwise the first path:line reference anywhere in the item that is not
+         a known rule id;
+      3. otherwise (None, None).
+    When the leading bold run supplies a path, line is taken from that bold run and
+    from nowhere else — a line number appearing only in the item's trailing prose is
+    not used.  No path is ever inferred by searching the repository and no line is
+    ever guessed from surrounding text.
+    """
+    # rule_id — source 1: inline *(rule: `id`)* tag, verbatim, no index check
+    m = RULE_TAG_RE.search(body)
+    if m:
+        rule_id = m.group(1)
+        # path/line from bold run at head of item
+        bold_m = LEADING_BOLD_RE.match(body)
+        if bold_m:
+            ref = bold_m.group(1)
+            path_m = PATH_LINE_RE.search(ref)
+            if path_m:
+                return path_m.group(1), int(path_m.group(2)), rule_id
+            # try backtick token with dot as path
+            tok_m = BACKTICK_TOKEN_RE.search(ref)
+            if tok_m:
+                token = tok_m.group(1)
+                if "." in token:
+                    line_m = LINE_MENTION_RE.search(ref)
+                    line = int(line_m.group(1)) if line_m else None
+                    return token, line, rule_id
+        # fall through to step 2 for path/line
+    else:
+        rule_id = None
+        # rule_id — source 2: head-anchored backtick token, index-gated
+        head_m = HEAD_RULE_TAG_RE.match(body)
+        if head_m:
+            token = head_m.group(1)
+            if token in known_rule_ids:
+                rule_id = token
+
+    # path/line — source 1: bold run at head of item
+    bold_m = LEADING_BOLD_RE.match(body)
+    if bold_m:
+        ref = bold_m.group(1)
+        path_m = PATH_LINE_RE.search(ref)
+        if path_m:
+            return path_m.group(1), int(path_m.group(2)), rule_id
+        tok_m = BACKTICK_TOKEN_RE.search(ref)
+        if tok_m:
+            token = tok_m.group(1)
+            if "." in token:
+                line_m = LINE_MENTION_RE.search(ref)
+                line = int(line_m.group(1)) if line_m else None
+                return token, line, rule_id
+
+    # path/line — source 2: whole-item scan (existing _extract_path_line logic)
+    path, line = _extract_path_line(body, known_rule_ids)
+    return path, line, rule_id
 
 
 def heading_section_name(line: str) -> str | None:
@@ -1106,43 +1179,105 @@ def non_review_report(pr_id: str, missing: list[str], stdout_text: str) -> str:
     )
 
 
+def unattributable_report(pr_id: str, items: list, stdout_text: str) -> str:
+    """Build the multi-line stderr diagnosis for a review carrying unkeyable items.
+
+    Names the PR, then each offending item's severity section and its text
+    verbatim.  The item block is passed through the same bounded excerpt the
+    NOT A REVIEW gate uses, so a runaway subprocess cannot flood the terminal.
+    """
+    total = len(stdout_text.encode("utf-8"))
+    item_blocks = []
+    for item in items:
+        item_text = f"[{item['section']}] {item['body']}"
+        item_blocks.append(rejection_excerpt(item_text))
+
+    return (
+        f"{UNATTRIBUTABLE_MARKER}: {pr_id}\n"
+        f"{len(items)} unattributable item(s)\n"
+        + "\n\n".join(item_blocks) + "\n"
+        f"no ledger row and no row marker were written; this PR is retried on the next run\n"
+        f"--- subprocess stdout ({total} bytes total) ---\n"
+        f"{rejection_excerpt(stdout_text)}\n"
+        f"--- end excerpt ---"
+    )
+
+
+def list_item_body(stripped_line: str) -> str | None:
+    """Return the item text when stripped_line opens a list item, else None.
+
+    Both list styles the reviewer uses open a finding: an unordered item
+    (`-` or `*` followed by whitespace) and an ordered item (a run of digits
+    followed by `.` and whitespace).  The marker is removed; nothing else about
+    the text is changed, so a leading bold run survives intact.
+    """
+    m = BULLET_RE.match(stripped_line)
+    if m:
+        return m.group(2)
+    m = ORDERED_ITEM_RE.match(stripped_line)
+    if m:
+        return m.group(1)
+    return None
+
+
 def _normalize_body(lines: list[str]) -> str:
-    """Strip bullet marker and join continuation lines into one whitespace-collapsed string."""
-    body = lines[0]
-    if body.startswith(("*", "-")):
-        body = body[1:].lstrip()
-    body = " ".join([body] + lines[1:])
-    body = re.sub(r"\s+", " ", body).strip()
-    return body
+    """Join an item's lines into one whitespace-collapsed string.
+
+    The list marker was already removed by list_item_body; nothing else is
+    stripped, so the item's leading bold run is preserved verbatim.
+    """
+    body = " ".join(lines)
+    return re.sub(r"\s+", " ", body).strip()
 
 
-def harvest(report_text: str, known_rule_ids: set) -> list:
-    """Normalize a /coding:pr-review Step 5 report into a list of findings.
+@dataclasses.dataclass
+class HarvestResult:
+    """The two-part outcome of harvesting one review report.
 
-    Returns a list of dicts, each with keys: path, line, rule_id, body.
+    findings       — items inside a severity section that carry a path or rule_id.
+    unattributable — items inside a severity section that carry neither.  Only
+                     items inside a severity section are ever classified; content
+                     outside one (positive notes, traceability table, etc.) opens
+                     no item at all and appears in neither component.
+    """
+    findings: list
+    unattributable: list
+
+
+def harvest(report_text: str, known_rule_ids: set) -> HarvestResult:
+    """Normalize a /coding:pr-review Step 5 report into a HarvestResult.
+
+    Returns a HarvestResult with two lists: findings (attributed items) and
+    unattributable (items with no path and no rule_id).  Each finding dict
+    has keys: path, line, rule_id, body.
     """
     findings: list = []
+    unattributable: list = []
     current_section: str | None = None
     current_finding_lines: list[str] = []
 
     def flush_finding():
-        nonlocal current_finding_lines, current_section, findings
+        nonlocal current_finding_lines, current_section, findings, unattributable
         if not current_finding_lines or current_section is None:
             return
-        text = " ".join(current_finding_lines)
         body = _normalize_body(current_finding_lines)
         # Skip the "None." empty-section sentinel (exact equality only)
         if body.strip() in ("None.", "None"):
             current_finding_lines = []
             return
-        rule_id = _extract_rule_id(text, known_rule_ids)
-        path, line_num = _extract_path_line(text, known_rule_ids)
-        findings.append({
-            "path": path,
-            "line": line_num,
-            "rule_id": rule_id,
-            "body": body,
-        })
+        path, line_num, rule_id = extract_attribution(body, known_rule_ids)
+        if path is None and rule_id is None:
+            unattributable.append({
+                "section": current_section,
+                "body": body,
+            })
+        else:
+            findings.append({
+                "path": path,
+                "line": line_num,
+                "rule_id": rule_id,
+                "body": body,
+            })
         current_finding_lines = []
 
     for line, in_fence in iter_report_lines(report_text):
@@ -1161,18 +1296,25 @@ def harvest(report_text: str, known_rule_ids: set) -> list:
                 current_finding_lines = []
                 continue
 
+            if BOLD_RUN_START_RE.match(line):
+                flush_finding()
+                current_section = None
+                current_finding_lines = []
+                continue
+
         if current_section is None:
             continue
 
         stripped = line.strip()
-        if stripped and BULLET_RE.match(stripped):
+        item = list_item_body(stripped) if (stripped and not in_fence) else None
+        if item is not None:
             flush_finding()
-            current_finding_lines = [BULLET_RE.match(stripped).group(2)]
+            current_finding_lines = [item]
         elif stripped and current_finding_lines:
             current_finding_lines.append(stripped)
 
     flush_finding()
-    return findings
+    return HarvestResult(findings=findings, unattributable=unattributable)
 
 
 # ----------------------------------------------------------------------
@@ -1407,7 +1549,26 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     atomic_write_bytes(raw_path, proc.stdout.encode("utf-8"))
 
     # 6. Harvest findings
-    findings = harvest(proc.stdout, known_rule_ids)
+    harvested = harvest(proc.stdout, known_rule_ids)
+    findings = harvested.findings
+
+    # 6a. Unattributable-item gate — a finding that cannot be keyed is a parse
+    #     failure, not a body-only finding.  Fires *after* the step-5 raw write,
+    #     so the raw capture stays on disk and is re-harvestable after a fix,
+    #     and *before* the ledger append and the row-marker write, so the PR is
+    #     retried next run (the cache check keys on the row marker alone).
+    if harvested.unattributable:
+        n = len(harvested.unattributable)
+        write_failure_artifact(
+            cache_root, cfg_hash, pr_id,
+            reason=f"{UNATTRIBUTABLE_MARKER}: {n} unattributable item(s)",
+            stdout=proc.stdout, stderr=proc.stderr,
+        )
+        print(unattributable_report(pr_id, harvested.unattributable, proc.stdout),
+              file=sys.stderr)
+        raise BenchError(
+            f"{UNATTRIBUTABLE_MARKER}: {pr_id}: {n} unattributable item(s)"
+        )
 
     # 7. Build row and append to ledger
     review_command = shlex.join(argv)

@@ -43,10 +43,21 @@ HASHED_SUBDIRS = ("rules", "commands")
 VALID_MODES = ("short", "full", "selector")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 PR_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*#[0-9]+$")
+REQUIRED_SECTION_NAMES = ("Must Fix", "Should Fix", "Nice to Have")
+HEADING_RE = re.compile(r"^#{1,6}\s+(.+)$")
+SEVERITY_SUFFIX_RE = re.compile(r"\s*\([^)]+\)\s*$")
+THEMATIC_BREAK_RE = re.compile(r"^ {0,3}(?:-{3,}|\*{3,}|_{3,}) *$")
+FENCE_RE = re.compile(r"^ {0,3}(?:```|~~~)")
+BULLET_RE = re.compile(r"^\s{0,3}([-*])\s+(.+)$")
+_SECTION_BY_LOWER = {name.lower(): name for name in REQUIRED_SECTION_NAMES}
 REQUIRED_ENTRY_FIELDS = (
     "id", "owner", "repo", "number",
     "merge_strategy", "merge_sha", "base_sha", "head_sha", "changed_files",
 )
+
+# Gate constants (frozen invariants — not configurable)
+NON_REVIEW_MARKER = "NOT A REVIEW"
+REJECTION_EXCERPT_BYTES = 2000
 
 # ----------------------------------------------------------------------
 # Exceptions
@@ -690,6 +701,80 @@ def _extract_path_line(text: str, known_rule_ids: set) -> tuple[str | None, int 
     return None, None
 
 
+def heading_section_name(line: str) -> str | None:
+    """Return the canonical findings-section name a markdown heading line names, or None.
+
+    Matches a heading at any level 1-6, strips a trailing parenthesised severity
+    annotation such as "(Critical)", and compares case-insensitively against
+    REQUIRED_SECTION_NAMES.  Returns the canonical spelling ("Must Fix",
+    "Should Fix", "Nice to Have") or None when the line is not a heading or names
+    something else.
+    """
+    m = HEADING_RE.match(line)
+    if not m:
+        return None
+    stripped = m.group(1).strip()
+    stripped = SEVERITY_SUFFIX_RE.sub("", stripped).strip()
+    return _SECTION_BY_LOWER.get(stripped.lower())
+
+
+def iter_report_lines(report_text: str):
+    """Yield (line, in_fence) for every line of report_text.
+
+    in_fence is True for the fence delimiter lines themselves and for every line
+    between an opening and a closing fence.  A line inside a fence is never a
+    heading, never a thematic break and never a bullet; it is ordinary text.
+    """
+    in_fence = False
+    for line in report_text.splitlines():
+        if FENCE_RE.match(line):
+            in_fence = not in_fence
+            yield (line, True)
+        else:
+            yield (line, in_fence)
+
+
+def missing_sections(report_text: str) -> list[str]:
+    """Return the required findings-section names absent from report_text, in canonical order.
+
+    A section counts as present only when it appears as a markdown heading at any
+    level 1-6 outside a fenced code block.  The words appearing in prose, in a
+    bold run, or inside a fence do not count.  Returns [] when all three are present.
+    """
+    present: set[str] = set()
+    for line, in_fence in iter_report_lines(report_text):
+        if in_fence:
+            continue
+        name = heading_section_name(line)
+        if name is not None:
+            present.add(name)
+    return [name for name in REQUIRED_SECTION_NAMES if name not in present]
+
+
+def rejection_excerpt(text: str, limit: int = REJECTION_EXCERPT_BYTES) -> str:
+    """Return at most limit bytes of text's UTF-8 prefix, marked when truncated."""
+    encoded = text.encode("utf-8")
+    total = len(encoded)
+    if total <= limit:
+        return text
+    prefix = encoded[:limit].decode("utf-8", errors="ignore")
+    return f"{prefix}\n[... truncated, {total} bytes total]"
+
+
+def non_review_report(pr_id: str, missing: list[str], stdout_text: str) -> str:
+    """Build the multi-line stderr diagnosis for output rejected as a non-review."""
+    total = len(stdout_text.encode("utf-8"))
+    excerpt = rejection_excerpt(stdout_text)
+    return (
+        f"{NON_REVIEW_MARKER}: {pr_id}\n"
+        f"missing sections: {', '.join(missing)}\n"
+        f"no ledger row and no cache entry were written; this PR is retried on the next run\n"
+        f"--- rejected output excerpt ({total} bytes total) ---\n"
+        f"{excerpt}\n"
+        f"--- end excerpt ---"
+    )
+
+
 def _normalize_body(lines: list[str]) -> str:
     """Strip bullet marker and join continuation lines into one whitespace-collapsed string."""
     body = lines[0]
@@ -708,7 +793,6 @@ def harvest(report_text: str, known_rule_ids: set) -> list:
     findings: list = []
     current_section: str | None = None
     current_finding_lines: list[str] = []
-    section_names = {"must fix", "should fix", "nice to have"}
 
     def flush_finding():
         nonlocal current_finding_lines, current_section, findings
@@ -716,7 +800,7 @@ def harvest(report_text: str, known_rule_ids: set) -> list:
             return
         text = " ".join(current_finding_lines)
         body = _normalize_body(current_finding_lines)
-        # Skip the "None." empty-section sentinel
+        # Skip the "None." empty-section sentinel (exact equality only)
         if body.strip() in ("None.", "None"):
             current_finding_lines = []
             return
@@ -730,37 +814,31 @@ def harvest(report_text: str, known_rule_ids: set) -> list:
         })
         current_finding_lines = []
 
-    lines = report_text.splitlines()
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        heading_match = re.match(r"^#{1,6}\s+(.+)$", line)
-        if heading_match:
-            heading_text = heading_match.group(1).strip()
-            # Strip trailing severity annotation like (Critical)
-            heading_text = re.sub(r"\s*\([^)]+\)\s*$", "", heading_text).strip()
-            heading_lower = heading_text.lower()
-            if heading_lower in section_names:
+    for line, in_fence in iter_report_lines(report_text):
+        if not in_fence:
+            name = heading_section_name(line)
+            if name is not None or HEADING_RE.match(line):
+                # Any heading — findings or not — ends whatever section was open
                 flush_finding()
-                current_section = heading_lower
+                current_section = name  # None for non-findings headings
                 current_finding_lines = []
-            else:
-                # Any other heading (including traceability) ends the current section
+                continue
+
+            if THEMATIC_BREAK_RE.match(line):
                 flush_finding()
                 current_section = None
                 current_finding_lines = []
-            i += 1
+                continue
+
+        if current_section is None:
             continue
 
-        if current_section is not None:
-            stripped = line.strip()
-            bullet_match = re.match(r"^\s{0,3}([-*])\s+(.+)$", stripped)
-            if bullet_match:
-                flush_finding()
-                current_finding_lines = [bullet_match.group(2)]
-            elif stripped:
-                current_finding_lines.append(stripped)
-        i += 1
+        stripped = line.strip()
+        if stripped and BULLET_RE.match(stripped):
+            flush_finding()
+            current_finding_lines = [BULLET_RE.match(stripped).group(2)]
+        elif stripped and current_finding_lines:
+            current_finding_lines.append(stripped)
 
     flush_finding()
     return findings
@@ -978,6 +1056,14 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
         failure_log = failure_log_path(cache_root, cfg_hash, pr_id)
         failure_log.write_bytes(proc.stderr.encode("utf-8") if proc.stderr else b"")
         raise BenchError(f"{pr_id}: review invocation failed: exit {proc.returncode}")
+
+    # 4. Sanity gate — reject non-review output before anything is written
+    missing = missing_sections(proc.stdout)
+    if missing:
+        print(non_review_report(pr_id, missing, proc.stdout), file=sys.stderr)
+        raise BenchError(
+            f"{NON_REVIEW_MARKER}: {pr_id}: missing sections: {', '.join(missing)}"
+        )
 
     duration_seconds = time.monotonic() - t0
 

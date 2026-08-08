@@ -49,6 +49,39 @@ The manifest's recorded `base_sha..head_sha` is the single authoritative source 
 
 The runner aborts loudly on an empty diff (`EMPTY DIFF`) — a resolved range with zero changed files is never recorded as a zero-finding review and produces no row and no cache entry.
 
+## Reading review output
+
+### The three required sections
+
+`commands/pr-review.md` Step 5 marks **Must Fix**, **Should Fix** and **Nice to Have** as mandatory sections and mandates the literal `None.` when a section has no findings. A report is a review only when all three appear as markdown headings; output missing any of them is **rejected before the raw output is cached** and before it is harvested. A rejected PR leaves no ledger row and no cache entry, the remaining PRs still run, and the process exits non-zero — the same treatment an `EMPTY DIFF` gets, for the same reason.
+
+The rejection names the PR, names each missing section on its own `missing sections: ` line, and carries a bounded verbatim excerpt on stderr.
+
+> **Why the gate is necessary.** A subprocess that exits 0 after printing `Unknown command: /coding:pr-review` is otherwise indistinguishable from a genuinely clean review. A fabricated clean row is byte-for-byte identical to a real one.
+
+### What ends a findings section
+
+A findings section's content ends at the **next markdown heading of any level**, at a **thematic break** (`---`, `***` or `___` on its own line), or at **end of input** — whichever comes first. Section names are matched as headings at any level; a mention in prose, in a bold run, or inside a fenced code block is not a heading.
+
+> **Why heading level carries no information.** The command's template renders sections at one level and captured live output rendered them at another, so level is not evidence of anything.
+
+### What opens a finding
+
+Inside a findings section, a finding starts when a **list item** begins (`-` or `*`). Subsequent non-list lines extend the finding already open. Prose appearing in a section **before** any list item — most importantly the mandated `None.` sentinel — contributes no finding and cannot be extended by anything that follows.
+
+> **Why the sentinel cannot be extended.** Real review output carries a diff summary and a closing status panel after the last section. Before the boundary rules existed, those lines were appended as continuation lines to the still-open `None.` buffer, defeating the sentinel check and emitting the accumulated text as one finding with no path, line or rule id.
+
+All three section names — **Must Fix**, **Should Fix**, **Nice to Have** — are mandatory; the gate accepts a report as a review only when all three appear as headings.
+
+### Fixtures
+
+| Fixture | Origin | Harvests to |
+|---|---|---|
+| `bench/testdata/sample-report.md` | derived from the review command's Step 5 template, `####` headings | 3 findings |
+| `bench/testdata/real-capture-report.md` | verbatim capture of live review output, `##` headings, all three sections `None.`, trailing prose | 0 findings |
+
+Both defects this section documents survived 42 green unit tests because the tests were built from the same template the parser was built from. A fixture for a new defect must be a **capture of real output**, not a transcription of the template.
+
 ## Verifying an entry without cloning
 
 ```bash
@@ -65,6 +98,9 @@ These are deliberately not configurable:
 - **Cache:** lives under `bench/.cache/` (gitignored — no benchmark output is ever committed)
 - **Results:** live under `bench/results/` (gitignored)
 - **Isolated config:** `$HOME/.claude-verify` with `DISABLE_AUTOUPDATER=1`; the runner aborts the whole run before the first review if that directory would resolve the `coding` plugin to content whose hash differs from `--coding-repo`'s
+- **Required section names:** `Must Fix`, `Should Fix`, `Nice to Have` — all three mandatory in every review report; output missing any one is rejected before cache write
+- **List-item markers:** only `-` and `*` open a finding; prose before the first list item cannot form a finding
+- **Stderr excerpt bound:** at most 2,000 bytes of rejected output are printed to stderr (truncation is marked)
 
 ## Safety invariant
 

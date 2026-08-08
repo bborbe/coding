@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: bench runner — add a sanity gate that rejects review output not structurally a review (missing any of Must Fix, Should Fix, Nice to Have headings) before the raw output cache write; rejected output produces no ledger row, no cache entry, the PR is listed as failed, and remaining PRs still run
+- fix: bench runner — fix findings section boundary: a section now ends at the next heading, a thematic break, or end of input, and only a list item (`-` or `*`) opens a finding, so trailing summary prose in a real review can no longer be appended to the `None.` sentinel and emitted as a phantom finding
+- docs: bench — document the harvest contract in `bench/README.md` (what ends a section, what opens a finding, the three mandatory sections, the fixture table); add verbatim-capture fixture `bench/testdata/real-capture-report.md` that locks the boundary fix
+
 ## v0.35.1
 
 - bench: add `make bench` and `make bench-test` Makefile targets; wire `bench-test` into `make precommit` so bench unit tests gate every later change

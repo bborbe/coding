@@ -4,6 +4,7 @@
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -269,8 +270,7 @@ class TestEveryGitStaysUnderCacheRepos(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # Save and modify os.environ to put stub_git on PATH
             old_path = os.environ.get("PATH", "")
@@ -400,15 +400,24 @@ class TestFailingPrDoesNotAbortRemainingPrs(unittest.TestCase):
             plugin_dest = td / "repo"
             testsupport.build_coding_repo(plugin_dest)
             (cfg_dir / "plugins").mkdir(parents=True)
+            # Create plugin cache directory and record in the new format
             import json
-            km = {
-                "coding": {
-                    "source": {"source": "github", "repo": "bborbe/coding"},
-                    "installLocation": str(plugin_dest),
+            cache_dir = cfg_dir / "plugins" / "cache" / "coding" / "coding" / "0.35.2"
+            shutil.copytree(plugin_dest, cache_dir)
+            record = {
+                "version": 2,
+                "plugins": {
+                    "coding@coding": [{
+                        "scope": "user",
+                        "installPath": str(cache_dir),
+                        "version": "0.35.2",
+                        "installedAt": "2026-08-08T00:00:00.000Z",
+                        "lastUpdated": "2026-08-08T00:00:00.000Z",
+                    }]
                 }
             }
-            (cfg_dir / "plugins" / "known_marketplaces.json").write_text(
-                json.dumps(km), encoding="utf-8"
+            (cfg_dir / "plugins" / "installed_plugins.json").write_text(
+                json.dumps(record), encoding="utf-8"
             )
 
             old_home = os.environ.get("HOME", "")

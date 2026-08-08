@@ -59,6 +59,18 @@ REQUIRED_ENTRY_FIELDS = (
 NON_REVIEW_MARKER = "NOT A REVIEW"
 REJECTION_EXCERPT_BYTES = 2000
 
+# Plugin resolution constants
+PLUGIN_NAME = "coding"
+INSTALLED_PLUGINS_FILENAME = "installed_plugins.json"
+
+# Preflight abort markers (frozen literals — tests and the README quote them)
+PLUGIN_RESOLUTION_MISMATCH_MARKER = "PLUGIN RESOLUTION MISMATCH"
+NO_INSTALL_RECORD_MARKER = "NO PLUGIN INSTALL RECORD"
+UNREADABLE_INSTALL_RECORD_MARKER = "UNREADABLE PLUGIN INSTALL RECORD"
+STALE_INSTALL_PATH_MARKER = "STALE PLUGIN INSTALL PATH"
+OUT_OF_TREE_INSTALL_PATH_MARKER = "PLUGIN INSTALL PATH OUT OF TREE"
+SCOPE_MISMATCH_MARKER = "PLUGIN INSTALL SCOPE MISMATCH"
+
 # ----------------------------------------------------------------------
 # Exceptions
 # ----------------------------------------------------------------------
@@ -232,6 +244,21 @@ def assert_under(path: pathlib.Path, root: pathlib.Path) -> pathlib.Path:
             f"the runner only ever touches its own cache at {root!r}"
         )
     return resolved
+
+
+def installed_plugins_path(config_dir: pathlib.Path) -> pathlib.Path:
+    return config_dir / "plugins" / INSTALLED_PLUGINS_FILENAME
+
+
+def plugin_cache_root(config_dir: pathlib.Path) -> pathlib.Path:
+    return config_dir / "plugins" / "cache"
+
+
+def path_is_under(path: pathlib.Path, root: pathlib.Path) -> bool:
+    """True when path resolves strictly under root (never equal to it)."""
+    resolved = pathlib.Path(path).resolve()
+    root_resolved = pathlib.Path(root).resolve()
+    return resolved != root_resolved and resolved.is_relative_to(root_resolved)
 
 
 # ----------------------------------------------------------------------
@@ -470,6 +497,22 @@ class PrCheckout:
     notes: list
 
 
+@dataclasses.dataclass
+class PluginInstallRecord:
+    plugin_key: str
+    scope: str
+    install_path: pathlib.Path
+    version: str
+    project_path: pathlib.Path | None
+
+
+@dataclasses.dataclass
+class PluginResolution:
+    load_path: pathlib.Path
+    version: str
+    content_hash: str
+
+
 def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
                     entry: dict, base_endpoint: str,
                     head_endpoint: str) -> PrCheckout:
@@ -570,53 +613,185 @@ def verify_config_dir() -> pathlib.Path:
     return pathlib.Path(home) / VERIFY_CONFIG_DIR_NAME
 
 
-def resolve_plugin_path(config_dir: pathlib.Path) -> pathlib.Path:
-    """Resolve the coding plugin path from the isolated config directory.
+def load_install_records(config_dir: pathlib.Path) -> list[PluginInstallRecord]:
+    """Read every install record the config dir holds for the coding plugin.
 
-    If config_dir/plugins/known_marketplaces.json exists and contains a usable
-    "coding" entry with a non-empty installLocation, that path is returned.
-    Otherwise falls back to config_dir/plugins/marketplaces/coding.
+    Records are returned in file order.  Raises BenchError naming the record file
+    when the file is absent, unreadable, not JSON, structurally wrong, or holds no
+    entry for the plugin.  There is no fallback: an unresolvable record aborts.
     """
-    known = config_dir / "plugins" / "known_marketplaces.json"
-    if known.is_file():
-        try:
-            data = json.loads(known.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as err:
-            raise BenchError(f"cannot parse {known}: {err}")
-        coding_entry = data.get("coding", {})
-        install_location = coding_entry.get("installLocation", "")
-        if install_location and isinstance(install_location, str):
-            return pathlib.Path(install_location)
-    return config_dir / "plugins" / "marketplaces" / "coding"
+    record_file = installed_plugins_path(config_dir)
+    if not record_file.is_file():
+        raise BenchError(
+            f"{NO_INSTALL_RECORD_MARKER}: {record_file} does not exist; "
+            f"the isolated config directory {config_dir} holds no install record "
+            f"for plugin {PLUGIN_NAME!r}. Install the plugin into that config "
+            f"directory and re-run."
+        )
+    try:
+        data = json.loads(record_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as err:
+        raise BenchError(
+            f"{UNREADABLE_INSTALL_RECORD_MARKER}: cannot read {record_file}: {err}"
+        )
+    if not isinstance(data, dict) or not isinstance(data.get("plugins"), dict):
+        raise BenchError(
+            f"{UNREADABLE_INSTALL_RECORD_MARKER}: {record_file} has no 'plugins' object"
+        )
+
+    records: list[PluginInstallRecord] = []
+    for key, entries in data["plugins"].items():
+        if key != PLUGIN_NAME and not key.startswith(PLUGIN_NAME + "@"):
+            continue
+        if not isinstance(entries, list):
+            raise BenchError(
+                f"{UNREADABLE_INSTALL_RECORD_MARKER}: "
+                f"{record_file}: entry {key!r} is not a list of records"
+            )
+        for elem in entries:
+            if not isinstance(elem, dict):
+                raise BenchError(
+                    f"{UNREADABLE_INSTALL_RECORD_MARKER}: "
+                    f"{record_file}: entry {key!r} is not a list of records"
+                )
+            install_path_str = str(elem.get("installPath", ""))
+            if not install_path_str:
+                raise BenchError(
+                    f"{UNREADABLE_INSTALL_RECORD_MARKER}: {record_file}: "
+                    f"entry {key!r} has no 'installPath'"
+                )
+            records.append(PluginInstallRecord(
+                plugin_key=key,
+                scope=str(elem.get("scope", "")),
+                install_path=pathlib.Path(install_path_str),
+                version=str(elem.get("version", "")),
+                project_path=(
+                    pathlib.Path(str(elem["projectPath"]))
+                    if elem.get("projectPath") else None
+                ),
+            ))
+
+    if not records:
+        raise BenchError(
+            f"{NO_INSTALL_RECORD_MARKER}: {record_file} holds no install record "
+            f"for plugin {PLUGIN_NAME!r}; the isolated config directory {config_dir} "
+            f"will not load it. Install the plugin into that config directory and re-run."
+        )
+    return records
+
+
+def record_applies(record: PluginInstallRecord, review_root: pathlib.Path) -> bool:
+    """True when this record is one Claude Code would load for the review's cwd.
+
+    A user-scoped record always applies.  A project-scoped record applies only when
+    review_root is the recorded project path or lives under it.  Any other scope
+    value never applies.
+    """
+    if record.scope == "user":
+        return True
+    if record.scope == "project":
+        if record.project_path is None:
+            return False
+        rp = review_root.resolve()
+        pp = record.project_path.resolve()
+        return rp == pp or rp.is_relative_to(pp)
+    return False
+
+
+def select_install_record(records: list[PluginInstallRecord],
+                          *, config_dir: pathlib.Path,
+                          review_root: pathlib.Path) -> PluginInstallRecord:
+    """Return the first record that applies to this run, or abort naming all of them."""
+    for record in records:
+        if record_applies(record, review_root):
+            return record
+
+    # No record applied — abort with full diagnostics
+    lines = []
+    for record in records:
+        pp = str(record.project_path) if record.project_path else "<none>"
+        lines.append(
+            f"[scope={record.scope} projectPath={pp} "
+            f"version={record.version} installPath={record.install_path}]"
+        )
+    raise BenchError(
+        f"{SCOPE_MISMATCH_MARKER}: no applicable install record for plugin "
+        f"{PLUGIN_NAME!r} in {installed_plugins_path(config_dir)}; "
+        f"records: {' '.join(lines)}; "
+        f"review_root={review_root}; "
+        f"install the plugin at user scope in {config_dir}"
+    )
+
+
+def resolve_plugin_load_path(config_dir: pathlib.Path,
+                             review_root: pathlib.Path) -> PluginResolution:
+    """Resolve and hash the directory the review will really load the plugin from."""
+    records = load_install_records(config_dir)
+    record = select_install_record(records, config_dir=config_dir, review_root=review_root)
+
+    # Out-of-tree guard — validate before reading anything from the path
+    if not path_is_under(record.install_path, plugin_cache_root(config_dir)):
+        raise BenchError(
+            f"{OUT_OF_TREE_INSTALL_PATH_MARKER}: install path {record.install_path} "
+            f"recorded in {installed_plugins_path(config_dir)} is not under "
+            f"{plugin_cache_root(config_dir)}; refusing to read a plugin from outside "
+            f"the isolated config directory's own plugin tree"
+        )
+
+    # Stale-path guard
+    if not record.install_path.is_dir():
+        raise BenchError(
+            f"{STALE_INSTALL_PATH_MARKER}: {installed_plugins_path(config_dir)} records "
+            f"version {record.version} at {record.install_path}, which does not exist "
+            f"on disk; the plugin will not load and every slash command would be unknown. "
+            f"Reinstall the plugin and re-run."
+        )
+
+    # Hash the recorded path
+    try:
+        digest = content_hash(record.install_path)
+    except BenchError as err:
+        raise BenchError(
+            f"{STALE_INSTALL_PATH_MARKER}: {installed_plugins_path(config_dir)} records "
+            f"version {record.version} at {record.install_path}, which is not a usable "
+            f"plugin directory: {err}"
+        )
+
+    return PluginResolution(
+        load_path=record.install_path,
+        version=record.version,
+        content_hash=digest,
+    )
 
 
 def check_plugin_resolution(coding_repo: pathlib.Path, config_dir: pathlib.Path,
-                            expected_hash: str) -> pathlib.Path:
+                            expected_hash: str,
+                            review_root: pathlib.Path) -> PluginResolution:
     """Verify the isolated config dir will load the coding plugin from coding_repo.
 
-    Raises BenchError (PLUGIN RESOLUTION MISMATCH) if the plugin actually
-    resolved to a path whose rules/+commands/ content differs from
-    expected_hash.  Runs before any review is invoked.
+    Resolves the load path from the install record, hashes it, and raises
+    BenchError (PLUGIN RESOLUTION MISMATCH) when that hash differs from
+    expected_hash.  Runs before any PR is resolved and before any review subprocess
+    starts.
     """
-    plugin_path = resolve_plugin_path(config_dir)
-
-    if not plugin_path.is_dir():
-        actual = "<missing>"
-    else:
-        try:
-            actual = content_hash(plugin_path)
-        except BenchError:
-            actual = "<no-rules-or-commands>"
-
-    if actual != expected_hash:
+    resolution = resolve_plugin_load_path(config_dir, review_root)
+    if resolution.content_hash != expected_hash:
         raise BenchError(
-            f"PLUGIN RESOLUTION MISMATCH: config_dir={config_dir} "
-            f"plugin_path={plugin_path} actual_hash={actual} "
+            f"{PLUGIN_RESOLUTION_MISMATCH_MARKER}: config_dir={config_dir} "
+            f"load_path={resolution.load_path} recorded_version={resolution.version} "
+            f"actual_hash={resolution.content_hash} "
             f"coding_repo={coding_repo} expected_hash={expected_hash} "
             f"refusing to record a configuration hash that did not run"
         )
+    return resolution
 
-    return plugin_path
+
+def resolution_line(resolution: PluginResolution) -> str:
+    """One-line statement of what the preflight resolved, for the operator to cross-check."""
+    return (
+        f"plugin load path: {resolution.load_path} "
+        f"version={resolution.version} hash={resolution.content_hash}"
+    )
 
 
 # ----------------------------------------------------------------------
@@ -952,7 +1127,10 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
     rc_hash = content_hash(coding_repo)
 
     # Abort before any review if the isolated config would load a different plugin
-    check_plugin_resolution(coding_repo, config_dir, rc_hash)
+    resolution = check_plugin_resolution(
+        coding_repo, config_dir, rc_hash, repos_root(cache_root)
+    )
+    print(resolution_line(resolution))
 
     cfg_hash = config_hash(rc_hash, model, effort, mode, manifest["version"])
 

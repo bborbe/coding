@@ -39,32 +39,89 @@ def build_coding_repo(root: pathlib.Path, *, rules=None, commands=None) -> pathl
     return root
 
 
-def build_verify_config_dir(root: pathlib.Path, plugin_src: pathlib.Path,
-                           *, use_known_marketplaces: bool = False) -> pathlib.Path:
-    """Create an isolated .claude-verify directory under root.
+def build_verify_config_dir(
+    root: pathlib.Path,
+    plugin_src: pathlib.Path,
+    *,
+    version: str = "0.35.2",
+    scope: str = "user",
+    project_path: pathlib.Path | None = None,
+    install_path: pathlib.Path | None = None,
+    extra_versions: dict | None = None,
+    extra_records: list | None = None,
+    marketplace_src: pathlib.Path | None = None,
+    record_text: str | None = None,
+    write_record: bool = True,
+) -> pathlib.Path:
+    """Create an isolated .claude-verify directory shaped like a real Claude Code config dir.
 
-    When use_known_marketplaces is False, copies plugin_src to
-    <cfg>/plugins/marketplaces/coding.  When True, writes known_marketplaces.json
-    pointing at plugin_src instead.  Returns the .claude-verify path.
+    Copies plugin_src to <cfg>/plugins/cache/coding/coding/<version> and writes
+    <cfg>/plugins/installed_plugins.json with one record for "coding@coding".
+
+    version         version string recorded and used as the cache directory name
+    scope           "user" or "project"
+    project_path    written as projectPath; required shape for scope="project"
+    install_path    overrides the recorded installPath (used to record a path that is
+                    stale, or one outside the config dir's plugin tree)
+    extra_versions  {version: source_dir} copied to additional cache version dirs
+    extra_records   raw record dicts appended after the primary record, in order
+    marketplace_src copied to <cfg>/plugins/marketplaces/coding when given, so a test
+                    can prove the marketplace path is not what gets hashed
+    record_text     when given, written verbatim as installed_plugins.json instead of
+                    the JSON structure (malformed-record cases)
+    write_record    when False, installed_plugins.json is not written at all
+    Returns the .claude-verify path.
     """
-    root = pathlib.Path(root)
-    cfg = root / ".claude-verify"
+    cfg = pathlib.Path(root) / ".claude-verify"
     cfg.mkdir(parents=True, exist_ok=True)
 
-    if use_known_marketplaces:
-        (cfg / "plugins").mkdir(parents=True, exist_ok=True)
-        known = {
-            "coding": {
-                "source": {"source": "github", "repo": "bborbe/coding"},
-                "installLocation": str(plugin_src),
-            }
+    # Build the cache directory structure
+    cache_root = cfg / "plugins" / "cache" / "coding" / "coding"
+    default_install_path = cache_root / version
+
+    # Copy plugin_src to the default version directory
+    shutil.copytree(plugin_src, default_install_path)
+
+    # Copy extra versions
+    for extra_ver, extra_src in (extra_versions or {}).items():
+        extra_dest = cache_root / extra_ver
+        if extra_dest.exists():
+            shutil.rmtree(extra_dest)
+        shutil.copytree(extra_src, extra_dest)
+
+    # Copy marketplace source if given
+    if marketplace_src is not None:
+        mkt_dir = cfg / "plugins" / "marketplaces" / "coding"
+        if mkt_dir.exists():
+            shutil.rmtree(mkt_dir)
+        shutil.copytree(marketplace_src, mkt_dir)
+
+    # Write installed_plugins.json
+    if write_record and record_text is not None:
+        record_file = cfg / "plugins" / "installed_plugins.json"
+        record_file.write_text(record_text, encoding="utf-8")
+    elif write_record:
+        records = []
+        # Primary record
+        primary = {
+            "scope": scope,
+            "installPath": str(install_path) if install_path is not None else str(default_install_path),
+            "version": version,
+            "installedAt": "2026-08-08T00:00:00.000Z",
+            "lastUpdated": "2026-08-08T00:00:00.000Z",
         }
-        (cfg / "plugins" / "known_marketplaces.json").write_text(
-            json.dumps(known), encoding="utf-8"
+        if project_path is not None:
+            primary["projectPath"] = str(project_path)
+        records.append(primary)
+        # Extra records
+        for extra in (extra_records or []):
+            records.append(extra)
+
+        record_file = cfg / "plugins" / "installed_plugins.json"
+        record_file.write_text(
+            json.dumps({"version": 2, "plugins": {"coding@coding": records}}, indent=2),
+            encoding="utf-8",
         )
-    else:
-        dest = cfg / "plugins" / "marketplaces" / "coding"
-        shutil.copytree(plugin_src, dest)
 
     return cfg
 
@@ -297,6 +354,37 @@ def make_manifest(path: pathlib.Path, entries: list, version: str = "test-1") ->
     path = pathlib.Path(path)
     path.write_text(json.dumps(manifest), encoding="utf-8")
     return path
+
+
+def seed_one_pr_manifest(td: pathlib.Path, cache_root: pathlib.Path) -> pathlib.Path:
+    """Seed one merge repo under cache_root and write a one-entry manifest.
+
+    Creates <cache_root>/repos/testowner/repo_a via make_merge_repo and writes
+    <td>/manifest.json with a single entry id "test#1", number 1, merge_strategy
+    "merge-commit" and that repo's three SHAs.  Returns the manifest path.
+    """
+    repos_root = cache_root / "repos"
+    repos_root.mkdir(parents=True, exist_ok=True)
+    repo_a = repos_root / "testowner" / "repo_a"
+    repo_a.mkdir(parents=True, exist_ok=True)
+    info_a = make_merge_repo(repo_a)
+
+    manifest_entries = [
+        {
+            "id": "test#1",
+            "owner": "testowner",
+            "repo": "repo_a",
+            "number": 1,
+            "merge_strategy": "merge-commit",
+            "merge_sha": info_a["merge_sha"],
+            "base_sha": info_a["base_sha"],
+            "head_sha": info_a["head_sha"],
+            "changed_files": 1,
+        },
+    ]
+    manifest_path = td / "manifest.json"
+    make_manifest(manifest_path, manifest_entries)
+    return manifest_path
 
 
 def seed_cached_repo(cache_root: pathlib.Path, owner: str, repo: str,

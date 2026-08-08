@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: bench runner — replace the plugin-resolution preflight so it hashes the directory named by the isolated config directory's `installed_plugins.json` record (the directory Claude Code really loads from) instead of the marketplace path; abort before any review starts when the record is absent, unreadable, names a stale path, names a path outside the plugin cache tree, or applies only to a different working directory; print one resolution line naming the load path, recorded version, and full content hash
+- fix: bench runner — delete the `known_marketplaces.json`/`installLocation` resolver and all fallback paths; the install record is the only source
+- fix: bench runner — the recorded `installPath` is validated to lie under `<config_dir>/plugins/cache/` before it is read
+
 ## v0.35.2
 
 - fix: bench runner — add a sanity gate that rejects review output not structurally a review (missing any of Must Fix, Should Fix, Nice to Have headings) before the raw output cache write; rejected output produces no ledger row, no cache entry, the PR is listed as failed, and remaining PRs still run

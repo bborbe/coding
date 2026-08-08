@@ -60,8 +60,7 @@ def run_one_pr_with_payload(td: pathlib.Path, payload: str) -> tuple[int, str, p
     testsupport.make_manifest(manifest_path, manifest_entries)
 
     plugin_src = testsupport.build_coding_repo(td / "repo")
-    cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                             use_known_marketplaces=True)
+    cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
     captured_stderr = io.StringIO()
     with contextlib.redirect_stderr(captured_stderr):
@@ -132,8 +131,7 @@ class TestSecondRunIsCacheHit(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # First run
             with mock.patch.dict(os.environ, env):
@@ -221,8 +219,7 @@ class TestModeChangeIsCacheMiss(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # First run: selector mode
             with mock.patch.dict(os.environ, env):
@@ -416,14 +413,23 @@ class TestSecondRunnerExitsWithoutTouchingLedger(unittest.TestCase):
                 cfg_dir = results_dir / ".claude-verify"
                 cfg_dir.mkdir(parents=True, exist_ok=True)
                 (cfg_dir / "plugins").mkdir(parents=True, exist_ok=True)
-                km = {
-                    "coding": {
-                        "source": {"source": "github", "repo": "bborbe/coding"},
-                        "installLocation": str(run.REPO_ROOT),
+                # Create plugin cache directory and record in the new format
+                cache_dir = cfg_dir / "plugins" / "cache" / "coding" / "coding" / "0.35.2"
+                shutil.copytree(run.REPO_ROOT, cache_dir)
+                record = {
+                    "version": 2,
+                    "plugins": {
+                        "coding@coding": [{
+                            "scope": "user",
+                            "installPath": str(cache_dir),
+                            "version": "0.35.2",
+                            "installedAt": "2026-08-08T00:00:00.000Z",
+                            "lastUpdated": "2026-08-08T00:00:00.000Z",
+                        }]
                     }
                 }
-                (cfg_dir / "plugins" / "known_marketplaces.json").write_text(
-                    json.dumps(km), encoding="utf-8"
+                (cfg_dir / "plugins" / "installed_plugins.json").write_text(
+                    json.dumps(record), encoding="utf-8"
                 )
 
                 result = subprocess.run(
@@ -489,8 +495,7 @@ class TestRowCarriesEveryRequiredField(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -567,8 +572,7 @@ class TestRawOutputIsCachedVerbatim(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -639,8 +643,7 @@ class TestFailedReviewLeavesNoRowAndNoCacheEntry(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -730,8 +733,7 @@ class TestFailedPrDoesNotPreventLaterPrs(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc = run.run_bench(
@@ -792,8 +794,7 @@ class TestCorruptCacheRowIsTreatedAsMiss(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             # Compute cfg_hash to know where to write corrupt cache
             rc_hash = run.content_hash(plugin_src)
@@ -1165,8 +1166,7 @@ class TestGateDoesNotApplyToACacheHit(unittest.TestCase):
             testsupport.make_manifest(manifest_path, manifest_entries)
 
             plugin_src = testsupport.build_coding_repo(td / "repo")
-            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src,
-                                                     use_known_marketplaces=True)
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
 
             with mock.patch.dict(os.environ, env):
                 rc1 = run.run_bench(

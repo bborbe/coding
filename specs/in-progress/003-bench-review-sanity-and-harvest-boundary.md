@@ -1,11 +1,12 @@
 ---
-status: prompted
+status: verifying
 tags:
     - dark-factory
     - spec
 approved: "2026-08-08T00:23:04Z"
 generating: "2026-08-08T00:23:31Z"
 prompted: "2026-08-08T00:39:42Z"
+verifying: "2026-08-08T00:59:20Z"
 branch: dark-factory/bench-review-sanity-and-harvest-boundary
 ---
 

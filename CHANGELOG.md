@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.35.4
 
 - fix: bench runner — a trailing bold-label block (`**Notes:**`, `**Summary:**`) now ends a findings section, so housekeeping bullets after a clean review are no longer invented as findings
 - fix: bench runner — numbered/ordered items open a finding exactly as bullets do, so the reviewer's most severe tier is no longer dropped; a list item inside a fenced code block opens nothing; the item's leading bold run survives marker stripping verbatim

@@ -36,6 +36,39 @@ make bench-test
 
 **Exit codes:** 0 when every PR produced a row (ok or cache hit); 1 when one or more PRs failed; 2 for a usage, manifest, or preflight failure.
 
+## Authentication precondition
+
+The benchmark calls the real `/coding:pr-review` command, which itself invokes the real `claude` binary. The `claude` binary must be able to authenticate — the runner does not set `ANTHROPIC_AUTH_TOKEN` and never will: any value of that variable switches Claude Code into API-key mode and bypasses the OAuth path entirely, for every operator, including those whose OAuth is already working. Setting it to save one `export` would silently change the authentication path of a measurement instrument.
+
+A failed run leaves one artifact per failed `(PR, configuration)` pair under `bench/.cache/failures/`. Each artifact records both of the subprocess's output streams, each labelled with its stream name; an empty stream is marked explicitly rather than omitted.
+
+> **Why the runner labels both streams.** Claude Code writes its real errors to stdout — an expired OAuth session, an unknown command — while stderr carries incidental warnings. An artifact that holds only stderr therefore systematically preserves the wrong half. The `bench-pr-20` failure on 2026-08-08 was diagnosed as a model-name warning until the stdout half was recovered.
+
+## Plugin load path and start-up abort conditions
+
+Before any PR is resolved, the runner checks that the isolated config directory (`$HOME/.claude-verify`) will load the `coding` plugin from the path its install record names — not from the marketplace directory, and not from a version inferred from directory names.
+
+The check reads `<config dir>/plugins/installed_plugins.json`. That record's entry for the `coding` plugin names an `installPath` under `<config dir>/plugins/cache/`. That recorded path — the directory Claude Code really loads from — is what gets hashed and compared against `--coding-repo`. There is no fallback: a resolution that agrees with nothing produces a measurement that cannot be attributed, so the run aborts instead.
+
+A passing check prints one line naming the resolved load path, the recorded version, and the content hash, so the claim can be cross-checked against the filesystem without reading the source.
+
+Every condition below aborts the whole run before the first review starts, with a message naming what was found:
+
+| Condition | What the operator does |
+|---|---|
+| no install record for the `coding` plugin in `installed_plugins.json` | install the plugin into the isolated config directory |
+| the record cannot be read or parsed | repair or reinstall |
+| the recorded install path is not on disk | reinstall, which rewrites the record |
+| the recorded install path lies outside the config directory's own plugin tree | reinstall so the record names a path inside it |
+| the record applies only to a different working directory | install at user scope |
+| the resolved content hash differs from `--coding-repo` | reinstall or repoint the plugin |
+
+## Two-ref guarantee
+
+Before any review is invoked, the prepared working copy under `bench/.cache/repos/` contains exactly the checked-out head branch `bench-pr-<N>` plus the two synthetic remote-tracking refs `origin/bench-base-<N>` and `origin/bench-pr-<N>`, and nothing else. Every other branch, every other remote-tracking ref, every tag, and the default-branch symref are removed on every run — including against a cache directory an earlier version of the runner populated. The commits the manifest names stay reachable, so range resolution and the offline short-circuit still work on a repeat run.
+
+> **Why this was necessary.** The `bench-pr-20` run on 2026-08-08 handed the reviewer a working copy that also carried `origin/main`, `origin/feature/streaming-playback`, and `origin/fix/lead-silence-startup-clipping`. The reviewer replied: "Target branch options: 1. `main` 2. `feature/streaming-playback` 3. `fix/lead-silence-startup-clipping` — Which should I use as the target for comparison?" The v0.35.2 sanity gate correctly rejected it as a non-review. An earlier run with identical inputs had reviewed correctly. Removing the alternatives removes the question; instructing the reviewer more firmly would leave the choice present and make determinism a property of the model's disposition.
+
 ## Diff-range rule
 
 The correct range depends on the merge strategy, **not** on a fallback from parent count:
@@ -97,7 +130,10 @@ These are deliberately not configurable:
 - **Review timeout:** 45 minutes per PR (`REVIEW_TIMEOUT_SECONDS = 45 * 60`)
 - **Cache:** lives under `bench/.cache/` (gitignored — no benchmark output is ever committed)
 - **Results:** live under `bench/results/` (gitignored)
-- **Isolated config:** `$HOME/.claude-verify` with `DISABLE_AUTOUPDATER=1`; the runner aborts the whole run before the first review if that directory would resolve the `coding` plugin to content whose hash differs from `--coding-repo`'s
+- **Failure artifacts:** one file per failed `(PR, configuration)` pair under `bench/.cache/failures/`, each containing both subprocess streams labelled with their stream name; empty streams marked explicitly
+- **Isolated config:** `$HOME/.claude-verify` with `DISABLE_AUTOUPDATER=1`; the runner aborts the whole run before the first review when the install record names a path whose content hash differs from `--coding-repo`'s, or when any of the abort conditions in the Plugin load path section applies
+- **Plugin load path:** the runner hashes the directory named by the isolated config directory's `installed_plugins.json` record (the directory Claude Code really loads from), not the marketplace path; there is no fallback when the record is absent, unreadable, stale, out-of-tree, scope-mismatched, or hash-mismatched
+- **Two-ref guarantee:** the prepared working copy carries exactly the checked-out head branch and the two synthetic remote-tracking refs for that PR; every other branch, tag and the default-branch symref are removed on every run
 - **Required section names:** `Must Fix`, `Should Fix`, `Nice to Have` — all three mandatory in every review report; output missing any one is rejected before cache write
 - **List-item markers:** only `-` and `*` open a finding; prose before the first list item cannot form a finding
 - **Stderr excerpt bound:** at most 2,000 bytes of rejected output are printed to stderr (truncation is marked)

@@ -10,10 +10,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- fix: bench runner — replace the plugin-resolution preflight so it hashes the directory named by the isolated config directory's `installed_plugins.json` record (the directory Claude Code really loads from) instead of the marketplace path; abort before any review starts when the record is absent, unreadable, names a stale path, names a path outside the plugin cache tree, or applies only to a different working directory; print one resolution line naming the load path, recorded version, and full content hash
-- fix: bench runner — delete the `known_marketplaces.json`/`installLocation` resolver and all fallback paths; the install record is the only source
-- fix: bench runner — the recorded `installPath` is validated to lie under `<config_dir>/plugins/cache/` before it is read
-- fix: bench runner — every failed review now leaves a `bench/.cache/failures/*.failure.txt` artifact containing both subprocess output streams (each labelled, empty streams marked explicitly) instead of a `*.stderr.txt` that held only stderr and silently discarded the stdout half where the real error lived
+- fix: bench runner — the start-up check now hashes the directory Claude Code actually loads the coding plugin from, taken from the isolated config directory's install record, and aborts the whole run by name when no record exists, when it cannot be parsed, when it names a directory missing on disk, when it points outside that config directory's own cache tree, or when it applies only to a different working directory; a passing check prints the resolved directory, the recorded version and the content hash
+- fix: bench runner — the working copy handed to the review now carries exactly the checked-out head branch and the two synthetic remote-tracking branches for that pull request, with every upstream branch, every tag and the default-branch pointer removed on every run, so identical inputs stop producing a clarifying question instead of a review
+- fix: bench runner — a failed review now preserves both of the subprocess's output streams in one labelled artifact under `bench/.cache/failures/`, with an empty stream marked empty, because Claude Code writes its real errors to stdout while stderr carries incidental warnings and the discarded half once caused a wrong diagnosis
+- docs: bench — document the authentication variable an operator must export before a run and why the runner deliberately does not set it, the install-record shape the start-up check reads together with the conditions that abort a run, and the two-name guarantee for the working copy handed to the review, in `bench/README.md`
 
 ## v0.35.2
 

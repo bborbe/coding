@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [004-bench-review-environment-control]
+summary: 'Added three operator-facing sections to bench/README.md (authentication precondition, plugin load path with abort table, two-ref guarantee), updated Fixed invariants, and replaced CHANGELOG.md Unreleased bullets with spec-conforming fix:/docs: bullets covering all three defects'
+execution_id: coding-bench-env-exec-021-spec-004-docs-and-changelog
+dark-factory-version: v0.192.9
 created: "2026-08-08T08:08:00Z"
 queued: "2026-08-08T08:19:41Z"
+started: "2026-08-08T08:45:27Z"
+completed: "2026-08-08T08:48:08Z"
 ---
 
 <summary>

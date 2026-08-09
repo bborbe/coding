@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: ambient operator memory is now part of the configuration identity. The reviewer resolves `$HOME/.claude/CLAUDE.md` and obeys it — proven by an `opus`/`xhigh`/`full` review of `quant#109` that ended with the operator's personal state-closer panel (`📌`, `👤 You:`, `⏰ Next:`), a convention defined only in that file. The config hash therefore claimed to identify a configuration it did not determine. `ambient_memory_hash()` is now a hash component and is recorded on its own row field so a reader can see *which* input differed. **Every pre-existing ledger row carries a stale config hash** — they were measured under an unpinned condition
+- docs: `review_env` records why isolation was attempted and abandoned. Memory resolves through `HOME`, but so does auth: redirecting `HOME` to the config dir, to a scratch dir with `.claude.json` symlinked, and to a scratch dir mirroring all 49 entries of `~/.claude` minus `CLAUDE.md` each produced `Not logged in`. `claude --bare` drops CLAUDE.md discovery but drops OAuth and plugin sync with it. Containerising the review (the `claude-yolo` pattern) remains the route to cross-machine portability; pinning restores reproducibility on one machine and nothing more
+
 ## v0.38.0
 
 - fix: one issue, one golden entry. The `apt-key` adjudication in `v0.37.0` added a line-free entry for a defect the Opus baseline **already carried**, pinned to `ci.yml:32` — so the same issue was represented twice, three findings matched both, and recall inflated to a spurious `1.000`. The original entry is relaxed to a line-free signature instead and the duplicate removed (43 entries: 42 accepted, 1 rejected). The `v0.37.0` note below claims the finding was "absent from the Opus baseline"; that was wrong — it was present, pinned to a line the later runs did not cite

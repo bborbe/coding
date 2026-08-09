@@ -1145,55 +1145,49 @@ class TestSectionNamesOutsideHeadingsDoNotSatisfyTheGate(unittest.TestCase):
 
 
 class TestMissingSectionNamesAreReportedExactly(unittest.TestCase):
-    """AC4: the missing-sections diagnosis names only the absent sections."""
+    """AC4, amended 2026-08-09: absent sections are named exactly — on the row.
 
-    def test_missing_section_names_are_reported_exactly(self):
+    This asserted that any absent section failed the PR with no row.  That was
+    stricter than the sanity gate's purpose (D2: output that is not a review at
+    all) and discarded substantive reviews over heading shape — a 20-PR Opus pass
+    lost `discord-assistant#5` for carrying Should Fix and Nice to Have but not
+    Must Fix.  A partial set now scores, and the absent names are recorded on the
+    row in canonical order, which is what this test still guards.
+    """
+
+    def test_missing_section_names_are_recorded_exactly(self):
         # Case A: Nice to Have absent
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
             rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
                 td, testsupport.review_report(nice_to_have=None)
             )
-            self.assertEqual(rc, 1)
-
-            missing_line = next(
-                (l for l in stderr.splitlines() if l.startswith("missing sections: ")),
-                "",
-            )
-            remainder = missing_line[len("missing sections: "):]
-            self.assertEqual(remainder, "Nice to Have",
-                "Case A: only Nice to Have missing")
-            self.assertNotIn("Must Fix", remainder)
-            self.assertNotIn("Should Fix", remainder)
+            self.assertEqual(rc, 0, "a partial section set must not fail the run")
 
             ledger = run.ledger_path(results_dir)
             rows = [] if not ledger.exists() else [
                 json.loads(ln) for ln in ledger.read_text().splitlines()
             ]
-            self.assertEqual(len(rows), 0)
+            self.assertEqual(len(rows), 1, "a partial section set still scores")
+            self.assertEqual(rows[0]["missing_sections"], ["Nice to Have"],
+                "Case A: only Nice to Have recorded absent")
 
-        # Case B: Should Fix and Nice to Have absent
+        # Case B: Should Fix and Nice to Have absent — canonical order preserved
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
             rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
                 td, testsupport.review_report(should_fix=None, nice_to_have=None)
             )
-            self.assertEqual(rc, 1)
-
-            missing_line = next(
-                (l for l in stderr.splitlines() if l.startswith("missing sections: ")),
-                "",
-            )
-            remainder = missing_line[len("missing sections: "):]
-            self.assertEqual(remainder, "Should Fix, Nice to Have",
-                "Case B: Should Fix and Nice to Have missing in that order")
-            self.assertNotIn("Must Fix", remainder)
+            self.assertEqual(rc, 0)
 
             ledger = run.ledger_path(results_dir)
             rows = [] if not ledger.exists() else [
                 json.loads(ln) for ln in ledger.read_text().splitlines()
             ]
-            self.assertEqual(len(rows), 0)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["missing_sections"],
+                             ["Should Fix", "Nice to Have"],
+                "Case B: both recorded, in canonical order, Must Fix absent")
 
 
 class TestRejectionExcerptIsBounded(unittest.TestCase):
@@ -2262,9 +2256,16 @@ class TestNiceToHaveBulletsAreReportedUnattributable(unittest.TestCase):
 
 
 class TestUnattributableItemFailsThePrLoudly(unittest.TestCase):
-    """AC11: an unattributable item fails the PR loudly with no row and no cache marker."""
+    """AC11, amended 2026-08-09: an unattributable item is reported loudly and dropped.
 
-    def test_unattributable_item_fails_the_pr_loudly(self):
+    This asserted that the whole PR failed with no row.  That granularity cost a
+    20-PR Opus pass 4 of its 7 lost rows, one of them over a single item among a
+    full set of valid findings.  The contract is now: report loudly on stderr,
+    drop the item, keep the row, and record the count so the loss is measurable
+    rather than silent.  The loud diagnosis below is unchanged and still asserted.
+    """
+
+    def test_unattributable_item_is_reported_loudly_and_dropped(self):
         with tempfile.TemporaryDirectory() as td:
             td = pathlib.Path(td)
             rc, stdout, stderr, results_dir, cache_root = run_one_pr_with_payload(
@@ -2274,8 +2275,8 @@ class TestUnattributableItemFailsThePrLoudly(unittest.TestCase):
                 ),
             )
 
-            # Run must fail
-            self.assertNotEqual(rc, 0, "run must exit non-zero for unattributable item")
+            # The run now succeeds — the item is dropped, not the row
+            self.assertEqual(rc, 0, "dropping an item must not fail the run")
 
             # The frozen literal appears in stderr
             self.assertIn("UNATTRIBUTABLE FINDING", stderr)
@@ -2298,7 +2299,9 @@ class TestUnattributableItemFailsThePrLoudly(unittest.TestCase):
                 rows = [json.loads(ln) for ln in ledger.read_text().splitlines()]
             else:
                 rows = []
-            self.assertEqual(len(rows), 0, "no ledger row for unattributable review")
+            self.assertEqual(len(rows), 1, "the row survives an unattributable item")
+            self.assertEqual(rows[0]["unattributable_count"], 1,
+                             "the dropped item must be counted, never dropped silently")
 
             # Exactly one file under reviews_root: the raw stdout, no .json marker
             reviews = run.reviews_root(cache_root)
@@ -2312,29 +2315,23 @@ class TestUnattributableItemFailsThePrLoudly(unittest.TestCase):
                 "exactly one .stdout.txt file expected (the raw capture)"
             )
             self.assertEqual(
-                len(json_files), 0,
-                "zero .json row markers for unattributable review"
+                len(json_files), 1,
+                "a row marker is written now that the row survives"
             )
 
-            # Failure artifact exists and contains the item text
+            # No failure artifact: the PR did not fail.  The diagnosis lives on
+            # stderr (asserted above) and the loss is quantified by
+            # unattributable_count on the row (asserted above).  Writing a
+            # "failure" artifact for a run that succeeded would misfile it.
             failures = run.failures_root(cache_root)
-            if failures.exists():
-                failure_files = list(failures.glob("*"))
-            else:
-                failure_files = []
-            self.assertGreater(
+            failure_files = list(failures.glob("*")) if failures.exists() else []
+            self.assertEqual(
                 len(failure_files), 0,
-                "at least one failure artifact must exist"
-            )
-            # Read first failure artifact and check it contains the item text
-            failure_text = failure_files[0].read_text()
-            self.assertIn(
-                "an item with neither a file reference nor a rule tag",
-                failure_text,
+                "no failure artifact — the item was dropped, the PR was not"
             )
 
-            # Stdout summary reports 1 failed
-            self.assertIn("1 failed", stdout)
+            # Stdout summary counts the PR as ok
+            self.assertIn("1 ok", stdout)
 
 
 class TestAttributedItemStillProducesARow(unittest.TestCase):
@@ -2473,3 +2470,92 @@ class TestWorktreeReleasedAfterReview(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGatesRejectItemsNotRows(unittest.TestCase):
+    """A partial defect costs the offending item, never the whole review.
+
+    Both gates used to `raise BenchError` on the whole PR.  A 20-PR Opus pass on
+    2026-08-09 lost 7 of 20 rows that way — 4 to attribution, 3 to the sanity
+    gate — including `tts-mcp#10`, which lost a full review to ONE unattributable
+    item.  The 35% loss rate left a fixture curated for 20 PRs yielding 13, which
+    defeated the reason it was curated.
+    """
+
+    def _run_one(self, td, review_text):
+        """Run the bench over a single seeded PR with a stub emitting review_text."""
+        cache_root = td / "cache"
+        manifest_path = testsupport.seed_one_pr_manifest(td, cache_root)
+        plugin_src = testsupport.build_coding_repo(td / "repo")
+        cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
+        bin_dir = td / "bin"
+        testsupport.stub_claude(bin_dir, td / "counter", review_text)
+        env = testsupport.with_path(bin_dir)
+        old_path, old_home = os.environ.get("PATH", ""), os.environ.get("HOME", "")
+        try:
+            os.environ["PATH"], os.environ["HOME"] = env["PATH"], str(td)
+            run.run_bench(
+                coding_repo=plugin_src, manifest_path=manifest_path,
+                results_dir=td / "results", cache_root=cache_root,
+                model="test-model", effort="high", mode="short", config_dir=cfg,
+            )
+        finally:
+            os.environ["PATH"], os.environ["HOME"] = old_path, old_home
+        ledger = (td / "results" / "results.jsonl")
+        if not ledger.exists():
+            return []
+        return [json.loads(l) for l in
+                ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+    def test_one_unattributable_item_does_not_discard_the_row(self):
+        """A review with valid findings plus one unkeyable item still scores.
+
+        Reproduces `tts-mcp#10`: one item among many cost the entire review.
+        """
+        review = (
+            "## Must Fix\n\n"
+            "- **`pkg/foo.go:12`** — nil deref on the error path.\n"
+            "- Consider tightening the release process generally.\n"
+            "\n## Should Fix\n\nNone.\n"
+            "\n## Nice to Have\n\nNone.\n"
+        )
+        with tempfile.TemporaryDirectory() as td:
+            rows = self._run_one(pathlib.Path(td), review)
+        self.assertEqual(len(rows), 1,
+                         "a single unattributable item must not discard the row")
+        row = rows[0]
+        self.assertEqual(row["unattributable_count"], 1,
+                         "the dropped item must be counted, never dropped silently")
+        self.assertTrue(row["findings"], "the attributable finding must survive")
+        for f in row["findings"]:
+            self.assertTrue(f.get("path"),
+                            "every scored finding must still carry a matching key")
+
+    def test_partial_section_set_still_scores_and_records_the_gap(self):
+        """Two of three severity sections is a real review, not a non-review.
+
+        Reproduces `discord-assistant#5`, discarded for lacking `Must Fix` while
+        carrying the other two.
+        """
+        review = (
+            "## Should Fix\n\n"
+            "- **`pkg/bar.go:8`** — unchecked type assertion.\n"
+            "\n## Nice to Have\n\nNone.\n"
+        )
+        with tempfile.TemporaryDirectory() as td:
+            rows = self._run_one(pathlib.Path(td), review)
+        self.assertEqual(len(rows), 1,
+                         "a partial section set must not be treated as a non-review")
+        self.assertIn("Must Fix", rows[0]["missing_sections"],
+                      "the absent section must be recorded on the row")
+
+    def test_output_with_no_sections_at_all_is_still_rejected(self):
+        """The D2 case must keep failing: no sections means it is not a review.
+
+        Without this, loosening the sanity gate would re-open the defect it was
+        built for — an unknown command whose output read as a clean review.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            rows = self._run_one(pathlib.Path(td), "Unknown command: /coding:pr-review\n")
+        self.assertEqual(rows, [],
+                         "output carrying no severity section must produce no row")

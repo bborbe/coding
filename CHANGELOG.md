@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.37.0
 
 - feat: golden set adjudicated to `golden-dev-2` — 44 entries, 43 `accepted` + the first `rejected`. Promoted the Trivy `apt-key` deprecation in `python-skeleton#3` (reported by 11 of the 102 ledger findings across 4 of 5 runs at five different lines, absent from the Opus baseline) with a deliberately line-free signature; rejected a subjective README label-naming suggestion. **Precision is measurable for the first time** — run 3 of config `9ce66e05` moves `1.000 → 0.750`, and recall rises in all four runs as gap candidates convert to hits
 - fix: report caveats are computed from the golden set instead of asserted. `_precision_caveat` hardcoded "carries zero `rejected` entries" and `_recall_caveat` hardcoded "36 of the 42 signatures", so both would have kept printing verbatim after any adjudication — a false claim in the primary output artifact, published under a config hash

@@ -1,5 +1,5 @@
 {
-  "version": "golden-dev-2",
+  "version": "golden-dev-1",
   "created": "2026-08-09",
   "prs_version": "dev-1",
   "baseline": {
@@ -33,7 +33,7 @@
       "rule_id": "changelog/conventional-prefix-required",
       "state": "accepted",
       "line_when_seen": 11,
-      "excerpt": "**`CHANGELOG.md:11`** — one `feat:` bullet bundles three concerns: the new flag (`feat:`), the nil-poster panic guard in `tryDismissHallucinated` (`fix:`), and the CLI doc re-attribution (`docs:`). Sp"
+      "excerpt": "**`CHANGELOG.md:11`** \u2014 one `feat:` bullet bundles three concerns: the new flag (`feat:`), the nil-poster panic guard in `tryDismissHallucinated` (`fix:`), and the CLI doc re-attribution (`docs:`). Sp"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -44,7 +44,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 171,
-      "excerpt": "**`cmd/run-task/main.go:171`** — the `SkipPost: a.SkipPost` pass-through and its counterpart call site at `pkg/factory/runner.go:136` are the only untested lines of the change: `cmd/run-task/main_test"
+      "excerpt": "**`cmd/run-task/main.go:171`** \u2014 the `SkipPost: a.SkipPost` pass-through and its counterpart call site at `pkg/factory/runner.go:136` are the only untested lines of the change: `cmd/run-task/main_test"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -55,7 +55,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 128,
-      "excerpt": "**`docs/pr-post-back.md:128`** — \"This preserves backward compatibility with the local CLI mode\" is now false. Before this PR `cmd/run-task` never produced a nil poster (that was the documented-vs-act"
+      "excerpt": "**`docs/pr-post-back.md:128`** \u2014 \"This preserves backward compatibility with the local CLI mode\" is now false. Before this PR `cmd/run-task` never produced a nil poster (that was the documented-vs-act"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -66,7 +66,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 126,
-      "excerpt": "**`docs/pr-post-back.md:126`** — heading `## nil Poster — Local / Backward-Compatible Mode` carries the same stale framing as the line-128 finding; update both together (e.g. \"Local Opt-In (`--skip-po"
+      "excerpt": "**`docs/pr-post-back.md:126`** \u2014 heading `## nil Poster \u2014 Local / Backward-Compatible Mode` carries the same stale framing as the line-128 finding; update both together (e.g. \"Local Opt-In (`--skip-po"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -77,7 +77,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 166,
-      "excerpt": "**`pkg/factory/factory.go:166-173`** — `CreateAgent`'s doc comment states the execution phase \"posts review to GitHub via PrPoster\" unconditionally, and parenthesises only the verifier case (\"nil veri"
+      "excerpt": "**`pkg/factory/factory.go:166-173`** \u2014 `CreateAgent`'s doc comment states the execution phase \"posts review to GitHub via PrPoster\" unconditionally, and parenthesises only the verifier case (\"nil veri"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -88,7 +88,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 104,
-      "excerpt": "**`pkg/factory/runner.go:104-106`** — a live, write-scoped GitHub App installation token is injected into the Claude subprocess env unconditionally, including under `--skip-post`; nothing in this PR t"
+      "excerpt": "**`pkg/factory/runner.go:104-106`** \u2014 a live, write-scoped GitHub App installation token is injected into the Claude subprocess env unconditionally, including under `--skip-post`; nothing in this PR t"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -99,7 +99,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 51,
-      "excerpt": "**`pkg/factory/runner.go:51-53`** — `RunConfig.Agent`'s comment still frames the nil-`Agent` branch as \"cmd/run-task leaves this nil so CreateAgent is used for backward compatibility\". That branch is "
+      "excerpt": "**`pkg/factory/runner.go:51-53`** \u2014 `RunConfig.Agent`'s comment still frames the nil-`Agent` branch as \"cmd/run-task leaves this nil so CreateAgent is used for backward compatibility\". That branch is "
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -110,7 +110,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 66,
-      "excerpt": "**`pkg/factory/runner.go:66`** — `ResolvePosters` is exported solely so `pkg/skip_post_boundary_test.go` (a different package's test binary, where an `export_test.go` alias would be invisible) can rea"
+      "excerpt": "**`pkg/factory/runner.go:66`** \u2014 `ResolvePosters` is exported solely so `pkg/skip_post_boundary_test.go` (a different package's test binary, where an `export_test.go` alias would be invisible) can rea"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -121,7 +121,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 32,
-      "excerpt": "**`pkg/factory/runner_test.go:32-33`** — `Expect(poster).To(BeNil())` cannot detect the regression this PR is themed around. Gomega's `BeNil()` falls through to `reflect.ValueOf(x).IsNil()` for pointe"
+      "excerpt": "**`pkg/factory/runner_test.go:32-33`** \u2014 `Expect(poster).To(BeNil())` cannot detect the regression this PR is themed around. Gomega's `BeNil()` falls through to `reflect.ValueOf(x).IsNil()` for pointe"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -132,7 +132,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 169,
-      "excerpt": "**`pkg/skip_post_boundary_test.go:169-226`** — case 4's stated failure mechanism is wrong. The comment claims absence of an `ai_review verify:` line in `## Diagnostics` is the negative signal, but `ap"
+      "excerpt": "**`pkg/skip_post_boundary_test.go:169-226`** \u2014 case 4's stated failure mechanism is wrong. The comment claims absence of an `ai_review verify:` line in `## Diagnostics` is the negative signal, but `ap"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -143,7 +143,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 102,
-      "excerpt": "**`pkg/skip_post_boundary_test.go:102-166`** — case 3 does not exercise the skip-post contract it is labelled with. `ResolvePosters(RunConfig{SkipPost:true})` can only ever return `(nil, nil)`, so the"
+      "excerpt": "**`pkg/skip_post_boundary_test.go:102-166`** \u2014 case 3 does not exercise the skip-post contract it is labelled with. `ResolvePosters(RunConfig{SkipPost:true})` can only ever return `(nil, nil)`, so the"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -154,7 +154,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 64,
-      "excerpt": "**`pkg/skip_post_boundary_test.go:64-100`** — case 2 and `pkg/steps_review_test.go:614-627` case (j) drive an identical scenario (verdict=fail + hallucinations + nil poster) and assert the same two ou"
+      "excerpt": "**`pkg/skip_post_boundary_test.go:64-100`** \u2014 case 2 and `pkg/steps_review_test.go:614-627` case (j) drive an identical scenario (verdict=fail + hallucinations + nil poster) and assert the same two ou"
     },
     {
       "pr_id": "github-pr-review-agent#11",
@@ -165,7 +165,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 316,
-      "excerpt": "**`pkg/steps_checkout_execution.go:316`** — the nil-poster early return fires before `ParseVerdict` (:328), before the fail-closed `!funnelRan && approve → request-changes` gate (:338-340), and before"
+      "excerpt": "**`pkg/steps_checkout_execution.go:316`** \u2014 the nil-poster early return fires before `ParseVerdict` (:328), before the fail-closed `!funnelRan && approve \u2192 request-changes` gate (:338-340), and before"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -176,7 +176,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 107,
-      "excerpt": "**`README.md:107`** — the new License section links the file without naming the license; the repo's own README template names it inline (`BSD-2-Clause — see [LICENSE](./LICENSE).`)."
+      "excerpt": "**`README.md:107`** \u2014 the new License section links the file without naming the license; the repo's own README template names it inline (`BSD-2-Clause \u2014 see [LICENSE](./LICENSE).`)."
     },
     {
       "pr_id": "node-skeleton#2",
@@ -187,7 +187,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 44,
-      "excerpt": "**`eslint.config.js:44`** — the comment (\"enum, namespace, and parameter-property syntax would make `node src/*.ts` require a build step\") sits directly above `@typescript-eslint/no-explicit-any` and "
+      "excerpt": "**`eslint.config.js:44`** \u2014 the comment (\"enum, namespace, and parameter-property syntax would make `node src/*.ts` require a build step\") sits directly above `@typescript-eslint/no-explicit-any` and "
     },
     {
       "pr_id": "node-skeleton#2",
@@ -198,7 +198,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 16,
-      "excerpt": "**`eslint.config.js:16`** — `tseslint.config(...)` is marked `@deprecated` in the pinned typescript-eslint 8.66.0; I confirmed the annotation at `typescript-eslint/dist/config-helper.d.ts:67` (\"ESLint"
+      "excerpt": "**`eslint.config.js:16`** \u2014 `tseslint.config(...)` is marked `@deprecated` in the pinned typescript-eslint 8.66.0; I confirmed the annotation at `typescript-eslint/dist/config-helper.d.ts:67` (\"ESLint"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -209,7 +209,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 39,
-      "excerpt": "**`eslint.config.js:39-55`** — `CLAUDE.md` bans \"`any`, `as`, `!`, `@ts-ignore`\". Three are enforced (`no-explicit-any`, `no-non-null-assertion`, inherited `ban-ts-comment`); `as` is enforced by nothi"
+      "excerpt": "**`eslint.config.js:39-55`** \u2014 `CLAUDE.md` bans \"`any`, `as`, `!`, `@ts-ignore`\". Three are enforced (`no-explicit-any`, `no-non-null-assertion`, inherited `ban-ts-comment`); `as` is enforced by nothi"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -220,7 +220,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 8,
-      "excerpt": "**`package.json:8`** — `\"node\": \">=22\"` no longer matches what the code requires. Node ships unflagged type-stripping only from **22.18.0**; on 22.6–22.17 it needs `--experimental-strip-types`, and be"
+      "excerpt": "**`package.json:8`** \u2014 `\"node\": \">=22\"` no longer matches what the code requires. Node ships unflagged type-stripping only from **22.18.0**; on 22.6\u201322.17 it needs `--experimental-strip-types`, and be"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -231,7 +231,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 12,
-      "excerpt": "**`src/handlers/health.ts:12`** — same defect: `HealthRouter` is asserted, not derived, and `healthRouter` (line 27) carries no annotation tying it to the alias. Note `src/config.ts:34` and `src/log.t"
+      "excerpt": "**`src/handlers/health.ts:12`** \u2014 same defect: `HealthRouter` is asserted, not derived, and `healthRouter` (line 27) carries no annotation tying it to the alias. Note `src/config.ts:34` and `src/log.t"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -242,7 +242,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 31,
-      "excerpt": "**`src/server.ts:31`** — `export type CreateApp` is hand-written and never bound to `createApp` (line 40), so `tsc` never compares the declared contract to the implementation; the only bridge is `requ"
+      "excerpt": "**`src/server.ts:31`** \u2014 `export type CreateApp` is hand-written and never bound to `createApp` (line 40), so `tsc` never compares the declared contract to the implementation; the only bridge is `requ"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -253,7 +253,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 69,
-      "excerpt": "**`src/server.ts:69`** — the error handler types `err: Error`, narrower than the shipped `ErrorRequestHandler`, which I confirmed declares `err: any` (`@types/express-serve-static-core/index.d.ts:77`)"
+      "excerpt": "**`src/server.ts:69`** \u2014 the error handler types `err: Error`, narrower than the shipped `ErrorRequestHandler`, which I confirmed declares `err: any` (`@types/express-serve-static-core/index.d.ts:77`)"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -264,7 +264,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": null,
-      "excerpt": "**`test/health.test.ts`** — `config.check()` is the PR's new startup-validation logic and has zero coverage; `test/` contains only `health.test.ts`, which never imports config. Neither the invalid-`PO"
+      "excerpt": "**`test/health.test.ts`** \u2014 `config.check()` is the PR's new startup-validation logic and has zero coverage; `test/` contains only `health.test.ts`, which never imports config. Neither the invalid-`PO"
     },
     {
       "pr_id": "node-skeleton#2",
@@ -275,7 +275,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 22,
-      "excerpt": "**`test/health.test.ts:22`** — `? address.port : 0` silently falls back to port 0 instead of failing. If the invariant ever breaks, every test in the file fetches `http://127.0.0.1:0` and reports a co"
+      "excerpt": "**`test/health.test.ts:22`** \u2014 `? address.port : 0` silently falls back to port 0 instead of failing. If the invariant ever breaks, every test in the file fetches `http://127.0.0.1:0` and reports a co"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -286,7 +286,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 32,
-      "excerpt": "**`.github/workflows/ci.yml:32`** — `wget -qO - … | sudo apt-key add -` installs Aqua's signing key into apt's **global** trusted keyring, where it can authenticate packages from *any* configured repo"
+      "excerpt": "**`.github/workflows/ci.yml:32`** \u2014 `wget -qO - \u2026 | sudo apt-key add -` installs Aqua's signing key into apt's **global** trusted keyring, where it can authenticate packages from *any* configured repo"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -297,7 +297,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 35,
-      "excerpt": "**`.github/workflows/ci.yml:35`** — `apt-get install -y trivy` is unpinned, so every CI run takes whatever is latest. Trivy minor releases add detectors and change exit semantics, so CI can go red wit"
+      "excerpt": "**`.github/workflows/ci.yml:35`** \u2014 `apt-get install -y trivy` is unpinned, so every CI run takes whatever is latest. Trivy minor releases add detectors and change exit semantics, so CI can go red wit"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -308,7 +308,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 33,
-      "excerpt": "**`.github/workflows/ci.yml:33`** — `sudo tee -a` appends, so a re-run duplicates the repo line. Use `tee` without `-a`."
+      "excerpt": "**`.github/workflows/ci.yml:33`** \u2014 `sudo tee -a` appends, so a re-run duplicates the repo line. Use `tee` without `-a`."
     },
     {
       "pr_id": "python-skeleton#3",
@@ -319,7 +319,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 38,
-      "excerpt": "**`.github/workflows/ci.yml:38`** — `uv sync --all-extras` is redundant; `make precommit` runs `sync` as its first prerequisite."
+      "excerpt": "**`.github/workflows/ci.yml:38`** \u2014 `uv sync --all-extras` is redundant; `make precommit` runs `sync` as its first prerequisite."
     },
     {
       "pr_id": "python-skeleton#3",
@@ -330,7 +330,7 @@
       "rule_id": "changelog/conventional-prefix-required",
       "state": "accepted",
       "line_when_seen": 18,
-      "excerpt": "**`CHANGELOG.md:18`** — `- ci: install trivy in CI` uses a prefix outside the recognised set. The guide's table defines exactly seven (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`"
+      "excerpt": "**`CHANGELOG.md:18`** \u2014 `- ci: install trivy in CI` uses a prefix outside the recognised set. The guide's table defines exactly seven (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `perf:`"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -341,7 +341,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 42,
-      "excerpt": "**`Makefile.precommit:42`** — the comment promises that unreachable findings \"get an explicit `--ignore-vuln` entry with a reason\", but no such surface exists: no file, no make variable, nothing in th"
+      "excerpt": "**`Makefile.precommit:42`** \u2014 the comment promises that unreachable findings \"get an explicit `--ignore-vuln` entry with a reason\", but no such surface exists: no file, no make variable, nothing in th"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -352,7 +352,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 24,
-      "excerpt": "**`Makefile.precommit:24`** — `check: lint typecheck audit trivy` makes the default target and `make precommit` hard-require a local `trivy` binary plus network egress (trivy DB from ghcr, pip-audit a"
+      "excerpt": "**`Makefile.precommit:24`** \u2014 `check: lint typecheck audit trivy` makes the default target and `make precommit` hard-require a local `trivy` binary plus network egress (trivy DB from ghcr, pip-audit a"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -363,7 +363,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 60,
-      "excerpt": "**`Makefile.precommit:60-61`** — the `$(ROOTDIR)/.trivyignore` fallback is unreachable today: the scan target is always literal `.`, so when make runs from the repo root the first `$(wildcard .trivyig"
+      "excerpt": "**`Makefile.precommit:60-61`** \u2014 the `$(ROOTDIR)/.trivyignore` fallback is unreachable today: the scan target is always literal `.`, so when make runs from the repo root the first `$(wildcard .trivyig"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -374,7 +374,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 80,
-      "excerpt": "**`README.md:80`** and **`Makefile.precommit:36`** — \"covers the exact transitive tree that gets installed\" is not accurate. `make audit` runs `uv export --all-extras` (includes the `dev` extra: pytes"
+      "excerpt": "**`README.md:80`** and **`Makefile.precommit:36`** \u2014 \"covers the exact transitive tree that gets installed\" is not accurate. `make audit` runs `uv export --all-extras` (includes the `dev` extra: pytes"
     },
     {
       "pr_id": "python-skeleton#3",
@@ -385,7 +385,7 @@
       "rule_id": "readme/user-facing-not-agent-context",
       "state": "accepted",
       "line_when_seen": 76,
-      "excerpt": "**`README.md:76-94`** — the whole \"Security gates\" section is design rationale, not user-facing content: why a make target depends on `sync` (line 82), why `osv-scanner` was rejected (line 86), and a "
+      "excerpt": "**`README.md:76-94`** \u2014 the whole \"Security gates\" section is design rationale, not user-facing content: why a make target depends on `sync` (line 82), why `osv-scanner` was rejected (line 86), and a "
     },
     {
       "pr_id": "python-skeleton#3",
@@ -396,7 +396,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 84,
-      "excerpt": "**`README.md:84`** — the S104/S101 suppression rationale duplicates the comments already in `pyproject.toml:65-67` and `pyproject.toml:71`, which will drift."
+      "excerpt": "**`README.md:84`** \u2014 the S104/S101 suppression rationale duplicates the comments already in `pyproject.toml:65-67` and `pyproject.toml:71`, which will drift."
     },
     {
       "pr_id": "python-skeleton#3",
@@ -407,7 +407,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 64,
-      "excerpt": "**`pyproject.toml:64-68`** — `ignore = [\"S104\"]` disables hardcoded-bind-all-interfaces across the entire repo. There are 4 hits: `src/skeleton/server.py:9`, `src/skeleton/__main__.py:33`, and 2 in `t"
+      "excerpt": "**`pyproject.toml:64-68`** \u2014 `ignore = [\"S104\"]` disables hardcoded-bind-all-interfaces across the entire repo. There are 4 hits: `src/skeleton/server.py:9`, `src/skeleton/__main__.py:33`, and 2 in `t"
     },
     {
       "pr_id": "quant#109",
@@ -418,7 +418,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 67,
-      "excerpt": "**`task/recurring-schedules/dev/docker-registry-gc.yaml:67`** — left without `due_date` while its prod sibling `prod/docker-registry-gc.yaml` got one. It is `recurrence: Weekday, weekday: Saturday` — "
+      "excerpt": "**`task/recurring-schedules/dev/docker-registry-gc.yaml:67`** \u2014 left without `due_date` while its prod sibling `prod/docker-registry-gc.yaml` got one. It is `recurrence: Weekday, weekday: Saturday` \u2014 "
     },
     {
       "pr_id": "quant#109",
@@ -429,7 +429,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 27,
-      "excerpt": "**`task/recurring-schedules/prod/plan-next-week.yaml:27-29`** — Success Criteria was rewritten to cover priorities, acceptance criteria, and `# Explicitly Deferred`, but Tasks line 43 also requires al"
+      "excerpt": "**`task/recurring-schedules/prod/plan-next-week.yaml:27-29`** \u2014 Success Criteria was rewritten to cover priorities, acceptance criteria, and `# Explicitly Deferred`, but Tasks line 43 also requires al"
     },
     {
       "pr_id": "quant#109",
@@ -440,7 +440,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 29,
-      "excerpt": "**`task/recurring-schedules/prod/plan-next-week.yaml:29`** — \"Month link present (target may not exist yet if the monthly plan is deferred)\" explicitly sanctions a dead wikilink. Defensible for a note"
+      "excerpt": "**`task/recurring-schedules/prod/plan-next-week.yaml:29`** \u2014 \"Month link present (target may not exist yet if the monthly plan is deferred)\" explicitly sanctions a dead wikilink. Defensible for a note"
     },
     {
       "pr_id": "quant#109",
@@ -451,7 +451,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 65,
-      "excerpt": "**`task/recurring-schedules/prod/plan-weekend.yaml:65`** — `{{next_sun_date}}` is the first use of a non-`{{current_date}}` placeholder in a `frontmatter:` field anywhere in this repo. On the base bra"
+      "excerpt": "**`task/recurring-schedules/prod/plan-weekend.yaml:65`** \u2014 `{{next_sun_date}}` is the first use of a non-`{{current_date}}` placeholder in a `frontmatter:` field anywhere in this repo. On the base bra"
     },
     {
       "pr_id": "quant#109",
@@ -462,7 +462,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 65,
-      "excerpt": "**`task/recurring-schedules/prod/plan-weekend.yaml:65`** — `due_date: \"{{next_sun_date}}\"` contradicts the task it annotates. Body line 18: \"as the first thing Saturday morning\"; the plan covers Sat→S"
+      "excerpt": "**`task/recurring-schedules/prod/plan-weekend.yaml:65`** \u2014 `due_date: \"{{next_sun_date}}\"` contradicts the task it annotates. Body line 18: \"as the first thing Saturday morning\"; the plan covers Sat\u2192S"
     },
     {
       "pr_id": "quant#109",
@@ -473,7 +473,7 @@
       "rule_id": null,
       "state": "accepted",
       "line_when_seen": 64,
-      "excerpt": "**`task/recurring-schedules/prod/renew-gmail-oauth-tokens.yaml:64`** — `due_date: \"{{next_sun_date}}\"` on a task whose own body (line 18) states \"Google's tokens expire every 7 days for unverified app"
+      "excerpt": "**`task/recurring-schedules/prod/renew-gmail-oauth-tokens.yaml:64`** \u2014 `due_date: \"{{next_sun_date}}\"` on a task whose own body (line 18) states \"Google's tokens expire every 7 days for unverified app"
     },
     {
       "pr_id": "tts-mcp#20",
@@ -484,33 +484,7 @@
       "rule_id": "changelog/unreleased-entry-required",
       "state": "accepted",
       "line_when_seen": 8,
-      "excerpt": "**`CHANGELOG.md:8`** — no `## Unreleased` section exists (top section is `## v0.6.0`), so this PR adds no changelog entry. `.maintainer.yaml` sets `release.autoRelease: true`, and the release agent pr"
-    },
-    {
-      "pr_id": "python-skeleton#3",
-      "path": ".github/workflows/ci.yml",
-      "signature": [
-        "apt-key"
-      ],
-      "rule_id": null,
-      "state": "accepted",
-      "line_when_seen": null,
-      "excerpt": "Trivy is installed by piping a downloaded key into the deprecated `apt-key add`. apt-key is removed on Ubuntu 24.04 runners, so this breaks on a runner-image bump; it is also an unpinned supply-chain fetch. Line varies by run (13/29/30/31/32), so the signature is deliberately line-free."
-    },
-    {
-      "pr_id": "github-pr-review-agent#11",
-      "path": "README.md",
-      "signature": [
-        "distinct labels"
-      ],
-      "rule_id": null,
-      "state": "rejected",
-      "line_when_seen": 42,
-      "excerpt": "Suggests renaming two 'Local *' rows in the run-modes table to 'more distinct labels'. The table is not wrong and nothing is ambiguous in use; this is taste, not a defect. Adjudicated rejected 2026-08-09 so precision has something to measure against."
+      "excerpt": "**`CHANGELOG.md:8`** \u2014 no `## Unreleased` section exists (top section is `## v0.6.0`), so this PR adds no changelog entry. `.maintainer.yaml` sets `release.autoRelease: true`, and the release agent pr"
     }
-  ],
-  "adjudications": [
-    "2026-08-09 PROMOTE python-skeleton#3 .github/workflows/ci.yml apt-key -> accepted. Reported by 11 of the 102 findings in the ledger - the single most-reported issue in the benchmark - across 4 of 5 runs of config 9ce66e05, at five different lines. Absent from the Opus baseline. False-positive check: signature ['apt-key'] scoped to that path matches 11 findings, all the same defect in that one PR, none unrelated.",
-    "2026-08-09 REJECT github-pr-review-agent#11 README.md 'distinct labels' -> rejected. Subjective doc-polish on a table that is not wrong. False-positive check: matches exactly 1 finding in the ledger. This is the first rejected entry; before it, precision could not be lost by any configuration and 1.000 was an artefact of adjudication state."
   ]
 }

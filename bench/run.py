@@ -1892,6 +1892,200 @@ def score_config(*, rows: list, golden: dict, rows_skipped: int = 0) -> ConfigSc
 
 
 # ----------------------------------------------------------------------
+# Report rendering — spec 006 prompt 3
+# ----------------------------------------------------------------------
+CONFIG_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def validate_config_hash(value: str) -> str:
+    """Return value when it is 64 lowercase hex characters; raise BenchError otherwise."""
+    if not isinstance(value, str) or not CONFIG_HASH_RE.fullmatch(value):
+        raise BenchError(f"{INVALID_CONFIG_HASH_MARKER}: {value!r}")
+    return value
+
+
+def report_path(reports_dir: pathlib.Path, config_hash: str) -> pathlib.Path:
+    """<reports_dir>/<64-hex config_hash>.md, with the hash validated first."""
+    validated = validate_config_hash(config_hash)
+    path = reports_dir / f"{validated}.md"
+    assert_under(path, reports_dir.resolve())
+    return path
+
+
+def coding_plugin_version(coding_repo: pathlib.Path) -> str:
+    """The `version` from <coding_repo>/.claude-plugin/plugin.json, or 'unavailable'."""
+    try:
+        plugin_path = coding_repo / ".claude-plugin" / "plugin.json"
+        data = json.loads(plugin_path.read_text(encoding="utf-8"))
+        return str(data["version"])
+    except (OSError, json.JSONDecodeError, KeyError):
+        return "unavailable"
+
+
+def _precision_caveat(golden_version: str) -> str:
+    return (
+        f"*{golden_version}* currently carries zero `rejected` entries, so precision "
+        "cannot be lost by any configuration. "
+        "A precision of `1.000` is a property of the golden set's adjudication state "
+        "and is not yet a result."
+    )
+
+
+def _recall_caveat() -> str:
+    return (
+        "36 of the 42 signatures embed a line reference, so a re-report of the same "
+        "issue at a different line does not match and is surfaced as a gap-triage "
+        "candidate rather than a hit. "
+        "On this golden set, `recall` measures whether a configuration cited the same "
+        "line, not whether it found the issue."
+    )
+
+
+def _escape_pipe(s: str) -> str:
+    """Escape a literal pipe so it cannot add a markdown table column."""
+    return s.replace("|", "\\|")
+
+
+def render_report(*, config_score: ConfigScore, golden: dict, coding_version: str) -> str:
+    """Render one configuration's scored result as the full page text.
+
+    No generation timestamp, no wall clock, no host name — purely a function of
+    the result object and the frozen golden set.
+    """
+    lines: list[str] = []
+
+    # ── Page header ──────────────────────────────────────────────────────────
+    lines.append(config_score.config_hash)
+    lines.append("")  # blank after h1
+
+    # ── ## Configuration ────────────────────────────────────────────────────
+    lines.append("## Configuration")
+    lines.append(f"- model: {config_score.model}")
+    lines.append(f"- effort: {config_score.effort}")
+    lines.append(f"- mode: {config_score.mode}")
+    lines.append(f"- config_hash: {config_score.config_hash}")
+    lines.append(f"- rules_commands_hash: {config_score.rules_commands_hash}")
+    lines.append(f"- prs_version: {config_score.prs_version}")
+    lines.append(f"- coding version: {coding_version}")
+    lines.append(
+        f"- golden baseline coding version: {golden['baseline']['coding_version']}"
+    )
+    lines.append(f"- golden version: {golden['version']}")
+    lines.append(
+        f"- runner_version: {', '.join(config_score.runner_versions)}"
+    )
+    lines.append(f"- rows skipped: {config_score.rows_skipped}")
+    lines.append("- cost: not recorded — the ledger carries no cost field.")
+    lines.append("")
+    lines.append(_precision_caveat(golden["version"]))
+    lines.append("")
+    lines.append(_recall_caveat())
+    lines.append("")
+
+    # ── ## Runs ─────────────────────────────────────────────────────────────
+    lines.append("## Runs")
+    lines.append(
+        "| run | span | PRs | complete | golden in scope | findings | hits | "
+        "misses | matched rejected | gap candidates | recall | precision | "
+        "wall time (s) |"
+    )
+    lines.append(
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
+        "--- | --- |"
+    )
+    for run_score in config_score.runs:
+        span = f"{run_score.span_start} … {run_score.span_end}"
+        complete_word = "complete" if run_score.complete else "partial"
+        r = run_score.score
+        lines.append(
+            f"| {run_score.index} "
+            f"| {_escape_pipe(span)} "
+            f"| {len(run_score.pr_ids)} "
+            f"| {complete_word} "
+            f"| {r.entries_in_scope} "
+            f"| {r.findings} "
+            f"| {r.accepted_hits} "
+            f"| {r.misses} "
+            f"| {r.matched_rejected} "
+            f"| {len(r.gap_candidates)} "
+            f"| {r.recall} "
+            f"| {r.precision} "
+            f"| {run_score.wall_time_seconds} |"
+        )
+    lines.append("")
+
+    # ── ## Per-PR ───────────────────────────────────────────────────────────
+    lines.append("## Per-PR")
+    lines.append(
+        "| run | pr_id | golden in scope | hits | misses | findings | "
+        "gap candidates | duration (s) |"
+    )
+    lines.append(
+        "| --- | --- | --- | --- | --- | --- | --- | --- |"
+    )
+    for run_score in config_score.runs:
+        for pr in run_score.per_pr:
+            lines.append(
+                f"| {run_score.index} "
+                f"| {_escape_pipe(pr.pr_id)} "
+                f"| {pr.entries_in_scope} "
+                f"| {pr.hits} "
+                f"| {pr.misses} "
+                f"| {pr.findings} "
+                f"| {pr.gap_candidates} "
+                f"| {pr.duration_seconds} |"
+            )
+    lines.append("")
+
+    # ── ## Gap-triage candidates ─────────────────────────────────────────────
+    lines.append("## Gap-triage candidates")
+    lines.append(
+        "These findings matched no golden entry. They are **not a precision "
+        "failure** — the golden set is a bootstrap from one strong-model run, and "
+        "a finding it does not describe is evidence the set is incomplete."
+    )
+    lines.append("")
+
+    total_gap = sum(
+        len(rs.score.gap_candidates) for rs in config_score.runs
+    )
+    if total_gap == 0:
+        lines.append("None.")
+    else:
+        for run_score in config_score.runs:
+            for gc in run_score.score.gap_candidates:
+                line_suffix = f":{gc['line']}" if gc["line"] is not None else ""
+                lines.append(
+                    f"### run {run_score.index} — {gc['pr_id']} — "
+                    f"{gc['path']}{line_suffix}"
+                )
+                lines.append("")
+                lines.append(gc["body"])  # verbatim, no wrapping
+                lines.append("")
+
+    return "\n".join(lines)
+
+
+def write_report(
+    *,
+    reports_dir: pathlib.Path,
+    config_score: ConfigScore,
+    golden: dict,
+    coding_version: str,
+) -> pathlib.Path:
+    """Render and atomically write one configuration's page.  Returns the path."""
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    path = report_path(reports_dir, config_score.config_hash)
+    text = render_report(
+        config_score=config_score,
+        golden=golden,
+        coding_version=coding_version,
+    )
+    atomic_write_bytes(path, text.encode("utf-8"))
+    return path
+
+
+# ----------------------------------------------------------------------
 # Entrypoint
 # ----------------------------------------------------------------------
 def main(argv=None) -> int:

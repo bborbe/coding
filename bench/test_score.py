@@ -2,9 +2,13 @@
 """Unit tests for bench/run.py scoring: match relation, states, gap-triage, and ratio rendering."""
 
 import copy
+import dataclasses
+import filecmp
 import hashlib
 import json
 import pathlib
+import re
+import tempfile
 import unittest
 
 import run
@@ -914,6 +918,532 @@ class TestDefensiveGuardsAreReachable(unittest.TestCase):
 
     def test_empty_input_returns_empty_list(self):
         self.assertEqual(run.chunk_runs([]), [])
+
+
+# ----------------------------------------------------------------------
+# Report rendering tests — spec 006 prompt 3
+# ----------------------------------------------------------------------
+
+
+def parse_table(page_text, heading):
+    """Return the rows of the markdown table under `heading` as lists of cell strings."""
+    lines = page_text.splitlines()
+    # Find heading
+    heading_idx = None
+    for i, line in enumerate(lines):
+        if line == heading:
+            heading_idx = i
+            break
+    if heading_idx is None:
+        raise AssertionError(f"Heading {heading!r} not found in page")
+    # Collect |...| lines after heading until a non-| line
+    rows = []
+    for line in lines[heading_idx + 1:]:
+        if not line.strip().startswith("|"):
+            break
+        # Split on unescaped |
+        cells = re.split(r"(?<!\\)\|", line)
+        cells = [c.replace("\\|", "|") for c in cells]
+        cells = [c.strip() for c in cells]
+        # Strip leading and trailing empty cells (from leading | and trailing |)
+        if cells and cells[0] == "":
+            cells = cells[1:]
+        if cells and cells[-1] == "":
+            cells = cells[:-1]
+        rows.append(cells)
+    # Drop header and --- separator rows
+    return rows[2:]
+
+
+class TestReportPageLocationAndSections(unittest.TestCase):
+    """AC15: page written to expected path with exact four section headings."""
+
+    def test_filename_is_full_64_char_hash(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            ver = run.coding_plugin_version(BENCH_DIR.parent)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version=ver
+            )
+            self.assertEqual(
+                path.name,
+                "cc64cc99063178c49ed7bf9118c0cb92cd84d085877c8498c99e66a97de6838b.md",
+            )
+
+    def test_exact_four_headings_in_order(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            ver = run.coding_plugin_version(BENCH_DIR.parent)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version=ver
+            )
+            text = path.read_text()
+            headings = [l for l in text.splitlines() if l.startswith("## ")]
+            self.assertEqual(
+                headings,
+                ["## Configuration", "## Runs", "## Per-PR", "## Gap-triage candidates"],
+            )
+
+
+class TestConfigurationBlockPinsBothVersions(unittest.TestCase):
+    """AC15: Configuration block pins both coding version lines by exact prefix."""
+
+    def test_all_twelve_fields_present_on_own_lines(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        plugin_version = json.loads(
+            (BENCH_DIR.parent / ".claude-plugin" / "plugin.json").read_text()
+        )["version"]
+        ver = run.coding_plugin_version(BENCH_DIR.parent)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version=ver
+            )
+            text = path.read_text()
+            lines = text.splitlines()
+            # Twelve required fields, each on its own line
+            required = [
+                "- model: opus",
+                "- effort: xhigh",
+                "- mode: full",
+                f"- config_hash: cc64cc99063178c49ed7bf9118c0cb92cd84d085877c8498c99e66a97de6838b",
+                "- rules_commands_hash: ecc803331f860b845a6a1b8a103e889bce02520e8cc04ea88102de74c8d5600d",
+                "- prs_version: dev-1",
+                f"- coding version: {plugin_version}",
+                "- golden baseline coding version: v0.35.6",
+                "- golden version: golden-dev-1",
+                "- runner_version: 1",
+                "- rows skipped: 0",
+                "- cost: not recorded — the ledger carries no cost field.",
+            ]
+            for field in required:
+                self.assertIn(
+                    field, lines,
+                    f"Configuration line {field!r} not found",
+                )
+            # Coding version line equals plugin.json version, not 'unavailable'
+            coding_line = next(l for l in lines if l.startswith("- coding version: "))
+            self.assertEqual(coding_line, f"- coding version: {plugin_version}")
+            self.assertNotIn("unavailable", coding_line)
+            # Golden baseline starts with 'v'
+            gb_line = next(l for l in lines if l.startswith("- golden baseline coding version: "))
+            self.assertTrue(
+                gb_line.endswith("v0.35.6"),
+                gb_line,
+            )
+            # Golden version equals golden["version"]
+            gv_line = next(l for l in lines if l.startswith("- golden version: "))
+            self.assertEqual(gv_line, "- golden version: golden-dev-1")
+
+    def test_coding_plugin_version_returns_unavailable_when_file_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            ver = run.coding_plugin_version(root)
+            self.assertEqual(ver, "unavailable")
+
+    def test_coding_plugin_version_returns_unavailable_when_json_invalid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            plugin_dir = root / ".claude-plugin"
+            plugin_dir.mkdir()
+            (plugin_dir / "plugin.json").write_text("{not json", encoding="utf-8")
+            ver = run.coding_plugin_version(root)
+            self.assertEqual(ver, "unavailable")
+
+    def test_coding_plugin_version_returns_unavailable_when_no_version_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            plugin_dir = root / ".claude-plugin"
+            plugin_dir.mkdir()
+            (plugin_dir / "plugin.json").write_text('{"name":"test"}', encoding="utf-8")
+            ver = run.coding_plugin_version(root)
+            self.assertEqual(ver, "unavailable")
+
+    def test_render_still_produces_full_page_when_plugin_version_unavailable(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir,
+                config_score=cfg,
+                golden=golden,
+                coding_version="unavailable",
+            )
+            text = path.read_text()
+            headings = [l for l in text.splitlines() if l.startswith("## ")]
+            self.assertEqual(
+                headings,
+                ["## Configuration", "## Runs", "## Per-PR", "## Gap-triage candidates"],
+            )
+
+
+class TestRunnerVersionLineListsTheWholeSet(unittest.TestCase):
+    """AC15: runner_version line lists the full set, not the first row's value."""
+
+    def test_mixed_versions_listed(self):
+        golden = load_golden()
+        rows = copy.deepcopy(load_slice("ledger-baseline-opus-xhigh-full.jsonl"))
+        rows[0]["runner_version"] = "2"
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+            rv_line = next(l for l in text.splitlines() if l.startswith("- runner_version: "))
+            self.assertIn("1", rv_line)
+            self.assertIn("2", rv_line)
+
+
+class TestPerPrTableIsRenderedFromTheResult(unittest.TestCase):
+    """AC15: Per-PR table cells match the result object's PrBreakdown fields."""
+
+    def test_per_pr_table_cells_match_prbreakdown(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        table = parse_table(text, "## Per-PR")
+        self.assertEqual(len(table), 5)
+        pr_ids = [row[1] for row in table]
+        expected_pr_ids = [
+            "tts-mcp#20",
+            "github-pr-review-agent#11",
+            "quant#109",
+            "node-skeleton#2",
+            "python-skeleton#3",
+        ]
+        self.assertEqual(pr_ids, expected_pr_ids)
+        # Compare each cell against the result object, not just literals
+        for row in table:
+            pr_id = row[1]
+            run_score = cfg.runs[0]
+            pr_breakdown = next(p for p in run_score.per_pr if p.pr_id == pr_id)
+            self.assertEqual(int(row[2]), pr_breakdown.entries_in_scope)
+            self.assertEqual(int(row[3]), pr_breakdown.hits)
+            self.assertEqual(int(row[4]), pr_breakdown.misses)
+            self.assertEqual(int(row[5]), pr_breakdown.findings)
+            self.assertEqual(int(row[6]), pr_breakdown.gap_candidates)
+            self.assertEqual(int(row[7]), pr_breakdown.duration_seconds)
+
+
+class TestRunsTableIsRenderedFromTheResult(unittest.TestCase):
+    """AC31: Runs table read back from rendered page matches result object."""
+
+    def test_four_run_table_cells_match_result(self):
+        golden = load_golden()
+        rows = load_slice("ledger-sonnet-medium-short-4runs.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        table = parse_table(text, "## Runs")
+        self.assertEqual(len(table), 4)
+        # Compare each row against the result object
+        for row, run_score in zip(table, cfg.runs):
+            self.assertEqual(int(row[0]), run_score.index)
+            # span: "span_start … span_end"
+            self.assertEqual(row[1], f"{run_score.span_start} … {run_score.span_end}")
+            self.assertEqual(int(row[2]), len(run_score.pr_ids))
+            self.assertEqual(row[3], "complete" if run_score.complete else "partial")
+            r = run_score.score
+            self.assertEqual(int(row[4]), r.entries_in_scope)
+            self.assertEqual(int(row[5]), r.findings)
+            self.assertEqual(int(row[6]), r.accepted_hits)
+            self.assertEqual(int(row[7]), r.misses)
+            self.assertEqual(int(row[8]), r.matched_rejected)
+            self.assertEqual(int(row[9]), len(r.gap_candidates))
+            self.assertEqual(row[10], r.recall)
+            self.assertEqual(row[11], r.precision)
+            self.assertEqual(int(row[12]), run_score.wall_time_seconds)
+        # Run 4 precision is literal 'n/a'
+        run4_row = next(row for row in table if row[0] == "4")
+        self.assertEqual(run4_row[11], "n/a")
+
+    def test_partial_table_cells_match_result(self):
+        golden = load_golden()
+        rows = load_slice("ledger-sonnet-medium-short-partial.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        table = parse_table(text, "## Runs")
+        self.assertEqual(len(table), 8)
+        complete_flags = [row[3] for row in table]
+        self.assertEqual(complete_flags[:5], ["complete"] * 5)
+        self.assertEqual(complete_flags[5:], ["partial"] * 3)
+        # Compare entries_in_scope and span for all rows
+        for row, run_score in zip(table, cfg.runs):
+            self.assertEqual(int(row[4]), run_score.score.entries_in_scope)
+            self.assertEqual(row[1], f"{run_score.span_start} … {run_score.span_end}")
+
+
+class TestGapTriageSectionCarriesItsSentenceAndBodies(unittest.TestCase):
+    """AC13/AC15: gap-triage section has sentence, run-3 candidates rendered verbatim."""
+
+    def test_sentence_present_even_when_empty(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        self.assertIn("not a precision failure", text)
+        self.assertIn("## Gap-triage candidates", text)
+
+    def test_run3_gap_candidate_bodies_verbatim(self):
+        golden = load_golden()
+        rows = load_slice("ledger-sonnet-medium-short-4runs.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        run3_score = cfg.runs[2]  # index 2 = run 3
+        self.assertEqual(
+            len(run3_score.score.gap_candidates), 3,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        for gc in run3_score.score.gap_candidates:
+            self.assertIn(gc["body"], text, f"body not found verbatim: {gc['body'][:60]}")
+            self.assertIn(gc["pr_id"], text)
+            self.assertIn(gc["path"], text)
+            line_str = f":{gc['line']}" if gc["line"] is not None else ""
+            self.assertIn(line_str, text)
+
+
+class TestBothCaveatsAppearOnEveryPage(unittest.TestCase):
+    """AC15: both mandated caveat paragraphs appear on every page."""
+
+    def _get_page(self, rows_name):
+        golden = load_golden()
+        rows = load_slice(rows_name)
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            return path.read_text()
+
+    def test_not_yet_a_result_appears_on_baseline(self):
+        text = self._get_page("ledger-baseline-opus-xhigh-full.jsonl")
+        self.assertIn("not yet a result", text)
+        # Also a real paragraph, not just a keyword
+        para = next(p for p in text.split("\n\n") if "not yet a result" in p)
+        self.assertIn("rejected", para)
+
+    def test_line_reference_caveat_appears_on_baseline(self):
+        text = self._get_page("ledger-baseline-opus-xhigh-full.jsonl")
+        self.assertIn("36 of the 42 signatures", text, "load-bearing number missing")
+        self.assertIn("embed a line reference", text)
+        para = next(p for p in text.split("\n\n") if "36 of the 42 signatures" in p)
+        self.assertIn("gap-triage", para)
+
+    def test_both_caveats_appear_on_fourrun_page(self):
+        text = self._get_page("ledger-sonnet-medium-short-4runs.jsonl")
+        self.assertIn("not yet a result", text)
+        self.assertIn("36 of the 42 signatures", text)
+        self.assertIn("embed a line reference", text)
+
+
+class TestScoringIsDeterministicAndCarriesNoWallClock(unittest.TestCase):
+    """AC14: re-scoring unchanged ledger produces byte-identical file."""
+
+    def test_deterministic_across_two_directories(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            pa = run.write_report(
+                reports_dir=pathlib.Path(a), config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            pb = run.write_report(
+                reports_dir=pathlib.Path(b), config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            self.assertTrue(
+                filecmp.cmp(pa, pb, shallow=False),
+                "two writes to different directories must be byte-identical",
+            )
+
+    def test_deterministic_on_same_path_overwrite(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            p1 = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            p2 = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            self.assertTrue(
+                filecmp.cmp(p1, p2, shallow=False),
+                "overwrite of same path must be byte-identical",
+            )
+
+    def test_no_wall_clock_in_page(self):
+        golden = load_golden()
+        rows = load_slice("ledger-sonnet-medium-short-4runs.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        hits = re.findall(r"(?i)generated (at|on)|generated:|report date", text)
+        self.assertEqual(hits, [], f"wall-clock phrases found: {hits}")
+
+    def test_three_decimal_recall_pinned_from_rendered_page(self):
+        golden = load_golden()
+        rows = load_slice("ledger-sonnet-medium-short-4runs.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        table = parse_table(text, "## Runs")
+        run1_recall = table[0][10]
+        self.assertEqual(run1_recall, "0.048")
+        self.assertEqual(run1_recall, format(2 / 42, ".3f"))
+
+
+class TestAllUnreviewedGoldenSetStillRenders(unittest.TestCase):
+    """AC12: scoring all-unreviewed set renders n/a for both ratios without ZeroDivisionError."""
+
+    def test_all_unreviewed_renders_n_a(self):
+        golden = copy.deepcopy(load_golden())
+        for e in golden["entries"]:
+            e["state"] = "unreviewed"
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            path = run.write_report(
+                reports_dir=out_dir, config_score=cfg, golden=golden, coding_version="0.35.7"
+            )
+            text = path.read_text()
+        headings = [l for l in text.splitlines() if l.startswith("## ")]
+        self.assertEqual(
+            headings,
+            ["## Configuration", "## Runs", "## Per-PR", "## Gap-triage candidates"],
+        )
+        table = parse_table(text, "## Runs")
+        self.assertEqual(table[0][10], "n/a")  # recall
+        self.assertEqual(table[0][11], "n/a")  # precision
+
+
+class TestConfigHashIsGatedBeforeBecomingAFilename(unittest.TestCase):
+    """AC21: bad config_hash raises BenchError before any filesystem access."""
+
+    def test_traversal_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            marker = root / "marker.txt"
+            marker.touch()
+            reports = root / "a" / "b" / "reports"
+            reports.mkdir(parents=True)
+            golden = load_golden()
+            rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+            cfg = run.score_config(rows=rows, golden=golden)
+            bad = dataclasses.replace(cfg, config_hash="../../etc/passwd")
+            mtime = marker.stat().st_mtime
+            try:
+                run.write_report(reports_dir=reports, config_score=bad, golden=golden, coding_version="0.35.7")
+                self.fail("traversal not rejected")
+            except run.BenchError as err:
+                self.assertIn("INVALID CONFIG HASH", str(err))
+            newer = [
+                p for p in reports.rglob("*")
+                if p.stat().st_mtime > mtime
+            ]
+            self.assertEqual(newer, [], "no file written after rejection")
+
+    def test_empty_hash_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            marker = root / "marker.txt"
+            marker.touch()
+            reports = root / "a" / "b" / "reports"
+            reports.mkdir(parents=True)
+            golden = load_golden()
+            rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+            cfg = run.score_config(rows=rows, golden=golden)
+            bad = dataclasses.replace(cfg, config_hash="")
+            mtime = marker.stat().st_mtime
+            try:
+                run.write_report(reports_dir=reports, config_score=bad, golden=golden, coding_version="0.35.7")
+                self.fail("empty hash not rejected")
+            except run.BenchError as err:
+                self.assertIn("INVALID CONFIG HASH", str(err))
+            newer = [p for p in reports.rglob("*") if p.stat().st_mtime > mtime]
+            self.assertEqual(newer, [])
+
+    def test_hash_with_slash_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            marker = root / "marker.txt"
+            marker.touch()
+            reports = root / "a" / "b" / "reports"
+            reports.mkdir(parents=True)
+            golden = load_golden()
+            rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+            cfg = run.score_config(rows=rows, golden=golden)
+            bad = dataclasses.replace(cfg, config_hash="a" * 32 + "/" + "b" * 31)
+            mtime = marker.stat().st_mtime
+            try:
+                run.write_report(reports_dir=reports, config_score=bad, golden=golden, coding_version="0.35.7")
+                self.fail("hash with slash not rejected")
+            except run.BenchError as err:
+                self.assertIn("INVALID CONFIG HASH", str(err))
+            newer = [p for p in reports.rglob("*") if p.stat().st_mtime > mtime]
+            self.assertEqual(newer, [])
+
+    def test_uppercase_hash_rejected(self):
+        golden = load_golden()
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        cfg = run.score_config(rows=rows, golden=golden)
+        bad = dataclasses.replace(cfg, config_hash="A" * 64)
+        try:
+            run.write_report(
+                reports_dir=pathlib.Path("/tmp/does-not-exist"),
+                config_score=bad,
+                golden=golden,
+                coding_version="0.35.7",
+            )
+            self.fail("uppercase hash not rejected")
+        except run.BenchError as err:
+            self.assertIn("INVALID CONFIG HASH", str(err))
 
 
 if __name__ == "__main__":

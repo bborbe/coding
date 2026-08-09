@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [006-bench-golden-scoring-and-report]
+summary: 'Implemented bench report rendering: validate_config_hash, report_path, coding_plugin_version, render_report, write_report in bench/run.py, plus 10 test classes in bench/test_score.py covering AC12/13/14/15/21/31'
+execution_id: coding-exec-028-spec-006-report-page-rendering
+dark-factory-version: v0.192.9
 created: "2026-08-09T11:32:00Z"
 queued: "2026-08-09T10:16:50Z"
+started: "2026-08-09T10:50:01Z"
+completed: "2026-08-09T10:59:14Z"
 ---
 
 <summary>

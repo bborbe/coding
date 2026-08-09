@@ -96,6 +96,37 @@ class TestConfigHash(unittest.TestCase):
         args = ("a" * 64, "claude-opus-5", "high", "short", "dev-1")
         self.assertEqual(run.config_hash(*args), run.config_hash(*args))
 
+    def test_config_hash_distinguishes_ambient_memory(self):
+        """Same five components but different operator memory → different digest.
+
+        Ambient `~/.claude/CLAUDE.md` demonstrably steers the reviewer (an
+        opus/xhigh/full review ended with the operator's personal state-closer
+        panel), so a digest that ignored it would claim to identify a
+        configuration it does not determine.  Without this test the component
+        could be dropped from the payload and every other test would still pass.
+        """
+        args = ("a" * 64, "claude-opus-5", "high", "short", "dev-1")
+        self.assertNotEqual(
+            run.config_hash(*args, ambient_hash="memory-A"),
+            run.config_hash(*args, ambient_hash="memory-B"),
+            "config hash must change when operator memory changes",
+        )
+
+    def test_ambient_memory_hash_reports_none_when_absent(self):
+        """A machine with no operator memory hashes to the literal "none".
+
+        Not an empty string and not a crash: an absent file is a real, nameable
+        configuration state, and it must be distinguishable from a present one.
+        """
+        import pathlib
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            missing = pathlib.Path(td) / "CLAUDE.md"
+            self.assertEqual(run.ambient_memory_hash(missing), "none")
+            present = pathlib.Path(td) / "present.md"
+            present.write_text("some operator rule\n", encoding="utf-8")
+            self.assertNotEqual(run.ambient_memory_hash(present), "none")
+
 
 class TestLoadManifest(unittest.TestCase):
     """Manifest loading and validation."""

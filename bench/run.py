@@ -319,13 +319,49 @@ def content_hash(root: pathlib.Path) -> str:
     return h.hexdigest()
 
 
+AMBIENT_MEMORY_PATH = pathlib.Path.home() / ".claude" / "CLAUDE.md"
+
+
+def ambient_memory_hash(path: pathlib.Path = None) -> str:
+    """Digest of the operator memory the reviewer actually reads, or "none".
+
+    The reviewer resolves `$HOME/.claude/CLAUDE.md` and obeys it.  Proven on
+    2026-08-09: an opus/xhigh/full review of `quant#109` ended with the
+    operator's personal state-closer panel (`📌`, `👤 You:`, `⏰ Next:`), a
+    convention defined only in that file and nowhere in this plugin.
+
+    Isolating it was attempted and abandoned.  Memory resolves through HOME, but
+    so does authentication — every HOME redirect tried (config dir, a scratch
+    dir with `.claude.json` symlinked, a scratch dir mirroring all 49 entries of
+    `~/.claude` minus CLAUDE.md) produced `Not logged in · Please run /login`.
+    `claude --bare` drops CLAUDE.md discovery but drops OAuth and plugin sync
+    with it.  Containerising the review (the `claude-yolo` approach) would work
+    and remains the route to cross-machine portability.
+
+    So it is pinned instead of removed.  Hashing it keeps the promise the config
+    identity actually makes — that a digest determines the measurement — and
+    makes a change to operator memory invalidate cached rows instead of silently
+    altering results.  It does NOT make a score portable to another machine;
+    nothing here claims it does.
+    """
+    p = AMBIENT_MEMORY_PATH if path is None else path
+    try:
+        return hashlib.sha256(p.read_bytes()).hexdigest()
+    except OSError:
+        return "none"
+
+
 def config_hash(rules_commands_hash: str, model: str, effort: str,
-                mode: str, prs_version: str) -> str:
-    """SHA-256 over the five configuration-identity components.
+                mode: str, prs_version: str, ambient_hash: str = None) -> str:
+    """SHA-256 over the configuration-identity components.
 
     Mode is a first-class component: changing only mode must produce a different digest.
+    Ambient operator memory is a component for the reason given in
+    ambient_memory_hash — it demonstrably steers the reviewer, so leaving it out
+    made the digest a promise the runner could not keep.
     """
-    payload = "\0".join([rules_commands_hash, model, effort, mode, prs_version])
+    amb = ambient_memory_hash() if ambient_hash is None else ambient_hash
+    payload = "\0".join([rules_commands_hash, model, effort, mode, prs_version, amb])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -1523,6 +1559,11 @@ def build_row(*, checkout: PrCheckout, cfg_hash: str, rc_hash: str,
     return {
         "config_hash": cfg_hash,
         "rules_commands_hash": rc_hash,
+        # Recorded on its own line, not just folded into config_hash: a reader
+        # comparing two rows must be able to see WHICH input differed, and
+        # ambient operator memory is the one input that changes without any
+        # commit to this repo.
+        "ambient_memory_hash": ambient_memory_hash(),
         "model": model,
         "effort": effort,
         "mode": mode,

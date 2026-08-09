@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.39.0
 
 - fix: the harvester gates reject the offending **item**, not the whole review. A 20-PR Opus pass on 2026-08-09 produced 13 rows and 7 failures — a **35% loss rate** — every one an output-*shape* rejection of a substantive review, including `tts-mcp#10` losing a full review to a **single** unattributable item. An unattributable finding is now dropped from the row and counted in a new `unattributable_count` field rather than discarding the PR; the count is recorded so precision cannot improve for a reason nothing records
 - fix: the `NOT A REVIEW` sanity gate rejects only when **every** severity section is absent. It exists for D2 (an unknown command whose output read as a clean review — that case has no sections at all); requiring all three was stricter than the purpose needed and discarded `discord-assistant#5` for carrying Should Fix and Nice to Have but not Must Fix. Absent section names are recorded in a new `missing_sections` row field

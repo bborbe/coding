@@ -1211,7 +1211,13 @@ class TestPerPrTableIsRenderedFromTheResult(unittest.TestCase):
             self.assertEqual(int(row[4]), pr_breakdown.misses)
             self.assertEqual(int(row[5]), pr_breakdown.findings)
             self.assertEqual(int(row[6]), pr_breakdown.gap_candidates)
-            self.assertEqual(int(row[7]), pr_breakdown.duration_seconds)
+            self.assertEqual(int(row[7]), pr_breakdown.unattributable)
+            expected_absent = (
+                ", ".join(pr_breakdown.missing_sections)
+                if pr_breakdown.missing_sections else "—"
+            )
+            self.assertEqual(row[8], expected_absent)
+            self.assertEqual(int(row[9]), pr_breakdown.duration_seconds)
 
 
 class TestRunsTableIsRenderedFromTheResult(unittest.TestCase):
@@ -1234,7 +1240,9 @@ class TestRunsTableIsRenderedFromTheResult(unittest.TestCase):
             self.assertEqual(int(row[0]), run_score.index)
             # span: "span_start … span_end"
             self.assertEqual(row[1], f"{run_score.span_start} … {run_score.span_end}")
-            self.assertEqual(int(row[2]), len(run_score.pr_ids))
+            self.assertEqual(
+                row[2], f"{len(run_score.pr_ids)}/{run_score.expected_pr_count}"
+            )
             self.assertEqual(row[3], "complete" if run_score.complete else "partial")
             r = run_score.score
             self.assertEqual(int(row[4]), r.entries_in_scope)
@@ -2022,7 +2030,9 @@ class TestRowsAgainstAnotherManifestAreSkippedPerRow(unittest.TestCase):
             cells = [c.strip() for c in runs_lines[0].split("|") if c.strip()]
             # cells: #, span, PRs, status, entries, findings, hits, misses, matched, gap, recall, precision, wall
             self.assertEqual(cells[3], "partial", cells)
-            self.assertEqual(cells[2], "4", cells)
+            # The skipped row is visible as a denominator, not only as "partial":
+            # 4 of the 5 manifest PRs produced a scored row.
+            self.assertEqual(cells[2], "4/5", cells)
             self.assertEqual(cells[4], "41", cells)
             self.assertEqual(cells[6], "41", cells)
             self.assertEqual(cells[7], "0", cells)
@@ -2332,6 +2342,79 @@ class TestRunFailureOutranksScoreResult(unittest.TestCase):
             # run_rc is 1 (n_failed>0), not the stub's exit 3.
             # The failure outranks scoring (which would return 0) by producing non-zero.
             self.assertEqual(rc, 1, "run failure outranks scoring success")
+
+
+class TestDroppedItemsAreVisibleOnThePage(unittest.TestCase):
+    """What the gates removed must be readable next to the score it affects.
+
+    The item-level gates (v0.38.3) drop an unattributable finding and grade a
+    review on the severity sections it did carry.  Both are recorded on the row.
+    If neither reaches the page, a run whose reviews were largely rejected on
+    shape renders identically to one that scored cleanly — the failure mode the
+    whole bench exists to make visible.
+    """
+
+    def _page_for(self, rows):
+        golden = load_golden()
+        cfg = run.score_config(rows=rows, golden=golden)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = run.write_report(
+                reports_dir=pathlib.Path(tmp), config_score=cfg,
+                golden=golden, coding_version="0.38.3",
+            )
+            return path.read_text(), cfg
+
+    def test_dropped_item_count_reaches_the_per_pr_table(self):
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        for row in rows:
+            if row["pr_id"] == "quant#109":
+                row["unattributable_count"] = 2
+                break
+
+        text, cfg = self._page_for(rows)
+        table = parse_table(text, "## Per-PR")
+        cells = next(r for r in table if r[1] == "quant#109")
+
+        self.assertEqual(int(cells[7]), 2, cells)
+        breakdown = next(
+            p for p in cfg.runs[0].per_pr if p.pr_id == "quant#109"
+        )
+        self.assertEqual(breakdown.unattributable, 2)
+        self.assertIn("**2** findings carried no matching key", text)
+
+    def test_missing_section_names_reach_the_per_pr_table(self):
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        for row in rows:
+            if row["pr_id"] == "quant#109":
+                row["missing_sections"] = ["Must Fix"]
+                break
+
+        text, _ = self._page_for(rows)
+        table = parse_table(text, "## Per-PR")
+        cells = next(r for r in table if r[1] == "quant#109")
+
+        self.assertEqual(cells[8], "Must Fix", cells)
+        self.assertIn("missing at least one severity section", text)
+
+    def test_clean_run_says_so_rather_than_going_quiet(self):
+        """Absent fields must read as "nothing dropped", not as an empty cell.
+
+        Older ledgers predate both fields entirely; that is indistinguishable
+        from a clean run and must render as one.
+        """
+        rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
+        for row in rows:
+            row.pop("unattributable_count", None)
+            row.pop("missing_sections", None)
+
+        text, _ = self._page_for(rows)
+        table = parse_table(text, "## Per-PR")
+
+        for cells in table:
+            self.assertEqual(int(cells[7]), 0, cells)
+            self.assertEqual(cells[8], "—", cells)
+        self.assertIn("**5 of 5** PRs produced a scored row", text)
+        self.assertNotIn("carried no matching key", text)
 
 
 if __name__ == "__main__":

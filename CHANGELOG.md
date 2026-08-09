@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: the report page shows what the gates removed. `v0.39.0` made the gates drop an unattributable finding and grade a review on the sections it did carry, recording both on the row — but neither reached the page, so a run whose reviews were largely rejected on shape rendered identically to one that scored cleanly. The Per-PR table gains `dropped items` and `missing sections` columns, the Runs table's PR count becomes scored-over-expected (`4/5`, not `4`), and an effective-fixture line under Per-PR states how many of the manifest's PRs produced a scored row. Every number is counted from the rows, never asserted
+- test: three new report tests plus three amended ones. The new tests pin that a dropped-item count and a missing-section name each reach the page, and that a ledger predating both fields renders as a clean run rather than an empty cell — absent must read as "nothing dropped", not as silence
+
 ## v0.39.0
 
 - fix: the harvester gates reject the offending **item**, not the whole review. A 20-PR Opus pass on 2026-08-09 produced 13 rows and 7 failures — a **35% loss rate** — every one an output-*shape* rejection of a substantive review, including `tts-mcp#10` losing a full review to a **single** unattributable item. An unattributable finding is now dropped from the row and counted in a new `unattributable_count` field rather than discarding the PR; the count is recorded so precision cannot improve for a reason nothing records

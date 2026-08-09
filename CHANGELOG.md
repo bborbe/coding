@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.39.2
 
 - fix: the bench captures the reviewer's whole transcript, not just its last message. `claude --print` returns only the FINAL assistant message, and `--output-format json` does the same — verified directly with a prompt emitting `FIRST-MESSAGE`, a tool call, then `SECOND-MESSAGE`: both formats returned only `SECOND-MESSAGE`, `stream-json` returned both. A review followed by any further message (an addendum after `make precommit`, a delta after a late sub-agent) therefore lost its body and was rejected as `NOT A REVIEW`; that cost `dark-factory#71` and `recurring-task-creator#30` in the 2026-08-09 curated-1 pass — the last 2 of the 20. Reviews are now invoked with `--output-format stream-json --verbose` and every assistant text block is concatenated in emission order before the gates run
 - test: five new tests, including the exact `## Addendum` shape that lost both PRs — it asserts the precondition (the tail alone carries no severity section) before asserting the whole transcript does. Non-transcript output passes through unchanged, so stubbed binaries and older cached raw output still work, and truncated JSON lines are skipped rather than fatal

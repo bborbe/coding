@@ -23,8 +23,19 @@ import testsupport
 BENCH_DIR = pathlib.Path(__file__).resolve().parent
 
 
+# The frozen golden fixture, NOT the live bench/golden.json.
+#
+# The live set is designed to change: its own scoring_note instructs promoting a
+# finding several configurations agree on, and demoting one nothing reproduces.
+# Pinning the live file's digest, line count and entry count made every such
+# adjudication break this suite — the tests contradicted the workflow they exist
+# to protect.  Scorer behaviour is pinned against this frozen copy instead, so
+# the numbers below stay meaningful while bench/golden.json evolves.
+GOLDEN_FIXTURE = BENCH_DIR / "testdata" / "golden-dev-1.json"
+
+
 def load_golden():
-    return json.loads((BENCH_DIR / "golden.json").read_text(encoding="utf-8"))
+    return json.loads(GOLDEN_FIXTURE.read_text(encoding="utf-8"))
 
 
 def load_slice(name):
@@ -42,9 +53,32 @@ def load_slice(name):
 class TestFixtureProvenance(unittest.TestCase):
     """AC2: golden set and ledger slices match published digests and line counts."""
 
+    def test_live_golden_set_stays_loadable_and_well_formed(self):
+        """The shipped bench/golden.json must survive every adjudication.
+
+        Deliberately asserts NO digest, entry count or version — those belong to
+        the frozen fixture.  This is the only check that still looks at the live
+        file: without it, pointing the rest of the suite at the fixture would
+        leave a promote/demote free to corrupt the real set unnoticed.
+        """
+        live = BENCH_DIR / "golden.json"
+        golden = run.load_golden(live)  # raises BenchError on a malformed set
+
+        self.assertTrue(golden["entries"], "live golden set is empty")
+        allowed = {"accepted", "rejected", "unreviewed"}
+        for i, entry in enumerate(golden["entries"]):
+            self.assertIn(entry.get("state"), allowed,
+                          f"entry {i} has state {entry.get('state')!r}")
+            self.assertTrue(entry.get("path"), f"entry {i} has no path")
+            self.assertTrue(entry.get("signature"),
+                            f"entry {i} has an empty signature — would match every "
+                            f"finding on its path")
+            for kw in entry["signature"]:
+                self.assertTrue(kw.strip(), f"entry {i} has a blank keyword")
+
     def test_golden_json_sha256(self):
         digest = hashlib.sha256(
-            (BENCH_DIR / "golden.json").read_bytes()
+            GOLDEN_FIXTURE.read_bytes()
         ).hexdigest()
         self.assertEqual(
             digest,
@@ -88,7 +122,7 @@ class TestFixtureProvenance(unittest.TestCase):
         )
 
     def test_line_counts(self):
-        self.assertEqual((BENCH_DIR / "golden.json").read_text().count("\n"), 490)
+        self.assertEqual((GOLDEN_FIXTURE).read_text().count("\n"), 490)
         self.assertEqual(
             (BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl").read_text().count("\n"), 5
         )
@@ -549,11 +583,11 @@ class TestGoldenSetIsNotMutatedByScoring(unittest.TestCase):
     def test_golden_json_sha256_unchanged(self):
         golden = load_golden()
         rows = load_slice("ledger-baseline-opus-xhigh-full.jsonl")
-        before = hashlib.sha256((BENCH_DIR / "golden.json").read_bytes()).hexdigest()
+        before = hashlib.sha256((GOLDEN_FIXTURE).read_bytes()).hexdigest()
         entries = run.entries_in_scope(golden, {r["pr_id"] for r in rows})
         findings = run.iter_findings(rows)
         run.score_findings(entries=entries, findings=findings)
-        after = hashlib.sha256((BENCH_DIR / "golden.json").read_bytes()).hexdigest()
+        after = hashlib.sha256((GOLDEN_FIXTURE).read_bytes()).hexdigest()
         self.assertEqual(before, after, "golden.json must not be mutated by scoring")
 
     def test_entries_list_not_mutated(self):
@@ -1483,7 +1517,7 @@ class TestScoringInvokesNoReviewAndMutatesNothing(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  "--coding-repo", ".",
@@ -1514,7 +1548,7 @@ class TestScoringInvokesNoReviewAndMutatesNothing(unittest.TestCase):
             result2 = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  "--coding-repo", ".",
@@ -1537,7 +1571,7 @@ class TestScoringInvokesNoReviewAndMutatesNothing(unittest.TestCase):
             # Golden set and testdata unchanged (run from repo root)
             diff_result = subprocess.run(
                 ["git", "diff", "--exit-code",
-                 str(BENCH_DIR / "golden.json"), "bench/testdata/"],
+                 str(GOLDEN_FIXTURE), "bench/testdata/"],
                 capture_output=True, text=True,
                 cwd=str(run.REPO_ROOT),
             )
@@ -1634,7 +1668,7 @@ class TestPreconditionsFailBeforeAnyReview(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
             result, counter = self._run_with_stub(
-                ["--golden", str(BENCH_DIR / "golden.json"),
+                ["--golden", str(GOLDEN_FIXTURE),
                  "--model", "opus",
                  "--effort", "xhigh",
                  "--mode", "full",
@@ -1663,7 +1697,7 @@ class TestPreconditionsFailBeforeAnyReview(unittest.TestCase):
                     result = subprocess.run(
                         [sys.executable, str(run.BENCH_DIR / "run.py"),
                          "--score",
-                         "--golden", str(BENCH_DIR / "golden.json"),
+                         "--golden", str(GOLDEN_FIXTURE),
                          flag, "opus",
                          "--out-dir", str(tmp / "results"),
                          ],
@@ -1690,7 +1724,7 @@ class TestScoreModeOverBadLedgerFailsLoudly(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(tmp / "results"),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -1712,7 +1746,7 @@ class TestScoreModeOverBadLedgerFailsLoudly(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -1734,7 +1768,7 @@ class TestScoreModeOverBadLedgerFailsLoudly(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -1765,7 +1799,7 @@ class TestScoreModeOverBadLedgerFailsLoudly(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -1801,7 +1835,7 @@ class TestScoreModeOverBadLedgerFailsLoudly(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -1833,7 +1867,7 @@ class TestRowsAgainstAnotherManifestAreSkippedPerRow(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -1874,7 +1908,7 @@ class TestRowsAgainstAnotherManifestAreSkippedPerRow(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -1925,7 +1959,7 @@ class TestRowsAgainstAnotherManifestAreSkippedPerRow(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],
@@ -2001,7 +2035,7 @@ class TestInvalidConfigHashRejectsOneConfigAndKeepsTheRest(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
-                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--golden", str(GOLDEN_FIXTURE),
                  "--out-dir", str(results_dir),
                  "--reports-dir", str(reports_dir),
                  ],

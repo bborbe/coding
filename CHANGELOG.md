@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: golden set adjudicated to `golden-dev-2` — 44 entries, 43 `accepted` + the first `rejected`. Promoted the Trivy `apt-key` deprecation in `python-skeleton#3` (reported by 11 of the 102 ledger findings across 4 of 5 runs at five different lines, absent from the Opus baseline) with a deliberately line-free signature; rejected a subjective README label-naming suggestion. **Precision is measurable for the first time** — run 3 of config `9ce66e05` moves `1.000 → 0.750`, and recall rises in all four runs as gap candidates convert to hits
+- fix: report caveats are computed from the golden set instead of asserted. `_precision_caveat` hardcoded "carries zero `rejected` entries" and `_recall_caveat` hardcoded "36 of the 42 signatures", so both would have kept printing verbatim after any adjudication — a false claim in the primary output artifact, published under a config hash
+- fix: the scorer test suite pinned the **live** `bench/golden.json`'s digest, line count and entry count, so performing the promote/demote the file's own `scoring_note` prescribes broke 13 tests. Behaviour is now pinned against a frozen `bench/testdata/golden-dev-1.json` (same digest the tests already asserted), leaving the live set free to evolve
+- feat: new structural check on the live golden set — exercises `load_golden` and rejects empty signatures, entries without a path, and unknown states, while asserting no digest or count. Verified to fail against a deliberately emptied signature
+
 ## v0.36.0
 
 - fix: bench releases each PR working copy as soon as its review finishes, instead of deferring teardown to the next run for that PR — a completed 5-PR run left one checkout per PR on disk, each carrying whatever the reviewed repo's own tooling produced (`.venv`, `node_modules`), reaching 941MB against ~1MB of git objects per repo; the timeout and non-zero-exit paths previously tore down nothing at all. Measured 941MB → 2.9M over a full run. Git objects stay cached, so `ensure_refs`' offline short-circuit is unaffected

@@ -2134,22 +2134,54 @@ def coding_plugin_version(coding_repo: pathlib.Path) -> str:
         return "unavailable"
 
 
-def _precision_caveat(golden_version: str) -> str:
+def _precision_caveat(golden: dict) -> str:
+    """Describe what precision can and cannot mean on THIS golden set.
+
+    Counted from the entries, never asserted: the previous version hardcoded
+    "carries zero rejected entries", which would have kept printing after the
+    first rejected entry was adjudicated in — a false claim in the primary
+    output artifact, published under a config hash.
+    """
+    version = golden["version"]
+    n_rejected = sum(1 for e in golden["entries"] if e.get("state") == "rejected")
+    if n_rejected == 0:
+        return (
+            f"*{version}* carries zero `rejected` entries, so precision "
+            "cannot be lost by any configuration. "
+            "A precision of `1.000` is a property of the golden set's adjudication "
+            "state and is not yet a result."
+        )
     return (
-        f"*{golden_version}* currently carries zero `rejected` entries, so precision "
-        "cannot be lost by any configuration. "
-        "A precision of `1.000` is a property of the golden set's adjudication state "
-        "and is not yet a result."
+        f"*{version}* carries {n_rejected} `rejected` "
+        f"{'entry' if n_rejected == 1 else 'entries'}, so precision is measurable: "
+        "reporting one costs precision. With so few adjudicated, a single hit still "
+        "moves the number a long way — read it as directional, not calibrated."
     )
 
 
-def _recall_caveat() -> str:
+def _recall_caveat(golden: dict) -> str:
+    """Describe how much of recall is line-citation rather than issue-detection.
+
+    Both numbers are counted from the entries.  They were hardcoded as
+    "36 of the 42" and would have gone stale the moment the set changed size.
+    """
+    entries = golden["entries"]
+    total = len(entries)
+    with_line = sum(
+        1 for e in entries
+        if any(re.search(r":\d+", kw) for kw in e.get("signature", []))
+    )
+    if with_line == 0:
+        return (
+            "No signature embeds a line reference, so a re-report of the same issue "
+            "at a different line still matches. `recall` measures issue detection."
+        )
     return (
-        "36 of the 42 signatures embed a line reference, so a re-report of the same "
-        "issue at a different line does not match and is surfaced as a gap-triage "
-        "candidate rather than a hit. "
-        "On this golden set, `recall` measures whether a configuration cited the same "
-        "line, not whether it found the issue."
+        f"{with_line} of the {total} signatures embed a line reference, so a "
+        "re-report of the same issue at a different line does not match and is "
+        "surfaced as a gap-triage candidate rather than a hit. "
+        "On this golden set, `recall` measures whether a configuration cited the "
+        "same line, not whether it found the issue."
     )
 
 
@@ -2189,9 +2221,9 @@ def render_report(*, config_score: ConfigScore, golden: dict, coding_version: st
     lines.append(f"- rows skipped: {config_score.rows_skipped}")
     lines.append("- cost: not recorded — the ledger carries no cost field.")
     lines.append("")
-    lines.append(_precision_caveat(golden["version"]))
+    lines.append(_precision_caveat(golden))
     lines.append("")
-    lines.append(_recall_caveat())
+    lines.append(_recall_caveat(golden))
     lines.append("")
 
     # ── ## Runs ─────────────────────────────────────────────────────────────

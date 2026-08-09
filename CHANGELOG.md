@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.38.0
 
 - fix: one issue, one golden entry. The `apt-key` adjudication in `v0.37.0` added a line-free entry for a defect the Opus baseline **already carried**, pinned to `ci.yml:32` — so the same issue was represented twice, three findings matched both, and recall inflated to a spurious `1.000`. The original entry is relaxed to a line-free signature instead and the duplicate removed (43 entries: 42 accepted, 1 rejected). The `v0.37.0` note below claims the finding was "absent from the Opus baseline"; that was wrong — it was present, pinned to a line the later runs did not cite
 - feat: new check rejecting a golden set in which any single finding satisfies two entries. The false-positive check run during adjudication compared a new signature only against the ledger's findings, never against the other entries — precisely how the duplicate got through. Verified to fail against the exact shipped defect

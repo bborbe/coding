@@ -323,26 +323,34 @@ AMBIENT_MEMORY_PATH = pathlib.Path.home() / ".claude" / "CLAUDE.md"
 
 
 def ambient_memory_hash(path: pathlib.Path = None) -> str:
-    """Digest of the operator memory the reviewer actually reads, or "none".
+    """Digest of `$HOME/.claude/CLAUDE.md` if present, else "none".
 
-    The reviewer resolves `$HOME/.claude/CLAUDE.md` and obeys it.  Proven on
-    2026-08-09: an opus/xhigh/full review of `quant#109` ended with the
-    operator's personal state-closer panel (`📌`, `👤 You:`, `⏰ Next:`), a
-    convention defined only in that file and nowhere in this plugin.
+    DEFENSIVE, not corrective.  No leak has been demonstrated.  This component
+    was added on the belief that ambient operator memory steers the reviewer,
+    and that belief was **disproven the same day** — see the retraction below.
+    It is kept because operator memory is a plausible influence that costs one
+    file read to pin, and an unpinned influence is the failure mode this bench
+    exists to avoid.  The cost of keeping it is a spurious cache invalidation
+    whenever the operator edits their own CLAUDE.md.
 
-    Isolating it was attempted and abandoned.  Memory resolves through HOME, but
-    so does authentication — every HOME redirect tried (config dir, a scratch
-    dir with `.claude.json` symlinked, a scratch dir mirroring all 49 entries of
-    `~/.claude` minus CLAUDE.md) produced `Not logged in · Please run /login`.
-    `claude --bare` drops CLAUDE.md discovery but drops OAuth and plugin sync
-    with it.  Containerising the review (the `claude-yolo` approach) would work
-    and remains the route to cross-machine portability.
+    Retraction, recorded so the wrong claim is not reconstructed from the code:
+    an opus/xhigh/full review of `quant#109` ended with a state-closer panel
+    (`📌`, `👤 You:`, `⏰ Next:`) resembling the operator's personal convention.
+    That was taken as proof of a memory leak.  It is not.  A review at the same
+    configuration with **no CLAUDE.md reachable in either HOME or
+    CLAUDE_CONFIG_DIR produced the panel anyway**, and the remaining candidates
+    were each eliminated: the reviewed repo's own CLAUDE.md (0 marker matches),
+    `commands/pr-review.md` (0), and this module's `build_review_argv` (no
+    system prompt, no --add-dir).  The reviewing model generates that shape by
+    itself at high effort.
 
-    So it is pinned instead of removed.  Hashing it keeps the promise the config
-    identity actually makes — that a digest determines the measurement — and
-    makes a change to operator memory invalidate cached rows instead of silently
-    altering results.  It does NOT make a score portable to another machine;
-    nothing here claims it does.
+    An artifact resembling a known convention is not evidence of its provenance.
+
+    Still true and worth keeping: credentials resolve from CLAUDE_CONFIG_DIR
+    when it is set and from `$HOME/.claude` otherwise, and on macOS `~/.claude`
+    holds no credentials file at all (Keychain), which is why a naive HOME
+    redirect returns `Not logged in`.  Isolation IS achievable with a file-based
+    token; it simply is not needed.
     """
     p = AMBIENT_MEMORY_PATH if path is None else path
     try:

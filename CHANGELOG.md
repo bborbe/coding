@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: **retract the leak claim made in `v0.38.1`.** That entry states the reviewer resolves and obeys `$HOME/.claude/CLAUDE.md`, "proven" by a review ending with the operator's personal state-closer panel. **That is false.** A review at the same `opus`/`xhigh`/`full` configuration with no `CLAUDE.md` reachable in either `HOME` or `CLAUDE_CONFIG_DIR` produced the panel anyway; the reviewed repo's own `CLAUDE.md`, `commands/pr-review.md` and `build_review_argv` were each checked and carry zero markers. The reviewing model generates that shape by itself at high effort — an artifact resembling a known convention is not evidence of its provenance. The released section is left as written; this entry corrects it
+- docs: `ambient_memory_hash` is reclassified in-code as **defensive, not corrective** — no leak is demonstrated. It is kept because operator memory is a plausible influence that costs one file read to pin, at the price of a spurious cache invalidation when the operator edits their own CLAUDE.md. The retraction and the eliminated candidates are recorded in its docstring so the wrong claim cannot be reconstructed from the code
+- docs: the auth map survives the retraction and is kept — credentials resolve from `CLAUDE_CONFIG_DIR` when set and from `$HOME/.claude` otherwise; on macOS `~/.claude` holds no credentials file (Keychain), which is why a naive `HOME` redirect returns `Not logged in`
+
 ## v0.38.1
 
 - fix: ambient operator memory is now part of the configuration identity. The reviewer resolves `$HOME/.claude/CLAUDE.md` and obeys it — proven by an `opus`/`xhigh`/`full` review of `quant#109` that ended with the operator's personal state-closer panel (`📌`, `👤 You:`, `⏰ Next:`), a convention defined only in that file. The config hash therefore claimed to identify a configuration it did not determine. `ambient_memory_hash()` is now a hash component and is recorded on its own row field so a reader can see *which* input differed. **Every pre-existing ledger row carries a stale config hash** — they were measured under an unpinned condition

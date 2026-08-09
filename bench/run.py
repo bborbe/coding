@@ -1207,11 +1207,61 @@ def build_review_argv(*, model: str, effort: str, mode: str,
     return [
         "claude",
         "--print",
+        # stream-json is the ONLY format that yields the whole transcript.
+        # Plain --print and --output-format json both return the reviewer's
+        # FINAL message only, so a review followed by any further message —
+        # an addendum after running precommit, a delta after a late sub-agent
+        # — loses its body and reads as "not a review".  Verified directly:
+        # a prompt emitting FIRST-MESSAGE, a tool call, then SECOND-MESSAGE
+        # returns only SECOND-MESSAGE under both, and both under stream-json.
+        # --verbose is required by the CLI when pairing stream-json with --print.
+        "--output-format", "stream-json",
+        "--verbose",
         "--model", model,
         "--effort", effort,
         "--permission-mode", "bypassPermissions",
         f"/coding:pr-review {base_branch} {mode}",
     ]
+
+
+def transcript_text(stdout: str) -> str:
+    """Concatenate every assistant text block from a stream-json transcript.
+
+    Returns the joined text in emission order.  Lines that are not JSON, and
+    events that are not assistant messages, are skipped — the stream carries
+    system/user/result events too, and a partial line can appear if the
+    process was killed mid-write.
+
+    Falls back to returning `stdout` unchanged when it parses as no transcript
+    at all.  That keeps a stubbed binary (every test fakes `claude`) and any
+    older cached raw output working: plain text in, same text out.
+    """
+    chunks: list[str] = []
+    saw_event = False
+
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line or not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        saw_event = True
+        if event.get("type") != "assistant":
+            continue
+        content = (event.get("message") or {}).get("content") or []
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text") or ""
+                if text.strip():
+                    chunks.append(text)
+
+    if not saw_event:
+        return stdout
+    return "\n\n".join(chunks)
 
 
 def review_env(config_dir: pathlib.Path) -> dict:
@@ -1828,14 +1878,18 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     #    heading shape — a 20-PR Opus pass on 2026-08-09 lost `discord-assistant#5`
     #    for carrying Should Fix and Nice to Have but not Must Fix.  Partial sets
     #    are kept and the absent names recorded on the row.
-    missing = missing_sections(proc.stdout)
+    # The reviewer's full text, not just its last message.  Everything below
+    # this line grades `report_text`; only the cache still stores raw stdout.
+    report_text = transcript_text(proc.stdout)
+
+    missing = missing_sections(report_text)
     if len(missing) == len(REQUIRED_SECTION_NAMES):
         write_failure_artifact(
             cache_root, cfg_hash, pr_id,
             reason=f"{NON_REVIEW_MARKER}: missing sections: {', '.join(missing)}",
             stdout=proc.stdout, stderr=proc.stderr,
         )
-        print(non_review_report(pr_id, missing, proc.stdout), file=sys.stderr)
+        print(non_review_report(pr_id, missing, report_text), file=sys.stderr)
         raise BenchError(
             f"{NON_REVIEW_MARKER}: {pr_id}: missing sections: {', '.join(missing)}"
         )
@@ -1848,7 +1902,7 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     atomic_write_bytes(raw_path, proc.stdout.encode("utf-8"))
 
     # 6. Harvest findings
-    harvested = harvest(proc.stdout, known_rule_ids)
+    harvested = harvest(report_text, known_rule_ids)
     findings = harvested.findings
 
     # 6a. Unattributable items — dropped from the row, never silently.
@@ -1866,7 +1920,7 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     #     unchanged — this is a change of granularity, not of contract.
     unattributable_count = len(harvested.unattributable)
     if unattributable_count:
-        print(unattributable_report(pr_id, harvested.unattributable, proc.stdout),
+        print(unattributable_report(pr_id, harvested.unattributable, report_text),
               file=sys.stderr)
 
     # 7. Build row and append to ledger

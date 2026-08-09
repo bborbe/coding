@@ -1171,11 +1171,33 @@ def build_review_argv(*, model: str, effort: str, mode: str,
 
 
 def review_env(config_dir: pathlib.Path) -> dict:
-    """Build the environment for an isolated review subprocess."""
+    """Build the environment for an isolated review subprocess.
+
+    HOME is redirected at config_dir, not merely CLAUDE_CONFIG_DIR.  Setting the
+    config dir alone left the operator's `$HOME/.claude/CLAUDE.md` in scope, and
+    the reviewer obeyed it: an Opus run on 2026-08-09 ended its review with the
+    operator's personal "state closer" panel (`📌 No task anchor`, `👤 You:`,
+    `⏰ Next:`) — a convention defined in that file and nowhere in this plugin.
+    One of those lines is not attributable to any file, so the run also tripped
+    the UNATTRIBUTABLE FINDING gate.
+
+    This matters beyond one failed row.  The config hash pins `rules/` +
+    `commands/` and claims they define the configuration; if ambient memory also
+    steers the reviewer, the score measures this machine rather than the plugin,
+    and no other checkout reproduces it.
+    """
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = str(config_dir)
     env["DISABLE_AUTOUPDATER"] = "1"
     return env
+
+
+# NOT YET FIXED — see the docstring above.  Redirecting HOME at config_dir was
+# tried on 2026-08-09 and reverted: the reviewer then reports
+# "Not logged in · Please run /login", because credentials resolve through HOME.
+# `claude --bare` disables CLAUDE.md auto-discovery but also disables OAuth and
+# keychain reads (requiring ANTHROPIC_API_KEY) and skips plugin sync, which the
+# bench depends on.  No narrow flag removes ambient memory while keeping auth.
 
 
 def invoke_review(*, argv: list[str], worktree: pathlib.Path,

@@ -93,6 +93,24 @@ OUT_OF_TREE_INSTALL_PATH_MARKER = "PLUGIN INSTALL PATH OUT OF TREE"
 SCOPE_MISMATCH_MARKER = "PLUGIN INSTALL SCOPE MISMATCH"
 
 # ----------------------------------------------------------------------
+# Scoring — frozen marker literals (spec 006 Constraints; not configurable)
+# ----------------------------------------------------------------------
+GOLDEN_NOT_FOUND_MARKER = "GOLDEN SET NOT FOUND"
+INVALID_GOLDEN_MARKER = "INVALID GOLDEN SET"
+GOLDEN_VERSION_MISMATCH_MARKER = "GOLDEN VERSION MISMATCH"
+PRS_VERSION_SKIP_MARKER = "PRS VERSION SKIP"
+EMPTY_LEDGER_MARKER = "EMPTY LEDGER"
+CORRUPT_LEDGER_MARKER = "CORRUPT LEDGER"
+INVALID_CONFIG_HASH_MARKER = "INVALID CONFIG HASH"
+
+STATE_ACCEPTED = "accepted"
+STATE_REJECTED = "rejected"
+STATE_UNREVIEWED = "unreviewed"
+GOLDEN_STATES = (STATE_ACCEPTED, STATE_REJECTED, STATE_UNREVIEWED)
+REQUIRED_GOLDEN_KEYS = ("entries", "match_rule", "states")
+RATIO_NA = "n/a"
+
+# ----------------------------------------------------------------------
 # Exceptions
 # ----------------------------------------------------------------------
 class BenchError(Exception):
@@ -1598,6 +1616,279 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     atomic_write_bytes(row_path, json.dumps(row, sort_keys=True).encode("utf-8"))
 
     return ("ok", f"{len(findings)} findings in {duration_seconds:.3f}s")
+
+
+# ----------------------------------------------------------------------
+# Scoring — pure functions (spec 006 prompt 1)
+# ----------------------------------------------------------------------
+def format_ratio(numerator: int, denominator: int) -> str:
+    """Render a ratio as three fixed decimals, or the literal 'n/a' on a zero denominator."""
+    if denominator == 0:
+        return RATIO_NA
+    return format(numerator / denominator, ".3f")
+
+
+def finding_matches_entry(entry: dict, finding: dict) -> bool:
+    """True when this finding and this golden entry describe the same issue.
+
+    rule_id exact when BOTH sides carry a non-null one; otherwise path string
+    equality plus EVERY signature keyword present case-insensitively in body.
+    `line` is read from neither side.
+    """
+    entry_rule = entry.get("rule_id")
+    finding_rule = finding.get("rule_id")
+    # Case 1: both carry a non-null rule_id — exact match required
+    if entry_rule is not None and entry_rule != "" and finding_rule is not None and finding_rule != "":
+        return entry_rule == finding_rule
+    # Case 2: path match + every signature keyword case-insensitively in body
+    if entry.get("path") != finding.get("path"):
+        return False
+    body = (finding.get("body") or "").lower()
+    for kw in entry.get("signature") or []:
+        if kw.lower() not in body:
+            return False
+    return True
+
+
+@dataclasses.dataclass(frozen=True)
+class ScoreResult:
+    entries_in_scope: int
+    accepted_in_scope: int
+    accepted_hits: int
+    misses: int
+    matched_rejected: int
+    excluded_unreviewed: int
+    findings: int
+    gap_candidates: tuple
+    recall: str
+    precision: str
+
+
+def score_findings(*, entries: list, findings: list) -> ScoreResult:
+    """Score an already-scoped list of golden entries against a list of findings.
+
+    `entries` are golden entries already restricted to the PRs under consideration.
+    Each element of `findings` is a dict carrying 'pr_id', 'path', 'line', 'body'
+    and 'rule_id'.  Pure: no I/O, no mutation of either argument.
+    """
+    matched_entry_indices: set[int] = set()
+    matched_finding_indices: set[int] = set()
+
+    for ei, entry in enumerate(entries):
+        for fi, finding in enumerate(findings):
+            if entry.get("pr_id") != finding.get("pr_id"):
+                continue
+            if finding_matches_entry(entry, finding):
+                matched_entry_indices.add(ei)
+                matched_finding_indices.add(fi)
+
+    entries_in_scope = len(entries)
+    accepted_in_scope = sum(1 for e in entries if e.get("state") == STATE_ACCEPTED)
+    accepted_hits = sum(
+        1 for i in matched_entry_indices if entries[i].get("state") == STATE_ACCEPTED
+    )
+    misses = accepted_in_scope - accepted_hits
+    matched_rejected = sum(
+        1 for i in matched_entry_indices if entries[i].get("state") == STATE_REJECTED
+    )
+    excluded_unreviewed = sum(
+        1 for e in entries if e.get("state") == STATE_UNREVIEWED
+    )
+    findings_count = len(findings)
+    gap_candidates = tuple(
+        {"pr_id": f["pr_id"], "path": f["path"], "line": f["line"], "body": f["body"]}
+        for i, f in enumerate(findings)
+        if i not in matched_finding_indices
+    )
+    recall = format_ratio(accepted_hits, accepted_in_scope)
+    precision = format_ratio(accepted_hits, accepted_hits + matched_rejected)
+
+    return ScoreResult(
+        entries_in_scope=entries_in_scope,
+        accepted_in_scope=accepted_in_scope,
+        accepted_hits=accepted_hits,
+        misses=misses,
+        matched_rejected=matched_rejected,
+        excluded_unreviewed=excluded_unreviewed,
+        findings=findings_count,
+        gap_candidates=gap_candidates,
+        recall=recall,
+        precision=precision,
+    )
+
+
+def iter_findings(rows: list) -> list:
+    """Flatten ledger rows into findings, each carrying its row's pr_id.
+
+    Returns dicts with 'pr_id', 'path', 'line', 'body', 'rule_id' in row order,
+    then finding order within a row.  The input rows are not mutated.
+    """
+    result = []
+    for row in rows:
+        pr_id = row.get("pr_id")
+        for finding in row.get("findings") or []:
+            result.append({
+                "pr_id": pr_id,
+                "path": finding.get("path"),
+                "line": finding.get("line"),
+                "body": finding.get("body"),
+                "rule_id": finding.get("rule_id"),
+            })
+    return result
+
+
+def entries_in_scope(golden: dict, pr_ids) -> list:
+    """The golden entries whose pr_id is in pr_ids, in golden-file order."""
+    pr_set = set(pr_ids)
+    return [e for e in golden.get("entries") or [] if e.get("pr_id") in pr_set]
+
+
+# ----------------------------------------------------------------------
+# Run chunking — spec 006 prompt 2
+# ----------------------------------------------------------------------
+def chunk_runs(rows: list) -> list:
+    """Split one configuration's ledger rows into runs by per-PR occurrence index.
+
+    Within a config, the k-th row for a given pr_id — in ledger file order —
+    belongs to run k.  Returns a list of lists, run 1 first.  Input not mutated.
+    """
+    from collections import Counter, defaultdict
+
+    counter = Counter()
+    runs: dict[int, list] = defaultdict(list)
+    for row in rows:
+        pr_id = row["pr_id"]
+        counter[pr_id] += 1
+        runs[counter[pr_id]].append(row)
+    return [runs[k] for k in sorted(runs)]
+
+
+# ----------------------------------------------------------------------
+# Aggregation dataclasses — spec 006 prompt 2
+# ----------------------------------------------------------------------
+@dataclasses.dataclass(frozen=True)
+class PrBreakdown:
+    pr_id: str
+    entries_in_scope: int
+    hits: int
+    misses: int
+    findings: int
+    gap_candidates: int
+    duration_seconds: int
+
+
+@dataclasses.dataclass(frozen=True)
+class RunScore:
+    index: int
+    pr_ids: tuple
+    complete: bool
+    span_start: str
+    span_end: str
+    wall_time_seconds: int
+    score: ScoreResult
+    per_pr: tuple
+
+
+@dataclasses.dataclass(frozen=True)
+class ConfigScore:
+    config_hash: str
+    model: str
+    effort: str
+    mode: str
+    rules_commands_hash: str
+    prs_version: str
+    runner_versions: tuple
+    rows_skipped: int
+    runs: tuple
+
+
+# ----------------------------------------------------------------------
+# Per-run scoring — spec 006 prompt 2
+# ----------------------------------------------------------------------
+def score_run(*, rows: list, golden: dict, expected_pr_ids: frozenset, index: int) -> RunScore:
+    """Score one run's rows, scoped to the PRs it actually covers."""
+    pr_ids_in_run = tuple(dict.fromkeys(r["pr_id"] for r in rows))
+    complete = set(pr_ids_in_run) == expected_pr_ids
+
+    # span_start / span_end — display only
+    timestamps = [r["started_at"] for r in rows if r.get("started_at")]
+    span_start = min(timestamps) if timestamps else ""
+    span_end = max(timestamps) if timestamps else ""
+
+    # wall_time: round of the unrounded sum
+    raw_wall = sum(r.get("duration_seconds", 0.0) or 0.0 for r in rows)
+    wall_time_seconds = round(raw_wall)
+
+    # Scope: only the PRs this run actually covers
+    scoped_entries = entries_in_scope(golden, pr_ids_in_run)
+    findings = iter_findings(rows)
+    score = score_findings(entries=scoped_entries, findings=findings)
+
+    # Per-PR breakdown: re-score each PR individually
+    per_pr_list: list[PrBreakdown] = []
+    for pr_id in pr_ids_in_run:
+        pr_rows = [r for r in rows if r["pr_id"] == pr_id]
+        pr_entries = entries_in_scope(golden, (pr_id,))
+        pr_findings = iter_findings(pr_rows)
+        pr_score = score_findings(entries=pr_entries, findings=pr_findings)
+        raw_dur = sum(r.get("duration_seconds", 0.0) or 0.0 for r in pr_rows)
+        per_pr_list.append(PrBreakdown(
+            pr_id=pr_id,
+            entries_in_scope=pr_score.entries_in_scope,
+            hits=pr_score.accepted_hits,
+            misses=pr_score.misses,
+            findings=pr_score.findings,
+            gap_candidates=len(pr_score.gap_candidates),
+            duration_seconds=round(raw_dur),
+        ))
+
+    return RunScore(
+        index=index,
+        pr_ids=pr_ids_in_run,
+        complete=complete,
+        span_start=span_start,
+        span_end=span_end,
+        wall_time_seconds=wall_time_seconds,
+        score=score,
+        per_pr=tuple(per_pr_list),
+    )
+
+
+def score_config(*, rows: list, golden: dict, rows_skipped: int = 0) -> ConfigScore:
+    """Score every run of one configuration's ledger rows."""
+    if not rows:
+        raise ValueError("score_config called with empty rows")
+
+    first = rows[0]
+    config_hash = first["config_hash"]
+    model = first["model"]
+    effort = first["effort"]
+    mode = first["mode"]
+    rules_commands_hash = first["rules_commands_hash"]
+    prs_version = first["prs_version"]
+
+    expected_pr_ids = frozenset(e["pr_id"] for e in golden["entries"])
+
+    runs = tuple(
+        score_run(rows=chunk, golden=golden, expected_pr_ids=expected_pr_ids, index=i)
+        for i, chunk in enumerate(chunk_runs(rows), 1)
+    )
+
+    runner_versions = tuple(sorted(
+        {str(r.get("runner_version", "1")) for r in rows}
+    ))
+
+    return ConfigScore(
+        config_hash=config_hash,
+        model=model,
+        effort=effort,
+        mode=mode,
+        rules_commands_hash=rules_commands_hash,
+        prs_version=prs_version,
+        runner_versions=runner_versions,
+        rows_skipped=rows_skipped,
+        runs=runs,
+    )
 
 
 # ----------------------------------------------------------------------

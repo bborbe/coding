@@ -502,7 +502,18 @@ class TestSecondRunnerExitsWithoutTouchingLedger(unittest.TestCase):
                 (cfg_dir / "plugins").mkdir(parents=True, exist_ok=True)
                 # Create plugin cache directory and record in the new format
                 cache_dir = cfg_dir / "plugins" / "cache" / "coding" / "coding" / "0.35.2"
-                shutil.copytree(run.REPO_ROOT, cache_dir)
+                # Exclude the bench cache: it holds cloned PR repos whose .venv
+                # dirs symlink into the host uv store.  copytree dereferences
+                # symlinks by default, so without this the copy either explodes
+                # to ~1GB or fails outright wherever those targets are absent
+                # (e.g. inside a container).  content_hash only reads rules/ and
+                # commands/, so nothing excluded here can affect the digest.
+                shutil.copytree(
+                    run.REPO_ROOT, cache_dir,
+                    ignore=shutil.ignore_patterns(
+                        ".cache", ".git", "results", ".venv", "__pycache__",
+                    ),
+                )
                 record = {
                     "version": 2,
                     "plugins": {

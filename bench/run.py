@@ -802,6 +802,30 @@ class PluginResolution:
     content_hash: str
 
 
+def remove_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+                    wt: pathlib.Path, head_branch: str) -> None:
+    """Delete a prepared working copy and the branch that anchored it.
+
+    Removes the directory outright, not just the tracked files: a review runs the
+    reviewed repo's own tooling inside the checkout, so the tree routinely picks up
+    .venv / node_modules / build output that git does not know about and that dwarfs
+    the git objects (a five-PR manifest reached 941MB this way, against ~1MB of packs
+    per repo).  Idempotent and best-effort — every step passes check=False so calling
+    it on an already-removed worktree is a no-op.
+
+    The git objects under repo_dir are deliberately left alone: they are what makes
+    ensure_refs' offline short-circuit work, and they are small.
+    """
+    git(["worktree", "remove", "--force", str(wt)],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+    if wt.exists():
+        assert_under(wt, repos_root(cache_root))
+        shutil.rmtree(wt, ignore_errors=True)
+    git(["branch", "-D", head_branch],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+    git(["worktree", "prune"], repo_dir=repo_dir, cache_root=cache_root, check=False)
+
+
 def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
                     entry: dict, base_endpoint: str,
                     head_endpoint: str) -> PrCheckout:
@@ -829,14 +853,7 @@ def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
         repo_dir=repo_dir, cache_root=cache_root)
 
     # Tear down any stale copy from a previous run
-    git(["worktree", "remove", "--force", str(wt)],
-        repo_dir=repo_dir, cache_root=cache_root, check=False)
-    if wt.exists():
-        assert_under(wt, repos_root(cache_root))
-        shutil.rmtree(wt, ignore_errors=True)
-    git(["branch", "-D", head_branch],
-        repo_dir=repo_dir, cache_root=cache_root, check=False)
-    git(["worktree", "prune"], repo_dir=repo_dir, cache_root=cache_root, check=False)
+    remove_worktree(cache_root, repo_dir, wt, head_branch)
 
     # Validate worktree path before creating
     assert_under(wt, repos_root(cache_root))
@@ -1726,6 +1743,14 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
         write_failure_artifact(cache_root, cfg_hash, pr_id,
                               reason="timeout", stdout=err.stdout, stderr=err.stderr)
         raise
+    finally:
+        # The working copy has served its only purpose; everything below reads
+        # proc.stdout.  Release it here rather than at the start of the next run
+        # for this PR, so a finished bench leaves no checkouts behind — including
+        # on the timeout and non-zero-exit paths, which previously leaked one
+        # tree per failed PR.  The git objects stay cached.
+        remove_worktree(cache_root, checkout.repo_dir,
+                        checkout.worktree, checkout.head_branch)
 
     if proc.returncode != 0:
         write_failure_artifact(cache_root, cfg_hash, pr_id,

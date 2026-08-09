@@ -2371,5 +2371,105 @@ class TestAttributedItemStillProducesARow(unittest.TestCase):
             )
 
 
+class TestWorktreeReleasedAfterReview(unittest.TestCase):
+    """A finished PR leaves no working copy behind, however the review ended.
+
+    The leak these cover is not hypothetical: teardown used to happen only at the
+    *start* of the next run for the same PR, so a completed bench left one checkout
+    per PR on disk indefinitely — and each checkout accumulated whatever the review
+    made the reviewed repo's own tooling produce (.venv, node_modules, build output).
+    A five-PR manifest reached 941MB that way, against roughly 1MB of git objects
+    per repo.  The failure paths never tore anything down at all.
+    """
+
+    def _wt(self, cache_root):
+        return run.worktree_dir(cache_root, "testowner", "repo_a", 1)
+
+    def test_failed_review_leaves_no_worktree(self):
+        """Review exits non-zero → run_bench raises → the checkout is still gone.
+
+        This is the path that leaked worst: it took the raising branch out of
+        process_pr, so no teardown ran until that same PR was reviewed again.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            manifest_path = testsupport.seed_one_pr_manifest(td, cache_root)
+
+            plugin_src = testsupport.build_coding_repo(td / "repo")
+            cfg = testsupport.build_verify_config_dir(td / "cfg", plugin_src)
+
+            bin_dir = td / "bin"
+            counter = td / "counter"
+            testsupport.stub_claude_failing(bin_dir, counter, exit_code=3)
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(td)
+
+            old_path = os.environ.get("PATH", "")
+            old_home = os.environ.get("HOME", "")
+            try:
+                os.environ["PATH"] = env["PATH"]
+                os.environ["HOME"] = str(td)
+                # run_bench absorbs a per-PR failure and reports it in its summary
+                # rather than propagating, so this returns normally with 1 failed.
+                run.run_bench(
+                    coding_repo=plugin_src,
+                    manifest_path=manifest_path,
+                    results_dir=td / "results",
+                    cache_root=cache_root,
+                    model="test-model",
+                    effort="high",
+                    mode="short",
+                    config_dir=cfg,
+                )
+            finally:
+                os.environ["PATH"] = old_path
+                os.environ["HOME"] = old_home
+
+            # The stub must actually have been reached — otherwise this test would
+            # pass simply because no worktree was ever created.
+            self.assertTrue(
+                counter.exists() and counter.read_text().strip(),
+                "review was never invoked; the assertion below would be vacuous",
+            )
+            wt = self._wt(cache_root)
+            self.assertFalse(
+                wt.exists(),
+                f"failed review left a working copy behind at {wt}",
+            )
+
+    def test_cleanup_removes_untracked_build_artifacts(self):
+        """Teardown deletes the directory, not just the files git tracks.
+
+        `git worktree remove` alone refuses or leaves content when the tree carries
+        untracked files, which is precisely the shape a review produces.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            td = pathlib.Path(td)
+            cache_root = td / "cache"
+            testsupport.seed_one_pr_manifest(td, cache_root)
+            repo_dir = cache_root / "repos" / "testowner" / "repo_a"
+
+            entry = json.loads(
+                (td / "manifest.json").read_text(encoding="utf-8")
+            )["prs"][0]
+            checkout = run.resolve_pr(cache_root, entry)
+            wt = checkout.worktree
+            self.assertTrue(wt.exists(), "fixture failed: no worktree to clean up")
+
+            # Exactly what a Python review leaves behind: an untracked tree git
+            # has no knowledge of.
+            venv = wt / ".venv" / "lib"
+            venv.mkdir(parents=True, exist_ok=True)
+            (venv / "payload.bin").write_bytes(b"x" * 4096)
+
+            run.remove_worktree(cache_root, repo_dir, wt, checkout.head_branch)
+
+            self.assertFalse(
+                wt.exists(),
+                f"untracked build artifacts survived teardown at {wt}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [006-bench-golden-scoring-and-report]
+summary: Documented scoring contract in bench/README.md, added CHANGELOG Unreleased entry, verified all mechanical gates
+execution_id: coding-exec-030-spec-006-docs-changelog-and-repo-gates
+dark-factory-version: v0.192.9
 created: "2026-08-09T11:34:00Z"
 queued: "2026-08-09T10:16:50Z"
+started: "2026-08-09T11:34:21Z"
+completed: "2026-08-09T11:49:28Z"
 ---
 
 <summary>

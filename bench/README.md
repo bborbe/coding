@@ -15,7 +15,9 @@ Goal: `[[PR Review Bench]]` in the Personal vault.
 
 ## Current state
 
-The runner drives the real `/coding:pr-review` slash command over the pinned PR manifest (`bench/prs.json`) and writes one machine-readable row per PR. The golden set and scoring semantics belong to a later spec; `--golden` is recognised and rejected with exit code 2 rather than silently ignored.
+The runner drives the real `/coding:pr-review` slash command over the pinned PR manifest (`bench/prs.json`) and writes one machine-readable row per PR. A scoring layer turns a ledger plus `bench/golden.json` into per-run precision and recall, and a committed report page per configuration. The scoring layer invokes no review, spends no tokens, and needs no network — it is a pure function over data already on disk.
+
+Two entry points exist: `--golden` on a live run scores that run's configuration after the last PR completes; `--score` over an existing ledger scores every configuration in it. `--reports-dir` defaults to `bench/reports`.
 
 ## `prs.json`
 
@@ -26,15 +28,18 @@ Every entry records `base_sha` and `head_sha` explicitly because reconstructing 
 ## Running it
 
 ```bash
-make bench BENCH_ARGS="--model <model> --effort <effort> --mode <short|full|selector>"
+make bench BENCH_ARGS="--model <model> --effort <effort> --mode <short|full|selector> --golden bench/golden.json"
 make bench-test
+python3 bench/run.py --score --golden bench/golden.json
 ```
 
-`--model`, `--effort`, and `--mode` are mandatory: they are recorded as the configuration identity in every result row and have no safe default. Results land in `bench/results/results.jsonl`. `make bench-test` is also wired into `make precommit` so the unit tests gate every later change to the repo.
+`--model`, `--effort`, and `--mode` are mandatory for a live run: they are recorded as the configuration identity in every result row and have no safe default. Results land in `bench/results/results.jsonl`. `make bench-test` is also wired into `make precommit` so the unit tests gate every later change to the repo.
 
 `python3 bench/run.py --print-config-hash` prints the content hash of `rules/` + `commands/` from the current `--coding-repo` and exits immediately.
 
-**Exit codes:** 0 when every PR produced a row (ok or cache hit); 1 when one or more PRs failed; 2 for a usage, manifest, or preflight failure.
+`--golden <path>` scores the run after the last PR completes and requires `--model`, `--effort`, `--mode` to be supplied; the scored ledger is then available for the score-only mode. `--score` mode reads an existing ledger, scores every distinct `config_hash` in it, and writes one report page per configuration — it invokes no review and needs no model/effort/mode. `--reports-dir` defaults to `bench/reports`.
+
+**Exit codes:** 0 when every PR produced a row (ok or cache hit); 1 when one or more PRs failed; 2 for a usage, manifest, preflight failure, missing or invalid golden set, empty or absent ledger, corrupt ledger line, or a live-run `prs_version` disagreement with the golden set.
 
 ## Authentication precondition
 
@@ -149,6 +154,26 @@ The two gates differ in what they leave behind. `NOT A REVIEW` fires before the 
 
 Both defects this section documents survived 42 green unit tests because the tests were built from the same template the parser was built from. Every capture checked in before this change carried zero findings — no fixture had ever exercised the parser against a real finding, which is how this defect family reached five occurrences. A fixture for a new defect must be a **capture of real output**, not a transcription of the template.
 
+The four ledger slices under `bench/testdata/` are verbatim extracts of real ledger rows, installed by the operator before approval. The slice `bench/testdata/ledger-baseline-opus-xhigh-full.jsonl` is the run the golden set was derived from; it produces a perfect self-match (42/42/0/0). No test may author a ledger row in place of any of these slices — five defects reached production because fixtures were written from the same template as the parser consuming them.
+
+## Scoring
+
+**Matching and the three golden states.** The match rule is exact and deterministic. For a `(golden entry, finding)` pair within the same `pr_id`: if both sides carry a non-null `rule_id`, they match when those ids are equal and do not match otherwise — a rule-id disagreement is decisive and no fallback is attempted. Otherwise they match when the `path` field is string-equal and **every** keyword in the entry's `signature` appears as a case-insensitive substring of the finding's `body`. Otherwise they do not match. `line` is never used for identity — it is display data only. Path comparison is whole-string equality with no extension requirement, so an extensionless path such as `Dockerfile` compares like any other.
+
+Every golden entry carries one of three states, and the state governs what a hit or miss costs. An `accepted` entry — one the reviewer should produce — costs recall when unmatched and costs nothing when matched. A `rejected` entry — a known false positive — costs precision when matched and costs nothing when unmatched. An `unreviewed` entry — not yet adjudicated — is excluded from both numerator and denominator of both ratios, and a finding matching one is neither a penalty nor a candidate.
+
+**Gap-triage candidates.** A finding matching no golden entry at all is a **gap-triage candidate**. It is quoted verbatim on the report page under its own heading, with its `pr_id`, `path`, `line` and `body`, and it is counted against nothing. It is **not a precision failure**. The golden set is bootstrapped from a single strong-model run, not hand-curated ground truth, and the reason this classification matters is load-bearing: when several independent configurations agree on a finding the baseline missed, that is evidence the golden set is incomplete and the entry is a candidate for promotion to `accepted`. When nothing ever reproduces a baseline finding, it is a candidate for demotion to `rejected`. The recorded case is `tts-mcp#20`, which was annotated "clean — correct answer is zero findings" on the strength of six zero-finding runs from a weaker model; the strong model then found a real, hand-verified defect in it.
+
+**What precision currently measures.** `golden-dev-1` carries zero `rejected` entries, so precision cannot be lost by any configuration. A precision of `1.000` is a property of the golden set's adjudication state and is **not yet a result**.
+
+**What recall currently measures.** 36 of the 42 signatures embed a line reference, so a re-report of the same issue at a different line does not match and surfaces as a gap-triage candidate rather than a hit. On this golden set, `recall` measures whether a configuration cited the same line, not whether it found the issue. Across the four runs of config `9ce66e05…` only 5 of 16 findings hit an entry, and the `apt-key` issue in `.github/workflows/ci.yml` is reported in all four runs at lines 13, 29, 9 and 27 and is a gap candidate every time.
+
+**Runs are an occurrence index, never a timestamp cluster.** Within one `config_hash`, the k-th ledger row for a given `pr_id`, in ledger file order, belongs to run k. Run boundaries need no clock, no threshold, and no tuning, and they survive clock skew, a slow PR, and an operator pausing between PRs. The boundary between run 2 and run 3 of config `9ce66e05…` is 48 seconds while gaps *within* runs 1, 2 and 4 reach 140, 128 and 110 seconds — no time threshold separates them in either direction. A run that does not cover every PR in the manifest is labelled **partial** on the report page, and a partial run is scored over the PRs it actually covers: the missing PRs' golden entries are **out of scope for that run, not misses**, so a 3-PR run scores against 24 entries and a 1-PR run against 1.
+
+**Rows recorded against another PR manifest.** Every ledger row whose own `prs_version` differs from the golden set's is skipped **before scoring**, named on stderr with the literal `PRS VERSION SKIP` together with its `config_hash` and both version strings. A configuration with no surviving rows gets **no page at all**. A configuration with some survivors gets a page whose Configuration block records how many rows were skipped. On the ledger as of 2026-08-09, 4 of the 66 rows carry `empty-diff-probe`, `mode-full-probe` or `ruleid-probe` and are skipped; they belong to 3 of the 7 configurations. Scoring produces no new ledger rows and mutates none that exist. A scorer change requires **no cache clear** — the config hash covers `rules/` + `commands/` but not `bench/run.py`, and scoring consumes already-normalised findings. The cache-clearing rule continues to apply to **harvest** changes alone.
+
+**Report page.** Each scored configuration gets one page at `bench/reports/<config_hash>.md` — the full 64-character lowercase-hex hash, because a truncated filename reintroduces the identity ambiguity the hash exists to remove. The page is tracked in git and carries no generation timestamp, so re-scoring an unchanged ledger produces a byte-identical file. The page has four sections in order: **Configuration** (model, effort, mode, config_hash, rules_commands_hash, prs_version, coding version, golden version, runner_version, rows skipped, cost-not-recorded note, and both ratio caveats), **Runs** (one row per run with span, PR coverage, complete/partial label, golden entries in scope, findings, hits, misses, matched rejected, gap candidates, recall, precision, wall time), **Per-PR** (per run and PR: golden entries in scope, hits, misses, findings, gap candidates, duration), and **Gap-triage candidates** (every unmatched finding, quoted verbatim, under its own heading). Cost is not recorded because the ledger carries no cost field.
+
 ## Verifying an entry without cloning
 
 ```bash
@@ -157,12 +182,21 @@ gh api repos/<owner>/<repo>/compare/<base_sha>...<head_sha> --jq '.files | lengt
 
 All five entries were verified this way on 2026-08-06: 1 / 17 / 21 / 18 / 8 files.
 
+### Ledger slices
+
+| File | Contents | Lines | `sha256` |
+|---|---|---|---|
+| `bench/testdata/ledger-baseline-opus-xhigh-full.jsonl` | 5 rows — one complete run of the config the golden set was bootstrapped from | 5 | `af8f684b95e82577af4ac6b4a04392559ef04865ee95e7f8afdcc8f1756e86fb` |
+| `bench/testdata/ledger-sonnet-medium-short-4runs.jsonl` | 20 rows — four complete runs of a weaker configuration | 20 | `f25b759a09d6fbedcf3f755977492324369ce19db40933fc77d17497d8596d02` |
+| `bench/testdata/ledger-sonnet-medium-short-partial.jsonl` | 32 rows — eight runs of a third configuration, three of them partial and one covering a single PR | 32 | `165320f9edcd45bcbe3938685e0bc052c4adf56545c7317a87f5aff7945c24a7` |
+| `bench/testdata/ledger-probe-configs-mixed-prs-version.jsonl` | 4 rows whose `prs_version` is not `dev-1` — three probe configurations run against different PR manifests | 4 | `f19cb4e9824f078b498a82c0ce2c55a884a28ca16ac0a33c9c3bd48dd478e209` |
+
 ## Fixed invariants
 
 These are deliberately not configurable:
 
 - **Review timeout:** 45 minutes per PR (`REVIEW_TIMEOUT_SECONDS = 45 * 60`)
-- **Cache:** lives under `bench/.cache/` (gitignored — no benchmark output is ever committed)
+- **Cache:** lives under `bench/.cache/` (gitignored — no benchmark output is ever committed; the two named exceptions are report pages under `bench/reports/` and the four frozen ledger slices under `bench/testdata/`)
 - **Results:** live under `bench/results/` (gitignored)
 - **Failure artifacts:** one file per failed `(PR, configuration)` pair under `bench/.cache/failures/`, each containing both subprocess streams labelled with their stream name; empty streams marked explicitly
 - **Isolated config:** `$HOME/.claude-verify` with `DISABLE_AUTOUPDATER=1`; the runner aborts the whole run before the first review when the install record names a path whose content hash differs from `--coding-repo`'s, or when any of the abort conditions in the Plugin load path section applies
@@ -174,6 +208,13 @@ These are deliberately not configurable:
 - **Inline rule tag:** `*(rule: \`<id>\`)*` is read positionally from the item and recorded verbatim; it is **not** validated against `rules/index.json`; the head-anchored backtick fallback is **index-gated** (only used when no inline tag is present and the token is a known rule id)
 - **Unattributable-item rejection:** `UNATTRIBUTABLE FINDING` fires when an item inside a severity section yields neither `path` nor `rule_id`; no ledger row, no row marker, no opt-out
 - **Stderr excerpt bound:** at most 2,000 bytes of rejected output are printed to stderr (truncation is marked)
+- **Match rule:** `rule_id` exact when both sides carry one; otherwise `path` string equality plus every signature keyword present case-insensitively in body; `line` is never used for identity; path comparison is whole-string with no extension requirement
+- **Golden states:** `accepted` (recall miss on no-match), `rejected` (precision penalty on match), `unreviewed` (excluded from both ratios); a finding matching no entry is a gap-triage candidate, **not a precision failure**
+- **Run chunking:** per-PR occurrence index in ledger file order; the k-th row for a given `pr_id` belongs to run k; no clock, no threshold
+- **Report location:** `bench/reports/<64-lowercase-hex>.md`; full hash, no truncation; tracked in git
+- **Ratio rendering:** three decimals via `format(value, '.3f')`; `n/a` when denominator is zero; no `0.000` for a zero denominator
+- **Report generation:** no timestamp written; re-scoring unchanged data yields byte-identical file
+- **Precondition literals:** `GOLDEN SET NOT FOUND`, `INVALID GOLDEN SET`, `GOLDEN VERSION MISMATCH`, `PRS VERSION SKIP`, `EMPTY LEDGER`, `CORRUPT LEDGER`, `INVALID CONFIG HASH`
 
 ## Safety invariant
 

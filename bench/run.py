@@ -2058,12 +2058,19 @@ class PrBreakdown:
     findings: int
     gap_candidates: int
     duration_seconds: int
+    # What the gates removed before scoring. Carried onto the page so a row's
+    # score can be read next to the reason it might flatter: a finding dropped
+    # for lacking a matching key never reached precision, and a review missing a
+    # severity section was graded on the sections it did carry.
+    unattributable: int = 0
+    missing_sections: tuple = ()
 
 
 @dataclasses.dataclass(frozen=True)
 class RunScore:
     index: int
     pr_ids: tuple
+    expected_pr_count: int
     complete: bool
     span_start: str
     span_end: str
@@ -2115,6 +2122,14 @@ def score_run(*, rows: list, golden: dict, expected_pr_ids: frozenset, index: in
         pr_findings = iter_findings(pr_rows)
         pr_score = score_findings(entries=pr_entries, findings=pr_findings)
         raw_dur = sum(r.get("duration_seconds", 0.0) or 0.0 for r in pr_rows)
+        # Older ledgers predate both fields; absent means "nothing was dropped",
+        # which is what a run before the item-level gates actually recorded.
+        dropped = sum(r.get("unattributable_count", 0) or 0 for r in pr_rows)
+        absent_sections = []
+        for r in pr_rows:
+            for name in r.get("missing_sections") or ():
+                if name not in absent_sections:
+                    absent_sections.append(name)
         per_pr_list.append(PrBreakdown(
             pr_id=pr_id,
             entries_in_scope=pr_score.entries_in_scope,
@@ -2123,11 +2138,14 @@ def score_run(*, rows: list, golden: dict, expected_pr_ids: frozenset, index: in
             findings=pr_score.findings,
             gap_candidates=len(pr_score.gap_candidates),
             duration_seconds=round(raw_dur),
+            unattributable=dropped,
+            missing_sections=tuple(absent_sections),
         ))
 
     return RunScore(
         index=index,
         pr_ids=pr_ids_in_run,
+        expected_pr_count=len(expected_pr_ids),
         complete=complete,
         span_start=span_start,
         span_end=span_end,
@@ -2230,6 +2248,48 @@ def _precision_caveat(golden: dict) -> str:
     )
 
 
+def _coverage_caveat(config_score: "ConfigScore") -> str:
+    """State the effective fixture size and what the gates removed from it.
+
+    Every number is counted from the scored rows.  Without this line the page
+    shows a recall figure whose denominator lives only in stderr, and a reader
+    cannot tell a configuration that reviewed twenty PRs from one whose reviews
+    were mostly rejected on shape — the two render identically.
+    """
+    scored_prs = sum(len(rs.pr_ids) for rs in config_score.runs)
+    expected = sum(rs.expected_pr_count for rs in config_score.runs)
+    dropped = sum(pr.unattributable for rs in config_score.runs for pr in rs.per_pr)
+    partial = sum(
+        1 for rs in config_score.runs for pr in rs.per_pr if pr.missing_sections
+    )
+
+    if not expected:
+        return "*Effective fixture: no runs scored.*"
+
+    parts = [
+        f"*Effective fixture: **{scored_prs} of {expected}** PRs produced a "
+        f"scored row.*"
+    ]
+    if scored_prs < expected:
+        parts.append(
+            f" The {expected - scored_prs} absent "
+            f"{'row is' if expected - scored_prs == 1 else 'rows are'} not a "
+            "zero-finding result — they were rejected before scoring, so they "
+            "lower confidence without lowering recall."
+        )
+    if dropped:
+        parts.append(
+            f" **{dropped}** finding{'' if dropped == 1 else 's'} carried no "
+            "matching key and never reached scoring."
+        )
+    if partial:
+        parts.append(
+            f" **{partial}** row{'' if partial == 1 else 's'} came from a review "
+            "missing at least one severity section."
+        )
+    return "".join(parts)
+
+
 def _recall_caveat(golden: dict) -> str:
     """Describe how much of recall is line-citation rather than issue-detection.
 
@@ -2315,7 +2375,7 @@ def render_report(*, config_score: ConfigScore, golden: dict, coding_version: st
         lines.append(
             f"| {run_score.index} "
             f"| {_escape_pipe(span)} "
-            f"| {len(run_score.pr_ids)} "
+            f"| {len(run_score.pr_ids)}/{run_score.expected_pr_count} "
             f"| {complete_word} "
             f"| {r.entries_in_scope} "
             f"| {r.findings} "
@@ -2333,13 +2393,14 @@ def render_report(*, config_score: ConfigScore, golden: dict, coding_version: st
     lines.append("## Per-PR")
     lines.append(
         "| run | pr_id | golden in scope | hits | misses | findings | "
-        "gap candidates | duration (s) |"
+        "gap candidates | dropped items | missing sections | duration (s) |"
     )
     lines.append(
-        "| --- | --- | --- | --- | --- | --- | --- | --- |"
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
     )
     for run_score in config_score.runs:
         for pr in run_score.per_pr:
+            absent = ", ".join(pr.missing_sections) if pr.missing_sections else "—"
             lines.append(
                 f"| {run_score.index} "
                 f"| {_escape_pipe(pr.pr_id)} "
@@ -2348,8 +2409,12 @@ def render_report(*, config_score: ConfigScore, golden: dict, coding_version: st
                 f"| {pr.misses} "
                 f"| {pr.findings} "
                 f"| {pr.gap_candidates} "
+                f"| {pr.unattributable} "
+                f"| {_escape_pipe(absent)} "
                 f"| {pr.duration_seconds} |"
             )
+    lines.append("")
+    lines.append(_coverage_caveat(config_score))
     lines.append("")
 
     # ── ## Gap-triage candidates ─────────────────────────────────────────────

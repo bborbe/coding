@@ -93,11 +93,188 @@ OUT_OF_TREE_INSTALL_PATH_MARKER = "PLUGIN INSTALL PATH OUT OF TREE"
 SCOPE_MISMATCH_MARKER = "PLUGIN INSTALL SCOPE MISMATCH"
 
 # ----------------------------------------------------------------------
+# Scoring — frozen marker literals (spec 006 Constraints; not configurable)
+# ----------------------------------------------------------------------
+GOLDEN_NOT_FOUND_MARKER = "GOLDEN SET NOT FOUND"
+INVALID_GOLDEN_MARKER = "INVALID GOLDEN SET"
+GOLDEN_VERSION_MISMATCH_MARKER = "GOLDEN VERSION MISMATCH"
+PRS_VERSION_SKIP_MARKER = "PRS VERSION SKIP"
+EMPTY_LEDGER_MARKER = "EMPTY LEDGER"
+CORRUPT_LEDGER_MARKER = "CORRUPT LEDGER"
+INVALID_CONFIG_HASH_MARKER = "INVALID CONFIG HASH"
+
+STATE_ACCEPTED = "accepted"
+STATE_REJECTED = "rejected"
+STATE_UNREVIEWED = "unreviewed"
+GOLDEN_STATES = (STATE_ACCEPTED, STATE_REJECTED, STATE_UNREVIEWED)
+REQUIRED_GOLDEN_KEYS = ("entries", "match_rule", "states")
+RATIO_NA = "n/a"
+
+# ----------------------------------------------------------------------
 # Exceptions
 # ----------------------------------------------------------------------
 class BenchError(Exception):
     """Every abort that maps to exit code 2 (manifest, preflight, lock)."""
     pass
+
+
+# ----------------------------------------------------------------------
+# Golden-set and ledger loaders — spec 006 prompt 4
+# ----------------------------------------------------------------------
+def load_golden(path: pathlib.Path) -> dict:
+    """Read and validate a golden set.  Raises BenchError with a frozen literal."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BenchError(f"{GOLDEN_NOT_FOUND_MARKER}: {path}") from exc
+
+    if not isinstance(data, dict):
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: not a JSON object at {path}"
+        )
+
+    missing = [k for k in REQUIRED_GOLDEN_KEYS if k not in data]
+    if missing:
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: missing {missing} in {path}"
+        )
+
+    if "prs_version" not in data or not isinstance(data.get("prs_version"), str):
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: missing or non-string 'prs_version' in {path}"
+        )
+
+    if not isinstance(data.get("entries"), list):
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: 'entries' is not a list in {path}"
+        )
+
+    for i, entry in enumerate(data["entries"], 1):
+        if not isinstance(entry, dict):
+            raise BenchError(
+                f"{INVALID_GOLDEN_MARKER}: entry {i} is not an object in {path}"
+            )
+        for field in ("pr_id", "path", "signature", "state"):
+            if field not in entry:
+                raise BenchError(
+                    f"{INVALID_GOLDEN_MARKER}: entry {i} missing '{field}' in {path}"
+                )
+
+    return data
+
+
+def load_ledger(path: pathlib.Path) -> list:
+    """Read a JSONL ledger.  Raises BenchError with a frozen literal."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise BenchError(f"{EMPTY_LEDGER_MARKER}: {path}") from exc
+
+    if not text.strip():
+        raise BenchError(f"{EMPTY_LEDGER_MARKER}: {path}")
+
+    rows: list = []
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise BenchError(
+                f"{CORRUPT_LEDGER_MARKER}: {path}:{lineno}: {exc}"
+            ) from exc
+        if not isinstance(obj, dict):
+            raise BenchError(
+                f"{CORRUPT_LEDGER_MARKER}: {path}:{lineno}: not a JSON object"
+            )
+        for field in ("config_hash", "pr_id", "prs_version", "findings"):
+            if field not in obj:
+                raise BenchError(
+                    f"{CORRUPT_LEDGER_MARKER}: {path}:{lineno}: missing '{field}'"
+                )
+        rows.append(obj)
+
+    if not rows:
+        raise BenchError(f"{EMPTY_LEDGER_MARKER}: {path}")
+
+    return rows
+
+
+def partition_by_prs_version(
+    rows: list, golden_prs_version: str
+) -> tuple[list, list]:
+    """Return (kept, skipped): rows whose prs_version equals the golden set's, and the rest."""
+    kept: list = []
+    skipped: list = []
+    for row in rows:
+        if row["prs_version"] == golden_prs_version:
+            kept.append(row)
+        else:
+            skipped.append(row)
+            print(
+                f"PRS VERSION SKIP: config {row['config_hash'][:16]}… "
+                f"row prs_version {row['prs_version']!r} != "
+                f"golden prs_version {golden_prs_version!r} "
+                f"(pr {row['pr_id']})",
+                file=sys.stderr,
+            )
+    return kept, skipped
+
+
+def score_ledger(
+    *,
+    rows: list,
+    golden: dict,
+    reports_dir: pathlib.Path,
+    coding_repo: pathlib.Path,
+    only_config_hash: str | None = None,
+) -> int:
+    """Score every configuration in rows and write one page each.  Returns an exit code."""
+    golden_prs_version = golden["prs_version"]
+    kept, skipped = partition_by_prs_version(rows, golden_prs_version)
+
+    by_config: dict[str, list] = {}
+    for row in kept:
+        cfg = row["config_hash"]
+        if cfg not in by_config:
+            by_config[cfg] = []
+        by_config[cfg].append(row)
+
+    coding_version = coding_plugin_version(coding_repo)
+    exit_code = 0
+
+    for cfg_hash, cfg_rows in by_config.items():
+        if only_config_hash is not None and cfg_hash != only_config_hash:
+            continue
+        # skipped rows with this config_hash (per-row filter — some configs mix versions)
+        skipped_count = sum(
+            1 for r in skipped
+            if r["config_hash"] == cfg_hash
+        )
+        try:
+            config_score = score_config(
+                rows=cfg_rows, golden=golden, rows_skipped=skipped_count
+            )
+        except BenchError as err:
+            print(str(err), file=sys.stderr)
+            exit_code = 1
+            continue
+
+        try:
+            written = write_report(
+                reports_dir=reports_dir,
+                config_score=config_score,
+                golden=golden,
+                coding_version=coding_version,
+            )
+            print(f"wrote {written}")
+        except BenchError as err:
+            print(str(err), file=sys.stderr)
+            exit_code = 1
+            continue
+
+    return exit_code
 
 
 # ----------------------------------------------------------------------
@@ -625,6 +802,30 @@ class PluginResolution:
     content_hash: str
 
 
+def remove_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
+                    wt: pathlib.Path, head_branch: str) -> None:
+    """Delete a prepared working copy and the branch that anchored it.
+
+    Removes the directory outright, not just the tracked files: a review runs the
+    reviewed repo's own tooling inside the checkout, so the tree routinely picks up
+    .venv / node_modules / build output that git does not know about and that dwarfs
+    the git objects (a five-PR manifest reached 941MB this way, against ~1MB of packs
+    per repo).  Idempotent and best-effort — every step passes check=False so calling
+    it on an already-removed worktree is a no-op.
+
+    The git objects under repo_dir are deliberately left alone: they are what makes
+    ensure_refs' offline short-circuit work, and they are small.
+    """
+    git(["worktree", "remove", "--force", str(wt)],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+    if wt.exists():
+        assert_under(wt, repos_root(cache_root))
+        shutil.rmtree(wt, ignore_errors=True)
+    git(["branch", "-D", head_branch],
+        repo_dir=repo_dir, cache_root=cache_root, check=False)
+    git(["worktree", "prune"], repo_dir=repo_dir, cache_root=cache_root, check=False)
+
+
 def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
                     entry: dict, base_endpoint: str,
                     head_endpoint: str) -> PrCheckout:
@@ -652,14 +853,7 @@ def prepare_worktree(cache_root: pathlib.Path, repo_dir: pathlib.Path,
         repo_dir=repo_dir, cache_root=cache_root)
 
     # Tear down any stale copy from a previous run
-    git(["worktree", "remove", "--force", str(wt)],
-        repo_dir=repo_dir, cache_root=cache_root, check=False)
-    if wt.exists():
-        assert_under(wt, repos_root(cache_root))
-        shutil.rmtree(wt, ignore_errors=True)
-    git(["branch", "-D", head_branch],
-        repo_dir=repo_dir, cache_root=cache_root, check=False)
-    git(["worktree", "prune"], repo_dir=repo_dir, cache_root=cache_root, check=False)
+    remove_worktree(cache_root, repo_dir, wt, head_branch)
 
     # Validate worktree path before creating
     assert_under(wt, repos_root(cache_root))
@@ -1398,7 +1592,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--golden",
         type=pathlib.Path,
         default=None,
-        help="[RESERVED — not implemented; scoring is future work]",
+        help="Golden set JSON; scores the run (or the ledger, with --score) and writes report pages",
+    )
+    parser.add_argument(
+        "--score",
+        action="store_true",
+        default=False,
+        help="Score an existing ledger and exit; invokes no review. Requires --golden",
+    )
+    parser.add_argument(
+        "--reports-dir",
+        type=pathlib.Path,
+        default=BENCH_DIR / "reports",
+        help="Directory for report pages (default: bench/reports)",
     )
     parser.add_argument(
         "--print-config-hash",
@@ -1415,7 +1621,9 @@ def build_parser() -> argparse.ArgumentParser:
 def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
               results_dir: pathlib.Path, cache_root: pathlib.Path,
               model: str, effort: str, mode: str,
-              config_dir: pathlib.Path) -> int:
+              config_dir: pathlib.Path,
+              golden: dict | None = None,
+              reports_dir: pathlib.Path | None = None) -> int:
     """Keyword-only runner: load manifest, verify plugin, process each PR.
 
     Returns 0 only when every PR produced 'ok' or 'cache hit'.
@@ -1475,7 +1683,21 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
             print(f"{pr_id}: {outcome}")
         print(f"summary: {n_ok} ok, {n_cached} cache hit, {n_failed} failed")
 
-        return 0 if n_failed == 0 else 1
+        run_rc = 0 if n_failed == 0 else 1
+
+        if golden is not None and reports_dir is not None:
+            rows = load_ledger(ledger_path(results_dir))
+            score_rc = score_ledger(
+                rows=rows,
+                golden=golden,
+                reports_dir=reports_dir,
+                coding_repo=coding_repo,
+                only_config_hash=cfg_hash,
+            )
+            # Run failure takes precedence over a scoring pass.
+            return run_rc if run_rc != 0 else score_rc
+
+        return run_rc
 
 
 def process_pr(*, entry: dict, coding_repo: pathlib.Path,
@@ -1521,6 +1743,14 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
         write_failure_artifact(cache_root, cfg_hash, pr_id,
                               reason="timeout", stdout=err.stdout, stderr=err.stderr)
         raise
+    finally:
+        # The working copy has served its only purpose; everything below reads
+        # proc.stdout.  Release it here rather than at the start of the next run
+        # for this PR, so a finished bench leaves no checkouts behind — including
+        # on the timeout and non-zero-exit paths, which previously leaked one
+        # tree per failed PR.  The git objects stay cached.
+        remove_worktree(cache_root, checkout.repo_dir,
+                        checkout.worktree, checkout.head_branch)
 
     if proc.returncode != 0:
         write_failure_artifact(cache_root, cfg_hash, pr_id,
@@ -1601,25 +1831,510 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
 
 
 # ----------------------------------------------------------------------
+# Scoring — pure functions (spec 006 prompt 1)
+# ----------------------------------------------------------------------
+def format_ratio(numerator: int, denominator: int) -> str:
+    """Render a ratio as three fixed decimals, or the literal 'n/a' on a zero denominator."""
+    if denominator == 0:
+        return RATIO_NA
+    return format(numerator / denominator, ".3f")
+
+
+def finding_matches_entry(entry: dict, finding: dict) -> bool:
+    """True when this finding and this golden entry describe the same issue.
+
+    rule_id exact when BOTH sides carry a non-null one; otherwise path string
+    equality plus EVERY signature keyword present case-insensitively in body.
+    `line` is read from neither side.
+    """
+    entry_rule = entry.get("rule_id")
+    finding_rule = finding.get("rule_id")
+    # Case 1: both carry a non-null rule_id — exact match required
+    if entry_rule is not None and entry_rule != "" and finding_rule is not None and finding_rule != "":
+        return entry_rule == finding_rule
+    # Case 2: path match + every signature keyword case-insensitively in body
+    if entry.get("path") != finding.get("path"):
+        return False
+    body = (finding.get("body") or "").lower()
+    for kw in entry.get("signature") or []:
+        if kw.lower() not in body:
+            return False
+    return True
+
+
+@dataclasses.dataclass(frozen=True)
+class ScoreResult:
+    entries_in_scope: int
+    accepted_in_scope: int
+    accepted_hits: int
+    misses: int
+    matched_rejected: int
+    excluded_unreviewed: int
+    findings: int
+    gap_candidates: tuple
+    recall: str
+    precision: str
+
+
+def score_findings(*, entries: list, findings: list) -> ScoreResult:
+    """Score an already-scoped list of golden entries against a list of findings.
+
+    `entries` are golden entries already restricted to the PRs under consideration.
+    Each element of `findings` is a dict carrying 'pr_id', 'path', 'line', 'body'
+    and 'rule_id'.  Pure: no I/O, no mutation of either argument.
+    """
+    matched_entry_indices: set[int] = set()
+    matched_finding_indices: set[int] = set()
+
+    for ei, entry in enumerate(entries):
+        for fi, finding in enumerate(findings):
+            if entry.get("pr_id") != finding.get("pr_id"):
+                continue
+            if finding_matches_entry(entry, finding):
+                matched_entry_indices.add(ei)
+                matched_finding_indices.add(fi)
+
+    entries_in_scope = len(entries)
+    accepted_in_scope = sum(1 for e in entries if e.get("state") == STATE_ACCEPTED)
+    accepted_hits = sum(
+        1 for i in matched_entry_indices if entries[i].get("state") == STATE_ACCEPTED
+    )
+    misses = accepted_in_scope - accepted_hits
+    matched_rejected = sum(
+        1 for i in matched_entry_indices if entries[i].get("state") == STATE_REJECTED
+    )
+    excluded_unreviewed = sum(
+        1 for e in entries if e.get("state") == STATE_UNREVIEWED
+    )
+    findings_count = len(findings)
+    gap_candidates = tuple(
+        {"pr_id": f["pr_id"], "path": f["path"], "line": f["line"], "body": f["body"]}
+        for i, f in enumerate(findings)
+        if i not in matched_finding_indices
+    )
+    recall = format_ratio(accepted_hits, accepted_in_scope)
+    precision = format_ratio(accepted_hits, accepted_hits + matched_rejected)
+
+    return ScoreResult(
+        entries_in_scope=entries_in_scope,
+        accepted_in_scope=accepted_in_scope,
+        accepted_hits=accepted_hits,
+        misses=misses,
+        matched_rejected=matched_rejected,
+        excluded_unreviewed=excluded_unreviewed,
+        findings=findings_count,
+        gap_candidates=gap_candidates,
+        recall=recall,
+        precision=precision,
+    )
+
+
+def iter_findings(rows: list) -> list:
+    """Flatten ledger rows into findings, each carrying its row's pr_id.
+
+    Returns dicts with 'pr_id', 'path', 'line', 'body', 'rule_id' in row order,
+    then finding order within a row.  The input rows are not mutated.
+    """
+    result = []
+    for row in rows:
+        pr_id = row.get("pr_id")
+        for finding in row.get("findings") or []:
+            result.append({
+                "pr_id": pr_id,
+                "path": finding.get("path"),
+                "line": finding.get("line"),
+                "body": finding.get("body"),
+                "rule_id": finding.get("rule_id"),
+            })
+    return result
+
+
+def entries_in_scope(golden: dict, pr_ids) -> list:
+    """The golden entries whose pr_id is in pr_ids, in golden-file order."""
+    pr_set = set(pr_ids)
+    return [e for e in golden.get("entries") or [] if e.get("pr_id") in pr_set]
+
+
+# ----------------------------------------------------------------------
+# Run chunking — spec 006 prompt 2
+# ----------------------------------------------------------------------
+def chunk_runs(rows: list) -> list:
+    """Split one configuration's ledger rows into runs by per-PR occurrence index.
+
+    Within a config, the k-th row for a given pr_id — in ledger file order —
+    belongs to run k.  Returns a list of lists, run 1 first.  Input not mutated.
+    """
+    from collections import Counter, defaultdict
+
+    counter = Counter()
+    runs: dict[int, list] = defaultdict(list)
+    for row in rows:
+        pr_id = row["pr_id"]
+        counter[pr_id] += 1
+        runs[counter[pr_id]].append(row)
+    return [runs[k] for k in sorted(runs)]
+
+
+# ----------------------------------------------------------------------
+# Aggregation dataclasses — spec 006 prompt 2
+# ----------------------------------------------------------------------
+@dataclasses.dataclass(frozen=True)
+class PrBreakdown:
+    pr_id: str
+    entries_in_scope: int
+    hits: int
+    misses: int
+    findings: int
+    gap_candidates: int
+    duration_seconds: int
+
+
+@dataclasses.dataclass(frozen=True)
+class RunScore:
+    index: int
+    pr_ids: tuple
+    complete: bool
+    span_start: str
+    span_end: str
+    wall_time_seconds: int
+    score: ScoreResult
+    per_pr: tuple
+
+
+@dataclasses.dataclass(frozen=True)
+class ConfigScore:
+    config_hash: str
+    model: str
+    effort: str
+    mode: str
+    rules_commands_hash: str
+    prs_version: str
+    runner_versions: tuple
+    rows_skipped: int
+    runs: tuple
+
+
+# ----------------------------------------------------------------------
+# Per-run scoring — spec 006 prompt 2
+# ----------------------------------------------------------------------
+def score_run(*, rows: list, golden: dict, expected_pr_ids: frozenset, index: int) -> RunScore:
+    """Score one run's rows, scoped to the PRs it actually covers."""
+    pr_ids_in_run = tuple(dict.fromkeys(r["pr_id"] for r in rows))
+    complete = set(pr_ids_in_run) == expected_pr_ids
+
+    # span_start / span_end — display only
+    timestamps = [r["started_at"] for r in rows if r.get("started_at")]
+    span_start = min(timestamps) if timestamps else ""
+    span_end = max(timestamps) if timestamps else ""
+
+    # wall_time: round of the unrounded sum
+    raw_wall = sum(r.get("duration_seconds", 0.0) or 0.0 for r in rows)
+    wall_time_seconds = round(raw_wall)
+
+    # Scope: only the PRs this run actually covers
+    scoped_entries = entries_in_scope(golden, pr_ids_in_run)
+    findings = iter_findings(rows)
+    score = score_findings(entries=scoped_entries, findings=findings)
+
+    # Per-PR breakdown: re-score each PR individually
+    per_pr_list: list[PrBreakdown] = []
+    for pr_id in pr_ids_in_run:
+        pr_rows = [r for r in rows if r["pr_id"] == pr_id]
+        pr_entries = entries_in_scope(golden, (pr_id,))
+        pr_findings = iter_findings(pr_rows)
+        pr_score = score_findings(entries=pr_entries, findings=pr_findings)
+        raw_dur = sum(r.get("duration_seconds", 0.0) or 0.0 for r in pr_rows)
+        per_pr_list.append(PrBreakdown(
+            pr_id=pr_id,
+            entries_in_scope=pr_score.entries_in_scope,
+            hits=pr_score.accepted_hits,
+            misses=pr_score.misses,
+            findings=pr_score.findings,
+            gap_candidates=len(pr_score.gap_candidates),
+            duration_seconds=round(raw_dur),
+        ))
+
+    return RunScore(
+        index=index,
+        pr_ids=pr_ids_in_run,
+        complete=complete,
+        span_start=span_start,
+        span_end=span_end,
+        wall_time_seconds=wall_time_seconds,
+        score=score,
+        per_pr=tuple(per_pr_list),
+    )
+
+
+def score_config(*, rows: list, golden: dict, rows_skipped: int = 0) -> ConfigScore:
+    """Score every run of one configuration's ledger rows."""
+    if not rows:
+        raise ValueError("score_config called with empty rows")
+
+    first = rows[0]
+    config_hash = first["config_hash"]
+    model = first["model"]
+    effort = first["effort"]
+    mode = first["mode"]
+    rules_commands_hash = first["rules_commands_hash"]
+    prs_version = first["prs_version"]
+
+    expected_pr_ids = frozenset(e["pr_id"] for e in golden["entries"])
+
+    runs = tuple(
+        score_run(rows=chunk, golden=golden, expected_pr_ids=expected_pr_ids, index=i)
+        for i, chunk in enumerate(chunk_runs(rows), 1)
+    )
+
+    runner_versions = tuple(sorted(
+        {str(r.get("runner_version", "1")) for r in rows}
+    ))
+
+    return ConfigScore(
+        config_hash=config_hash,
+        model=model,
+        effort=effort,
+        mode=mode,
+        rules_commands_hash=rules_commands_hash,
+        prs_version=prs_version,
+        runner_versions=runner_versions,
+        rows_skipped=rows_skipped,
+        runs=runs,
+    )
+
+
+# ----------------------------------------------------------------------
+# Report rendering — spec 006 prompt 3
+# ----------------------------------------------------------------------
+CONFIG_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def validate_config_hash(value: str) -> str:
+    """Return value when it is 64 lowercase hex characters; raise BenchError otherwise."""
+    if not isinstance(value, str) or not CONFIG_HASH_RE.fullmatch(value):
+        raise BenchError(f"{INVALID_CONFIG_HASH_MARKER}: {value!r}")
+    return value
+
+
+def report_path(reports_dir: pathlib.Path, config_hash: str) -> pathlib.Path:
+    """<reports_dir>/<64-hex config_hash>.md, with the hash validated first."""
+    validated = validate_config_hash(config_hash)
+    path = reports_dir / f"{validated}.md"
+    assert_under(path, reports_dir.resolve())
+    return path
+
+
+def coding_plugin_version(coding_repo: pathlib.Path) -> str:
+    """The `version` from <coding_repo>/.claude-plugin/plugin.json, or 'unavailable'."""
+    try:
+        plugin_path = coding_repo / ".claude-plugin" / "plugin.json"
+        data = json.loads(plugin_path.read_text(encoding="utf-8"))
+        return str(data["version"])
+    except (OSError, json.JSONDecodeError, KeyError):
+        return "unavailable"
+
+
+def _precision_caveat(golden_version: str) -> str:
+    return (
+        f"*{golden_version}* currently carries zero `rejected` entries, so precision "
+        "cannot be lost by any configuration. "
+        "A precision of `1.000` is a property of the golden set's adjudication state "
+        "and is not yet a result."
+    )
+
+
+def _recall_caveat() -> str:
+    return (
+        "36 of the 42 signatures embed a line reference, so a re-report of the same "
+        "issue at a different line does not match and is surfaced as a gap-triage "
+        "candidate rather than a hit. "
+        "On this golden set, `recall` measures whether a configuration cited the same "
+        "line, not whether it found the issue."
+    )
+
+
+def _escape_pipe(s: str) -> str:
+    """Escape a literal pipe so it cannot add a markdown table column."""
+    return s.replace("|", "\\|")
+
+
+def render_report(*, config_score: ConfigScore, golden: dict, coding_version: str) -> str:
+    """Render one configuration's scored result as the full page text.
+
+    No generation timestamp, no wall clock, no host name — purely a function of
+    the result object and the frozen golden set.
+    """
+    lines: list[str] = []
+
+    # ── Page header ──────────────────────────────────────────────────────────
+    lines.append(config_score.config_hash)
+    lines.append("")  # blank after h1
+
+    # ── ## Configuration ────────────────────────────────────────────────────
+    lines.append("## Configuration")
+    lines.append(f"- model: {config_score.model}")
+    lines.append(f"- effort: {config_score.effort}")
+    lines.append(f"- mode: {config_score.mode}")
+    lines.append(f"- config_hash: {config_score.config_hash}")
+    lines.append(f"- rules_commands_hash: {config_score.rules_commands_hash}")
+    lines.append(f"- prs_version: {config_score.prs_version}")
+    lines.append(f"- coding version: {coding_version}")
+    lines.append(
+        f"- golden baseline coding version: {golden['baseline']['coding_version']}"
+    )
+    lines.append(f"- golden version: {golden['version']}")
+    lines.append(
+        f"- runner_version: {', '.join(config_score.runner_versions)}"
+    )
+    lines.append(f"- rows skipped: {config_score.rows_skipped}")
+    lines.append("- cost: not recorded — the ledger carries no cost field.")
+    lines.append("")
+    lines.append(_precision_caveat(golden["version"]))
+    lines.append("")
+    lines.append(_recall_caveat())
+    lines.append("")
+
+    # ── ## Runs ─────────────────────────────────────────────────────────────
+    lines.append("## Runs")
+    lines.append(
+        "| run | span | PRs | complete | golden in scope | findings | hits | "
+        "misses | matched rejected | gap candidates | recall | precision | "
+        "wall time (s) |"
+    )
+    lines.append(
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
+        "--- | --- |"
+    )
+    for run_score in config_score.runs:
+        span = f"{run_score.span_start} … {run_score.span_end}"
+        complete_word = "complete" if run_score.complete else "partial"
+        r = run_score.score
+        lines.append(
+            f"| {run_score.index} "
+            f"| {_escape_pipe(span)} "
+            f"| {len(run_score.pr_ids)} "
+            f"| {complete_word} "
+            f"| {r.entries_in_scope} "
+            f"| {r.findings} "
+            f"| {r.accepted_hits} "
+            f"| {r.misses} "
+            f"| {r.matched_rejected} "
+            f"| {len(r.gap_candidates)} "
+            f"| {r.recall} "
+            f"| {r.precision} "
+            f"| {run_score.wall_time_seconds} |"
+        )
+    lines.append("")
+
+    # ── ## Per-PR ───────────────────────────────────────────────────────────
+    lines.append("## Per-PR")
+    lines.append(
+        "| run | pr_id | golden in scope | hits | misses | findings | "
+        "gap candidates | duration (s) |"
+    )
+    lines.append(
+        "| --- | --- | --- | --- | --- | --- | --- | --- |"
+    )
+    for run_score in config_score.runs:
+        for pr in run_score.per_pr:
+            lines.append(
+                f"| {run_score.index} "
+                f"| {_escape_pipe(pr.pr_id)} "
+                f"| {pr.entries_in_scope} "
+                f"| {pr.hits} "
+                f"| {pr.misses} "
+                f"| {pr.findings} "
+                f"| {pr.gap_candidates} "
+                f"| {pr.duration_seconds} |"
+            )
+    lines.append("")
+
+    # ── ## Gap-triage candidates ─────────────────────────────────────────────
+    lines.append("## Gap-triage candidates")
+    lines.append(
+        "These findings matched no golden entry. They are **not a precision "
+        "failure** — the golden set is a bootstrap from one strong-model run, and "
+        "a finding it does not describe is evidence the set is incomplete."
+    )
+    lines.append("")
+
+    total_gap = sum(
+        len(rs.score.gap_candidates) for rs in config_score.runs
+    )
+    if total_gap == 0:
+        lines.append("None.")
+    else:
+        for run_score in config_score.runs:
+            for gc in run_score.score.gap_candidates:
+                line_suffix = f":{gc['line']}" if gc["line"] is not None else ""
+                lines.append(
+                    f"### run {run_score.index} — {gc['pr_id']} — "
+                    f"{gc['path']}{line_suffix}"
+                )
+                lines.append("")
+                lines.append(gc["body"])  # verbatim, no wrapping
+                lines.append("")
+
+    return "\n".join(lines)
+
+
+def write_report(
+    *,
+    reports_dir: pathlib.Path,
+    config_score: ConfigScore,
+    golden: dict,
+    coding_version: str,
+) -> pathlib.Path:
+    """Render and atomically write one configuration's page.  Returns the path."""
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    path = report_path(reports_dir, config_score.config_hash)
+    text = render_report(
+        config_score=config_score,
+        golden=golden,
+        coding_version=coding_version,
+    )
+    atomic_write_bytes(path, text.encode("utf-8"))
+    return path
+
+
+# ----------------------------------------------------------------------
 # Entrypoint
 # ----------------------------------------------------------------------
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
-        if args.golden is not None:
-            print(
-                "--golden is reserved but scoring is not implemented in this runner. "
-                "Precision/recall and golden-set matching are future work in a separate spec; "
-                "the runner stops at normalized findings.  Re-run without --golden.",
-                file=sys.stderr,
-            )
-            return 2
-
         if args.print_config_hash:
             print(content_hash(args.coding_repo.resolve()))
             return 0
 
+        # Score mode — reads ledger, writes pages, invokes no review
+        if args.score:
+            if args.golden is None:
+                print(
+                    "--score requires --golden to specify the golden set",
+                    file=sys.stderr,
+                )
+                return 2
+            identity_flags = [f for f in (args.model, args.effort, args.mode) if f]
+            if identity_flags:
+                print(
+                    f"identity flags (--model / --effort / --mode) have no meaning "
+                    f"when scoring an existing ledger; its config_identity comes from "
+                    f"the ledger rows",
+                    file=sys.stderr,
+                )
+                return 2
+            golden = load_golden(args.golden)
+            rows = load_ledger(ledger_path(args.out_dir))
+            return score_ledger(
+                rows=rows,
+                golden=golden,
+                reports_dir=args.reports_dir,
+                coding_repo=args.coding_repo.resolve(),
+            )
+
+        # Live mode — existing argument checks
         missing: list[str] = []
         if args.model is None:
             missing.append("--model")
@@ -1636,6 +2351,20 @@ def main(argv=None) -> int:
             )
             return 2
 
+        # Live mode with --golden — check prs_version match before any review
+        golden = None
+        if args.golden is not None:
+            golden = load_golden(args.golden)
+            manifest = load_manifest(args.manifest)
+            if golden["prs_version"] != manifest["version"]:
+                print(
+                    f"{GOLDEN_VERSION_MISMATCH_MARKER}: "
+                    f"golden prs_version {golden['prs_version']!r} != "
+                    f"manifest version {manifest['version']!r}",
+                    file=sys.stderr,
+                )
+                return 2
+
         return run_bench(
             coding_repo=args.coding_repo.resolve(),
             manifest_path=args.manifest,
@@ -1645,6 +2374,8 @@ def main(argv=None) -> int:
             effort=args.effort,
             mode=args.mode,
             config_dir=verify_config_dir(),
+            golden=golden,
+            reports_dir=args.reports_dir,
         )
 
     except BenchError as err:

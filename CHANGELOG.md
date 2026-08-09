@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.39.1
 
 - fix: the report page shows what the gates removed. `v0.39.0` made the gates drop an unattributable finding and grade a review on the sections it did carry, recording both on the row — but neither reached the page, so a run whose reviews were largely rejected on shape rendered identically to one that scored cleanly. The Per-PR table gains `dropped items` and `missing sections` columns, the Runs table's PR count becomes scored-over-expected (`4/5`, not `4`), and an effective-fixture line under Per-PR states how many of the manifest's PRs produced a scored row. Every number is counted from the rows, never asserted
 - test: three new report tests plus three amended ones. The new tests pin that a dropped-item count and a missing-section name each reach the page, and that a ledger predating both fields renders as a clean run rather than an empty cell — absent must read as "nothing dropped", not as silence

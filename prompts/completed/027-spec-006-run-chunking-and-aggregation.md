@@ -1,11 +1,13 @@
 ---
-status: executing
+status: completed
 spec: [006-bench-golden-scoring-and-report]
+summary: Implemented run chunking by per-PR occurrence index, per-run/per-PR aggregation dataclasses, score_run, score_config, and all 13 new unit tests covering AC4/AC5/AC6/AC12/AC30
 execution_id: coding-exec-027-spec-006-run-chunking-and-aggregation
 dark-factory-version: v0.192.9
 created: "2026-08-09T11:31:00Z"
 queued: "2026-08-09T10:16:50Z"
-started: "2026-08-09T10:27:29Z"
+started: "2026-08-09T10:47:37Z"
+completed: "2026-08-09T10:50:00Z"
 ---
 
 <summary>

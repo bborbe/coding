@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: one issue, one golden entry. The `apt-key` adjudication in `v0.37.0` added a line-free entry for a defect the Opus baseline **already carried**, pinned to `ci.yml:32` — so the same issue was represented twice, three findings matched both, and recall inflated to a spurious `1.000`. The original entry is relaxed to a line-free signature instead and the duplicate removed (43 entries: 42 accepted, 1 rejected). The `v0.37.0` note below claims the finding was "absent from the Opus baseline"; that was wrong — it was present, pinned to a line the later runs did not cite
+- feat: new check rejecting a golden set in which any single finding satisfies two entries. The false-positive check run during adjudication compared a new signature only against the ledger's findings, never against the other entries — precisely how the duplicate got through. Verified to fail against the exact shipped defect
+- fix: report pages regenerated against the final golden set; the pages committed in #91 were rendered while an `unreviewed` probe entry was still present and described 45 entries against a 44-entry set
+
 ## v0.37.0
 
 - feat: golden set adjudicated to `golden-dev-2` — 44 entries, 43 `accepted` + the first `rejected`. Promoted the Trivy `apt-key` deprecation in `python-skeleton#3` (reported by 11 of the 102 ledger findings across 4 of 5 runs at five different lines, absent from the Opus baseline) with a deliberately line-free signature; rejected a subjective README label-naming suggestion. **Precision is measurable for the first time** — run 3 of config `9ce66e05` moves `1.000 → 0.750`, and recall rises in all four runs as gap candidates convert to hits

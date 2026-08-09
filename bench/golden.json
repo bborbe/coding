@@ -281,12 +281,12 @@
       "pr_id": "python-skeleton#3",
       "path": ".github/workflows/ci.yml",
       "signature": [
-        ".github/workflows/ci.yml:32"
+        "apt-key"
       ],
       "rule_id": null,
       "state": "accepted",
-      "line_when_seen": 32,
-      "excerpt": "**`.github/workflows/ci.yml:32`** — `wget -qO - … | sudo apt-key add -` installs Aqua's signing key into apt's **global** trusted keyring, where it can authenticate packages from *any* configured repo"
+      "line_when_seen": null,
+      "excerpt": "Trivy's signing key is piped into the deprecated `apt-key add`. Reported at five different lines across runs (13/29/30/31/32), so the signature is deliberately line-free; it was originally pinned to ci.yml:32 by the Opus baseline."
     },
     {
       "pr_id": "python-skeleton#3",
@@ -487,17 +487,6 @@
       "excerpt": "**`CHANGELOG.md:8`** — no `## Unreleased` section exists (top section is `## v0.6.0`), so this PR adds no changelog entry. `.maintainer.yaml` sets `release.autoRelease: true`, and the release agent pr"
     },
     {
-      "pr_id": "python-skeleton#3",
-      "path": ".github/workflows/ci.yml",
-      "signature": [
-        "apt-key"
-      ],
-      "rule_id": null,
-      "state": "accepted",
-      "line_when_seen": null,
-      "excerpt": "Trivy is installed by piping a downloaded key into the deprecated `apt-key add`. apt-key is removed on Ubuntu 24.04 runners, so this breaks on a runner-image bump; it is also an unpinned supply-chain fetch. Line varies by run (13/29/30/31/32), so the signature is deliberately line-free."
-    },
-    {
       "pr_id": "github-pr-review-agent#11",
       "path": "README.md",
       "signature": [
@@ -510,7 +499,8 @@
     }
   ],
   "adjudications": [
-    "2026-08-09 PROMOTE python-skeleton#3 .github/workflows/ci.yml apt-key -> accepted. Reported by 11 of the 102 findings in the ledger - the single most-reported issue in the benchmark - across 4 of 5 runs of config 9ce66e05, at five different lines. Absent from the Opus baseline. False-positive check: signature ['apt-key'] scoped to that path matches 11 findings, all the same defect in that one PR, none unrelated.",
-    "2026-08-09 REJECT github-pr-review-agent#11 README.md 'distinct labels' -> rejected. Subjective doc-polish on a table that is not wrong. False-positive check: matches exactly 1 finding in the ledger. This is the first rejected entry; before it, precision could not be lost by any configuration and 1.000 was an artefact of adjudication state."
+    "2026-08-09 RELAX python-skeleton#3 .github/workflows/ci.yml apt-key: signature changed from ['.github/workflows/ci.yml:32'] to ['apt-key'] so the same issue matches regardless of cited line. Reported by 11 of the 102 ledger findings at five different lines. NOTE: an earlier attempt ADDED a second line-free entry instead of relaxing this one; that duplicated the issue and 3 findings matched both entries, inflating recall. Corrected here - one issue, one entry.",
+    "2026-08-09 REJECT github-pr-review-agent#11 README.md 'distinct labels' -> rejected. Subjective doc-polish on a table that is not wrong. Matches exactly 1 finding in the ledger. First rejected entry; before it, precision could not be lost by any configuration.",
+    "Adjudication check that was missing and is now required: a new or relaxed signature must be tested for ALIASING against the other golden entries, not only against the ledger findings. Checking signature->findings alone let a duplicate through."
   ]
 }

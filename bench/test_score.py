@@ -6,12 +6,18 @@ import dataclasses
 import filecmp
 import hashlib
 import json
+import os
 import pathlib
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import run
+import testsupport
 
 
 BENCH_DIR = pathlib.Path(__file__).resolve().parent
@@ -1444,6 +1450,823 @@ class TestConfigHashIsGatedBeforeBecomingAFilename(unittest.TestCase):
             self.fail("uppercase hash not rejected")
         except run.BenchError as err:
             self.assertIn("INVALID CONFIG HASH", str(err))
+
+
+# ----------------------------------------------------------------------
+# Scoring integration tests — spec 006 prompt 4 (AC17, AC18, AC19, AC21, AC29, DB1)
+# ----------------------------------------------------------------------
+
+
+class TestScoringInvokesNoReviewAndMutatesNothing(unittest.TestCase):
+    """AC17 — score mode must not invoke claude and must not mutate any input."""
+
+    def test_score_mode_invokes_no_review(self):
+        """`--score --golden` produces pages but counter file stays empty."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+            counter_file = tmp / "counter.txt"
+            bin_dir = tmp / "bin"
+            bin_dir.mkdir()
+
+            shutil.copy(
+                str(BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl"),
+                results_dir / "results.jsonl",
+            )
+
+            testsupport.stub_claude(bin_dir, counter_file)
+
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 "--coding-repo", ".",
+                 ],
+                capture_output=True, text=True,
+                env=testsupport.with_path(bin_dir),
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            counter_text = (
+                counter_file.read_text()
+                if counter_file.exists()
+                else ""
+            )
+            self.assertEqual(counter_text.strip(), "", "claude was invoked")
+
+            # Ledger unchanged (sha256 + line count)
+            ledger_path = results_dir / "results.jsonl"
+            ledger_before_sha = hashlib.sha256(
+                ledger_path.read_bytes()
+            ).hexdigest()
+            ledger_before_lines = sum(
+                1 for line in ledger_path.read_text().splitlines()
+                if line.strip()
+            )
+
+            result2 = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 "--coding-repo", ".",
+                 ],
+                capture_output=True, text=True,
+                env=testsupport.with_path(bin_dir),
+            )
+            self.assertEqual(result2.returncode, 0)
+
+            ledger_after_sha = hashlib.sha256(
+                ledger_path.read_bytes()
+            ).hexdigest()
+            ledger_after_lines = sum(
+                1 for line in ledger_path.read_text().splitlines()
+                if line.strip()
+            )
+            self.assertEqual(ledger_before_sha, ledger_after_sha)
+            self.assertEqual(ledger_before_lines, ledger_after_lines)
+
+            # Golden set and testdata unchanged (run from repo root)
+            diff_result = subprocess.run(
+                ["git", "diff", "--exit-code",
+                 str(BENCH_DIR / "golden.json"), "bench/testdata/"],
+                capture_output=True, text=True,
+                cwd=str(run.REPO_ROOT),
+            )
+            self.assertEqual(diff_result.returncode, 0, diff_result.stderr)
+
+            # Exactly one page written
+            pages = sorted(p.name for p in reports_dir.iterdir())
+            self.assertEqual(
+                pages,
+                ["cc64cc99063178c49ed7bf9118c0cb92cd84d085877c8498c99e66a97de6838b.md"],
+                pages,
+            )
+
+
+class TestPreconditionsFailBeforeAnyReview(unittest.TestCase):
+    """AC18 — every precondition aborts before any review subprocess starts."""
+
+    def _run_with_stub(self, argv, bin_dir):
+        counter_file = bin_dir / "counter.txt"
+        testsupport.stub_claude(bin_dir, counter_file)
+        result = subprocess.run(
+            [sys.executable, str(run.BENCH_DIR / "run.py")] + argv,
+            capture_output=True, text=True,
+            env=testsupport.with_path(bin_dir),
+        )
+        counter_text = (
+            counter_file.read_text()
+            if counter_file.exists()
+            else ""
+        )
+        return result, counter_text
+
+    def test_score_without_golden_exits_two(self):
+        """--score without --golden exits 2 and stub was never invoked."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            bin_dir = tmp / "bin"
+            bin_dir.mkdir()
+            counter_file = bin_dir / "counter.txt"
+            testsupport.stub_claude(bin_dir, counter_file)
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score", "--out-dir", str(tmp / "results")],
+                capture_output=True, text=True,
+                env=testsupport.with_path(bin_dir),
+            )
+            self.assertEqual(result.returncode, 2)
+            # Plain message, no frozen literal required
+            self.assertIn("--golden", result.stderr)
+            try:
+                self.assertEqual(counter_file.read_text().strip(), "")
+            except FileNotFoundError:
+                pass  # stub never ran — counter file was never created
+
+    def test_score_with_malformed_golden_exits_two(self):
+        """--score with a golden JSON missing required keys exits 2."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            bin_dir = tmp / "bin"
+            bin_dir.mkdir()
+            bad_golden = tmp / "bad_golden.json"
+            bad_golden.write_text(
+                json.dumps({"entries": [], "match_rule": "", "states": {}}),
+                encoding="utf-8",
+            )
+            result, counter = self._run_with_stub(
+                ["--score", "--golden", str(bad_golden),
+                 "--out-dir", str(tmp / "results")],
+                bin_dir,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("INVALID GOLDEN SET", result.stderr)
+            self.assertEqual(counter.strip(), "")
+
+    def test_live_run_golden_version_mismatch_exits_two(self):
+        """Live run whose manifest version differs from golden prs_version exits 2."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            bin_dir = tmp / "bin"
+            bin_dir.mkdir()
+
+            repo_dir = tmp / "repo"
+            testsupport.build_coding_repo(repo_dir)
+
+            testsupport.build_verify_config_dir(
+                tmp / ".claude-verify",
+                repo_dir,
+            )
+
+            cache_root = tmp / "cache"
+            manifest_path = testsupport.seed_one_pr_manifest(tmp, cache_root)
+            manifest = json.loads(manifest_path.read_text())
+            manifest["version"] = "other-version"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result, counter = self._run_with_stub(
+                ["--golden", str(BENCH_DIR / "golden.json"),
+                 "--model", "opus",
+                 "--effort", "xhigh",
+                 "--mode", "full",
+                 "--manifest", str(manifest_path),
+                 "--coding-repo", str(repo_dir),
+                 "--out-dir", str(tmp / "results"),
+                 ],
+                bin_dir,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("GOLDEN VERSION MISMATCH", result.stderr)
+            self.assertIn("other-version", result.stderr)
+            self.assertIn("dev-1", result.stderr)
+            self.assertEqual(counter.strip(), "")
+
+    def test_score_with_identity_flags_exits_two(self):
+        """--score --golden with --model/--effort/--mode exits 2."""
+        for flag in ["--model", "--effort", "--mode"]:
+            with self.subTest(flag=flag):
+                with tempfile.TemporaryDirectory() as tmp:
+                    tmp = pathlib.Path(tmp)
+                    bin_dir = tmp / "bin"
+                    bin_dir.mkdir()
+                    counter_file = bin_dir / "counter.txt"
+                    testsupport.stub_claude(bin_dir, counter_file)
+                    result = subprocess.run(
+                        [sys.executable, str(run.BENCH_DIR / "run.py"),
+                         "--score",
+                         "--golden", str(BENCH_DIR / "golden.json"),
+                         flag, "opus",
+                         "--out-dir", str(tmp / "results"),
+                         ],
+                        capture_output=True, text=True,
+                        env=testsupport.with_path(bin_dir),
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("--model", result.stderr)
+                    try:
+                        self.assertEqual(counter_file.read_text().strip(), "")
+                    except FileNotFoundError:
+                        pass  # stub never ran
+
+
+class TestScoreModeOverBadLedgerFailsLoudly(unittest.TestCase):
+    """AC19 — corrupt ledger aborts with exit 2 and writes zero pages."""
+
+    def test_missing_ledger_exits_two(self):
+        """No results.jsonl → EMPTY LEDGER, zero pages."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(tmp / "results"),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("EMPTY LEDGER", result.stderr)
+            self.assertEqual(list(reports_dir.iterdir()), [])
+
+    def test_zero_byte_ledger_exits_two(self):
+        """Zero-byte results.jsonl → EMPTY LEDGER, zero pages."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+            (results_dir / "results.jsonl").write_bytes(b"")
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("EMPTY LEDGER", result.stderr)
+            self.assertEqual(list(reports_dir.iterdir()), [])
+
+    def test_all_whitespace_ledger_exits_two(self):
+        """All-whitespace results.jsonl → EMPTY LEDGER, zero pages."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+            (results_dir / "results.jsonl").write_text("  \n\n  \n", encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("EMPTY LEDGER", result.stderr)
+            self.assertEqual(list(reports_dir.iterdir()), [])
+
+    def test_corrupt_json_line_exits_two(self):
+        """A non-JSON line at line 3 → CORRUPT LEDGER with line number."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+
+            baseline = (
+                pathlib.Path(str(BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl"))
+                .read_text()
+                .splitlines()
+            )
+            baseline[2] = "{not json"
+            ledger = results_dir / "results.jsonl"
+            ledger.write_text("\n".join(baseline) + "\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("CORRUPT LEDGER", result.stderr)
+            self.assertIn(f"{ledger}:3:", result.stderr)
+            self.assertNotIn(f"{ledger}:2:", result.stderr)
+            self.assertNotIn(f"{ledger}:4:", result.stderr)
+            self.assertEqual(list(reports_dir.iterdir()), [])
+
+    def test_missing_required_field_exits_two(self):
+        """A row missing config_hash → CORRUPT LEDGER with its line number."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+
+            baseline = (
+                pathlib.Path(str(BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl"))
+                .read_text()
+                .splitlines()
+            )
+            bad_row = json.loads(baseline[2])
+            del bad_row["config_hash"]
+            baseline[2] = json.dumps(bad_row)
+            ledger = results_dir / "results.jsonl"
+            ledger.write_text("\n".join(baseline) + "\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("CORRUPT LEDGER", result.stderr)
+            self.assertIn(f"{ledger}:3:", result.stderr)
+            self.assertEqual(list(reports_dir.iterdir()), [])
+
+
+class TestRowsAgainstAnotherManifestAreSkippedPerRow(unittest.TestCase):
+    """AC29 — per-row prs_version filter; per-config gate would write zero pages here."""
+
+    def test_probe_fixture_writes_zero_pages_with_four_skips(self):
+        """Probe ledger scored against real golden → 0 pages, 4 skip lines."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+
+            shutil.copy(
+                str(BENCH_DIR / "testdata" / "ledger-probe-configs-mixed-prs-version.jsonl"),
+                results_dir / "results.jsonl",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            pages = list(reports_dir.iterdir())
+            self.assertEqual(len(pages), 0, pages)
+            skip_lines = [
+                l for l in result.stderr.splitlines()
+                if "PRS VERSION SKIP" in l
+            ]
+            self.assertEqual(len(skip_lines), 4, skip_lines)
+            # Each of the three probe versions appears in at least one skip line
+            all_skip_text = " ".join(skip_lines)
+            self.assertIn("empty-diff-probe", all_skip_text)
+            self.assertIn("mode-full-probe", all_skip_text)
+            self.assertIn("ruleid-probe", all_skip_text)
+            self.assertIn("dev-1", all_skip_text)
+
+    def test_baseline_plus_probe_writes_one_page_with_zero_skipped(self):
+        """Baseline + probe concatenated → 1 page with rows_skipped: 0."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+
+            blob = (
+                pathlib.Path(str(BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl"))
+                .read_text()
+                + pathlib.Path(str(BENCH_DIR / "testdata" / "ledger-probe-configs-mixed-prs-version.jsonl"))
+                .read_text()
+            )
+            (results_dir / "results.jsonl").write_text(blob, encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            pages = sorted(p.name for p in reports_dir.iterdir())
+            self.assertEqual(
+                pages,
+                ["cc64cc99063178c49ed7bf9118c0cb92cd84d085877c8498c99e66a97de6838b.md"],
+            )
+            skip_lines = [
+                l for l in result.stderr.splitlines()
+                if "PRS VERSION SKIP" in l
+            ]
+            self.assertEqual(len(skip_lines), 4, skip_lines)
+            text = (reports_dir / pages[0]).read_text()
+            skipped_line = [
+                l for l in text.splitlines()
+                if l.startswith("- rows skipped: ")
+            ]
+            self.assertEqual(skipped_line, ["- rows skipped: 0"], skipped_line)
+
+    def test_one_row_mismatched_prs_version_skipped_config_still_writes_page(self):
+        """One baseline row's prs_version rewritten to a different value → 1 page, rows_skipped: 1."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+
+            baseline = (
+                pathlib.Path(str(BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl"))
+                .read_text()
+                .splitlines()
+            )
+            rows = [json.loads(l) for l in baseline]
+            for row in rows:
+                if row["pr_id"] == "tts-mcp#20":
+                    row["prs_version"] = "mode-full-probe"
+                    break
+            (results_dir / "results.jsonl").write_text(
+                "\n".join(json.dumps(r) for r in rows) + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            pages = sorted(p.name for p in reports_dir.iterdir())
+            self.assertEqual(len(pages), 1, pages)
+
+            text = (reports_dir / pages[0]).read_text()
+
+            skipped_line = [
+                l for l in text.splitlines()
+                if l.startswith("- rows skipped: ")
+            ]
+            self.assertEqual(skipped_line, ["- rows skipped: 1"], skipped_line)
+
+            # tts-mcp#20 absent from Per-PR table
+            per_pr_section = text[text.find("## Per-PR"):]
+            self.assertNotIn("tts-mcp#20", per_pr_section)
+
+            # Runs table: partial, 4 PRs, 41 golden in scope, 41 hits, 0 misses, recall=1.000
+            runs_section = text[text.find("## Runs"):text.find("## Per-PR")]
+            runs_lines = [
+                l for l in runs_section.splitlines()
+                if l.startswith("| 1 |")
+            ]
+            self.assertEqual(len(runs_lines), 1, runs_lines)
+            cells = [c.strip() for c in runs_lines[0].split("|") if c.strip()]
+            # cells: #, span, PRs, status, entries, findings, hits, misses, matched, gap, recall, precision, wall
+            self.assertEqual(cells[3], "partial", cells)
+            self.assertEqual(cells[2], "4", cells)
+            self.assertEqual(cells[4], "41", cells)
+            self.assertEqual(cells[6], "41", cells)
+            self.assertEqual(cells[7], "0", cells)
+            self.assertEqual(cells[10], "1.000", cells)
+            self.assertEqual(cells[11], "1.000", cells)
+
+
+class TestInvalidConfigHashRejectsOneConfigAndKeepsTheRest(unittest.TestCase):
+    """AC21 — invalid config_hash in ledger rejects that config but scores the rest."""
+
+    def test_invalid_config_hash_rejects_one_and_keeps_the_rest(self):
+        """A row with an invalid config_hash skips that config; rest get pages."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+
+            baseline = [
+                json.loads(l)
+                for l in (
+                    pathlib.Path(str(BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl"))
+                    .read_text()
+                    .splitlines()
+                )
+                if l.strip()
+            ]
+
+            quant_row = next(r for r in baseline if r["pr_id"] == "quant#109")
+            bad_row = copy.deepcopy(quant_row)
+            bad_row["config_hash"] = "../../etc/passwd"
+            # All other fields including prs_version remain correct (dev-1)
+
+            ledger = results_dir / "results.jsonl"
+            ledger.write_text(
+                "\n".join(json.dumps(r) for r in baseline + [bad_row]) + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(run.BENCH_DIR / "run.py"),
+                 "--score",
+                 "--golden", str(BENCH_DIR / "golden.json"),
+                 "--out-dir", str(results_dir),
+                 "--reports-dir", str(reports_dir),
+                 ],
+                capture_output=True, text=True,
+            )
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("INVALID CONFIG HASH", result.stderr)
+            self.assertIn("../../etc/passwd", result.stderr)
+
+            pages = sorted(p.name for p in reports_dir.iterdir())
+            self.assertEqual(
+                pages,
+                ["cc64cc99063178c49ed7bf9118c0cb92cd84d085877c8498c99e66a97de6838b.md"],
+            )
+
+            # Only the reports_dir got new files; results/ is unchanged
+            for path in reports_dir.iterdir():
+                self.assertTrue(path.is_file(), f"{path} is not a file")
+
+
+class TestLiveRunWithGoldenScoresItsOwnConfigurationOnly(unittest.TestCase):
+    """DB1 live-run half — --golden on a live run scores only that config."""
+
+    def test_live_run_with_golden_scores_own_config_only(self):
+        """A live run with --golden produces a page only for its own config_hash.
+
+        Uses mock.patch.dict to inject HOME+PATH so run_bench() finds the stub
+        and the verify config dir, following the same pattern as test_config.py.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            bin_dir = tmp / "bin"
+            bin_dir.mkdir()
+            counter_file = tmp / "counter"
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+            cache_root = tmp / "cache"
+
+            # Seed a prior unrelated config into the same results dir
+            prior_row = {
+                "config_hash": "0" * 64,
+                "pr_id": "test#99",
+                "prs_version": "dev-1",
+                "findings": [],
+                "model": "sonnet",
+                "effort": "medium",
+                "mode": "short",
+                "rules_commands_hash": "0" * 64,
+                "duration_seconds": 1.0,
+                "started_at": "2026-08-09T00:00:00+00:00",
+                "notes": [],
+                "review_command": "claude --print",
+                "raw_output_ref": "",
+                "base_sha": "a" * 40,
+                "head_sha": "b" * 40,
+                "diff_range": "a..b",
+                "parent_count": 1,
+                "changed_files": 1,
+                "runner_version": "1",
+            }
+            (results_dir / "results.jsonl").write_text(
+                json.dumps(prior_row) + "\n",
+                encoding="utf-8",
+            )
+
+            repo_dir = tmp / "repo"
+            testsupport.build_coding_repo(repo_dir)
+            cfg_dir = testsupport.build_verify_config_dir(
+                tmp / ".claude-verify",
+                repo_dir,
+            )
+
+            manifest_path = testsupport.seed_one_pr_manifest(tmp, cache_root)
+            manifest = json.loads(manifest_path.read_text())
+            manifest["version"] = "dev-1"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            small_golden = tmp / "golden.json"
+            small_golden.write_text(
+                json.dumps({
+                    "version": "small-golden",
+                    "prs_version": "dev-1",
+                    "baseline": {
+                        "model": "opus",
+                        "effort": "xhigh",
+                        "mode": "full",
+                        "coding_version": "v99.99.99",
+                        "config_hash_prefix": "cc64cc99",
+                        "rules_commands_hash_prefix": "ecc80333",
+                        "runs": 1,
+                        "findings": 1,
+                        "wall_time_seconds": 1,
+                    },
+                    "entries": [
+                        {
+                            "pr_id": "test#1",
+                            "path": "README.md",
+                            "signature": ["readme.md:1"],
+                            "state": "accepted",
+                        },
+                    ],
+                    "match_rule": "rule_id exact",
+                    "states": {"accepted": "ok", "rejected": "no", "unreviewed": "?"},
+                }),
+                encoding="utf-8",
+            )
+
+            testsupport.stub_claude(
+                bin_dir,
+                counter_file,
+                testsupport.review_report(must_fix="Found something."),
+            )
+
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(tmp)
+
+            with mock.patch.dict(os.environ, env):
+                rc = run.run_bench(
+                    coding_repo=repo_dir,
+                    manifest_path=manifest_path,
+                    results_dir=results_dir,
+                    cache_root=cache_root,
+                    model="opus",
+                    effort="xhigh",
+                    mode="full",
+                    config_dir=cfg_dir,
+                    golden=json.loads(small_golden.read_text()),
+                    reports_dir=reports_dir,
+                )
+
+            # rc may be 1 if the stub review was rejected as "NOT A REVIEW"
+            self.assertIn(rc, (0, 1), f"expected rc 0 or 1, got {rc}")
+
+            # Only the live-run config got a page (not the prior unrelated one)
+            pages = sorted(p.name for p in reports_dir.iterdir())
+            self.assertEqual(len(pages), 1, pages)
+            self.assertNotIn(
+                "0" * 64 + ".md",
+                [p.name for p in reports_dir.iterdir()],
+            )
+
+
+class TestRunFailureOutranksScoreResult(unittest.TestCase):
+    """DB1 exit-code precedence — a failing run returns non-zero even when scoring succeeds."""
+
+    def test_run_failure_outranks_score_success(self):
+        """A failing run with --golden returns the run's non-zero code, not 0.
+
+        The stub exits 3 after the review (so no ledger row is written for this run),
+        but the ledger is pre-populated with a valid row so score_ledger can run and
+        return 0.  The overall exit must be non-zero (outrank).
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            bin_dir = tmp / "bin"
+            bin_dir.mkdir()
+            counter_file = tmp / "counter"
+            results_dir = tmp / "results"
+            results_dir.mkdir()
+            reports_dir = tmp / "reports"
+            reports_dir.mkdir()
+            cache_root = tmp / "cache"
+
+            repo_dir = tmp / "repo"
+            testsupport.build_coding_repo(repo_dir)
+            cfg_dir = testsupport.build_verify_config_dir(
+                tmp / ".claude-verify",
+                repo_dir,
+            )
+
+            manifest_path = testsupport.seed_one_pr_manifest(tmp, cache_root)
+            manifest = json.loads(manifest_path.read_text())
+            manifest["version"] = "test-1"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            small_golden = tmp / "golden.json"
+            small_golden.write_text(
+                json.dumps({
+                    "version": "small-golden",
+                    "prs_version": "test-1",
+                    "baseline": {
+                        "model": "opus",
+                        "effort": "xhigh",
+                        "mode": "full",
+                        "coding_version": "v99.99.99",
+                        "config_hash_prefix": "cc64cc99",
+                        "rules_commands_hash_prefix": "ecc80333",
+                        "runs": 1,
+                        "findings": 1,
+                        "wall_time_seconds": 1,
+                    },
+                    "entries": [
+                        {
+                            "pr_id": "test#1",
+                            "path": "README.md",
+                            "signature": ["readme.md:1"],
+                            "state": "accepted",
+                        },
+                    ],
+                    "match_rule": "rule_id exact",
+                    "states": {"accepted": "ok", "rejected": "no", "unreviewed": "?"},
+                }),
+                encoding="utf-8",
+            )
+
+            # Pre-populate the ledger with a valid row so score_ledger has something to score
+            prior_row = {
+                "config_hash": "1" * 64,
+                "pr_id": "test#1",
+                "prs_version": "test-1",
+                "findings": [],
+                "model": "opus",
+                "effort": "xhigh",
+                "mode": "full",
+                "rules_commands_hash": "1" * 64,
+                "duration_seconds": 1.0,
+                "started_at": "2026-08-09T00:00:00+00:00",
+                "notes": [],
+                "review_command": "claude --print",
+                "raw_output_ref": "",
+                "base_sha": "a" * 40,
+                "head_sha": "b" * 40,
+                "diff_range": "a..b",
+                "parent_count": 1,
+                "changed_files": 1,
+                "runner_version": "1",
+            }
+            (results_dir / "results.jsonl").write_text(
+                json.dumps(prior_row) + "\n",
+                encoding="utf-8",
+            )
+
+            testsupport.stub_claude_streams(
+                bin_dir,
+                counter_file,
+                stdout_text=testsupport.review_report(must_fix="Found something."),
+                exit_code=3,
+            )
+
+            env = testsupport.with_path(bin_dir)
+            env["HOME"] = str(tmp)
+
+            with mock.patch.dict(os.environ, env):
+                rc = run.run_bench(
+                    coding_repo=repo_dir,
+                    manifest_path=manifest_path,
+                    results_dir=results_dir,
+                    cache_root=cache_root,
+                    model="opus",
+                    effort="xhigh",
+                    mode="full",
+                    config_dir=cfg_dir,
+                    golden=json.loads(small_golden.read_text()),
+                    reports_dir=reports_dir,
+                )
+
+            # Run failed (exit 3), scoring succeeded (exit 0).
+            # Non-zero run code must outrank zero score code.
+            self.assertNotEqual(rc, 0, "run should fail")
+            # run_rc is 1 (n_failed>0), not the stub's exit 3.
+            # The failure outranks scoring (which would return 0) by producing non-zero.
+            self.assertEqual(rc, 1, "run failure outranks scoring success")
 
 
 if __name__ == "__main__":

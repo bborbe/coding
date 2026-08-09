@@ -119,6 +119,165 @@ class BenchError(Exception):
 
 
 # ----------------------------------------------------------------------
+# Golden-set and ledger loaders — spec 006 prompt 4
+# ----------------------------------------------------------------------
+def load_golden(path: pathlib.Path) -> dict:
+    """Read and validate a golden set.  Raises BenchError with a frozen literal."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BenchError(f"{GOLDEN_NOT_FOUND_MARKER}: {path}") from exc
+
+    if not isinstance(data, dict):
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: not a JSON object at {path}"
+        )
+
+    missing = [k for k in REQUIRED_GOLDEN_KEYS if k not in data]
+    if missing:
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: missing {missing} in {path}"
+        )
+
+    if "prs_version" not in data or not isinstance(data.get("prs_version"), str):
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: missing or non-string 'prs_version' in {path}"
+        )
+
+    if not isinstance(data.get("entries"), list):
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: 'entries' is not a list in {path}"
+        )
+
+    for i, entry in enumerate(data["entries"], 1):
+        if not isinstance(entry, dict):
+            raise BenchError(
+                f"{INVALID_GOLDEN_MARKER}: entry {i} is not an object in {path}"
+            )
+        for field in ("pr_id", "path", "signature", "state"):
+            if field not in entry:
+                raise BenchError(
+                    f"{INVALID_GOLDEN_MARKER}: entry {i} missing '{field}' in {path}"
+                )
+
+    return data
+
+
+def load_ledger(path: pathlib.Path) -> list:
+    """Read a JSONL ledger.  Raises BenchError with a frozen literal."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise BenchError(f"{EMPTY_LEDGER_MARKER}: {path}") from exc
+
+    if not text.strip():
+        raise BenchError(f"{EMPTY_LEDGER_MARKER}: {path}")
+
+    rows: list = []
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise BenchError(
+                f"{CORRUPT_LEDGER_MARKER}: {path}:{lineno}: {exc}"
+            ) from exc
+        if not isinstance(obj, dict):
+            raise BenchError(
+                f"{CORRUPT_LEDGER_MARKER}: {path}:{lineno}: not a JSON object"
+            )
+        for field in ("config_hash", "pr_id", "prs_version", "findings"):
+            if field not in obj:
+                raise BenchError(
+                    f"{CORRUPT_LEDGER_MARKER}: {path}:{lineno}: missing '{field}'"
+                )
+        rows.append(obj)
+
+    if not rows:
+        raise BenchError(f"{EMPTY_LEDGER_MARKER}: {path}")
+
+    return rows
+
+
+def partition_by_prs_version(
+    rows: list, golden_prs_version: str
+) -> tuple[list, list]:
+    """Return (kept, skipped): rows whose prs_version equals the golden set's, and the rest."""
+    kept: list = []
+    skipped: list = []
+    for row in rows:
+        if row["prs_version"] == golden_prs_version:
+            kept.append(row)
+        else:
+            skipped.append(row)
+            print(
+                f"PRS VERSION SKIP: config {row['config_hash'][:16]}… "
+                f"row prs_version {row['prs_version']!r} != "
+                f"golden prs_version {golden_prs_version!r} "
+                f"(pr {row['pr_id']})",
+                file=sys.stderr,
+            )
+    return kept, skipped
+
+
+def score_ledger(
+    *,
+    rows: list,
+    golden: dict,
+    reports_dir: pathlib.Path,
+    coding_repo: pathlib.Path,
+    only_config_hash: str | None = None,
+) -> int:
+    """Score every configuration in rows and write one page each.  Returns an exit code."""
+    golden_prs_version = golden["prs_version"]
+    kept, skipped = partition_by_prs_version(rows, golden_prs_version)
+
+    by_config: dict[str, list] = {}
+    for row in kept:
+        cfg = row["config_hash"]
+        if cfg not in by_config:
+            by_config[cfg] = []
+        by_config[cfg].append(row)
+
+    coding_version = coding_plugin_version(coding_repo)
+    exit_code = 0
+
+    for cfg_hash, cfg_rows in by_config.items():
+        if only_config_hash is not None and cfg_hash != only_config_hash:
+            continue
+        # skipped rows with this config_hash (per-row filter — some configs mix versions)
+        skipped_count = sum(
+            1 for r in skipped
+            if r["config_hash"] == cfg_hash
+        )
+        try:
+            config_score = score_config(
+                rows=cfg_rows, golden=golden, rows_skipped=skipped_count
+            )
+        except BenchError as err:
+            print(str(err), file=sys.stderr)
+            exit_code = 1
+            continue
+
+        try:
+            written = write_report(
+                reports_dir=reports_dir,
+                config_score=config_score,
+                golden=golden,
+                coding_version=coding_version,
+            )
+            print(f"wrote {written}")
+        except BenchError as err:
+            print(str(err), file=sys.stderr)
+            exit_code = 1
+            continue
+
+    return exit_code
+
+
+# ----------------------------------------------------------------------
 # Content hashing — content-derived, not git-derived
 # ----------------------------------------------------------------------
 def content_hash(root: pathlib.Path) -> str:
@@ -1416,7 +1575,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--golden",
         type=pathlib.Path,
         default=None,
-        help="[RESERVED — not implemented; scoring is future work]",
+        help="Golden set JSON; scores the run (or the ledger, with --score) and writes report pages",
+    )
+    parser.add_argument(
+        "--score",
+        action="store_true",
+        default=False,
+        help="Score an existing ledger and exit; invokes no review. Requires --golden",
+    )
+    parser.add_argument(
+        "--reports-dir",
+        type=pathlib.Path,
+        default=BENCH_DIR / "reports",
+        help="Directory for report pages (default: bench/reports)",
     )
     parser.add_argument(
         "--print-config-hash",
@@ -1433,7 +1604,9 @@ def build_parser() -> argparse.ArgumentParser:
 def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
               results_dir: pathlib.Path, cache_root: pathlib.Path,
               model: str, effort: str, mode: str,
-              config_dir: pathlib.Path) -> int:
+              config_dir: pathlib.Path,
+              golden: dict | None = None,
+              reports_dir: pathlib.Path | None = None) -> int:
     """Keyword-only runner: load manifest, verify plugin, process each PR.
 
     Returns 0 only when every PR produced 'ok' or 'cache hit'.
@@ -1493,7 +1666,21 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
             print(f"{pr_id}: {outcome}")
         print(f"summary: {n_ok} ok, {n_cached} cache hit, {n_failed} failed")
 
-        return 0 if n_failed == 0 else 1
+        run_rc = 0 if n_failed == 0 else 1
+
+        if golden is not None and reports_dir is not None:
+            rows = load_ledger(ledger_path(results_dir))
+            score_rc = score_ledger(
+                rows=rows,
+                golden=golden,
+                reports_dir=reports_dir,
+                coding_repo=coding_repo,
+                only_config_hash=cfg_hash,
+            )
+            # Run failure takes precedence over a scoring pass.
+            return run_rc if run_rc != 0 else score_rc
+
+        return run_rc
 
 
 def process_pr(*, entry: dict, coding_repo: pathlib.Path,
@@ -2092,19 +2279,37 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
-        if args.golden is not None:
-            print(
-                "--golden is reserved but scoring is not implemented in this runner. "
-                "Precision/recall and golden-set matching are future work in a separate spec; "
-                "the runner stops at normalized findings.  Re-run without --golden.",
-                file=sys.stderr,
-            )
-            return 2
-
         if args.print_config_hash:
             print(content_hash(args.coding_repo.resolve()))
             return 0
 
+        # Score mode — reads ledger, writes pages, invokes no review
+        if args.score:
+            if args.golden is None:
+                print(
+                    "--score requires --golden to specify the golden set",
+                    file=sys.stderr,
+                )
+                return 2
+            identity_flags = [f for f in (args.model, args.effort, args.mode) if f]
+            if identity_flags:
+                print(
+                    f"identity flags (--model / --effort / --mode) have no meaning "
+                    f"when scoring an existing ledger; its config_identity comes from "
+                    f"the ledger rows",
+                    file=sys.stderr,
+                )
+                return 2
+            golden = load_golden(args.golden)
+            rows = load_ledger(ledger_path(args.out_dir))
+            return score_ledger(
+                rows=rows,
+                golden=golden,
+                reports_dir=args.reports_dir,
+                coding_repo=args.coding_repo.resolve(),
+            )
+
+        # Live mode — existing argument checks
         missing: list[str] = []
         if args.model is None:
             missing.append("--model")
@@ -2121,6 +2326,20 @@ def main(argv=None) -> int:
             )
             return 2
 
+        # Live mode with --golden — check prs_version match before any review
+        golden = None
+        if args.golden is not None:
+            golden = load_golden(args.golden)
+            manifest = load_manifest(args.manifest)
+            if golden["prs_version"] != manifest["version"]:
+                print(
+                    f"{GOLDEN_VERSION_MISMATCH_MARKER}: "
+                    f"golden prs_version {golden['prs_version']!r} != "
+                    f"manifest version {manifest['version']!r}",
+                    file=sys.stderr,
+                )
+                return 2
+
         return run_bench(
             coding_repo=args.coding_repo.resolve(),
             manifest_path=args.manifest,
@@ -2130,6 +2349,8 @@ def main(argv=None) -> int:
             effort=args.effort,
             mode=args.mode,
             config_dir=verify_config_dir(),
+            golden=golden,
+            reports_dir=args.reports_dir,
         )
 
     except BenchError as err:

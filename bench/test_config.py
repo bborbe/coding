@@ -248,15 +248,16 @@ class TestCliContract(unittest.TestCase):
     """CLI exit-code contract tests (AC11 and mandatory flag enforcement)."""
 
     def test_golden_flag_exits_two(self):
-        """--golden exits 2 and stderr mentions scoring / future work."""
+        """--golden without identity flags exits 2, naming --model."""
         result = subprocess.run(
             [sys.executable, str(run.BENCH_DIR / "run.py"),
              "--golden", "bench/golden.json"],
             capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertIn("scoring", result.stderr.lower())
-        self.assertIn("future", result.stderr.lower())
+        self.assertIn("--model", result.stderr)
+        self.assertNotIn("future work", result.stderr)
+        self.assertNotIn("not implemented", result.stderr)
 
     def test_print_config_hash_matches_content_hash(self):
         """--print-config-hash exits 0 and its stdout equals content_hash()."""

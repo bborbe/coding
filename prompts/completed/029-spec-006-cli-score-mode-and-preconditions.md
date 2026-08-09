@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [006-bench-golden-scoring-and-report]
+summary: 'Wired scoring into runner control flow: --golden and --score CLI flags, load_golden/load_ledger/partition_by_prs_version/score_ledger functions, run_bench post-loop scoring with only_config_hash filter, and full integration test suite (16 new tests covering AC17/18/19/21/29 and DB1)'
+execution_id: coding-exec-029-spec-006-cli-score-mode-and-preconditions
+dark-factory-version: v0.192.9
 created: "2026-08-09T11:33:00Z"
 queued: "2026-08-09T10:16:50Z"
+started: "2026-08-09T10:59:16Z"
+completed: "2026-08-09T11:34:20Z"
 ---
 
 <summary>

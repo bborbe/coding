@@ -76,6 +76,37 @@ class TestFixtureProvenance(unittest.TestCase):
             for kw in entry["signature"]:
                 self.assertTrue(kw.strip(), f"entry {i} has a blank keyword")
 
+    def test_no_live_golden_entry_aliases_another(self):
+        """No single finding may satisfy two golden entries.
+
+        Adjudication on 2026-08-09 added a line-free `apt-key` entry for an issue
+        the baseline already carried pinned to `ci.yml:32`.  The same issue was
+        then represented twice, three findings matched both, and recall inflated
+        to a spurious 1.000.  The false-positive check performed at the time only
+        compared a new signature against the ledger's findings — never against the
+        other entries — so nothing caught it.  This is that missing check.
+        """
+        golden = run.load_golden(BENCH_DIR / "golden.json")
+        ledger = BENCH_DIR / "results" / "results.jsonl"
+        if not ledger.exists():
+            self.skipTest("no ledger to check aliasing against")
+
+        rows = [json.loads(l) for l in
+                ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+        for row in rows:
+            for finding in row.get("findings", []):
+                matched = [e for e in golden["entries"]
+                           if e["pr_id"] == row["pr_id"]
+                           and run.finding_matches_entry(e, finding)]
+                self.assertLessEqual(
+                    len(matched), 1,
+                    f"finding on {finding.get('path')} matches "
+                    f"{len(matched)} golden entries "
+                    f"({[e['signature'] for e in matched]}) — one issue must be "
+                    f"one entry, or recall double-counts",
+                )
+
     def test_golden_json_sha256(self):
         digest = hashlib.sha256(
             GOLDEN_FIXTURE.read_bytes()

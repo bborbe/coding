@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.36.0
 
 - fix: bench releases each PR working copy as soon as its review finishes, instead of deferring teardown to the next run for that PR — a completed 5-PR run left one checkout per PR on disk, each carrying whatever the reviewed repo's own tooling produced (`.venv`, `node_modules`), reaching 941MB against ~1MB of git objects per repo; the timeout and non-zero-exit paths previously tore down nothing at all. Measured 941MB → 2.9M over a full run. Git objects stay cached, so `ensure_refs`' offline short-circuit is unaffected
 - feat: bench scoring layer — per-run precision and recall ratios derived from `bench/golden.json`, with `n/a` rendering for degenerate denominators; `golden-dev-1` currently carries zero `rejected` entries so precision cannot be lost, and 36 of 42 signatures embed a line reference so `recall` measures same-line citation rather than issue detection

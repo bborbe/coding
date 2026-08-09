@@ -2559,3 +2559,74 @@ class TestGatesRejectItemsNotRows(unittest.TestCase):
             rows = self._run_one(pathlib.Path(td), "Unknown command: /coding:pr-review\n")
         self.assertEqual(rows, [],
                          "output carrying no severity section must produce no row")
+
+
+class TestTranscriptCapturesEveryMessage(unittest.TestCase):
+    """The reviewer's whole output must be graded, not only its last message.
+
+    `claude --print` — and `--output-format json` — return the FINAL assistant
+    message only.  A review followed by any further message (an addendum after
+    running precommit, a delta after a late sub-agent) loses its body and reads
+    as "not a review".  Two PRs in the 2026-08-09 curated-1 Opus pass were
+    discarded exactly this way.  `stream-json` carries every message.
+    """
+
+    @staticmethod
+    def _event(*texts):
+        return json.dumps({
+            "type": "assistant",
+            "message": {"content": [{"type": "text", "text": t} for t in texts]},
+        })
+
+    def test_text_from_every_assistant_message_is_kept_in_order(self):
+        stream = "\n".join([
+            json.dumps({"type": "system", "subtype": "init"}),
+            self._event("## Must Fix\n\n- **a.py:1** — first"),
+            json.dumps({"type": "user", "message": {"content": []}}),
+            self._event("## Addendum\n\nprecommit passed"),
+            json.dumps({"type": "result", "result": "## Addendum\n\nprecommit passed"}),
+        ])
+        text = run.transcript_text(stream)
+
+        self.assertIn("## Must Fix", text)
+        self.assertIn("## Addendum", text)
+        self.assertLess(text.index("Must Fix"), text.index("Addendum"),
+                        "messages must stay in emission order")
+
+    def test_a_review_followed_by_an_addendum_is_no_longer_sectionless(self):
+        """The exact shape that lost `dark-factory#71` and `recurring-task-creator#30`."""
+        addendum_only = "## Addendum — Step 3b\n\nVerdict unchanged: no Must Fix."
+        self.assertEqual(
+            run.missing_sections(addendum_only),
+            list(run.REQUIRED_SECTION_NAMES),
+            "precondition: the tail alone carries no severity section",
+        )
+
+        stream = "\n".join([
+            self._event("## Must Fix\n\nNone.\n\n## Should Fix\n\n- **x.md:1** — thing"
+                        "\n\n## Nice to Have\n\nNone."),
+            self._event(addendum_only),
+        ])
+        self.assertEqual(run.missing_sections(run.transcript_text(stream)), [])
+
+    def test_non_transcript_output_passes_through_unchanged(self):
+        """Stubbed binaries and older cached raw output emit plain text."""
+        plain = "## Must Fix\n\nNone.\n"
+        self.assertEqual(run.transcript_text(plain), plain)
+
+    def test_malformed_lines_are_skipped_not_fatal(self):
+        stream = "\n".join([
+            "not json at all",
+            self._event("## Must Fix\n\nNone."),
+            '{"type": "assistant", "message": {"content": [{"type":',  # truncated write
+        ])
+        self.assertIn("## Must Fix", run.transcript_text(stream))
+
+    def test_argv_requests_the_only_format_that_carries_every_message(self):
+        argv = run.build_review_argv(
+            model="opus", effort="xhigh", mode="full", base_branch="master",
+        )
+        self.assertIn("--output-format", argv)
+        self.assertEqual(argv[argv.index("--output-format") + 1], "stream-json")
+        # The CLI rejects stream-json with --print unless --verbose is present.
+        self.assertIn("--verbose", argv)

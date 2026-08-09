@@ -8,6 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: the bench captures the reviewer's whole transcript, not just its last message. `claude --print` returns only the FINAL assistant message, and `--output-format json` does the same — verified directly with a prompt emitting `FIRST-MESSAGE`, a tool call, then `SECOND-MESSAGE`: both formats returned only `SECOND-MESSAGE`, `stream-json` returned both. A review followed by any further message (an addendum after `make precommit`, a delta after a late sub-agent) therefore lost its body and was rejected as `NOT A REVIEW`; that cost `dark-factory#71` and `recurring-task-creator#30` in the 2026-08-09 curated-1 pass — the last 2 of the 20. Reviews are now invoked with `--output-format stream-json --verbose` and every assistant text block is concatenated in emission order before the gates run
+- test: five new tests, including the exact `## Addendum` shape that lost both PRs — it asserts the precondition (the tail alone carries no severity section) before asserting the whole transcript does. Non-transcript output passes through unchanged, so stubbed binaries and older cached raw output still work, and truncated JSON lines are skipped rather than fatal
+
+**Capture format is deliberately NOT part of the config identity tuple**, for the same reason `bench/run.py` is not: the tuple pins what the *reviewer* was given, and this changes only what the harness reads back. It does change scores, so `bench/.cache/reviews` must be cleared after this release — the same caveat that already applies to any harvester change.
+
 ## v0.39.1
 
 - fix: the report page shows what the gates removed. `v0.39.0` made the gates drop an unattributable finding and grade a review on the sections it did carry, recording both on the row — but neither reached the page, so a run whose reviews were largely rejected on shape rendered identically to one that scored cleanly. The Per-PR table gains `dropped items` and `missing sections` columns, the Runs table's PR count becomes scored-over-expected (`4/5`, not `4`), and an effective-fixture line under Per-PR states how many of the manifest's PRs produced a scored row. Every number is counted from the rows, never asserted

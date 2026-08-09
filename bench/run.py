@@ -1562,10 +1562,22 @@ def build_row(*, checkout: PrCheckout, cfg_hash: str, rc_hash: str,
                model: str, effort: str, mode: str, prs_version: str,
                review_command: str, started_at: str,
                duration_seconds: float, findings: list,
-               raw_output_ref: str) -> dict:
-    """Build a result row from a completed review."""
+               raw_output_ref: str,
+               unattributable_count: int = 0,
+               missing_sections_names: list = None) -> dict:
+    """Build a result row from a completed review.
+
+    unattributable_count and missing_sections record what the gates dropped or
+    tolerated.  Both used to be fatal — the PR produced no row at all — which
+    cost a 20-PR pass 7 of 20 rows on 2026-08-09.  They are kept as row fields so
+    the loss is measurable per PR instead of binary, and so a row built from a
+    partially-rejected review is visibly lower-confidence rather than silently
+    equal to a clean one.
+    """
     return {
         "config_hash": cfg_hash,
+        "unattributable_count": unattributable_count,
+        "missing_sections": list(missing_sections_names or []),
         "rules_commands_hash": rc_hash,
         # Recorded on its own line, not just folded into config_hash: a reader
         # comparing two rows must be able to see WHICH input differed, and
@@ -1807,9 +1819,17 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
                               stdout=proc.stdout, stderr=proc.stderr)
         raise BenchError(f"{pr_id}: review invocation failed: exit {proc.returncode}")
 
-    # 4. Sanity gate — reject non-review output before anything is written
+    # 4. Sanity gate — reject output that is not a review at all.
+    #
+    #    Rejects only when EVERY severity section is absent.  This gate exists for
+    #    D2, where an unknown command returned "ok: 0 findings" and read as a clean
+    #    review; that case has no sections whatsoever.  Requiring all three was
+    #    stricter than the purpose needs and discarded substantive reviews over
+    #    heading shape — a 20-PR Opus pass on 2026-08-09 lost `discord-assistant#5`
+    #    for carrying Should Fix and Nice to Have but not Must Fix.  Partial sets
+    #    are kept and the absent names recorded on the row.
     missing = missing_sections(proc.stdout)
-    if missing:
+    if len(missing) == len(REQUIRED_SECTION_NAMES):
         write_failure_artifact(
             cache_root, cfg_hash, pr_id,
             reason=f"{NON_REVIEW_MARKER}: missing sections: {', '.join(missing)}",
@@ -1831,23 +1851,23 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
     harvested = harvest(proc.stdout, known_rule_ids)
     findings = harvested.findings
 
-    # 6a. Unattributable-item gate — a finding that cannot be keyed is a parse
-    #     failure, not a body-only finding.  Fires *after* the step-5 raw write,
-    #     so the raw capture stays on disk and is re-harvestable after a fix,
-    #     and *before* the ledger append and the row-marker write, so the PR is
-    #     retried next run (the cache check keys on the row marker alone).
-    if harvested.unattributable:
-        n = len(harvested.unattributable)
-        write_failure_artifact(
-            cache_root, cfg_hash, pr_id,
-            reason=f"{UNATTRIBUTABLE_MARKER}: {n} unattributable item(s)",
-            stdout=proc.stdout, stderr=proc.stderr,
-        )
+    # 6a. Unattributable items — dropped from the row, never silently.
+    #
+    #     A finding that cannot be keyed does not invalidate its siblings, which
+    #     can.  This used to raise and discard the whole PR: a 20-PR Opus pass on
+    #     2026-08-09 lost 4 reviews that way, one of them (`tts-mcp#10`) over a
+    #     SINGLE unattributable item among a full set of valid findings — a 35%
+    #     loss rate that left a 20-PR fixture yielding 13 rows.
+    #
+    #     The count is recorded on the row rather than dropped quietly.  Silent
+    #     removal would make precision improve for a reason nothing records,
+    #     which is the exact defect class this bench exists to catch.  The
+    #     guarantee that every *scored* finding carries a usable matching key is
+    #     unchanged — this is a change of granularity, not of contract.
+    unattributable_count = len(harvested.unattributable)
+    if unattributable_count:
         print(unattributable_report(pr_id, harvested.unattributable, proc.stdout),
               file=sys.stderr)
-        raise BenchError(
-            f"{UNATTRIBUTABLE_MARKER}: {pr_id}: {n} unattributable item(s)"
-        )
 
     # 7. Build row and append to ledger
     review_command = shlex.join(argv)
@@ -1870,6 +1890,8 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
         duration_seconds=duration_seconds,
         findings=findings,
         raw_output_ref=raw_output_ref,
+        unattributable_count=unattributable_count,
+        missing_sections_names=missing,
     )
     append_row(results_dir, row)
 

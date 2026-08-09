@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: the harvester gates reject the offending **item**, not the whole review. A 20-PR Opus pass on 2026-08-09 produced 13 rows and 7 failures — a **35% loss rate** — every one an output-*shape* rejection of a substantive review, including `tts-mcp#10` losing a full review to a **single** unattributable item. An unattributable finding is now dropped from the row and counted in a new `unattributable_count` field rather than discarding the PR; the count is recorded so precision cannot improve for a reason nothing records
+- fix: the `NOT A REVIEW` sanity gate rejects only when **every** severity section is absent. It exists for D2 (an unknown command whose output read as a clean review — that case has no sections at all); requiring all three was stricter than the purpose needed and discarded `discord-assistant#5` for carrying Should Fix and Nice to Have but not Must Fix. Absent section names are recorded in a new `missing_sections` row field
+- test: three new gate tests, two verified to fail against the pre-change code with the exact symptom (`0 != 1` — no row produced); the third pins the D2 case so loosening the gate cannot silently re-open the defect it was built for. Two existing tests amended to assert the new contract rather than deleted
+
 ## v0.38.2
 
 - docs: **retract the leak claim made in `v0.38.1`.** That entry states the reviewer resolves and obeys `$HOME/.claude/CLAUDE.md`, "proven" by a review ending with the operator's personal state-closer panel. **That is false.** A review at the same `opus`/`xhigh`/`full` configuration with no `CLAUDE.md` reachable in either `HOME` or `CLAUDE_CONFIG_DIR` produced the panel anyway; the reviewed repo's own `CLAUDE.md`, `commands/pr-review.md` and `build_review_argv` were each checked and carry zero markers. The reviewing model generates that shape by itself at high effort — an artifact resembling a known convention is not evidence of its provenance. The released section is left as written; this entry corrects it

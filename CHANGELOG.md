@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.40.0
 
 - fix: findings citing an extensionless file are no longer dropped. `PATH_LINE_RE` required a literal dot, so `Dockerfile:8`, `Makefile:127`, `Jenkinsfile:4` and `LICENSE:1` could not be attributed and every such item was discarded. Measured live on the 2026-08-09 curated-1 pass: `backup#15` produced four correctly-formed findings, all on Dockerfile/Makefile, and lost **all four** — the row scored 0 findings and read as a **clean PR**, the worst available outcome given that "clean" is a designation the benchmark cannot otherwise establish. Across the pass, 5 of 133 findings (4%) were being dropped, concentrated so that one row lost 100% of its content
 - fix: the rule-id guard now applies at every path-extraction call site, via a new `_path_line_in()`. Rule ids are slash-separated and dotless (`test-pyramid/push-down-when-unsure`), so while the pattern demanded a dot they could never match it and the leading-bold-ref path got away without the check. Widening the pattern made them match — a rule id cited with a line number would have been recorded as a file path. Caught by a test written for the widening, not found in review

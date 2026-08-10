@@ -48,6 +48,21 @@ mv /tmp/code-review-files.txt /tmp/code-review-filelist.txt
 
 `dist/`, `build/`, and `coverage/` matter once JavaScript and TypeScript are in scope: a committed bundle is generated, minified, and often a single multi-megabyte line. Reviewing it produces findings nobody can act on and can exhaust the context window on one file. The pattern is anchored to a path segment rather than the line start, so a nested `frontend/app/dist/` is excluded too.
 
+Then drop generated sources, which the path filter above cannot catch:
+
+```bash
+while IFS= read -r f; do
+  head -25 "$f" | grep -q 'Code generated .* DO NOT EDIT' || echo "$f"
+done < /tmp/code-review-filelist.txt > /tmp/code-review-files.txt
+mv /tmp/code-review-files.txt /tmp/code-review-filelist.txt
+```
+
+Generated code lives in ordinary package directories — `k8s/client/`, `mocks/`, `zz_generated.deepcopy.go` — so no path pattern finds it. Its findings are unactionable by construction: the file says DO NOT EDIT, regeneration reverts any edit, and a genuine defect belongs upstream in the generator, not in this repo's review.
+
+**Scan the first ~25 lines, not the first line.** Placement varies by generator: `counterfeiter` emits the marker on line 1, while `client-gen` emits a licence header first and the marker on line 4. A `head -3` check silently misses every client-gen file.
+
+Measured on `bborbe/backup` (2026-08-10): 97 of 553 findings came from 25 client-gen files under `k8s/client/**` plus the `mocks/` tree, and **44+ of the 102 findings that reached adjudication were refuted for no reason other than being generated** — the largest single adjudication cost on that repo.
+
 This is the **scope source** — every file the audit considers. Replaces the diff-based file list that `/coding:pr-review` and `/coding:local-review` use.
 
 ## Step 2: Project Detection + LICENSE check

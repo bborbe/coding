@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: code-review: skip generated sources when building the scanned file set — the existing path filter (`vendor`, `node_modules`, `dist`, `build`, `coverage`) cannot catch generated code living in ordinary package directories (`k8s/client/`, `mocks/`, `zz_generated.*`). Files whose first 25 lines carry `Code generated … DO NOT EDIT` are now dropped. Measured on `bborbe/backup`: 97 of 553 findings were generated-file noise, and 44+ of the 102 that reached adjudication were refuted solely on that basis.
+
 ## v0.42.0
 
 - feat: golden set covers `curated-1` — 155 entries over 20 PRs, up from 42 over 5. All 115 unmatched findings from the curated-1 Opus pass were adjudicated individually: 113 new entries, plus 2 findings that turned out to be an issue the set already held, re-reported in different words, where the existing key was relaxed rather than duplicated. One issue, one entry — a duplicate is what inflated recall to a spurious `1.000` in `v0.37.0`

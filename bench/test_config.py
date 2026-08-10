@@ -196,10 +196,35 @@ class TestLoadManifest(unittest.TestCase):
                 self.assertIn(case.get("owner") or case.get("repo"), str(ctx.exception))
 
     def test_load_manifest_accepts_real_fixture(self):
-        """load_manifest on the frozen bench/prs.json succeeds and returns dev-1 with 5 entries."""
+        """load_manifest on the shipped bench/prs.json returns curated-1 with 20 entries.
+
+        Pinned on purpose: the version and count are part of the config identity,
+        so a manifest change must be a conscious edit here rather than something
+        a scored run discovers.  `dev-1`/5 was the 5-PR development fixture; its
+        3-sigma was ~119% of the mean, which is why it could not carry a score.
+        """
         m = run.load_manifest(run.BENCH_DIR / "prs.json")
-        self.assertEqual(m["version"], "dev-1")
-        self.assertEqual(len(m["prs"]), 5)
+        self.assertEqual(m["version"], "curated-1")
+        self.assertEqual(len(m["prs"]), 20)
+
+    def test_curated_manifest_holds_the_spread_it_was_curated_for(self):
+        """The fixture's whole purpose is spread; assert it rather than trust it."""
+        m = run.load_manifest(run.BENCH_DIR / "prs.json")
+
+        sizes = [p["additions"] + p["deletions"] for p in m["prs"]]
+        self.assertLessEqual(min(sizes), 20, "no small PR in the set")
+        self.assertGreaterEqual(max(sizes), 1000, "no large PR in the set")
+
+        repos = {p["repo"] for p in m["prs"]}
+        self.assertGreaterEqual(len(repos), 10, f"too few distinct repos: {repos}")
+
+        strategies = {p["merge_strategy"] for p in m["prs"]}
+        # Both diff-reconstruction paths must be exercised: a merge-commit uses
+        # `<merge>^1..<merge>^2`, a squash has one parent and needs the manifest's
+        # base_sha..head_sha.  A fixture carrying only one shape leaves the other
+        # branch untested.
+        self.assertIn("squash", strategies)
+        self.assertIn("merge-commit", strategies)
 
 
 class TestPluginResolution(unittest.TestCase):

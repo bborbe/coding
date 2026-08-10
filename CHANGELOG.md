@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: ast-grep-runner: pass finding payloads to `jq` via `--slurpfile` instead of `--argjson`, fixing `Argument list too long` on large result sets. Both sites moved: the per-owner merge and the final assembly. Payloads were being read out of files into shell variables and pushed back through `argv`; `jq` now reads the files directly, so payload size is irrelevant. Scales with finding count and matched-text size, not file count — reproduced with 1,956 findings from 429 files, which previously produced an **empty output file and exit 0**.
+
 ## v0.42.1
 
 - fix: code-review: skip generated sources when building the scanned file set — the existing path filter (`vendor`, `node_modules`, `dist`, `build`, `coverage`) cannot catch generated code living in ordinary package directories (`k8s/client/`, `mocks/`, `zz_generated.*`). Files whose first 25 lines carry `Code generated … DO NOT EDIT` are now dropped. Measured on `bborbe/backup`: 97 of 553 findings were generated-file noise, and 44+ of the 102 that reached adjudication were refuted solely on that basis.

@@ -8,13 +8,6 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## v0.39.2
-
-- fix: the bench captures the reviewer's whole transcript, not just its last message. `claude --print` returns only the FINAL assistant message, and `--output-format json` does the same — verified directly with a prompt emitting `FIRST-MESSAGE`, a tool call, then `SECOND-MESSAGE`: both formats returned only `SECOND-MESSAGE`, `stream-json` returned both. A review followed by any further message (an addendum after `make precommit`, a delta after a late sub-agent) therefore lost its body and was rejected as `NOT A REVIEW`; that cost `dark-factory#71` and `recurring-task-creator#30` in the 2026-08-09 curated-1 pass — the last 2 of the 20. Reviews are now invoked with `--output-format stream-json --verbose` and every assistant text block is concatenated in emission order before the gates run
-- test: five new tests, including the exact `## Addendum` shape that lost both PRs — it asserts the precondition (the tail alone carries no severity section) before asserting the whole transcript does. Non-transcript output passes through unchanged, so stubbed binaries and older cached raw output still work, and truncated JSON lines are skipped rather than fatal
-
-**Capture format is deliberately NOT part of the config identity tuple**, for the same reason `bench/run.py` is not: the tuple pins what the *reviewer* was given, and this changes only what the harness reads back. It does change scores, so `bench/.cache/reviews` must be cleared after this release — the same caveat that already applies to any harvester change.
-
 ## Unreleased
 
 - fix: findings citing an extensionless file are no longer dropped. `PATH_LINE_RE` required a literal dot, so `Dockerfile:8`, `Makefile:127`, `Jenkinsfile:4` and `LICENSE:1` could not be attributed and every such item was discarded. Measured live on the 2026-08-09 curated-1 pass: `backup#15` produced four correctly-formed findings, all on Dockerfile/Makefile, and lost **all four** — the row scored 0 findings and read as a **clean PR**, the worst available outcome given that "clean" is a designation the benchmark cannot otherwise establish. Across the pass, 5 of 133 findings (4%) were being dropped, concentrated so that one row lost 100% of its content
@@ -22,11 +15,15 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - fix: `unattributable_report` no longer claims "no ledger row and no row marker were written; this PR is retried on the next run". That stopped being true at `v0.39.0`, when the gates began keeping the row and dropping only the item — so the message told an operator a scored row had been discarded
 - feat: `--reharvest` re-parses cached transcripts and rewrites each row's harvested fields, invoking no review. A harvester fix otherwise leaves every scored row wrong with no cheap way to correct it: the config identity deliberately excludes `bench/run.py`, so a re-run serves the same stale rows from cache, and a live re-run costs the price of the whole pass. Applying it to the curated-1 pass took findings 128 → 133 and dropped items 5 → 0 for zero review spend. This only works because reviews are now captured with `--output-format stream-json` — before that the stored output was the reviewer's last message, and replay could not recover what was never captured
 - test: 207 → 212. Extensionless files attribute; dotted paths still do; prose and clock times (`see step 3:`, `at 12:30`, `v1.2.3:`) do not become paths; known rule ids still do not; and the unattributable message does not claim a discard
-
-## Unreleased
-
 - feat: `bench/prs.json` becomes `curated-1` — **20 PRs across 15 repos**, replacing the 5-PR `dev-1` development fixture. Size spread 6 → 2024 lines; 17 merge-commit and 3 squash entries, so both diff-reconstruction paths are exercised. `dev-1` existed to build the runner against, not to carry a score: measured 3-sigma on it was ~119% of the mean, meaning two configurations had to differ by more than the entire average finding count before the gap registered
 - test: the manifest fixture test pins `curated-1`/20 (a manifest change is part of the config identity, so it must be a conscious edit rather than something a scored run discovers), plus a new test asserting the spread the set was curated **for** — small and large PRs present, 10+ distinct repos, and both merge strategies
+
+## v0.39.2
+
+- fix: the bench captures the reviewer's whole transcript, not just its last message. `claude --print` returns only the FINAL assistant message, and `--output-format json` does the same — verified directly with a prompt emitting `FIRST-MESSAGE`, a tool call, then `SECOND-MESSAGE`: both formats returned only `SECOND-MESSAGE`, `stream-json` returned both. A review followed by any further message (an addendum after `make precommit`, a delta after a late sub-agent) therefore lost its body and was rejected as `NOT A REVIEW`; that cost `dark-factory#71` and `recurring-task-creator#30` in the 2026-08-09 curated-1 pass — the last 2 of the 20. Reviews are now invoked with `--output-format stream-json --verbose` and every assistant text block is concatenated in emission order before the gates run
+- test: five new tests, including the exact `## Addendum` shape that lost both PRs — it asserts the precondition (the tail alone carries no severity section) before asserting the whole transcript does. Non-transcript output passes through unchanged, so stubbed binaries and older cached raw output still work, and truncated JSON lines are skipped rather than fatal
+
+**Capture format is deliberately NOT part of the config identity tuple**, for the same reason `bench/run.py` is not: the tuple pins what the *reviewer* was given, and this changes only what the harness reads back. It does change scores, so `bench/.cache/reviews` must be cleared after this release — the same caveat that already applies to any harvester change.
 
 ## v0.39.1
 

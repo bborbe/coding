@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.42.2
 
 - fix: ast-grep-runner: pass finding payloads to `jq` via `--slurpfile` instead of `--argjson`, fixing `Argument list too long` on large result sets. Both sites moved: the per-owner merge and the final assembly. Payloads were being read out of files into shell variables and pushed back through `argv`; `jq` now reads the files directly, so payload size is irrelevant. Scales with finding count and matched-text size, not file count — reproduced with 1,956 findings from 429 files, which previously produced an **empty output file and exit 0**.
 

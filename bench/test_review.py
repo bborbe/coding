@@ -2630,3 +2630,73 @@ class TestTranscriptCapturesEveryMessage(unittest.TestCase):
         self.assertEqual(argv[argv.index("--output-format") + 1], "stream-json")
         # The CLI rejects stream-json with --print unless --verbose is present.
         self.assertIn("--verbose", argv)
+
+
+class TestExtensionlessPathsAttribute(unittest.TestCase):
+    """A finding citing `Dockerfile:8` must attribute, not be dropped.
+
+    `PATH_LINE_RE` required a literal dot, so every citation of an
+    extensionless file — Dockerfile, Makefile, Jenkinsfile, LICENSE — failed
+    attribution and the item was discarded.  Measured live on the 2026-08-09
+    curated-1 pass: `backup#15` produced four correctly-formed findings, all on
+    Dockerfile/Makefile, and lost all four.  The row scored 0 findings and read
+    as a clean PR — the worst outcome available, since "clean" is a designation
+    the benchmark cannot otherwise establish.
+    """
+
+    def setUp(self):
+        self.rule_ids = run.load_rule_ids(run.REPO_ROOT)
+
+    def test_extensionless_files_attribute(self):
+        for body, want in [
+            ("**`Dockerfile:8`** — registry default duplicated", ("Dockerfile", 8)),
+            ("**`Makefile:127`** — quote the build arg", ("Makefile", 127)),
+            ("**`Jenkinsfile:4`** — pin the agent label", ("Jenkinsfile", 4)),
+            ("**`LICENSE:1`** — year is stale", ("LICENSE", 1)),
+        ]:
+            with self.subTest(body=body):
+                path, line, _ = run.extract_attribution(body, self.rule_ids)
+                self.assertEqual((path, line), want)
+
+    def test_dotted_paths_still_attribute(self):
+        for body, want in [
+            ("**`bench/run.py:12`** — x", ("bench/run.py", 12)),
+            ("**`.github/workflows/ci.yml:32`** — x", (".github/workflows/ci.yml", 32)),
+            ("**`cmd/foo/main.go:88`** — x", ("cmd/foo/main.go", 88)),
+        ]:
+            with self.subTest(body=body):
+                path, line, _ = run.extract_attribution(body, self.rule_ids)
+                self.assertEqual((path, line), want)
+
+    def test_prose_and_clock_times_are_not_paths(self):
+        """Widening the pattern must not invent paths out of ordinary text."""
+        for body in [
+            "see step 3: do the thing",
+            "the job runs at 12:30 every day",
+            "upgrade to v1.2.3: breaking change",
+            "Note: 5 items remain",
+        ]:
+            with self.subTest(body=body):
+                path, line, _ = run.extract_attribution(body, self.rule_ids)
+                self.assertIsNone(path, f"invented a path from prose: {body!r}")
+
+    def test_known_rule_ids_are_still_not_paths(self):
+        """The rule-ID guard predates this change and must survive it."""
+        rule_id = next(iter(self.rule_ids), None)
+        if rule_id is None:
+            self.skipTest("no rule ids available")
+        path, _, _ = run.extract_attribution(f"**`{rule_id}:12`** — x", self.rule_ids)
+        self.assertNotEqual(path, rule_id)
+
+
+class TestUnattributableReportDescribesRealBehaviour(unittest.TestCase):
+    """The stderr diagnosis must not claim a discard that no longer happens."""
+
+    def test_report_does_not_claim_the_row_was_discarded(self):
+        items = [{"section": "Should Fix", "body": "**`Dockerfile:8`** — x"}]
+        text = run.unattributable_report("backup#15", items, "## Must Fix\n\nNone.\n")
+
+        self.assertNotIn("no ledger row", text)
+        self.assertNotIn("retried on the next run", text)
+        self.assertIn("KEPT", text)
+        self.assertIn("unattributable_count", text)

@@ -55,7 +55,20 @@ BOLD_RUN_START_RE = re.compile(r"^\s*\*\*")
 RULE_TAG_RE = re.compile(r"\*\(rule:\s*`([^`]+)`\)")
 HEAD_RULE_TAG_RE = re.compile(r"^`([^`]+)`")
 LEADING_BOLD_RE = re.compile(r"^\*\*(.+?)\*\*")
-PATH_LINE_RE = re.compile(r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_./-]+):(\d+)")
+# A path:line citation.  The final segment need NOT carry a dot extension:
+# `Dockerfile:8`, `Makefile:127`, `Jenkinsfile:4` and `LICENSE:1` are real
+# citations, and requiring a dot silently dropped every one of them.  Measured
+# on the 2026-08-09 curated-1 pass: `backup#15` produced four correctly-formed
+# findings, all on Dockerfile/Makefile, and lost ALL FOUR — the row scored 0
+# findings and read as a clean PR.
+#
+# At least one letter is required somewhere in the path, which is what keeps
+# `at 12:30` from parsing as path `12` line `30`.  Prose (`see step 3:`) and
+# versions (`v1.2.3:`) do not match because the colon must be followed by
+# digits and preceded by a path-shaped token with no spaces.
+PATH_LINE_RE = re.compile(
+    r"((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]*[A-Za-z][A-Za-z0-9_.-]*):(\d+)"
+)
 BACKTICK_TOKEN_RE = re.compile(r"`([^`\s]+)`")
 LINE_MENTION_RE = re.compile(r"(?i)\blines?\s*~?\s*(\d+)")
 _SECTION_BY_LOWER = {name.lower(): name for name in REQUIRED_SECTION_NAMES}
@@ -1308,11 +1321,29 @@ def load_rule_ids(coding_repo: pathlib.Path) -> set:
     return {entry["id"] for entry in data if "id" in entry}
 
 
+def _path_line_in(text: str, known_rule_ids: set):
+    """First path:line in `text` that is not a known rule id, else None.
+
+    The rule-id guard has to apply at EVERY call site, not just the whole-item
+    scan.  Rule ids are slash-separated and dotless (`test-pyramid/push-down-
+    when-unsure`), so while the path pattern demanded a dot they could never
+    match it and the leading-bold-ref path got away without the check.  Widening
+    the pattern to accept `Dockerfile:8` made them match, and a rule id cited
+    with a line number would have been recorded as a file path.
+    """
+    for m in PATH_LINE_RE.finditer(text):
+        if m.group(1) not in known_rule_ids:
+            return m.group(1), int(m.group(2))
+    return None
+
+
 def _extract_path_line(text: str, known_rule_ids: set) -> tuple[str | None, int | None]:
     """Extract the first path:line reference from text, skipping known rule IDs.
 
-    A path:line is a token containing a dot extension followed by :NN.
-    A token that is a known rule ID is never treated as a path.
+    A path:line is a path-shaped token followed by :NN.  The token may be
+    extensionless (`Dockerfile:8`, `Makefile:127`) — requiring a dot used to
+    drop those findings entirely.  A token that is a known rule ID is never
+    treated as a path.
     """
     # Find all potential path:line matches
     for m in PATH_LINE_RE.finditer(text):
@@ -1377,9 +1408,9 @@ def extract_attribution(body: str, known_rule_ids: set) -> tuple[str | None, int
     bold_m = LEADING_BOLD_RE.match(body)
     if bold_m:
         ref = bold_m.group(1)
-        path_m = PATH_LINE_RE.search(ref)
+        path_m = _path_line_in(ref, known_rule_ids)
         if path_m:
-            return path_m.group(1), int(path_m.group(2)), rule_id
+            return path_m[0], path_m[1], rule_id
         tok_m = BACKTICK_TOKEN_RE.search(ref)
         if tok_m:
             token = tok_m.group(1)
@@ -1484,7 +1515,8 @@ def unattributable_report(pr_id: str, items: list, stdout_text: str) -> str:
         f"{UNATTRIBUTABLE_MARKER}: {pr_id}\n"
         f"{len(items)} unattributable item(s)\n"
         + "\n\n".join(item_blocks) + "\n"
-        f"no ledger row and no row marker were written; this PR is retried on the next run\n"
+        f"the row was KEPT and scored; these items were dropped from it and "
+        f"counted in unattributable_count\n"
         f"--- subprocess stdout ({total} bytes total) ---\n"
         f"{rejection_excerpt(stdout_text)}\n"
         f"--- end excerpt ---"
@@ -1723,7 +1755,90 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Print rules+commands content hash and exit",
     )
+    parser.add_argument(
+        "--reharvest",
+        action="store_true",
+        default=False,
+        help=(
+            "Re-parse cached transcripts and rewrite each row's findings; "
+            "invokes no review. Use after a harvester fix to correct an "
+            "existing pass without paying for it again"
+        ),
+    )
     return parser
+
+
+def reharvest_ledger(*, results_dir: pathlib.Path, cache_root: pathlib.Path,
+                     coding_repo: pathlib.Path, out=sys.stdout) -> int:
+    """Re-parse every row's cached transcript and rewrite its harvested fields.
+
+    A harvester fix — a widened path pattern, a new attribution source — leaves
+    every already-scored row wrong, and the config identity deliberately does
+    NOT cover `bench/run.py`, so a re-run would serve the same stale rows from
+    cache.  Re-running live costs the price of the whole pass.
+
+    This is only possible because the stored transcript is complete: reviews are
+    captured with `--output-format stream-json`, so the raw file holds every
+    assistant message rather than the last one.  Before that, replaying stored
+    output could not recover what was never captured.
+
+    Rows whose transcript is missing are left untouched and reported — silently
+    zeroing them would look like a reviewer that found nothing.
+    """
+    path = ledger_path(results_dir)
+    rows = load_ledger(path)
+    if not rows:
+        print("reharvest: ledger is empty", file=out)
+        return 0
+
+    known_rule_ids = load_rule_ids(coding_repo)
+    rewritten, unchanged, missing = 0, 0, []
+    lines = []
+
+    for row in rows:
+        cfg_hash, pr_id = row.get("config_hash", ""), row.get("pr_id", "")
+        raw_path = cache_raw_path(cache_root, cfg_hash, pr_id)
+        if not raw_path.exists():
+            missing.append(pr_id)
+            lines.append(json.dumps(row, sort_keys=True))
+            continue
+
+        harvested = harvest(
+            transcript_text(raw_path.read_text(encoding="utf-8")), known_rule_ids
+        )
+        before_n = len(row.get("findings", []))
+        before_u = row.get("unattributable_count", 0)
+        after_n = len(harvested.findings)
+        after_u = len(harvested.unattributable)
+
+        if (after_n, after_u) != (before_n, before_u):
+            print(
+                f"  {pr_id}: findings {before_n} -> {after_n}, "
+                f"unattributable {before_u} -> {after_u}",
+                file=out,
+            )
+            rewritten += 1
+        else:
+            unchanged += 1
+
+        row["findings"] = harvested.findings
+        row["unattributable_count"] = after_u
+        lines.append(json.dumps(row, sort_keys=True))
+
+    atomic_write_bytes(path, ("\n".join(lines) + "\n").encode("utf-8"))
+
+    if missing:
+        print(
+            f"reharvest: {len(missing)} row(s) had no cached transcript and were "
+            f"left as-is: {', '.join(missing)}",
+            file=out,
+        )
+    print(
+        f"reharvest: {rewritten} row(s) rewritten, {unchanged} unchanged, "
+        f"{len(missing)} skipped",
+        file=out,
+    )
+    return 0
 
 
 # ----------------------------------------------------------------------
@@ -2529,6 +2644,14 @@ def main(argv=None) -> int:
         if args.print_config_hash:
             print(content_hash(args.coding_repo.resolve()))
             return 0
+
+        # Re-harvest mode — re-parses cached transcripts, invokes no review
+        if args.reharvest:
+            return reharvest_ledger(
+                results_dir=args.out_dir,
+                cache_root=BENCH_DIR / ".cache",
+                coding_repo=args.coding_repo.resolve(),
+            )
 
         # Score mode — reads ledger, writes pages, invokes no review
         if args.score:

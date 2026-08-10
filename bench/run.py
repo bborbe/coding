@@ -109,6 +109,10 @@ SCOPE_MISMATCH_MARKER = "PLUGIN INSTALL SCOPE MISMATCH"
 # Scoring — frozen marker literals (spec 006 Constraints; not configurable)
 # ----------------------------------------------------------------------
 GOLDEN_NOT_FOUND_MARKER = "GOLDEN SET NOT FOUND"
+
+# `path` is not part of identity, so a single generic keyword would match findings
+# in unrelated files.  Two is the cheapest guard that forces a distinctive key.
+MIN_SIGNATURE_KEYWORDS = 2
 INVALID_GOLDEN_MARKER = "INVALID GOLDEN SET"
 GOLDEN_VERSION_MISMATCH_MARKER = "GOLDEN VERSION MISMATCH"
 PRS_VERSION_SKIP_MARKER = "PRS VERSION SKIP"
@@ -172,8 +176,43 @@ def load_golden(path: pathlib.Path) -> dict:
                 raise BenchError(
                     f"{INVALID_GOLDEN_MARKER}: entry {i} missing '{field}' in {path}"
                 )
+        _validate_signature(entry, i, path)
 
     return data
+
+
+def _validate_signature(entry: dict, index: int, path: pathlib.Path) -> None:
+    """Reject signatures that cannot serve as identity.
+
+    Two invariants, both learned the hard way on `golden-dev-2`:
+
+    * **No line reference.**  37 of its 43 signatures were `path:line` strings, so
+      a re-report of the same issue one line over scored as a miss.  Recall then
+      measured whether a configuration cited the same line, not whether it found
+      the issue — an identical config scored 0.262 against its own source set.
+    * **At least two keywords.**  `path` is no longer part of identity, so a lone
+      generic word would match findings in unrelated files.
+    """
+    signature = entry.get("signature")
+    if not isinstance(signature, list) or not signature:
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: entry {index} has an empty 'signature' in {path}"
+        )
+    for kw in signature:
+        if not isinstance(kw, str) or not kw.strip():
+            raise BenchError(
+                f"{INVALID_GOLDEN_MARKER}: entry {index} has a blank signature keyword in {path}"
+            )
+        if re.search(r":\d+", kw):
+            raise BenchError(
+                f"{INVALID_GOLDEN_MARKER}: entry {index} signature keyword {kw!r} "
+                f"embeds a line reference in {path}"
+            )
+    if len(signature) < MIN_SIGNATURE_KEYWORDS:
+        raise BenchError(
+            f"{INVALID_GOLDEN_MARKER}: entry {index} needs at least "
+            f"{MIN_SIGNATURE_KEYWORDS} signature keywords in {path}"
+        )
 
 
 def load_ledger(path: pathlib.Path) -> list:
@@ -2083,23 +2122,26 @@ def format_ratio(numerator: int, denominator: int) -> str:
 def finding_matches_entry(entry: dict, finding: dict) -> bool:
     """True when this finding and this golden entry describe the same issue.
 
-    rule_id exact when BOTH sides carry a non-null one; otherwise path string
-    equality plus EVERY signature keyword present case-insensitively in body.
-    `line` is read from neither side.
+    Identity is the signature alone: EVERY keyword must appear case-insensitively
+    in the body.  `rule_id` is an additional constraint when BOTH sides carry one
+    — never a short-circuit.
+
+    Neither `path` nor `line` is read.  Both are citation coordinates the reviewer
+    chooses, not properties of the defect: the same issue is routinely anchored at
+    the line that defines a flag or at the line that suffers its consequence, in
+    two different files.  Keying identity on either scores such a re-report as a
+    miss.  They stay on the entry as provenance.
     """
     entry_rule = entry.get("rule_id")
     finding_rule = finding.get("rule_id")
-    # Case 1: both carry a non-null rule_id — exact match required
-    if entry_rule is not None and entry_rule != "" and finding_rule is not None and finding_rule != "":
-        return entry_rule == finding_rule
-    # Case 2: path match + every signature keyword case-insensitively in body
-    if entry.get("path") != finding.get("path"):
+    if entry_rule and finding_rule and entry_rule != finding_rule:
+        return False
+    signature = entry.get("signature") or []
+    if not signature:
+        # A keyword-less entry would match every finding.  Never silently true.
         return False
     body = (finding.get("body") or "").lower()
-    for kw in entry.get("signature") or []:
-        if kw.lower() not in body:
-            return False
-    return True
+    return all(kw.lower() in body for kw in signature)
 
 
 @dataclasses.dataclass(frozen=True)

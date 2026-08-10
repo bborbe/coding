@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Unit tests for bench/run.py scoring: match relation, states, gap-triage, and ratio rendering."""
 
+import collections
 import copy
 import dataclasses
 import filecmp
 import hashlib
+import itertools
 import json
 import os
 import pathlib
@@ -113,7 +115,7 @@ class TestFixtureProvenance(unittest.TestCase):
         ).hexdigest()
         self.assertEqual(
             digest,
-            "90f5b0a61ac763b6abb3991fff699a4818318f22a171f6fc4375d314da43459d",
+            "d13b0218b19ec95d77587c43ebf48886524b05d3d77acb562a97cf28529d6582",
         )
 
     def test_baseline_slice_sha256(self):
@@ -153,7 +155,7 @@ class TestFixtureProvenance(unittest.TestCase):
         )
 
     def test_line_counts(self):
-        self.assertEqual((GOLDEN_FIXTURE).read_text().count("\n"), 490)
+        self.assertEqual((GOLDEN_FIXTURE).read_text().count("\n"), 658)
         self.assertEqual(
             (BENCH_DIR / "testdata" / "ledger-baseline-opus-xhigh-full.jsonl").read_text().count("\n"), 5
         )
@@ -259,8 +261,16 @@ class TestLineIsNeverUsedForIdentity(unittest.TestCase):
 # ----------------------------------------------------------------------
 # AC8: rule_id takes priority
 # ----------------------------------------------------------------------
-class TestRuleIdTakesPriority(unittest.TestCase):
-    """AC8: rule_id exact match when both sides carry one; falls through otherwise."""
+class TestRuleIdConstrainsIdentity(unittest.TestCase):
+    """AC8, amended 2026-08-10: rule_id constrains identity, never short-circuits it.
+
+    The original name and contract were "rule_id takes priority" — a match on
+    rule_id alone, ignoring path and signature.  That credited any config finding
+    *some* instance of a rule with the specific instance in the golden set.  The
+    tests below still hold under the amended matcher because they exercise
+    agreement and disagreement, not the short-circuit; the aliasing case is
+    covered in TestRuleIdConstrainsButNeverShortCircuits.
+    """
 
     def setUp(self):
         self.golden = load_golden()
@@ -781,17 +791,28 @@ class TestFourRunSliceChunksIntoFourRuns(unittest.TestCase):
             (3, 2, 40, 0, 1, "0.048", "1.000"),
             (2, 1, 41, 0, 1, "0.024", "1.000"),
             (5, 2, 40, 0, 3, "0.048", "1.000"),
-            (6, 0, 42, 0, 6, "0.000", "n/a"),
+            (6, 4, 38, 0, 2, "0.095", "1.000"),
         ]
         self.assertEqual(observed, expected)
 
-    def test_run4_precision_n_a_literal(self):
+    def test_zero_denominator_precision_renders_the_n_a_literal(self):
+        """A run that matched nothing renders precision as the literal 'n/a'.
+
+        This used to assert against run 4 of the four-run slice, which matched
+        zero entries under `path:line` signatures.  The 2026-08-10 re-key gave
+        it 4 hits, so it is no longer a zero-denominator case and pinning it
+        here would have tested the bug rather than the formatting.  The partial
+        slice still carries genuine zero-match runs; the invariant under test
+        (0/0 is never rendered as 0.000) is unchanged.
+        """
         golden = load_golden()
-        rows = load_slice("ledger-sonnet-medium-short-4runs.jsonl")
+        rows = load_slice("ledger-sonnet-medium-short-partial.jsonl")
         cfg = run.score_config(rows=rows, golden=golden)
-        run4 = cfg.runs[3]
-        self.assertEqual(run4.score.precision, run.RATIO_NA)
-        self.assertEqual(run4.score.precision, "n/a")
+        zero_match = [r for r in cfg.runs if r.score.accepted_hits == 0]
+        self.assertTrue(zero_match, "expected at least one run matching nothing")
+        for r in zero_match:
+            self.assertEqual(r.score.precision, run.RATIO_NA)
+            self.assertEqual(r.score.precision, "n/a")
 
 
 # ----------------------------------------------------------------------
@@ -827,7 +848,7 @@ class TestRunChunkingIgnoresTimestamps(unittest.TestCase):
             (3, 2, 40, 0, 1, "0.048", "1.000"),
             (2, 1, 41, 0, 1, "0.024", "1.000"),
             (5, 2, 40, 0, 3, "0.048", "1.000"),
-            (6, 0, 42, 0, 6, "0.000", "n/a"),
+            (6, 4, 38, 0, 2, "0.095", "1.000"),
         ]
         self.assertEqual(observed, expected)
 
@@ -887,12 +908,18 @@ class TestPartialRunsAreLabelledAndScopedDown(unittest.TestCase):
              len(r.score.gap_candidates), r.score.recall, r.score.precision)
             for r in cfg.runs
         ]
+        # Re-pinned 2026-08-10 with the semantic-signature golden set.  Every
+        # movement is a hit gained and a gap candidate lost: these sonnet runs
+        # described the same issues as the Opus baseline but anchored them at
+        # different lines, so under `path:line` keys they scored zero credit.
+        # Runs 4 and 5 went 0 -> 1 hit, which is why their precision is no
+        # longer the `n/a` of a run that matched nothing at all.
         expected = [
-            (5, 42, 6, 2, 40, 4, "0.048", "1.000"),
-            (5, 42, 9, 1, 41, 8, "0.024", "1.000"),
-            (5, 42, 9, 3, 39, 6, "0.071", "1.000"),
-            (5, 42, 5, 0, 42, 5, "0.000", "n/a"),
-            (5, 42, 1, 0, 42, 1, "0.000", "n/a"),
+            (5, 42, 6, 3, 39, 3, "0.071", "1.000"),
+            (5, 42, 9, 2, 40, 7, "0.048", "1.000"),
+            (5, 42, 9, 2, 40, 7, "0.048", "1.000"),
+            (5, 42, 5, 1, 41, 4, "0.024", "1.000"),
+            (5, 42, 1, 1, 41, 0, "0.024", "1.000"),
             (3, 24, 1, 0, 24, 1, "0.000", "n/a"),
             (3, 24, 1, 0, 24, 1, "0.000", "n/a"),
             (1,  1, 0, 0,  1, 0, "0.000", "n/a"),
@@ -1254,9 +1281,11 @@ class TestRunsTableIsRenderedFromTheResult(unittest.TestCase):
             self.assertEqual(row[10], r.recall)
             self.assertEqual(row[11], r.precision)
             self.assertEqual(int(row[12]), run_score.wall_time_seconds)
-        # Run 4 precision is literal 'n/a'
-        run4_row = next(row for row in table if row[0] == "4")
-        self.assertEqual(run4_row[11], "n/a")
+        # The loop above already asserts row[11] == r.precision for every run.
+        # A spot-check pinning run 4 to 'n/a' used to sit here; it described a
+        # run that matched nothing, which the 2026-08-10 re-key fixed.  The
+        # 'n/a' literal itself is pinned in
+        # TestFourRunSliceChunksIntoFourRuns.test_zero_denominator_precision_renders_the_n_a_literal.
 
     def test_partial_table_cells_match_result(self):
         golden = load_golden()
@@ -1339,17 +1368,26 @@ class TestBothCaveatsAppearOnEveryPage(unittest.TestCase):
         self.assertIn("rejected", para)
 
     def test_line_reference_caveat_appears_on_baseline(self):
+        """The caveat now reports the CLEARED state, and must keep doing so.
+
+        It used to read "36 of the 42 signatures embed a line reference", which
+        was the honest description of a set keyed on `path:line`.  Since the
+        2026-08-10 re-key no signature carries one, so the caveat flips to the
+        branch that says recall measures issue detection.  Asserting the cleared
+        wording here is what turns this caveat into a regression detector: a
+        future adjudication that reintroduces a `path:line` key fails this test
+        rather than silently degrading recall back into line-citation matching.
+        """
         text = self._get_page("ledger-baseline-opus-xhigh-full.jsonl")
-        self.assertIn("36 of the 42 signatures", text, "load-bearing number missing")
-        self.assertIn("embed a line reference", text)
-        para = next(p for p in text.split("\n\n") if "36 of the 42 signatures" in p)
-        self.assertIn("gap-triage", para)
+        self.assertIn("No signature embeds a line reference", text)
+        self.assertIn("measures issue detection", text)
+        self.assertNotIn("embed a line reference, so a", text)
 
     def test_both_caveats_appear_on_fourrun_page(self):
         text = self._get_page("ledger-sonnet-medium-short-4runs.jsonl")
         self.assertIn("not yet a result", text)
-        self.assertIn("36 of the 42 signatures", text)
-        self.assertIn("embed a line reference", text)
+        self.assertIn("No signature embeds a line reference", text)
+        self.assertIn("measures issue detection", text)
 
 
 class TestScoringIsDeterministicAndCarriesNoWallClock(unittest.TestCase):
@@ -1584,6 +1622,12 @@ class TestScoringInvokesNoReviewAndMutatesNothing(unittest.TestCase):
                 if line.strip()
             )
 
+            testdata_before = {
+                f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+                for f in sorted((BENCH_DIR / "testdata").iterdir())
+                if f.is_file()
+            }
+
             result2 = subprocess.run(
                 [sys.executable, str(run.BENCH_DIR / "run.py"),
                  "--score",
@@ -1607,14 +1651,16 @@ class TestScoringInvokesNoReviewAndMutatesNothing(unittest.TestCase):
             self.assertEqual(ledger_before_sha, ledger_after_sha)
             self.assertEqual(ledger_before_lines, ledger_after_lines)
 
-            # Golden set and testdata unchanged (run from repo root)
-            diff_result = subprocess.run(
-                ["git", "diff", "--exit-code",
-                 str(GOLDEN_FIXTURE), "bench/testdata/"],
-                capture_output=True, text=True,
-                cwd=str(run.REPO_ROOT),
-            )
-            self.assertEqual(diff_result.returncode, 0, diff_result.stderr)
+            # Golden set and testdata unchanged.  Compared by digest against a
+            # snapshot taken before the scoring subprocess, the same way the
+            # ledger is checked above.  This used to shell out to
+            # `git diff --exit-code`, which reports the working tree rather than
+            # what the subprocess did: any developer holding a legitimate
+            # uncommitted fixture edit failed the test, and a mutation staged in
+            # the index would have passed it.
+            for rel, before in testdata_before.items():
+                after = hashlib.sha256((BENCH_DIR / "testdata" / rel).read_bytes()).hexdigest()
+                self.assertEqual(before, after, f"scoring mutated testdata/{rel}")
 
             # Exactly one page written
             pages = sorted(p.name for p in reports_dir.iterdir())
@@ -2419,3 +2465,164 @@ class TestDroppedItemsAreVisibleOnThePage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ----------------------------------------------------------------------
+# Identity is the signature alone (2026-08-10)
+# ----------------------------------------------------------------------
+class TestSignaturesCarryNoLineReference(unittest.TestCase):
+    """A `path:line` signature makes recall measure citation, not detection."""
+
+    def test_live_golden_signatures_are_line_free(self):
+        golden = run.load_golden(BENCH_DIR / "golden.json")
+        offenders = [
+            (e["pr_id"], kw)
+            for e in golden["entries"]
+            for kw in e["signature"]
+            if re.search(r":\d+", kw)
+        ]
+        self.assertEqual(offenders, [], "signature keywords must not embed a line")
+
+    def test_fixture_signatures_are_line_free(self):
+        golden = run.load_golden(GOLDEN_FIXTURE)
+        offenders = [kw for e in golden["entries"] for kw in e["signature"]
+                     if re.search(r":\d+", kw)]
+        self.assertEqual(offenders, [])
+
+    def test_loader_rejects_a_line_bearing_signature(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "golden.json"
+            path.write_text(json.dumps({
+                "version": "t", "prs_version": "dev-1",
+                "match_rule": "t", "states": {}, "entries": [
+                    {"pr_id": "a#1", "path": "x.go",
+                     "signature": ["x.go:42", "other"], "state": "accepted"}
+                ]}), encoding="utf-8")
+            with self.assertRaises(run.BenchError) as ctx:
+                run.load_golden(path)
+            self.assertIn("embeds a line reference", str(ctx.exception))
+
+    def test_loader_rejects_a_single_keyword_signature(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "golden.json"
+            path.write_text(json.dumps({
+                "version": "t", "prs_version": "dev-1",
+                "match_rule": "t", "states": {}, "entries": [
+                    {"pr_id": "a#1", "path": "x.go",
+                     "signature": ["lonely"], "state": "accepted"}
+                ]}), encoding="utf-8")
+            with self.assertRaises(run.BenchError) as ctx:
+                run.load_golden(path)
+            self.assertIn("at least 2 signature keywords", str(ctx.exception))
+
+
+class TestRuleIdConstrainsButNeverShortCircuits(unittest.TestCase):
+    """Regression: one rule firing twice in a file must not alias to one entry.
+
+    The github-pr-review-agent#11 CHANGELOG entry describes a bullet bundling
+    three concerns.  A later run reported a *different* defect in the same file
+    (a dependency bump prefixed `fix:` where the repo uses `chore:`) under the
+    same `changelog/conventional-prefix-required` rule.  The old matcher
+    returned on rule_id equality alone, so that unrelated finding was credited
+    as a hit for this entry.
+    """
+
+    ENTRY = {
+        "pr_id": "x#1", "path": "CHANGELOG.md",
+        "signature": ["bullet bundles", "split"],
+        "rule_id": "changelog/conventional-prefix-required",
+        "state": "accepted",
+    }
+
+    def test_same_rule_different_issue_does_not_match(self):
+        other = {
+            "pr_id": "x#1", "path": "CHANGELOG.md", "line": 10,
+            "body": "dependency bump is prefixed `fix:`; precedent is `chore:`",
+            "rule_id": "changelog/conventional-prefix-required",
+        }
+        self.assertFalse(run.finding_matches_entry(self.ENTRY, other))
+
+    def test_same_rule_same_issue_still_matches(self):
+        same = {
+            "pr_id": "x#1", "path": "CHANGELOG.md", "line": 11,
+            "body": "one bullet bundles the feature and the docs; split it",
+            "rule_id": "changelog/conventional-prefix-required",
+        }
+        self.assertTrue(run.finding_matches_entry(self.ENTRY, same))
+
+    def test_disagreeing_rule_id_blocks_an_otherwise_matching_body(self):
+        wrong_rule = {
+            "pr_id": "x#1", "path": "CHANGELOG.md", "line": 11,
+            "body": "one bullet bundles the feature and the docs; split it",
+            "rule_id": "some/other-rule",
+        }
+        self.assertFalse(run.finding_matches_entry(self.ENTRY, wrong_rule))
+
+    def test_empty_signature_never_matches(self):
+        self.assertFalse(run.finding_matches_entry(
+            {"pr_id": "x#1", "path": "a.go", "signature": [], "state": "accepted"},
+            {"pr_id": "x#1", "path": "a.go", "body": "anything", "rule_id": None},
+        ))
+
+
+class TestPathIsNotPartOfIdentity(unittest.TestCase):
+    """The same defect anchored in a different file is still the same defect.
+
+    Real case: "a write-scoped token is still minted under --skip-post" is keyed
+    to pkg/factory/runner.go, but a later run anchored it at cmd/run-task/main.go
+    while naming runner.go in the body.  Keying on path scored that as a miss.
+    """
+
+    ENTRY = {
+        "pr_id": "x#1", "path": "pkg/factory/runner.go",
+        "signature": ["write-scoped", "--skip-post"],
+        "rule_id": None, "state": "accepted",
+    }
+
+    def test_same_issue_anchored_in_another_file_matches(self):
+        finding = {
+            "pr_id": "x#1", "path": "cmd/run-task/main.go", "line": 138,
+            "body": ("the write-scoped GitHub App token is still minted under "
+                     "`--skip-post` (`pkg/factory/runner.go:105-106`)"),
+            "rule_id": None,
+        }
+        self.assertTrue(run.finding_matches_entry(self.ENTRY, finding))
+
+    def test_unrelated_body_on_the_recorded_path_does_not_match(self):
+        finding = {
+            "pr_id": "x#1", "path": "pkg/factory/runner.go", "line": 66,
+            "body": "ResolvePosters would read better as ResolvePosterAndVerifier",
+            "rule_id": None,
+        }
+        self.assertFalse(run.finding_matches_entry(self.ENTRY, finding))
+
+
+class TestNoEntrySignatureSubsumesAnother(unittest.TestCase):
+    """Ledger-free aliasing guard.
+
+    `test_no_live_golden_entry_aliases_another` needs bench/results, which is
+    gitignored — so it skips in a fresh clone and in CI, exactly where a bad
+    adjudication would land unnoticed.  A subset relationship is aliasing that
+    can be proved from the golden set alone: if entry A's keywords are a subset
+    of entry B's, then every finding matching B also matches A.
+    """
+
+    def _check(self, golden):
+        by_pr = collections.defaultdict(list)
+        for e in golden["entries"]:
+            by_pr[e["pr_id"]].append(e)
+        for pr, entries in by_pr.items():
+            for a, b in itertools.permutations(entries, 2):
+                sa = {k.lower() for k in a["signature"]}
+                sb = {k.lower() for k in b["signature"]}
+                self.assertFalse(
+                    sa <= sb,
+                    f"{pr}: {a['signature']} is a subset of {b['signature']} — "
+                    f"every finding matching the latter also matches the former",
+                )
+
+    def test_live_golden_has_no_subsumed_signature(self):
+        self._check(run.load_golden(BENCH_DIR / "golden.json"))
+
+    def test_fixture_has_no_subsumed_signature(self):
+        self._check(run.load_golden(GOLDEN_FIXTURE))

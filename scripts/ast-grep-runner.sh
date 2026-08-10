@@ -297,20 +297,19 @@ for owner_file in "$FINDINGS_DIR"/*.jsonl; do
   # but owner names use '-' not '/', so the original name is preserved)
   basename_no_ext="$(basename "$owner_file" .jsonl)"
   owner_name="$basename_no_ext"
-  # Collect all findings for this owner into a JSON array
-  findings_array=$(jq -s '.' "$owner_file")
+  # Merge this owner's findings via --slurpfile, NOT --argjson.
+  # --argjson passes the whole payload through argv and dies with
+  # "Argument list too long" past ARG_MAX; --slurpfile makes jq read the
+  # file itself, so payload size is irrelevant.
   FINDINGS_JSON_TMP="$TMPDIR_WORK/fbo_tmp.json"
-  jq --arg o "$owner_name" --argjson arr "$findings_array" \
+  jq --arg o "$owner_name" --slurpfile arr "$owner_file" \
     '. + {($o): $arr}' "$FINDINGS_JSON" > "$FINDINGS_JSON_TMP" && mv "$FINDINGS_JSON_TMP" "$FINDINGS_JSON"
 done
-
-ERRORS_JSON="$(cat "$ERRORS_FILE")"
-FINDINGS_OBJ="$(cat "$FINDINGS_JSON")"
 
 jq -n \
   --argjson yamls_run "$YAMLS_RUN" \
   --argjson findings_count "$FINDINGS_COUNT" \
   --argjson elapsed_ms "$ELAPSED" \
-  --argjson findings_by_owner "$FINDINGS_OBJ" \
-  --argjson errors "$ERRORS_JSON" \
-  '{stats:{yamls_run:$yamls_run, findings_count:$findings_count, elapsed_ms:$elapsed_ms}, findings_by_owner:$findings_by_owner, errors:$errors}'
+  --slurpfile findings_by_owner_arr "$FINDINGS_JSON" \
+  --slurpfile errors_arr "$ERRORS_FILE" \
+  '{stats:{yamls_run:$yamls_run, findings_count:$findings_count, elapsed_ms:$elapsed_ms}, findings_by_owner:$findings_by_owner_arr[0], errors:$errors_arr[0]}'

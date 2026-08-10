@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: ast-grep-runner: pass finding payloads to `jq` via `--slurpfile` instead of `--argjson`, fixing `Argument list too long` on large result sets. Both sites moved: the per-owner merge and the final assembly. Payloads were being read out of files into shell variables and pushed back through `argv`; `jq` now reads the files directly, so payload size is irrelevant. Scales with finding count and matched-text size, not file count — reproduced with 1,956 findings from 429 files, which previously produced an **empty output file and exit 0**.
+
 ## v0.42.0
 
 - feat: golden set covers `curated-1` — 155 entries over 20 PRs, up from 42 over 5. All 115 unmatched findings from the curated-1 Opus pass were adjudicated individually: 113 new entries, plus 2 findings that turned out to be an issue the set already held, re-reported in different words, where the existing key was relaxed rather than duplicated. One issue, one entry — a duplicate is what inflated recall to a spurious `1.000` in `v0.37.0`

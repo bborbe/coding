@@ -8,6 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: golden set covers `curated-1` — 155 entries over 20 PRs, up from 42 over 5. All 115 unmatched findings from the curated-1 Opus pass were adjudicated individually: 113 new entries, plus 2 findings that turned out to be an issue the set already held, re-reported in different words, where the existing key was relaxed rather than duplicated. One issue, one entry — a duplicate is what inflated recall to a spurious `1.000` in `v0.37.0`
+- feat: **`rejected` entries 1 → 20, so precision can now actually be lost.** The set was 42 accepted / 1 rejected, and the report page said outright that no configuration could lose precision. A finding is rejected when it is a correct observation naming no defect: polish, taste, or a consequence the finding itself concludes is intended. The clearest cluster is `github-releaser-agent#8`, where four findings disqualify themselves in their own text — *"worth a follow-up rather than in isolation"*, *"not a correctness fix"*, *"so not a deviation"*, *"raise as a dark-factory issue rather than here"*
+- fix: `path` may be null on a golden entry. A commit-message finding (*"commit `c6f136a` — subject is 62 chars"*) has no file, and since identity stopped reading `path` it no longer needs one. The live-set check required it to be truthy, which rejected exactly those legitimate entries
+
 ## v0.41.0
 
 - fix: golden-set identity is the signature alone. `rule_id` is now an additional constraint when both sides carry one, never a short-circuit, and neither `path` nor `line` is read. Both defects were demonstrated on real rows before the change: the `github-pr-review-agent#11` CHANGELOG entry (a bullet bundling three concerns) matched an unrelated `fix:`-vs-`chore:` prefix finding purely because both carried `changelog/conventional-prefix-required`, so any configuration finding *some* instance of a rule was credited with the specific one; and the "write-scoped token still minted under `--skip-post`" issue, keyed to `pkg/factory/runner.go`, scored a miss when a later run anchored it at `cmd/run-task/main.go` while naming `runner.go` in its own body

@@ -71,10 +71,15 @@ class TestFixtureProvenance(unittest.TestCase):
         for i, entry in enumerate(golden["entries"]):
             self.assertIn(entry.get("state"), allowed,
                           f"entry {i} has state {entry.get('state')!r}")
-            self.assertTrue(entry.get("path"), f"entry {i} has no path")
+            # `path` must be PRESENT but may be null: a commit-message finding
+            # ("commit c6f136a — subject is 62 chars") has no file, and since
+            # 2026-08-10 path is provenance rather than identity, so a null one
+            # no longer makes the entry unmatchable.  Requiring it to be truthy
+            # would reject exactly those legitimate entries.
+            self.assertIn("path", entry, f"entry {i} has no path key")
             self.assertTrue(entry.get("signature"),
-                            f"entry {i} has an empty signature — would match every "
-                            f"finding on its path")
+                            f"entry {i} has an empty signature — would match "
+                            f"every finding in its PR")
             for kw in entry["signature"]:
                 self.assertTrue(kw.strip(), f"entry {i} has a blank keyword")
 

@@ -1,7 +1,7 @@
 {
- "version": "golden-dev-3",
+ "version": "golden-curated-1",
  "created": "2026-08-09",
- "prs_version": "dev-1",
+ "prs_version": "curated-1",
  "baseline": {
   "model": "opus",
   "effort": "xhigh",
@@ -389,7 +389,7 @@
    "path": ".github/workflows/ci.yml",
    "signature": [
     "sudo tee -a",
-    "duplicates the repo line"
+    "appends"
    ],
    "rule_id": null,
    "state": "accepted",
@@ -434,7 +434,7 @@
    "path": "Makefile.precommit",
    "signature": [
     "--ignore-vuln",
-    "no such surface exists"
+    "with a reason"
    ],
    "rule_id": null,
    "state": "accepted",
@@ -653,6 +653,1362 @@
    "superseded_signature": [
     "distinct labels"
    ]
+  },
+  {
+   "pr_id": "vault-cli#68",
+   "path": ".git/COMMIT_EDITMSG",
+   "signature": [
+    "remove go.mod exclude directive",
+    "50-char cap"
+   ],
+   "rule_id": "git-commit/subject-under-50-chars",
+   "state": "accepted",
+   "line_when_seen": null,
+   "excerpt": "**`.git/COMMIT_EDITMSG`** \u2014 commit subject `fix: remove go.mod exclude directive blocking remote install` is 60 characters, over the 50-char cap. Suggested reword: `fix: drop go.mod exclude blocking r"
+  },
+  {
+   "pr_id": "dark-factory#71",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "Blocker",
+    "two-tier taxonomy"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 15,
+   "excerpt": "**`CHANGELOG.md:15`** \u2014 describes the new behavior as find/replace pairs \"for each Blocker/Critical issue\", but `prompt-auditor.md` defines a strictly two-tier taxonomy \u2014 `Critical Issue` (`:493`) and"
+  },
+  {
+   "pr_id": "dark-factory#71",
+   "path": "agents/prompt-auditor.md",
+   "signature": [
+    "final_step",
+    "drift when either is edited"
+   ],
+   "rule_id": "agent-cmd/single-source-of-truth",
+   "state": "accepted",
+   "line_when_seen": 514,
+   "excerpt": "**`agents/prompt-auditor.md:514-518`** \u2014 `<final_step>` re-derives the find/replace mechanics verbatim (\"old text verbatim, new text to put in its place\u2026 without re-deriving your reasoning\") already s"
+  },
+  {
+   "pr_id": "bw#41",
+   "path": "groups/meta/k3s.py",
+   "signature": [
+    "member_patterns",
+    "hm.hell"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 3,
+   "excerpt": "**`groups/meta/k3s.py:3`** \u2014 the fix is scoped by node *name* (`member_patterns: r'.*k3s.*'`), but `nodes/hm.hell.py:66-67` sets `k3s.enabled: True` and its name does not match the pattern. `hm.hell` "
+  },
+  {
+   "pr_id": "bw#41",
+   "path": "groups/meta/k3s.py",
+   "signature": [
+    "ndisc_cache",
+    "ipv6"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 22,
+   "excerpt": "**`groups/meta/k3s.py:22-24`** \u2014 only the IPv4 table is raised. `net.ipv6.neigh.default.gc_thresh1/2/3` stay at 128/512/1024, and `ndisc_cache` is a separate global `neigh_table` with the identical ov"
+  },
+  {
+   "pr_id": "bw#41",
+   "path": "groups/meta/k3s.py",
+   "signature": [
+    "floor below which GC never runs",
+    "intended trade-off"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 22,
+   "excerpt": "**`groups/meta/k3s.py:22`** \u2014 `gc_thresh1: 4096` is the floor below which GC never runs, so at a steady state of ~400\u2013800 entries the neighbour GC will now effectively never run and stale entries pers"
+  },
+  {
+   "pr_id": "backup#15",
+   "path": "Dockerfile",
+   "signature": [
+    "NPM_REGISTRY",
+    "duplicated verbatim"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 8,
+   "excerpt": "**`Dockerfile:8`** \u2014 the registry default is now duplicated verbatim in two places (`ARG NPM_REGISTRY=https://verdaccio.prod.nuke.benjamin-borbe.de` here and `NPM_REGISTRY ?=` at `Makefile:6`). The ne"
+  },
+  {
+   "pr_id": "backup#15",
+   "path": "Dockerfile",
+   "signature": [
+    "npm set registry",
+    "expands unquoted"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 11,
+   "excerpt": "**`Dockerfile:11`** \u2014 `RUN npm set registry ${NPM_REGISTRY}` expands unquoted. Harmless for the current fixed HTTPS URL, but quoting (`\"${NPM_REGISTRY}\"`) costs nothing and holds up if the arg is ever"
+  },
+  {
+   "pr_id": "backup#15",
+   "path": "Makefile",
+   "signature": [
+    "--build-arg NPM_REGISTRY",
+    "quote as"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 127,
+   "excerpt": "**`Makefile:127`** \u2014 same for `--build-arg NPM_REGISTRY=$(NPM_REGISTRY)`; quote as `--build-arg NPM_REGISTRY=\"$(NPM_REGISTRY)\"`."
+  },
+  {
+   "pr_id": "backup#15",
+   "path": "Dockerfile",
+   "signature": [
+    "registry.npmjs.org",
+    "fail-open"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 8,
+   "excerpt": "**`Dockerfile:8`** \u2014 defaulting to a private cluster host means any build outside your network (a fork, a contributor, a future CI job that starts building images) fails by default rather than degradi"
+  },
+  {
+   "pr_id": "helm#3",
+   "path": "charts/github-pr-reviewer/values.yaml",
+   "signature": [
+    "TrustGate",
+    "contradicts"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 50,
+   "excerpt": "**`charts/github-pr-reviewer/values.yaml:50-51`** \u2014 the rewritten comment (\"PRs from trusted authors are auto-processed; everyone else is routed to `human_review` (the TrustGate, not a block)\") direct"
+  },
+  {
+   "pr_id": "helm#3",
+   "path": "charts/github-pr-reviewer/values.yaml",
+   "signature": [
+    "Auto-Merge Trust-Gated PRs",
+    "wikilink"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 58,
+   "excerpt": "**`charts/github-pr-reviewer/values.yaml:58`** \u2014 `[[Auto-Merge Trust-Gated PRs]]` is an Obsidian vault wikilink in a published chart's `values.yaml`. This chart is public (`home: https://github.com/bb"
+  },
+  {
+   "pr_id": "helm#3",
+   "path": "charts/github-pr-reviewer/Chart.yaml",
+   "signature": [
+    "cd6e677",
+    "inconsistent with the only prior example"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 9,
+   "excerpt": "**`charts/github-pr-reviewer/Chart.yaml:9`** \u2014 `0.1.0 \u2192 0.2.0` (minor) for a values-default change. Repo precedent for the analogous change is patch: commit `cd6e677` bumped `github-dark-factory` `0.1"
+  },
+  {
+   "pr_id": "helm#3",
+   "path": "charts/github-pr-reviewer/values.yaml",
+   "signature": [
+    "--set-string",
+    "splits on it"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 61,
+   "excerpt": "**`charts/github-pr-reviewer/values.yaml:61`** \u2014 the default now contains a comma, so `--set watcher.env.TRUSTED_AUTHORS=...` splits on it and needs `--set-string` with escaping. Low impact: this key "
+  },
+  {
+   "pr_id": "quant#109",
+   "path": "task/recurring-schedules/prod/plan-next-week.yaml",
+   "signature": [
+    "next-or-today",
+    "Saturday**-firing"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 67,
+   "excerpt": "**`task/recurring-schedules/prod/plan-next-week.yaml:67`** \u2014 `due_date: \"{{next_sun_date}}\"` is applied to a **Saturday**-firing schedule, but `{{next_sun_date}}`'s resolution on a Saturday is unverif"
+  },
+  {
+   "pr_id": "quant#109",
+   "path": "task/recurring-schedules/prod/check-ftmo-demo-accounts.yaml",
+   "signature": [
+    "check-ftmo-demo-accounts.yaml",
+    "inverted"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 65,
+   "excerpt": "**`task/recurring-schedules/prod/check-ftmo-demo-accounts.yaml:65`** \u2014 the Saturday due-date split is inverted relative to the task bodies. This one's body says *\"**Saturday** check for FTMO demo acco"
+  },
+  {
+   "pr_id": "quant#109",
+   "path": "task/recurring-schedules/prod/plan-next-week.yaml",
+   "signature": [
+    "21-file",
+    "unrelated to the commit's stated scope"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 26,
+   "excerpt": "**`task/recurring-schedules/prod/plan-next-week.yaml:26-29`** \u2014 the Success Criteria / Tasks / DoD rewrite (Must-Should-Could \u2192 priority groups, plus the new `/plan-week` pre-check task at line 40) is"
+  },
+  {
+   "pr_id": "quant#109",
+   "path": "task/recurring-schedules/prod/plan-weekend.yaml",
+   "signature": [
+    "Must / Should / Could",
+    "priority groups"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 26,
+   "excerpt": "**`task/recurring-schedules/prod/plan-weekend.yaml:26`** \u2014 still specifies the weekend note \"with Must / Should / Could\" (repeated at line 47), while its sibling `plan-next-week.yaml` moved off that v"
+  },
+  {
+   "pr_id": "github-pr-review-agent#11",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "dependency bump",
+    "chore:"
+   ],
+   "rule_id": "changelog/conventional-prefix-required",
+   "state": "accepted",
+   "line_when_seen": 10,
+   "excerpt": "**`CHANGELOG.md:10`** \u2014 dependency bump is prefixed `fix:`; repo precedent for the identical change shape is `chore:` (see `CHANGELOG.md:52`, the Go 1.26.5 / GO-2026-5856 bump). *(rule: `changelog/con"
+  },
+  {
+   "pr_id": "github-pr-review-agent#11",
+   "path": "pkg/skip_post_boundary_test.go",
+   "signature": [
+    "never asserted nil",
+    "Expect(verifier).To(BeNil())"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 185,
+   "excerpt": "**`pkg/skip_post_boundary_test.go:185-190`** \u2014 the `ResolvePosters` return values are threaded into the step but never asserted nil; the test would still pass if the function returned real posters and"
+  },
+  {
+   "pr_id": "github-pr-review-agent#11",
+   "path": "pkg/factory/runner.go",
+   "signature": [
+    "ResolvePosterAndVerifier",
+    "names both concerns"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 66,
+   "excerpt": "**`pkg/factory/runner.go:66`** \u2014 `ResolvePosters` returns a poster *and* a verifier; `ResolvePosterAndVerifier` names both concerns."
+  },
+  {
+   "pr_id": "node-skeleton#2",
+   "path": "README.md",
+   "signature": [
+    "first-time cloner",
+    "type-stripping"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 52,
+   "excerpt": "**`README.md:52-62`** \u2014 the two facts a first-time cloner most needs are only in `CLAUDE.md`: that `.ts` runs directly via type-stripping with no build step / no `dist/`, and the actual minimum Node v"
+  },
+  {
+   "pr_id": "node-skeleton#2",
+   "path": "src/config.ts",
+   "signature": [
+    "closes over the outer",
+    "spread or copy"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 47,
+   "excerpt": "**`src/config.ts:47`** \u2014 `check()` closes over the outer `config` const rather than reading `this`, so a spread or copy of the object would silently validate the original instead of itself. Harmless t"
+  },
+  {
+   "pr_id": "recurring-task-creator#30",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "fix(deps):",
+    "scoped prefix"
+   ],
+   "rule_id": "changelog/conventional-prefix-required",
+   "state": "accepted",
+   "line_when_seen": 14,
+   "excerpt": "**`CHANGELOG.md:14`** \u2014 `fix(deps):` uses a scoped prefix, which is not in the allowed set (`feat:`/`fix:`/`refactor:`/`test:`/`docs:`/`chore:`/`perf:`). The rule's parser is `^- ([a-z]+:)`, which doe"
+  },
+  {
+   "pr_id": "recurring-task-creator#30",
+   "path": "pkg/publisher/period_token.go",
+   "signature": [
+    "startOfMonth",
+    "inlined three times"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 105,
+   "excerpt": "**`pkg/publisher/period_token.go:105`, `:109`, `:113`** \u2014 the identical `time.Date(base.Year(), base.Month(), 1, 0, 0, 0, 0, base.Location())` clamp is inlined three times. `base` is fixed once at lin"
+  },
+  {
+   "pr_id": "recurring-task-creator#30",
+   "path": "pkg/publisher/period_token.go",
+   "signature": [
+    "day-1 anchor",
+    "invites a future"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 105,
+   "excerpt": "**`pkg/publisher/period_token.go:105-114`** \u2014 no inline comment explains *why* the day-1 anchor exists. A reader sees an arbitrary-looking `time.Date(..., 1, ...)` with no hint about `AddDate`'s month"
+  },
+  {
+   "pr_id": "recurring-task-creator#30",
+   "path": "pkg/publisher/period_token_test.go",
+   "signature": [
+    "Discriminating entries",
+    "passes on pre-fix code"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 68,
+   "excerpt": "**`pkg/publisher/period_token_test.go:68-73`** \u2014 the `2026-08-31 \u2192 2026-07` entry sits under the `// Discriminating entries` comment (line 52) but passes on pre-fix code too: July has 31 days, so the "
+  },
+  {
+   "pr_id": "recurring-task-creator#30",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "466 characters",
+    "one scannable sentence"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 13,
+   "excerpt": "**`CHANGELOG.md:13`** \u2014 the `fix:` bullet is 466 characters and carries implementation mechanics (Go's `AddDate` normalization, the \"June 31\" rollover, UUID5 collision). That detail already lives in t"
+  },
+  {
+   "pr_id": "python-skeleton#3",
+   "path": "Makefile.precommit",
+   "signature": [
+    "command -v",
+    "uvx pip-audit@$(PIP_AUDIT_VERSION)"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 57,
+   "excerpt": "**`Makefile.precommit:57-58`** \u2014 the `trivy` target shells out to the binary directly with no bootstrap and no `command -v` guard, and `check` is now in `precommit`. Any contributor without trivy on P"
+  },
+  {
+   "pr_id": "python-skeleton#3",
+   "path": "pyproject.toml",
+   "signature": [
+    "sdist",
+    "hatchling"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 41,
+   "excerpt": "**`pyproject.toml:41-42`** \u2014 sdist scope regression from the backend switch. Building both branches with `uv build` and comparing: the setuptools sdist held 14 files (`LICENSE`, `PKG-INFO`, `README.md"
+  },
+  {
+   "pr_id": "python-skeleton#3",
+   "path": "Dockerfile",
+   "signature": [
+    "uv.lock",
+    "gitignored"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 12,
+   "excerpt": "**`Dockerfile:12`** \u2014 `uv.lock` is gitignored (`.gitignore`) and untracked (`git ls-files uv.lock` is empty), so `COPY pyproject.toml uv.lock README.md ./` fails on a fresh clone and `uv sync --frozen"
+  },
+  {
+   "pr_id": "python-skeleton#3",
+   "path": "pyproject.toml",
+   "signature": [
+    "packages = [\"src/skeleton\"]",
+    "sharp edge"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 42,
+   "excerpt": "**`pyproject.toml:42`** \u2014 `packages = [\"src/skeleton\"]` is an explicit list, unlike the old `[tool.setuptools.packages.find] where = [\"src\"]` auto-discovery. A second top-level package added under `sr"
+  },
+  {
+   "pr_id": "python-skeleton#3",
+   "path": "README.md",
+   "signature": [
+    "comparison table",
+    "maintainer-facing"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 90,
+   "excerpt": "**`README.md:90-94`** \u2014 the go-/node-/python-skeleton comparison table is maintainer-facing cross-repo bookkeeping; it belongs wherever the three skeletons are kept in sync, not in this repo's README."
+  },
+  {
+   "pr_id": "tts-mcp#3",
+   "path": "commands/voice-test.md",
+   "signature": [
+    "allowed-tools",
+    "launchctl"
+   ],
+   "rule_id": "agent-cmd/command-frontmatter",
+   "state": "accepted",
+   "line_when_seen": 1,
+   "excerpt": "**`commands/voice-test.md:1-3`** \u2014 Frontmatter declares only `description`; `allowed-tools` is missing. The command drives three MCP tools and invokes a `launchctl` server restart that per `skills/voi"
+  },
+  {
+   "pr_id": "tts-mcp#3",
+   "path": "commands/voice-test.md",
+   "signature": [
+    "back-edge",
+    "unbounded restart"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 22,
+   "excerpt": "**`commands/voice-test.md:22`** \u2014 This PR introduces an unbounded restart\u2194test cycle. Step 4's last bullet sends the agent to `/tts-mcp:voice restart`, whose step 3 (`skills/voice/SKILL.md:32`) sends "
+  },
+  {
+   "pr_id": "tts-mcp#3",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "interview",
+    "removed handshake"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 13,
+   "excerpt": "**`skills/voice/SKILL.md:13`** \u2014 `interview` is documented as the mode for \"when the user is away from the keyboard / driving by voice,\" which is verbatim the third use-when in `commands/voice-test.md"
+  },
+  {
+   "pr_id": "tts-mcp#3",
+   "path": "commands/voice-test.md",
+   "signature": [
+    "/tts-mcp:voice restart",
+    "Bare"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 5,
+   "excerpt": "**`commands/voice-test.md:5`** \u2014 Bare `/voice on` here and `/voice restart` at line 10, but fully-qualified `/tts-mcp:voice restart` at line 22. Every cross-reference this PR adds to `skills/voice/SKI"
+  },
+  {
+   "pr_id": "tts-mcp#3",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "assumed healthy",
+    "overstates"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 22,
+   "excerpt": "**`skills/voice/SKILL.md:22`** \u2014 \"The channel is assumed healthy; in practice it is\" sits six lines above line 28, which documents that a device switch silently orphans the server \u2014 a recurring failur"
+  },
+  {
+   "pr_id": "tts-mcp#3",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "negative-behaviour caveat",
+    "discovery signal"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 3,
+   "excerpt": "**`skills/voice/SKILL.md:3`** \u2014 The description gained a negative-behaviour caveat (\"Activation does not run a selftest\u2026\"). Per the skill-writing guide the description is the discovery signal \u2014 a \"whe"
+  },
+  {
+   "pr_id": "tts-mcp#16",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "Reprefix to",
+    "docs:"
+   ],
+   "rule_id": "changelog/conventional-prefix-required",
+   "state": "accepted",
+   "line_when_seen": 16,
+   "excerpt": "**`CHANGELOG.md:16`** \u2014 bullet prefixed `feat:` describes moving policy prose out of `~/.claude/CLAUDE.md` into `SKILL.md`; no new capability is added there (that's line 12's `narrate`). Guide's table"
+  },
+  {
+   "pr_id": "tts-mcp#16",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "Never speak, in any mode",
+    "outranks"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 87,
+   "excerpt": "**`skills/voice/SKILL.md:87`** \u2014 \"Anything at all when the user is clearly sitting there watching it scroll by\" sits under an unqualified **\"Never speak, in any mode:\"** heading, so it formally outran"
+  },
+  {
+   "pr_id": "tts-mcp#16",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "not a recital",
+    "verbatim recital"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 59,
+   "excerpt": "**`skills/voice/SKILL.md:59`** \u2014 \"This is a nudge to attention, **not a recital of the on-screen text**\" predates `narrate`, whose whole job is a spoken gist of on-screen content. Narrow it to \"never "
+  },
+  {
+   "pr_id": "tts-mcp#16",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "Attention signals",
+    "AskUserQuestion"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 76,
+   "excerpt": "**`skills/voice/SKILL.md:76-79`** \u2014 the canonical \"Attention signals\" list has only completion/failure and decision point, but `## Args` line 14 also names `AskUserQuestion` prompts for `on`. Add it, "
+  },
+  {
+   "pr_id": "tts-mcp#16",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "default arg when",
+    "persistent default"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 14,
+   "excerpt": "**`skills/voice/SKILL.md:14`** \u2014 `on` **(default)** reads as a persistent default six lines after line 8 states \"voice is off until someone invokes `/voice`\". Clarify as \"default arg when `/voice` is "
+  },
+  {
+   "pr_id": "tts-mcp#16",
+   "path": "skills/voice/SKILL.md",
+   "signature": [
+    "616-char",
+    "discovery string"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 3,
+   "excerpt": "**`skills/voice/SKILL.md:3`** \u2014 description is a 616-char single run-on. The \"sole authority on spoken-output volume\" clause is already stated at line 8; dropping it from frontmatter tightens the disc"
+  },
+  {
+   "pr_id": "vault-ui#39",
+   "path": "src/vault_ui/activity.py",
+   "signature": [
+    "run_cleanup_loop",
+    "glob fallback"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 59,
+   "excerpt": "**`src/vault_ui/activity.py:59-64`** \u2014 the glob fallback is defeated at runtime by an existing background job, so the cross-cwd case it exists for degrades back to file mtime within 5 minutes. `run_cl"
+  },
+  {
+   "pr_id": "vault-ui#39",
+   "path": "tests/test_activity.py",
+   "signature": [
+    "activity_date",
+    "GET /api/tasks"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": null,
+   "excerpt": "**`tests/test_activity.py`** \u2014 the wiring is untested. Coverage is strong for `compute_activity_date`/`transcript_mtime` in isolation and for JS/CSS source strings, but nothing asserts `activity_date`"
+  },
+  {
+   "pr_id": "vault-ui#39",
+   "path": "src/vault_ui/static/app.js",
+   "signature": [
+    "cardShellHtml",
+    "orphaned"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 1105,
+   "excerpt": "**`src/vault_ui/static/app.js:1105-1107`** \u2014 the pre-existing `cardShellHtml` doc comment (\"Shared card body: menu button + title block + footer skeleton\u2026\") is now orphaned: the two new functions were"
+  },
+  {
+   "pr_id": "vault-ui#39",
+   "path": "src/vault_ui/api/tasks.py",
+   "signature": [
+    "derive_claude_project_dir",
+    "Hoist"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 708,
+   "excerpt": "**`src/vault_ui/api/tasks.py:708`** and **`src/vault_ui/api/tasks.py:1797`** \u2014 `derive_claude_project_dir(...)` is recomputed per card from the same two `vault_config` fields. Hoist to the caller (`ta"
+  },
+  {
+   "pr_id": "vault-ui#39",
+   "path": "src/vault_ui/activity.py",
+   "signature": [
+    "event loop",
+    "per miss-glob"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 48,
+   "excerpt": "**`src/vault_ui/activity.py:48-64`** \u2014 synchronous `stat()`/`glob()` runs on the event loop; both call sites are inside coroutines (`_process_vault`, `_process_goal_vault`). Measured on this machine ("
+  },
+  {
+   "pr_id": "vault-ui#39",
+   "path": "tests/test_activity.py",
+   "signature": [
+    "magic byte count",
+    "silently scan the wrong region"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 144,
+   "excerpt": "**`tests/test_activity.py:144`** \u2014 `APP_JS[start : start + 900]` anchors the assertion window to a magic byte count. If `formatActivityAge` grows past 900 chars the checks silently scan the wrong regi"
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": "mcp/package-lock.json",
+   "signature": [
+    "fast-uri",
+    "host confusion"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": null,
+   "excerpt": "**`mcp/package-lock.json`** \u2014 the shipped lockfile carries **4 open advisories, one of them high**, not the 2 the changelog claims. Audited today: base = 8 (2 low, 3 moderate, 3 high) \u2192 this PR's head"
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "clearing 6 of 8",
+    "@hono/node-server"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 16,
+   "excerpt": "**`CHANGELOG.md:16-17`** \u2014 both `### Fixed` bullets are now factually wrong, including the stated rationale. \"clearing 6 of 8\" is 4 of 8 against today's advisory DB; \"The two remaining advisories are "
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": "Makefile.precommit",
+   "signature": [
+    "npm audit --audit-level=high",
+    "vulnerability gate"
+   ],
+   "rule_id": "node/make/security-gates-in-check",
+   "state": "accepted",
+   "line_when_seen": 28,
+   "excerpt": "**`Makefile.precommit:28-30`** \u2014 `check` gained a typecheck leg but still has no dependency-vulnerability gate. This PR is *about* npm advisories, and nothing in the pipeline would have flagged the lo"
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": "Makefile.precommit",
+   "signature": [
+    "Failed to spawn: ruff",
+    "asymmetric"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 30,
+   "excerpt": "**`Makefile.precommit:30`** \u2014 `check` is now asymmetric about its own deps: `mcp-typecheck` self-installs via `npm ci`, but `lint`/`typecheck` don't. Verified \u2014 `make check` on a fresh venv dies with "
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": "Makefile.precommit",
+   "signature": [
+    "npm ci",
+    "lockfile-mtime"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 26,
+   "excerpt": "**`Makefile.precommit:26`** \u2014 `npm ci` wipes and reinstalls `mcp/node_modules` on every `make check`, making the local precommit loop network-dependent. Consider gating on a lockfile-mtime stamp. Also"
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": ".github/workflows/ci.yml",
+   "signature": [
+    "cache-dependency-path",
+    "setup-node"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 36,
+   "excerpt": "**`.github/workflows/ci.yml:36-39`** \u2014 `actions/setup-node@v4` without `cache: npm` / `cache-dependency-path: mcp/package-lock.json`; `npm ci` re-downloads the tree every run."
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "Keep a Changelog",
+    "section order"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 14,
+   "excerpt": "**`CHANGELOG.md:14-19`** \u2014 section order is Added \u2192 Fixed \u2192 Changed; Keep a Changelog (which the file header declares) orders Added \u2192 Changed \u2192 Deprecated \u2192 Removed \u2192 Fixed \u2192 Security."
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "Likely not actionable",
+    "redundant"
+   ],
+   "rule_id": "changelog/conventional-prefix-required",
+   "state": "rejected",
+   "line_when_seen": 16,
+   "excerpt": "**`CHANGELOG.md:16-17`** \u2014 bullets don't use conventional prefixes *(rule: `changelog/conventional-prefix-required`)*. Likely not actionable: the file declares Keep a Changelog format and uses `###` s"
+  },
+  {
+   "pr_id": "tts-mcp#10",
+   "path": null,
+   "signature": [
+    "c6f136a",
+    "62 chars"
+   ],
+   "rule_id": "git-commit/subject-under-50-chars",
+   "state": "accepted",
+   "line_when_seen": null,
+   "excerpt": "**commit `c6f136a`** \u2014 subject is 62 chars, over the 50-char guideline *(rule: `git-commit/subject-under-50-chars`)*. Mood is correct (\"Bump\" \u2014 imperative)."
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "src/server.py",
+   "signature": [
+    "stream: true",
+    "play_stream"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 556,
+   "excerpt": "**`src/server.py:556`** \u2014 In streaming mode (`stream: true`, the shipped default in `config.yaml:9`), a generation-time exception is reported to the client as **success**. `play_stream` (`src/tts/play"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "src/server.py",
+   "signature": [
+    "not validated at the HTTP boundary",
+    "202"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 320,
+   "excerpt": "**`src/server.py:320-353`** \u2014 `instruct` is not validated at the HTTP boundary. The adjacent `voice` check rejects with `400` before enqueueing (`src/server.py:333-337`), but an unsupported `instruct`"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "tests/test_server.py",
+   "signature": [
+    "instruct=None",
+    "WorkItem"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": null,
+   "excerpt": "**`tests/test_server.py`** \u2014 No test covers `instruct` at the server or MCP boundary. All 8 occurrences are `instruct=None` in `WorkItem` constructions; nothing asserts that `POST /say` forwards a non"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "README.md",
+   "signature": [
+    "sample_rate",
+    "download-model.sh"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 186,
+   "excerpt": "**`README.md:186`** \u2014 The config table documents `sample_rate` as \"24000 for Voxtral\" and says nothing about qwen3, while **`scripts/download-model.sh:109-114`** prints `engine` / `model` / `language`"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "scripts/download-model.sh",
+   "signature": [
+    "check_downloaded",
+    "voice_embedding"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 46,
+   "excerpt": "**`scripts/download-model.sh:46-53`** \u2014 `check_downloaded` was weakened from `model.safetensors` **and** `voice_embedding/` to `model.safetensors` alone. Needed for qwen3, but it now marks a voxtral m"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "scripts/download-model.sh",
+   "signature": [
+    "talker_config.spk_id",
+    "hardcoded"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 114,
+   "excerpt": "**`scripts/download-model.sh:114`** \u2014 `default_voice: ryan` is hardcoded rather than read from the `talker_config.spk_id` map the script just downloaded, even though `Qwen3Engine.discover_voices` (`sr"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "src/tts/generate.py",
+   "signature": [
+    "streaming_interval",
+    "unused in buffered mode"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 57,
+   "excerpt": "**`src/tts/generate.py:57-85`** \u2014 `generate_chunks` takes `streaming_interval` only to forward it into a `stream=False` call; the docstring at `src/tts/generate.py:73-74` concedes it is \"unused in buf"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "src/server.py",
+   "signature": [
+    "StatusResponse.audio_file",
+    "loosens the documented contract"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 287,
+   "excerpt": "**`src/server.py:287-288`** \u2014 `StatusResponse.audio_file` and `.error` gained `= None` defaults, turning two previously-required response fields optional. Server-constructed only, so no live impact, b"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "src/main.py",
+   "signature": [
+    "CLI can never send",
+    "HTTP/MCP-only"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 335,
+   "excerpt": "**`src/main.py:335`** \u2014 The CLI can never send `instruct`: both worker paths hardcode `None` (`src/tts/worker.py:1236`, `:1278`). Qwen3's emotion control is HTTP/MCP-only, which is reasonable but undo"
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "src/index.js",
+   "signature": [
+    "keys off the error",
+    "non-gateway socket"
+   ],
+   "rule_id": "node/lifecycle/crash-on-unhandled-rejection",
+   "state": "accepted",
+   "line_when_seen": 272,
+   "excerpt": "**`src/index.js:272-278`** \u2014 the new branch keys off the error *message* only, never its origin, so a network fault from a non-gateway socket pins readiness to `false` permanently. `gatewayReady` is s"
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "src/index.js",
+   "signature": [
+    "no deadline",
+    "strictly worse than exiting"
+   ],
+   "rule_id": "node/lifecycle/crash-on-unhandled-rejection",
+   "state": "accepted",
+   "line_when_seen": 272,
+   "excerpt": "**`src/index.js:272-278`** \u2014 once the branch swallows the throw there is no deadline on the reconnect it assumes will happen. The comment at lines 254-258 argues that surviving pre-login is wrong beca"
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "scripts/supervise.sh",
+   "signature": [
+    "backoff never resets",
+    "DELAY_MIN"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 46,
+   "excerpt": "**`scripts/supervise.sh:46-51`** \u2014 the backoff never resets. No path anywhere in the file assigns `delay` back to `$DELAY_MIN`, so it ratchets monotonically for the lifetime of the supervisor. For the"
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "scripts/supervise.sh",
+   "signature": [
+    "without reaping",
+    "SIGTERM regardless"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 21,
+   "excerpt": "**`scripts/supervise.sh:21-22`** \u2014 `stop()` signals the child and exits immediately without reaping it, and always sends SIGTERM regardless of whether INT or TERM was received. The bot's `shutdown()` "
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "scripts/supervise.sh",
+   "signature": [
+    "deferred until the sleep completes",
+    "foreground command"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 47,
+   "excerpt": "**`scripts/supervise.sh:47`** \u2014 a signal sent directly to the supervisor's PID during the backoff `sleep` is deferred until the sleep completes: bash only interrupts the `wait` builtin promptly, not a"
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "src/index.js",
+   "signature": [
+    "ships without tests",
+    "RECOVERABLE_NET"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 259,
+   "excerpt": "**`src/index.js:259-265`** \u2014 the new logic ships without tests. `test/` covers `config`, `health`, and `llm` but not `index`. `RECOVERABLE_NET` and the `connectedOnce` gate are pure, cheaply testable "
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "src/index.js",
+   "signature": [
+    "duplicates the handler",
+    "clientReady"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 262,
+   "excerpt": "**`src/index.js:262-265`** \u2014 a second `client.once('clientReady', \u2026)` duplicates the handler already registered at line 75, which sets `gatewayReady = true` on the same event. Fold `connectedOnce = tr"
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "scripts/supervise.sh",
+   "signature": [
+    "SC2249",
+    "137"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 35,
+   "excerpt": "**`scripts/supervise.sh:35-44`** \u2014 the `case` has no default `*)` branch (shellcheck SC2249 under `--enable=all`). Signal-death codes (130 SIGINT, 143 SIGTERM, 137 SIGKILL/OOM) fall through to the gen"
+  },
+  {
+   "pr_id": "discord-assistant#1",
+   "path": "scripts/supervise.sh",
+   "signature": [
+    "SUPERVISE_DELAY_MIN",
+    "hot loop"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 12,
+   "excerpt": "**`scripts/supervise.sh:12-14`** \u2014 `SUPERVISE_DELAY_MIN`/`MAX` are used unvalidated. `SUPERVISE_DELAY_MIN=0` yields `0 * 2 = 0` forever \u2014 the hot loop the comment at lines 48-49 exists to prevent."
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "hooks/deny-generated-file-edits.sh",
+   "signature": [
+    "fail open",
+    "exit 127"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 10,
+   "excerpt": "**`hooks/deny-generated-file-edits.sh:10-12`** \u2014 `set -e` plus unguarded `jq` in bare command substitutions makes the hook **fail open**: it aborts with no stdout instead of denying. Verified live \u2014 w"
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "hooks/deny-generated-file-edits.sh",
+   "signature": [
+    "notebook_path",
+    "NotebookEdit"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 27,
+   "excerpt": "**`hooks/deny-generated-file-edits.sh:27`** \u2014 `NotebookEdit` is never actually denied. The script reads `.tool_input.file_path`, but Claude Code's `NotebookEdit` tool passes `notebook_path`. Verified:"
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "hooks/deny-generated-file-edits.sh",
+   "signature": [
+    "Source:[[:space:]]",
+    "silently truncated"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 36,
+   "excerpt": "**`hooks/deny-generated-file-edits.sh:36`** \u2014 `grep -oE 'Source:[[:space:]]*\\S+'` captures only the first token, so a source dir containing a space is silently truncated and the denial message points "
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "feat(hooks):",
+    "autoRelease"
+   ],
+   "rule_id": "changelog/conventional-prefix-required",
+   "state": "accepted",
+   "line_when_seen": 7,
+   "excerpt": "**`CHANGELOG.md:7`** \u2014 bullet uses `feat(hooks):`; the recognised prefix set is bare (`feat:`, `fix:`, \u2026) and the parse is `^- ([a-z]+:)`, which the `(hooks)` scope breaks. `.maintainer.yaml` sets `re"
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "docs/adopting-distill.md",
+   "signature": [
+    "overclaims",
+    "sed -i"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 115,
+   "excerpt": "**`docs/adopting-distill.md:115`** \u2014 \"the hook is what makes that mistake impossible rather than merely documented\" overclaims. The matcher is `Edit|Write|NotebookEdit`; a `Bash` call (`sed -i`, `>`, "
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "README.md",
+   "signature": [
+    "mkdir -p ~/.claude/hooks",
+    "fails on a machine"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 128,
+   "excerpt": "**`README.md:128`** \u2014 `cp hooks/... ~/.claude/hooks/` fails on a machine with no prior hooks dir; prefix `mkdir -p ~/.claude/hooks`. Same at **`docs/adopting-distill.md:110`**."
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "docs/adopting-distill.md",
+   "signature": [
+    "--title",
+    "silently drops"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 97,
+   "excerpt": "**`docs/adopting-distill.md:97`** \u2014 the runbook recommends `--title` (step 5), but the banner's `Regenerate:` line is emitted as `distill --source X --output Y` only (`pkg/distill/driver.go:315`) \u2014 no"
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "hooks/deny-generated-file-edits.sh",
+   "signature": [
+    "grep -qi",
+    "unreachable with today's writer"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 34,
+   "excerpt": "**`hooks/deny-generated-file-edits.sh:34`** \u2014 banner detection is case-insensitive (`grep -qi`) but field extraction at lines 36-37 is case-sensitive; inconsistent, though unreachable with today's wri"
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "hooks/deny-generated-file-edits.sh",
+   "signature": [
+    "2 KB read cap",
+    "comment noting the assumption"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 33,
+   "excerpt": "**`hooks/deny-generated-file-edits.sh:33`** \u2014 the 2 KB read cap fails open if a banner is ever pushed past it (verified). Unreachable today since the writer puts the banner at byte 0; a comment noting"
+  },
+  {
+   "pr_id": "distill#6",
+   "path": "README.md",
+   "signature": [
+    "breaks from the sentence style",
+    "docs/spec.md"
+   ],
+   "rule_id": null,
+   "state": "rejected",
+   "line_when_seen": 166,
+   "excerpt": "**`README.md:166`** \u2014 phrasing breaks from the sentence style of the preceding line (\"See `docs/spec.md` for\u2026\")."
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "shim/claude_openai_shim.py",
+   "signature": [
+    "SHIM_UNSAFE",
+    "ture"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 110,
+   "excerpt": "**`shim/claude_openai_shim.py:110`** \u2014 the boolean parser fails **open**: it returns `True` for anything not in `(\"0\",\"false\",\"no\",\"off\",\"\")`. Verified: `maybe`, `disabled`, `none`, `ture`, `n` all \u2192 "
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "src/config.js",
+   "signature": [
+    "wake_phrases",
+    "env >"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 142,
+   "excerpt": "**`src/config.js:142`** \u2014 the bot reads `wakePhrases` from `process.env.SHIM_WAKE_PHRASES` only, but the shim resolves **env > `voice.wake_phrases` in the config file > default** (`setting()`, `shim/c"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "src/config.js",
+   "signature": [
+    "never a wrong answer",
+    "understate"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 135,
+   "excerpt": "**`src/config.js:135-136`** \u2014 the comment \"If the two lists drift the cost is cosmetic \u2026 never a wrong answer\" and **`src/config.js:28-29`** \"a drift costs a missed trigger, never a false one\" both un"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "shim/claude_openai_shim.py",
+   "signature": [
+    "alternation",
+    "WAKE_PHRASES.strip()"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 838,
+   "excerpt": "**`shim/claude_openai_shim.py:838`** \u2014 the \"empty list disables the gate\" guard tests `WAKE_PHRASES.strip()`, but a value of `\",\"` or `\",,,\"` is non-blank and still yields zero surviving phrases, so `"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "shim/claude_openai_shim.py",
+   "signature": [
+    "_FILLER_WORDS",
+    "lead-in"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 811,
+   "excerpt": "**`shim/claude_openai_shim.py:811-814`** \u2014 the comment lists three live failures this change fixes, the third being `a \"so,\" lead-in`. It does not fix that one: `so` is not in `_FILLER_WORDS`, `:819-8"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "src/config.js",
+   "signature": [
+    "isAddressed",
+    "data-not-behaviour"
+   ],
+   "rule_id": "node/config/data-not-behaviour",
+   "state": "accepted",
+   "line_when_seen": 170,
+   "excerpt": "**`src/config.js:170-186`** \u2014 `config.isAddressed` is a second domain predicate on the config object (`node/config/data-not-behaviour`). `CLAUDE.md` documents `isAllowed()` as a known gap, not as a li"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "shim/claude_openai_shim.py",
+   "signature": [
+    "22-case differential",
+    "hey-bot"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 832,
+   "excerpt": "**`shim/claude_openai_shim.py:832`, `src/config.js:170`** \u2014 nothing tests that the two `isAddressed` implementations agree, and they are the load-bearing invariant of the whole feature. I ran a 22-cas"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "shim/claude_openai_shim.py",
+   "signature": [
+    "strip order",
+    "inner padding"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 110,
+   "excerpt": "**`shim/claude_openai_shim.py:110`** \u2014 strip order: `.strip().strip(\"\\\"'\")` removes whitespace *before* quotes, so `\" 0 \"` (quoted, inner padding) survives as ` 0 ` and reads `True`. `flag()` gets thi"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "src/config.js",
+   "signature": [
+    "mirror-image bug",
+    "Trim"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 16,
+   "excerpt": "**`src/config.js:16-19`** \u2014 the mirror-image bug in `flag()`: quotes are stripped *before* trim, so `' \"true\" '` (whitespace outside the quotes) matches neither anchor and falls through to `fallback`."
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "src/config.js",
+   "signature": [
+    "per phrase",
+    "precompiles at import"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 176,
+   "excerpt": "**`src/config.js:176-181`** \u2014 `isAddressed` compiles one `RegExp` per phrase on every call, on a per-transcription-event hot path. The shim precompiles at import (`:822`); do the same here."
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "src/config.js",
+   "signature": [
+    "hey bought",
+    "four places"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 142,
+   "excerpt": "**`src/config.js:142`, `shim/claude_openai_shim.py:799`, `config.example.yaml:65`, `local.env.example:58`** \u2014 the default `hey bot,hey bought,hey but` is written out in four places. Drift here is sile"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "10 bullets where 5 would do",
+    "interrupt family"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 5,
+   "excerpt": "**`CHANGELOG.md:5-92`** \u2014 10 bullets where 5 would do. The wake-phrase family (`:10`, `:23`, `:40`, `:54`) is one feature plus three fixes to its own unreleased self; the interrupt family (`:48`, `:64"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/steps_planning.go",
+   "signature": [
+    "sameCommit",
+    "7-character floor"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 66,
+   "excerpt": "**`pkg/steps_planning.go:66-79`** \u2014 `sameCommit` uses prefix matching with a 7-character floor, so a `ref` that is merely a *prefix* of the tag's commit SHA closes the task as `completed` with no esca"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/steps_planning.go",
+   "signature": [
+    "bidirectional",
+    "unverified generality"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 76,
+   "excerpt": "**`pkg/steps_planning.go:76`** \u2014 the `a, b = b, a` swap makes the match bidirectional, so a 7-char `tagCommit` would prefix-match a 40-char `ref`. Unreachable today (GitHub's tags endpoint always retu"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/githubtags/tags.go",
+   "signature": [
+    "LatestSemverTag",
+    "one-liner"
+   ],
+   "rule_id": "go-doc/exported-item-must-have-comment",
+   "state": "accepted",
+   "line_when_seen": 34,
+   "excerpt": "**`pkg/githubtags/tags.go:34-35`** \u2014 the `TagsFetcher` interface comment was rewritten to a one-liner, deleting `LatestSemverTag`'s entire contract (return spelling, `ErrNoTags` semantics, failure mod"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/githubtags/tags.go",
+   "signature": [
+    "safe for concurrent use",
+    "sibling fetcher interfaces"
+   ],
+   "rule_id": "go-doc/exported-item-must-have-comment",
+   "state": "accepted",
+   "line_when_seen": 33,
+   "excerpt": "**`pkg/githubtags/tags.go:33`** \u2014 the same rewrite dropped `// Implementations MUST be safe for concurrent use.`, which is still present on the sibling fetcher interfaces (`pkg/githubchangelog/fetcher"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/steps_planning.go",
+   "signature": [
+    "tagWarning",
+    "handleValidationFailure"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 750,
+   "excerpt": "**`pkg/steps_planning.go:750-773`** \u2014 `tagWarning` from a failed `LatestSemverTag` is computed at line 177 but only merged into `fetchWarning` at line 223, *after* the `!valid` branch hands off to `ha"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/steps_planning.go",
+   "signature": [
+    "six consecutive bare",
+    "effectiveVersion"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 750,
+   "excerpt": "**`pkg/steps_planning.go:750-753`** \u2014 `handleValidationFailure` takes six consecutive bare `string` params, with `effectiveVersion` (drives the tag lookup) and `snapshotVersion` (only carried to the e"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/steps_planning_test.go",
+   "signature": [
+    "DescribeTable",
+    "len(a) > len(b)"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 2604,
+   "excerpt": "**`pkg/steps_planning_test.go:2604-2626`** \u2014 the `sameCommit` `DescribeTable` covers only the short-`ref` direction and equal-length pairs; no entry exercises the `len(a) > len(b)` swap from the `tagC"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/steps_planning_test.go",
+   "signature": [
+    "LatestSemverTagReturns",
+    "nine new nothing_to_release"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 2256,
+   "excerpt": "**`pkg/steps_planning_test.go:2256-2704`** \u2014 all nine new nothing_to_release cases hard-code `LatestSemverTagReturns(\"v0.3.1\", nil)`. No test combines a transient `LatestSemverTag` failure (snapshot f"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/steps_planning.go",
+   "signature": [
+    "releaseTagVerdict",
+    "wire-format"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 86,
+   "excerpt": "**`pkg/steps_planning.go:86-91`** \u2014 `releaseTagVerdict` returns a string token that the caller compares with `==` against `PlanOutcomeNothingToRelease`, a *wire-format* constant from `pkg/plan_output."
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/plan_output.go",
+   "signature": [
+    "PlanOutcomeNothingToRelease",
+    "pre-existing and consistently extended"
+   ],
+   "rule_id": "go-enum-type/typed-constants-with-collection",
+   "state": "rejected",
+   "line_when_seen": 111,
+   "excerpt": "**`pkg/plan_output.go:111`** \u2014 `PlanOutcomeNothingToRelease` extends a set of four untyped `string` constants with no `PlanOutcome` newtype and no collection. Real debt, but pre-existing and consisten"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "pkg/githubtags/tags.go",
+   "signature": [
+    "collectTags",
+    "defense-in-depth"
+   ],
+   "rule_id": "go-context/cancel-check-in-loop",
+   "state": "rejected",
+   "line_when_seen": 132,
+   "excerpt": "**`pkg/githubtags/tags.go:132`** \u2014 the `collectTags` pagination loop (up to 100 iterations, network I/O each) has no explicit `ctx.Done()` check. Cancellation is already honored via `http.NewRequestWi"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "570",
+    "not a deviation"
+   ],
+   "rule_id": "changelog/conventional-prefix-required",
+   "state": "rejected",
+   "line_when_seen": 11,
+   "excerpt": "**`CHANGELOG.md:11`** \u2014 the second bullet is ~570 chars across three clauses (what/why/exact matching rule). Within this repo's own precedent (v0.3.2 runs 689 chars), so not a deviation \u2014 but it would"
+  },
+  {
+   "pr_id": "github-releaser-agent#8",
+   "path": null,
+   "signature": [
+    "prompt slugs",
+    "commit-template issue"
+   ],
+   "rule_id": "git-commit/imperative-mood",
+   "state": "rejected",
+   "line_when_seen": null,
+   "excerpt": "**Commits `2312772`, `75cde50`** \u2014 subjects are dark-factory prompt slugs (`004-spec-002-tag-commit-seam`), not imperative verbs. Repo-wide tooling convention across all prompt-driven commits; raise a"
   }
  ],
  "adjudications": [
@@ -662,6 +2018,9 @@
   "2026-08-10 REKEY all entries from path:line signatures to semantic keywords. 37 of the 43 signatures embedded a line reference, so a re-report of the same issue one line over scored as a miss. Measured: the curated-1 Opus run - the SAME model/effort/mode that seeded this set - scored recall 0.262 against it; after the re-key, 0.463. The dev-1 baseline still self-matches 1.000. Keys are code identifiers (S104, apt-key, ErrorRequestHandler) rather than prose, because prose is one author's phrasing and drifts between runs.",
   "2026-08-10 MERGE github-pr-review-agent#11 docs/pr-post-back.md:126 into the :128 entry. Both described the stale 'backward compatibility' framing in one paragraph; a later run reported them as a single finding, which would have matched two entries and tripped the aliasing guard. One issue, one entry.",
   "2026-08-10 MATCHER rule_id no longer short-circuits identity. Demonstrated: the github-pr-review-agent#11 CHANGELOG bundling entry matched an unrelated fix:/chore: prefix finding purely because both carried changelog/conventional-prefix-required. Any config finding SOME instance of a rule was credited with the specific one in the set, inflating recall.",
-  "2026-08-10 MATCHER path removed from identity. Demonstrated: the 'write-scoped token still minted under --skip-post' issue is entry-keyed to pkg/factory/runner.go but was re-reported anchored at cmd/run-task/main.go - the body named runner.go explicitly. Scored as a miss purely on the anchor choice."
+  "2026-08-10 MATCHER path removed from identity. Demonstrated: the 'write-scoped token still minted under --skip-post' issue is entry-keyed to pkg/factory/runner.go but was re-reported anchored at cmd/run-task/main.go - the body named runner.go explicitly. Scored as a miss purely on the anchor choice.",
+  "2026-08-10 ADJUDICATE curated-1: 115 findings across 20 PRs. 113 new entries (94 accepted / 19 rejected); 2 findings were the SAME issue an existing entry already held, re-reported in different words, so those two keys were RELAXED rather than duplicated (python-skeleton#3 --ignore-vuln and sudo tee -a). One issue, one entry - a duplicate is what inflated recall to a spurious 1.000 in v0.37.0.",
+  "2026-08-10 REJECTED grew 1 -> 20. The rule applied: a finding is rejected when it is a correct observation that names no defect - polish, taste, or a consequence the finding itself concludes is intended. The clearest cluster is github-releaser-agent#8, where four findings disqualify themselves in their own text ('worth a follow-up rather than in isolation', 'not a correctness fix', 'so not a deviation', 'raise as a dark-factory issue rather than here'). Before this, precision could not be lost by any configuration.",
+  "2026-08-10 Judgment line held consistently, and it is a line: 'harmless today' hardening on correct code is rejected (unquoted shell expansion), while a latent defect where the code does something other than its shape implies is accepted (check() closing over the outer const). Reachability is not correctness. Comment-requests on correct code are rejected even when they argue regression risk."
  ]
 }

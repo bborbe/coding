@@ -8,6 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: rule-checks: gate the two `go-licensing` MUST rules on real repo visibility instead of assuming every repo is public. `check_license_file_required` was a bare `[ ! -f LICENSE ]` — its own message said "Public Go projects must…" but nothing checked whether the repo was public, so the guide's documented private-repo exemption was never implemented. `check_readme_license_section` had the same gap. Visibility now comes from `gh repo view --json isPrivate` (memoised, and only called when a finding would otherwise fire), and both rules **fail open** when it cannot be determined — a MUST-tier false positive blocks every PR in an org, while a missed finding on a public repo surfaces at the next review. `license-file-required` is also now actually Go-scoped (requires `go.mod`), matching its own docs. Measured impact: 69 of 73 non-archived `Seibert-Data` repos deliberately carry no LICENSE, so the rule was blocking essentially every PR org-wide; one such PR had to be admin-merged to land.
+- fix: go-licensing-guide: replace the host-based visibility heuristic ("hosted on `github.com` → public") with the repo's `isPrivate` flag. The Octopus migration moved 73 private repos onto `github.com`, so host stopped implying visibility — this was the root cause of the false positive above. Documents the fail-open behaviour.
+
 ## v0.42.2
 
 - fix: ast-grep-runner: pass finding payloads to `jq` via `--slurpfile` instead of `--argjson`, fixing `Argument list too long` on large result sets. Both sites moved: the per-owner merge and the final assembly. Payloads were being read out of files into shell variables and pushed back through `argv`; `jq` now reads the files directly, so payload size is irrelevant. Scales with finding count and matched-text size, not file count — reproduced with 1,956 findings from 429 files, which previously produced an **empty output file and exit 0**.

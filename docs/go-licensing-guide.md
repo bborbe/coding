@@ -6,13 +6,17 @@ This guide covers how to properly handle licensing in Go projects.
 
 Licensing requirements depend on whether the repository is **public** or **private/internal**:
 
-| | Public (GitHub) | Private/Internal (Bitbucket) |
+| | Public | Private/Internal |
 |---|---|---|
 | LICENSE file | Required | Not needed |
 | README license section | Required | Not needed |
 | Source file headers | Required | Not needed |
 
-**How to detect**: If the repo is hosted on `github.com` → public. If hosted on `bitbucket.seibert.tools` or similar internal hosting → private/internal.
+**How to detect**: read the repo's own visibility flag — `gh repo view --json isPrivate -q .isPrivate`. `false` → public, `true` → private/internal.
+
+**Do NOT infer visibility from the host.** `github.com` used to mean public and `bitbucket.seibert.tools` private, but the Octopus migration moved 73 private `Seibert-Data` repos onto `github.com`. Host-based detection now misclassifies nearly every private repo as public — it was the cause of a MUST-tier false positive that blocked merges org-wide (fixed 2026-08).
+
+**When visibility cannot be determined** (no `gh`, no remote, offline, not a repo), these rules **do not fire**. They are MUST-tier, so a false positive blocks every PR in the org, while a missed finding on a public repo is caught at the next review.
 
 The rest of this guide applies to **public repositories only**.
 

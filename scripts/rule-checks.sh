@@ -101,26 +101,66 @@ changed_file_matches() {
 }
 
 # ---------------------------------------------------------------------------
+# repo_visibility — prints "public", "private" or "unknown". Memoised: one
+# `gh` call per run at most, and only when a licensing rule is about to fire.
+#
+# Host is NOT a proxy for visibility. Private repos live on github.com too, so
+# the only reliable signal is the repo's own isPrivate flag.
+# ---------------------------------------------------------------------------
+REPO_VISIBILITY_CACHE=""
+repo_visibility() {
+  if [ -n "$REPO_VISIBILITY_CACHE" ]; then
+    printf '%s' "$REPO_VISIBILITY_CACHE"
+    return 0
+  fi
+  local vis="unknown" out
+  if command -v gh >/dev/null 2>&1; then
+    if out=$( (cd "$TARGET_DIR" && gh repo view --json isPrivate -q .isPrivate) 2>/dev/null ); then
+      case "$out" in
+        true)  vis="private" ;;
+        false) vis="public" ;;
+      esac
+    fi
+  fi
+  REPO_VISIBILITY_CACHE="$vis"
+  printf '%s' "$vis"
+}
+
+# ---------------------------------------------------------------------------
+# repo_is_public — true only when the repo is KNOWN public.
+#
+# Fails open on "unknown" (no gh, no remote, offline, not a repo) by design:
+# these are MUST-tier rules, so a false positive blocks merges on every PR in
+# the org, while a missed finding on a public repo surfaces at the next review.
+# ---------------------------------------------------------------------------
+repo_is_public() {
+  [ "$(repo_visibility)" = "public" ]
+}
+
+# ---------------------------------------------------------------------------
 # RULE: go-licensing/license-file-required (MUST)
-# Always run (cheap, applies to any Go project).
+# Public Go repos only — see docs/go-licensing-guide.md § Public vs Private.
+# Ordered cheapest-first so the `gh` call only happens when a finding would
+# otherwise be emitted.
 # ---------------------------------------------------------------------------
 check_license_file_required() {
-  local license_file="$TARGET_DIR/LICENSE"
-  if [ ! -f "$license_file" ]; then
-    emit_finding \
-      "license-assistant" \
-      "go-licensing/license-file-required" \
-      "MUST" \
-      "$TARGET_DIR/LICENSE" \
-      0 0 \
-      "(file absent)" \
-      "No LICENSE file found at repo root. Public Go projects must have a root LICENSE file. See docs/go-licensing-guide.md."
-  fi
+  [ -f "$TARGET_DIR/LICENSE" ] && return 0
+  [ -f "$TARGET_DIR/go.mod" ] || return 0   # rule is Go-scoped per its own docs
+  repo_is_public || return 0
+  emit_finding \
+    "license-assistant" \
+    "go-licensing/license-file-required" \
+    "MUST" \
+    "$TARGET_DIR/LICENSE" \
+    0 0 \
+    "(file absent)" \
+    "No LICENSE file found at repo root. Public Go projects must have a root LICENSE file. See docs/go-licensing-guide.md."
 }
 
 # ---------------------------------------------------------------------------
 # RULE: go-licensing/readme-license-section-required (MUST)
 # Run when README.md changed, or always (cheap grep).
+# Public repos only — same visibility gate as license-file-required.
 # ---------------------------------------------------------------------------
 check_readme_license_section() {
   changed_file_matches "*README.md" || return 0
@@ -129,6 +169,7 @@ check_readme_license_section() {
     return 0  # no README — different issue, not this rule
   fi
   if ! grep -qE '^## License' "$readme"; then
+    repo_is_public || return 0
     local line
     line=$(wc -l < "$readme")
     emit_finding \

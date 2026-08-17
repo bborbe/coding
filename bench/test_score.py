@@ -2676,13 +2676,23 @@ class TestChunkRunsKeysOnRunId(unittest.TestCase):
 
     def test_mixed_presence_uses_occurrence_index(self):
         # A config whose rows are half old (no run_id) and half new must not
-        # explode; the conservative fallback applies.
+        # explode; the conservative fallback applies.  Assert which ROW lands in
+        # which run, not just the bucket counts — a bug that keyed on run_id for
+        # some rows and occurrence-index for others would still give [1, 1].
         rows = [
             {"config_hash": "h", "pr_id": "a#1", "findings": []},
             {"config_hash": "h", "run_id": "r2", "pr_id": "a#1", "findings": []},
+            {"config_hash": "h", "run_id": "r2", "pr_id": "b#2", "findings": []},
         ]
         runs = run.chunk_runs(rows)
-        self.assertEqual([len(r) for r in runs], [1, 1])
+        # Occurrence index: the k-th row of a given pr_id belongs to run k.
+        # a#1's two rows land in run 1 and run 2; b#2's first (and only) row
+        # lands in run 1.  The run_id-bearing rows are NOT grouped by run_id —
+        # the fallback is the sole authority when ANY row lacks the field.
+        self.assertEqual([len(r) for r in runs], [2, 1])
+        self.assertEqual([r["pr_id"] for r in runs[0]], ["a#1", "b#2"])
+        self.assertEqual([r["pr_id"] for r in runs[1]], ["a#1"])
+        self.assertNotIn("run_id", runs[0][0])
 
 
 class TestBuildRowCarriesRunId(unittest.TestCase):

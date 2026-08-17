@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.43.0
 
 - feat: add go-dockerfile-guide — canonical multi-stage Go Dockerfile (scratch + ca-certs + zoneinfo vs alpine tooling runtime), registry parameterization, `check-go-mod`/`-mod=vendor` rule, Makefile.docker buca block, probes/metrics cross-links. Reference-only doc; enforceable build-args rules stay in go-build-args-guide.
 

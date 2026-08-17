@@ -8,9 +8,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## v0.42.3
+## Unreleased
 
 - fix: simple-bash-runner: stop the agent from inspecting credentials or debugging auth failures. Observed in a live ops session: the agent hit a `401` from a hand-rolled API request, concluded the TeamVault credential was "stale/rotated", and dumped the live password through `od -c` and into a scratch file to debug it — leaking a working secret into a transcript and producing a false infra diagnosis (the same key authenticated on the very next call through the project's own script). Adds two Best Practices rules — never materialize a secret (byte count via `printf '%s' "$X" | wc -c` is the only permitted inspection), and treat a `401`/`403` as a result to report rather than a puzzle to solve — plus a matching *When NOT to Use* entry. Rules are inline rather than in a doc because this agent has `tools: Bash` only and cannot Read a source-of-truth guide.
+
+## v0.42.3
 
 - fix: rule-checks: gate the two `go-licensing` MUST rules on real repo visibility instead of assuming every repo is public. `check_license_file_required` was a bare `[ ! -f LICENSE ]` — its own message said "Public Go projects must…" but nothing checked whether the repo was public, so the guide's documented private-repo exemption was never implemented. `check_readme_license_section` had the same gap. Visibility now comes from `gh repo view --json isPrivate` (memoised, and only called when a finding would otherwise fire), and both rules **fail open** when it cannot be determined — a MUST-tier false positive blocks every PR in an org, while a missed finding on a public repo surfaces at the next review. `license-file-required` is also now actually Go-scoped (requires `go.mod`), matching its own docs. Measured impact: 69 of 73 non-archived `Seibert-Data` repos deliberately carry no LICENSE, so the rule was blocking essentially every PR org-wide; one such PR had to be admin-merged to land.
 - fix: go-licensing-guide: replace the host-based visibility heuristic ("hosted on `github.com` → public") with the repo's `isPrivate` flag. The Octopus migration moved 73 private repos onto `github.com`, so host stopped implying visibility — this was the root cause of the false positive above. Documents the fail-open behaviour.

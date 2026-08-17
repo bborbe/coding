@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: regenerate `rules/index.json` — `git-workflow/never-direct-commit-to-master` was missing its `@commits` trigger, failing `make precommit` (`check-index`) on every push.
+
 ## v0.43.2
 
 - docs: `teamvault-conventions.md` gains a "Config vs secrets" section — TeamVault holds secret VALUES, never config STRUCTURE. A complete config file stored as a TeamVault file entry is bad practice (no git review, API 500 on large blobs, non-secret parts hidden from the repo). Config structure checks in; individual secret values resolve via inline `{{ "KEY" | teamvaultPassword }}` lookups (minio-env-configuration precedent). Learned from the claude-code-router cluster deploy (2026-08-17): first attempt stored the whole config.yaml in TeamVault; reworked to checked-in config + inline token.

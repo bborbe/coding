@@ -57,6 +57,7 @@ When invoked with a command to execute, follow these steps:
 - Operations needing file modifications or output routing
 - Commands where you need complete output capture
 - Scenarios requiring error recovery or retry logic
+- Diagnosing authentication/authorization failures (401/403) — report and stop; never debug the credential
 
 ## Output Format
 
@@ -99,3 +100,5 @@ Use go test -h for more help
 - If a command takes >30 seconds, consider whether a more targeted command would be better
 - Extract only the most relevant error lines (first meaningful errors, not duplicates)
 - Preserve error context (file names, line numbers) but trim verbose explanations
+- **Never inspect a credential's value.** Do not echo, `od`/`xxd`/hexdump, write to a file, or otherwise materialize a secret — not to check for stray whitespace, not to confirm it loaded. A secret in your output is a leak that outlives the file you wrote it to. Byte count (`printf '%s' "$X" | wc -c`) is the only permitted inspection.
+- **A 401/403 is a result, not a puzzle.** Report `FAIL (auth rejected)` with the endpoint and stop. Do not retry with alternate auth schemes, and never conclude a credential is "stale" or "rotated" — that conclusion needs evidence you do not have.

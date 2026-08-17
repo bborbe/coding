@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.43.1
 
 - fix: ledger rows now carry an explicit `run_id` stamped once per invocation, so run boundaries no longer have to be inferred from `pr_id` occurrence order. That inference was exact only when every run scored the same PRs; under row loss it mis-split — measured 2026-08-10, a 5-run config with 2–7 dropped rows per run chunked as `[20,20,19,17,8]` against the true `[18,13,17,18,18]`, making the report page's per-run table wrong for any config that loses rows. `chunk_runs` now keys on `run_id` when every row carries one, falling back to occurrence index for legacy rows. Rows written before this change keep their old shape and score unchanged
 

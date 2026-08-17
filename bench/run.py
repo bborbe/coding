@@ -1681,7 +1681,7 @@ def harvest(report_text: str, known_rule_ids: set) -> HarvestResult:
 # ----------------------------------------------------------------------
 def build_row(*, checkout: PrCheckout, cfg_hash: str, rc_hash: str,
                model: str, effort: str, mode: str, prs_version: str,
-               review_command: str, started_at: str,
+               review_command: str, started_at: str, run_id: str,
                duration_seconds: float, findings: list,
                raw_output_ref: str,
                unattributable_count: int = 0,
@@ -1694,9 +1694,16 @@ def build_row(*, checkout: PrCheckout, cfg_hash: str, rc_hash: str,
     the loss is measurable per PR instead of binary, and so a row built from a
     partially-rejected review is visibly lower-confidence rather than silently
     equal to a clean one.
+
+    run_id identifies the single invocation that produced this row.  Without it,
+    chunk_runs can only infer run boundaries by watching for a repeated pr_id —
+    which mis-splits as soon as row loss differs between runs (measured 2026-08-10:
+    a 5-run config with 2–7 dropped rows per run chunked as [20,20,19,17,8] against
+    the true [18,13,17,18,18]).  Every row of one invocation shares its run_id.
     """
     return {
         "config_hash": cfg_hash,
+        "run_id": run_id,
         "unattributable_count": unattributable_count,
         "missing_sections": list(missing_sections_names or []),
         "rules_commands_hash": rc_hash,
@@ -1913,6 +1920,11 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
         f"model={model} effort={effort} mode={mode} prs={manifest['version']}"
     )
 
+    # One run_id per invocation, shared by every row this pass writes.  It is the
+    # only reliable run boundary: pr_id alone mis-splits under row loss (see
+    # build_row), and started_at is per-PR, not per-run.
+    run_id = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
     with BenchLock(results_dir):
         outcomes: list[tuple[str, str]] = []
         for entry in manifest["prs"]:
@@ -1930,6 +1942,7 @@ def run_bench(*, coding_repo: pathlib.Path, manifest_path: pathlib.Path,
                     cfg_hash=cfg_hash,
                     rc_hash=rc_hash,
                     prs_version=manifest["version"],
+                    run_id=run_id,
                     known_rule_ids=known_rule_ids,
                 )
             except subprocess.TimeoutExpired as err:
@@ -1969,7 +1982,7 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
                results_dir: pathlib.Path, cache_root: pathlib.Path,
                model: str, effort: str, mode: str,
                config_dir: pathlib.Path, cfg_hash: str,
-               rc_hash: str, prs_version: str,
+               rc_hash: str, prs_version: str, run_id: str,
                known_rule_ids: set) -> tuple[str, str]:
     """Process a single PR: cache check, resolve, review, harvest, ledger."""
     pr_id = entry["id"]
@@ -2095,6 +2108,7 @@ def process_pr(*, entry: dict, coding_repo: pathlib.Path,
         prs_version=prs_version,
         review_command=review_command,
         started_at=started_at,
+        run_id=run_id,
         duration_seconds=duration_seconds,
         findings=findings,
         raw_output_ref=raw_output_ref,
@@ -2241,15 +2255,27 @@ def entries_in_scope(golden: dict, pr_ids) -> list:
 # Run chunking — spec 006 prompt 2
 # ----------------------------------------------------------------------
 def chunk_runs(rows: list) -> list:
-    """Split one configuration's ledger rows into runs by per-PR occurrence index.
+    """Split one configuration's ledger rows into runs.
 
-    Within a config, the k-th row for a given pr_id — in ledger file order —
-    belongs to run k.  Returns a list of lists, run 1 first.  Input not mutated.
+    Rows written since v0.44 carry an explicit `run_id` (stamped once per
+    invocation), so runs group directly on it.  Legacy rows lack the field; for
+    those, fall back to per-PR occurrence index — the k-th row of a given pr_id
+    belongs to run k.  That inference is only exact when every run scores the
+    same PRs: under row loss it mis-splits (measured 2026-08-10: a config with
+    2–7 dropped rows per run chunked as [20,20,19,17,8] against the true
+    [18,13,17,18,18]), which is exactly the defect `run_id` removes.  Returns a
+    list of lists, run 1 first.  Input not mutated.
     """
     from collections import Counter, defaultdict
 
+    if all("run_id" in row for row in rows):
+        runs: dict[str, list] = defaultdict(list)
+        for row in rows:
+            runs[row["run_id"]].append(row)
+        return [runs[k] for k in sorted(runs)]
+
     counter = Counter()
-    runs: dict[int, list] = defaultdict(list)
+    runs = defaultdict(list)
     for row in rows:
         pr_id = row["pr_id"]
         counter[pr_id] += 1

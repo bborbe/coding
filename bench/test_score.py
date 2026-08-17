@@ -2631,3 +2631,81 @@ class TestNoEntrySignatureSubsumesAnother(unittest.TestCase):
 
     def test_fixture_has_no_subsumed_signature(self):
         self._check(run.load_golden(GOLDEN_FIXTURE))
+
+
+# ----------------------------------------------------------------------
+# Run identity — spec 006 prompt 4 amendment (v0.44)
+# ----------------------------------------------------------------------
+class TestChunkRunsKeysOnRunId(unittest.TestCase):
+    """Rows carry an explicit run_id since v0.44; chunking must use it.
+
+    The pre-v0.44 occurrence-index inference is only exact when every run scores
+    the same PRs.  Under row loss it mis-splits: if run 2 drops vault-cli#68,
+    then in run 3 that PR's occurrence index is 2, so its row lands in run 2's
+    bucket.  Measured 2026-08-10: a 5-run config with 2-7 dropped rows per run
+    chunked as [20,20,19,17,8] against the true [18,13,17,18,18].
+    """
+
+    def _row(self, run_id, pr_id):
+        return {"config_hash": "h", "run_id": run_id, "pr_id": pr_id,
+                "prs_version": "curated-1", "findings": []}
+
+    def test_run_id_groups_across_row_loss(self):
+        # run 2 drops vault-cli#68 (row loss); run 3 scores it again.
+        rows = [
+            self._row("r1", "a#1"), self._row("r1", "b#2"),
+            self._row("r2", "a#1"),
+            self._row("r3", "a#1"), self._row("r3", "b#2"),
+        ]
+        runs = run.chunk_runs(rows)
+        self.assertEqual([len(r) for r in runs], [2, 1, 2])
+        self.assertEqual([r["run_id"] for r in runs[2]], ["r3", "r3"])
+        self.assertEqual(runs[2][1]["pr_id"], "b#2")
+
+    def test_legacy_rows_without_run_id_fall_back_to_occurrence_index(self):
+        rows = [
+            {"config_hash": "h", "pr_id": "a#1", "findings": []},
+            {"config_hash": "h", "pr_id": "b#2", "findings": []},
+            {"config_hash": "h", "pr_id": "a#1", "findings": []},
+        ]
+        runs = run.chunk_runs(rows)
+        self.assertEqual([len(r) for r in runs], [2, 1])
+        self.assertEqual(runs[0][0]["pr_id"], "a#1")
+        self.assertEqual(runs[0][1]["pr_id"], "b#2")
+        self.assertEqual(runs[1][0]["pr_id"], "a#1")
+
+    def test_mixed_presence_uses_occurrence_index(self):
+        # A config whose rows are half old (no run_id) and half new must not
+        # explode; the conservative fallback applies.  Assert which ROW lands in
+        # which run, not just the bucket counts — a bug that keyed on run_id for
+        # some rows and occurrence-index for others would still give [1, 1].
+        rows = [
+            {"config_hash": "h", "pr_id": "a#1", "findings": []},
+            {"config_hash": "h", "run_id": "r2", "pr_id": "a#1", "findings": []},
+            {"config_hash": "h", "run_id": "r2", "pr_id": "b#2", "findings": []},
+        ]
+        runs = run.chunk_runs(rows)
+        # Occurrence index: the k-th row of a given pr_id belongs to run k.
+        # a#1's two rows land in run 1 and run 2; b#2's first (and only) row
+        # lands in run 1.  The run_id-bearing rows are NOT grouped by run_id —
+        # the fallback is the sole authority when ANY row lacks the field.
+        self.assertEqual([len(r) for r in runs], [2, 1])
+        self.assertEqual([r["pr_id"] for r in runs[0]], ["a#1", "b#2"])
+        self.assertEqual([r["pr_id"] for r in runs[1]], ["a#1"])
+        self.assertNotIn("run_id", runs[0][0])
+
+
+class TestBuildRowCarriesRunId(unittest.TestCase):
+    def test_every_row_gets_the_invocation_run_id(self):
+        checkout = run.PrCheckout(
+            pr_id="a#1", repo_dir=pathlib.Path("/tmp"), worktree=pathlib.Path("/tmp"),
+            base_branch="master", head_branch="feature/x", diff_range="a..b",
+            base_sha="a", head_sha="b", changed_files=1, parent_count=2, notes=[],
+        )
+        row = run.build_row(
+            checkout=checkout, cfg_hash="h", rc_hash="r", model="opus",
+            effort="xhigh", mode="full", prs_version="curated-1",
+            review_command="claude", started_at="t0", run_id="run-123",
+            duration_seconds=1.0, findings=[], raw_output_ref="x",
+        )
+        self.assertEqual(row["run_id"], "run-123")

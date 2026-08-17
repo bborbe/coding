@@ -109,6 +109,20 @@ PEM_KEY: |
 PEM_KEY: '{{ "WATCHER_X_PEM_KEY" | env | teamvaultFileBase64 }}'
 ```
 
+## Non-k8s / launchd services
+
+For services not on k8s (macOS launchd daemons, background agents), the same rule holds — the config references a lookup key, never the raw secret — but there is no `teamvault-config-parser` at apply time. Resolve the secret into an env var at startup:
+
+- **Config holds the lookup KEY, never the raw secret and never the display NAME.** `teamvault-cli password <display-name>` returns 404 — the API path is the KEY, not the human name. `teamvault-cli search <term>` maps KEY ↔ NAME.
+- **A launchd wrapper script resolves the key into an env var, then `exec`s the binary** — the plist's `ProgramArguments[0]` is the wrapper:
+  ```bash
+  ROUTER_AUTH_KEY="$(/opt/homebrew/bin/teamvault-cli password yqZNbq)"  # absolute path — launchd PATH is /usr/bin:/bin:/usr/sbin:/sbin
+  export ROUTER_AUTH_KEY
+  exec /path/to/binary "$@"
+  ```
+- **The app reads env-var-first, config-fallback** — the config value is at most an inert marker.
+- **Never write the resolved value back to any file.** Config files stay `chmod 600`-clean with zero secret literals (verify: `grep -rnF <secret> <config-dir>` = 0).
+
 ## Where the real secrets live
 
 - Operator workstation: `~/.teamvault.json` (auth token for teamvault API)

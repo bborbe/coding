@@ -40,6 +40,38 @@ Read this as: "Look up env var `WATCHER_GITHUB_PR_PEM_KEY` (which holds a teamva
 
 The raw secret never leaves teamvault → operator workstation → cluster. The env file only holds the lookup key.
 
+## Config vs secrets — what belongs in TeamVault
+
+**TeamVault holds secret VALUES, never config STRUCTURE.** A config file (providers, endpoints, model globs, aliases, flags) is not a secret — check it into git and review it like code. Only the individual secret values inside it (tokens, keys, passwords) resolve from TeamVault.
+
+**❌ BAD — a complete config file stored as a TeamVault file entry:**
+- Config changes become a TeamVault write instead of a reviewed git diff — no PR, no history, no review.
+- The TeamVault create API can reject large config blobs (observed 2026-08-17: `create secret failed … status: 500` on a config.yaml file entry).
+- The config's non-secret parts (endpoints, model lists) get hidden from the repo, so readers can't see what's deployed.
+
+**✅ GOOD — config checked in, secret value resolved inline:**
+
+```yaml
+# claude-code-router-config-secret.yaml (in the repo, minio-env-configuration precedent)
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: claude-code-router-config
+stringData:
+  config.yaml: |-
+    providers:
+      minimax:
+        upstream: https://api.minimax.io/anthropic
+        token: "{{ "MOPmQL" | teamvaultPassword }}"
+        models:
+          - "MiniMax-*"
+```
+
+The config structure (`providers`, `upstream`, `models`) is reviewed in git; `teamvault-config-parser` resolves only the `{{ "KEY" | teamvaultPassword }}` token at apply time. Add providers/models by editing the manifest — no TeamVault provisioning step.
+
+**Rule of thumb:** if it's a value that would be the same for any operator (URLs, ports, model ids, aliases, feature flags) → git. If it's a credential that must differ per environment or per consumer (tokens, keys, passwords, PEM) → TeamVault lookup key.
+
 ## Naming convention
 
 Teamvault-resolved env vars use a `_KEY` suffix:

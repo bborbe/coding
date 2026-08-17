@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.42.4
 
 - fix: simple-bash-runner: stop the agent from inspecting credentials or debugging auth failures. Observed in a live ops session: the agent hit a `401` from a hand-rolled API request, concluded the TeamVault credential was "stale/rotated", and dumped the live password through `od -c` and into a scratch file to debug it — leaking a working secret into a transcript and producing a false infra diagnosis (the same key authenticated on the very next call through the project's own script). Adds two Best Practices rules — never materialize a secret (byte count via `printf '%s' "$X" | wc -c` is the only permitted inspection), and treat a `401`/`403` as a result to report rather than a puzzle to solve — plus a matching *When NOT to Use* entry. Rules are inline rather than in a doc because this agent has `tools: Bash` only and cannot Read a source-of-truth guide.
 

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.43.3
 
 - fix: regenerate `rules/index.json` — `git-workflow/never-direct-commit-to-master` was missing its `@commits` trigger, failing `make precommit` (`check-index`) on every push.
 

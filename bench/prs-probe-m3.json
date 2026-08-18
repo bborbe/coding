@@ -1,0 +1,69 @@
+{
+ "version": "probe-m3-4",
+ "prs": [
+  {
+   "id": "tts-mcp#10",
+   "owner": "bborbe",
+   "repo": "tts-mcp",
+   "number": 10,
+   "language": "python",
+   "merge_strategy": "merge-commit",
+   "merge_sha": "a55de3d67bb11e0a8d768c625392bb63082b1a0a",
+   "base_sha": "75ec087324067df97c47eafdba7cb3eede0d19c9",
+   "head_sha": "c6f136af37f33a035708f27e59de4d78f68db6e6",
+   "changed_files": 4,
+   "additions": 253,
+   "deletions": 220,
+   "role": "unreviewed",
+   "notes": "Bump mcp/ transitive deps and make CI actually cover the relay \u2014 sourced 2026-08-09, role pending adjudication"
+  },
+  {
+   "id": "discord-assistant#5",
+   "owner": "bborbe",
+   "repo": "discord-assistant",
+   "number": 5,
+   "language": "node",
+   "merge_strategy": "merge-commit",
+   "merge_sha": "4b0d3af36d886b6d8242ac772d4130f63329569b",
+   "base_sha": "b66b8002d00e9ea5e527ada51ce0390130ba5c53",
+   "head_sha": "b910f40ba6b2711ee7780ed8cc9365b27d3d4c8d",
+   "changed_files": 7,
+   "additions": 513,
+   "deletions": 12,
+   "role": "unreviewed",
+   "notes": "feat: wait to be addressed before answering in a call \u2014 sourced 2026-08-09, role pending adjudication"
+  },
+  {
+   "id": "github-releaser-agent#8",
+   "owner": "bborbe",
+   "repo": "github-releaser-agent",
+   "number": 8,
+   "language": "go",
+   "merge_strategy": "merge-commit",
+   "merge_sha": "98ab8544a11efd5ec1dda7f7aaf524617d8fcfd0",
+   "base_sha": "e6b692828ea8a404e538adc3d40b6efd56819b9f",
+   "head_sha": "51736bf1889d6711b0585fdf3a40b7ba8534cb50",
+   "changed_files": 12,
+   "additions": 1983,
+   "deletions": 41,
+   "role": "unreviewed",
+   "notes": "feat(planning): close nothing-to-release tasks instead of escalating \u2014 sourced 2026-08-09, role pending adjudication"
+  },
+  {
+   "id": "helm#3",
+   "owner": "bborbe",
+   "repo": "helm",
+   "number": 3,
+   "language": "go",
+   "merge_strategy": "squash",
+   "merge_sha": "584cb9f23f556287b82b0bfb64489bea9a6a40e1",
+   "base_sha": "15a6b84b57b37b5de151a568bc9c879a5b91d9f8",
+   "head_sha": "e634f85ab0ccdda380405ec3482732ce1ee1ff18",
+   "changed_files": 2,
+   "additions": 13,
+   "deletions": 3,
+   "role": "squash-coverage",
+   "notes": "trust ben-s-go-updater[bot] in github-pr-reviewer TRUSTED_AUTHORS \u2014 one of only 2 squash-merged PRs in the org"
+  }
+ ]
+}

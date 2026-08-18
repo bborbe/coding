@@ -204,10 +204,7 @@
     "enforcement_type": "judgment",
     "id": "git-workflow/never-direct-commit-to-master",
     "level": "MUST",
-    "owner": "agent-auditor",
-    "trigger": [
-      "@commits"
-    ]
+    "owner": "agent-auditor"
   },
   {
     "anchor": "git-workflow/no-ai-attribution-in-commits",

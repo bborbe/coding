@@ -23,10 +23,10 @@ You are a license management specialist. Ensure consistent licensing across all 
 
 License requirements only apply to **public** repositories. Skip all checks for private/internal repos.
 
-**Detection rules:**
-- `git remote -v` contains `github.com` → **public** → continue
-- `git remote -v` contains `bitbucket.seibert.tools` or other internal hosting → **private** → report "No licensing required for internal repos" and STOP
-- No remote → assume public, continue
+**Detection rules (authoritative signal is the repo's own visibility flag, NOT the host):**
+- Read the flag: `gh repo view --json isPrivate -q .isPrivate` → `false` = **public** → continue; `true` = **private** → report "No licensing required for private repos" and STOP.
+- **Do NOT infer visibility from the host.** `github.com` no longer means public — the Octopus migration moved 73 private `Seibert-Data` repos onto `github.com`; host-based detection misclassifies nearly every private repo as public and causes MUST-tier false positives that block merges org-wide. `bitbucket.seibert.tools` hosting also no longer implies private — always check the flag.
+- Visibility cannot be determined (no `gh`, no remote, offline, not a repo) → **do not fire** any licensing rule. These are MUST-tier rules; a false positive blocks every PR in the org, while a missed finding on a public repo is caught at the next review.
 
 ### Step 1: Detect Project Type
 

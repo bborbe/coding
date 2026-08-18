@@ -10,6 +10,8 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- fix: `license-assistant` Step 0 visibility detection — read the repo's own `isPrivate` flag via `gh repo view --json isPrivate` instead of inferring from the remote host. Host-based detection misclassifies private `Seibert-Data/*` repos hosted on `github.com` as public, causing MUST-tier LICENSE false positives that block merges org-wide (surfaced 2026-08 on Seibert-Data/moco#5). Matches `docs/go-licensing-guide.md` § Public vs Private and `scripts/rule-checks.sh`.
+
 - feat: promote 2 m3 findings deepseek-verified as real into the golden set (`golden-curated-1` → `golden-curated-2`, 155 → 157 entries). `recurring-task-creator#30` — `make precommit` genuinely red (govulncheck reproduced GO-2026-6179/6180 against `golang.org/x/mod@v0.37.0`, neither in `VULNCHECK_IGNORE`); `discord-assistant#5` — `strip_wake_phrase` lstrip omits the apostrophe, so `"hey bot's weather"` becomes `"'s weather"` (reproduced exactly). These are the first entries backed by **two models' independent agreement** (m3 found, deepseek verified with runnable evidence) rather than a single model's opinion — the evidence class the golden-set design has always specified for promotion. Two other deepseek-verified candidates (unbounded `uncaughtException` swallow, supervise orphan) were dropped: the aliasing check showed they were re-statements of entries the set already held, so promoting them would have double-counted. Net effect on scores vs `golden-curated-1`: m3 recall 0.052 → 0.066, deepseek 0.096 → 0.109, opus self-match 0.844 → 0.832 (new entries are findings opus missed — the tautology loosening, as intended)
 
 ## v0.43.3

@@ -1,5 +1,5 @@
 {
- "version": "golden-curated-1",
+ "version": "golden-curated-2",
  "created": "2026-08-09",
  "prs_version": "curated-1",
  "baseline": {
@@ -2009,6 +2009,32 @@
    "state": "rejected",
    "line_when_seen": null,
    "excerpt": "**Commits `2312772`, `75cde50`** \u2014 subjects are dark-factory prompt slugs (`004-spec-002-tag-commit-seam`), not imperative verbs. Repo-wide tooling convention across all prompt-driven commits; raise a"
+  },
+  {
+   "pr_id": "recurring-task-creator#30",
+   "path": "go.mod",
+   "signature": [
+    "GO-2026-6179",
+    "vulncheck"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 95,
+   "excerpt": "**`go.mod:95`** \u2014 `make precommit` fails on this branch with `vulncheck` exit 1: `GO-2026-6179` and `GO-2026-6180` against `golang.org/x/mod@v0.37.0` (sumdb transparency-log verification bypass + unau",
+   "provenance": "m3 finding, deepseek-verified 2026-08-18 (runnable evidence); genuinely new \u2014 NOT a re-statement of an existing entry (aliasing-checked)"
+  },
+  {
+   "pr_id": "discord-assistant#5",
+   "path": "shim/claude_openai_shim.py",
+   "signature": [
+    "strip_wake_phrase",
+    "lstrip"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": 864,
+   "excerpt": "**`shim/claude_openai_shim.py:864`** \u2014 `strip_wake_phrase()` uses `text[m.end():].lstrip(\" ,.:;-\u2014\")` and omits the apostrophe; `\"hey bot's weather\"` strips to `\"'s weather\"` \u2014 the model receives a pro",
+   "provenance": "m3 finding, deepseek-verified 2026-08-18 (runnable evidence); genuinely new \u2014 NOT a re-statement of an existing entry (aliasing-checked)"
   }
  ],
  "adjudications": [
@@ -2021,6 +2047,7 @@
   "2026-08-10 MATCHER path removed from identity. Demonstrated: the 'write-scoped token still minted under --skip-post' issue is entry-keyed to pkg/factory/runner.go but was re-reported anchored at cmd/run-task/main.go - the body named runner.go explicitly. Scored as a miss purely on the anchor choice.",
   "2026-08-10 ADJUDICATE curated-1: 115 findings across 20 PRs. 113 new entries (94 accepted / 19 rejected); 2 findings were the SAME issue an existing entry already held, re-reported in different words, so those two keys were RELAXED rather than duplicated (python-skeleton#3 --ignore-vuln and sudo tee -a). One issue, one entry - a duplicate is what inflated recall to a spurious 1.000 in v0.37.0.",
   "2026-08-10 REJECTED grew 1 -> 20. The rule applied: a finding is rejected when it is a correct observation that names no defect - polish, taste, or a consequence the finding itself concludes is intended. The clearest cluster is github-releaser-agent#8, where four findings disqualify themselves in their own text ('worth a follow-up rather than in isolation', 'not a correctness fix', 'so not a deviation', 'raise as a dark-factory issue rather than here'). Before this, precision could not be lost by any configuration.",
-  "2026-08-10 Judgment line held consistently, and it is a line: 'harmless today' hardening on correct code is rejected (unquoted shell expansion), while a latent defect where the code does something other than its shape implies is accepted (check() closing over the outer const). Reachability is not correctness. Comment-requests on correct code are rejected even when they argue regression risk."
+  "2026-08-10 Judgment line held consistently, and it is a line: 'harmless today' hardening on correct code is rejected (unquoted shell expansion), while a latent defect where the code does something other than its shape implies is accepted (check() closing over the outer const). Reachability is not correctness. Comment-requests on correct code are rejected even when they argue regression risk.",
+  "2026-08-18 PROMOTE 2 m3 findings deepseek-verified as real: recurring-task-creator#30 vulncheck (govulncheck reproduced GO-2026-6179/6180, CI genuinely red) and discord-assistant#5 apostrophe strip (reproduced exactly). Two more deepseek-verified candidates (unbounded uncaughtException swallow, supervise orphan) turned out to be RE-STATEMENTS of existing entries \u2014 the aliasing check caught them as duplicates and they were dropped rather than promoted twice. First entries backed by two models' independent agreement. glm-5.2 retired; glm-5.3[1m] only."
  ]
 }

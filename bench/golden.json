@@ -1,5 +1,5 @@
 {
- "version": "golden-curated-2",
+ "version": "golden-curated-3",
  "created": "2026-08-09",
  "prs_version": "curated-1",
  "baseline": {
@@ -2035,6 +2035,19 @@
    "line_when_seen": 864,
    "excerpt": "**`shim/claude_openai_shim.py:864`** \u2014 `strip_wake_phrase()` uses `text[m.end():].lstrip(\" ,.:;-\u2014\")` and omits the apostrophe; `\"hey bot's weather\"` strips to `\"'s weather\"` \u2014 the model receives a pro",
    "provenance": "m3 finding, deepseek-verified 2026-08-18 (runnable evidence); genuinely new \u2014 NOT a re-statement of an existing entry (aliasing-checked)"
+  },
+  {
+   "pr_id": "tts-mcp#13",
+   "path": "CHANGELOG.md",
+   "signature": [
+    "### added",
+    "conventional-prefix"
+   ],
+   "rule_id": null,
+   "state": "accepted",
+   "line_when_seen": null,
+   "excerpt": "**`CHANGELOG.md:12`** \u2014 All 9 bullets under `## Unreleased` violate the conventional-prefix requirement: none starts with `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, or `perf:` (e.g. lin",
+   "provenance": "three-model agreement (m3+m2.7+deepseek, 2026-08-18 triangulation); deepseek-verified with runnable evidence; aliasing-checked genuinely new"
   }
  ],
  "adjudications": [
@@ -2048,6 +2061,7 @@
   "2026-08-10 ADJUDICATE curated-1: 115 findings across 20 PRs. 113 new entries (94 accepted / 19 rejected); 2 findings were the SAME issue an existing entry already held, re-reported in different words, so those two keys were RELAXED rather than duplicated (python-skeleton#3 --ignore-vuln and sudo tee -a). One issue, one entry - a duplicate is what inflated recall to a spurious 1.000 in v0.37.0.",
   "2026-08-10 REJECTED grew 1 -> 20. The rule applied: a finding is rejected when it is a correct observation that names no defect - polish, taste, or a consequence the finding itself concludes is intended. The clearest cluster is github-releaser-agent#8, where four findings disqualify themselves in their own text ('worth a follow-up rather than in isolation', 'not a correctness fix', 'so not a deviation', 'raise as a dark-factory issue rather than here'). Before this, precision could not be lost by any configuration.",
   "2026-08-10 Judgment line held consistently, and it is a line: 'harmless today' hardening on correct code is rejected (unquoted shell expansion), while a latent defect where the code does something other than its shape implies is accepted (check() closing over the outer const). Reachability is not correctness. Comment-requests on correct code are rejected even when they argue regression risk.",
-  "2026-08-18 PROMOTE 2 m3 findings deepseek-verified as real: recurring-task-creator#30 vulncheck (govulncheck reproduced GO-2026-6179/6180, CI genuinely red) and discord-assistant#5 apostrophe strip (reproduced exactly). Two more deepseek-verified candidates (unbounded uncaughtException swallow, supervise orphan) turned out to be RE-STATEMENTS of existing entries \u2014 the aliasing check caught them as duplicates and they were dropped rather than promoted twice. First entries backed by two models' independent agreement. glm-5.2 retired; glm-5.3[1m] only."
+  "2026-08-18 PROMOTE 2 m3 findings deepseek-verified as real: recurring-task-creator#30 vulncheck (govulncheck reproduced GO-2026-6179/6180, CI genuinely red) and discord-assistant#5 apostrophe strip (reproduced exactly). Two more deepseek-verified candidates (unbounded uncaughtException swallow, supervise orphan) turned out to be RE-STATEMENTS of existing entries \u2014 the aliasing check caught them as duplicates and they were dropped rather than promoted twice. First entries backed by two models' independent agreement. glm-5.2 retired; glm-5.3[1m] only.",
+  "2026-08-18 TRIANGULATE: 1 m3 finding deepseek-verified as real and three-model-agreed (m3+m2.7+deepseek all flagged tts-mcp#13 CHANGELOG.md conventional-prefix violation; deepseek-verified with runnable evidence); promoted to golden-curated-3. Of 16 three-way agreement locations, 15 were rejected on defensible grounds or were re-statements of existing entries; only 1 was genuinely new. Agreement across models is necessary but not sufficient; aliasing checks remain essential to avoid silent double-counting."
  ]
 }

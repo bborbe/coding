@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.45.0
 
 - feat: promote 1 m3 finding, three-model-agreed (m3+m2.7+deepseek all flagged `tts-mcp#13` `CHANGELOG.md` conventional-prefix violation) and deepseek-verified with runnable evidence, into the golden set (`golden-curated-2` → `golden-curated-3`, 157 → 158 entries). Of the 16 three-way agreement locations surfaced by [[Triangulate the Golden Set Across Models]], only 1 was genuinely new and verified — 3 others were re-statements of existing entries (caught by the aliasing guard, correctly dropped), 12 were rejected on defensible grounds (DRY, documented contract, pre-existing). Net effect on scores vs `golden-curated-2` (re-scored against the enlarged 158-entry set): m3 recall 0.066 → **0.072** (+1 hit, m3's own finding now counts), deepseek 0.109 → 0.109 (no change), opus 0.832 → **0.826** (−1 hit, the new entry is a finding opus missed — the self-match tautology loosening, as expected when the set grows). The triangulation principle's doing its job: agreement across models is necessary but not sufficient; aliasing checks remain essential to avoid silent double-counting
 

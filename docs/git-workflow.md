@@ -7,6 +7,7 @@
 **Owner**: agent-auditor
 **Applies when**: a git commit lands directly on `master` / `main` without going through a feature branch + PR — typically caught by `pre-push` hook rejecting cross-name pushes to the default branch, or by GitHub's `master-protection` ruleset.
 **Enforcement**: judgment + tooling (`~/.git-hooks/pre-push` rejects feature-branch-to-master pushes; GitHub ruleset enforces required PR). Release commits (`release vX.Y.Z`) are the documented exception.
+**Enforcement does NOT hold for repo admins.** A ruleset carrying `bypass_actors: [{actor_type: RepositoryRole, actor_id: 5, bypass_mode: always}]` lets owners push straight to the default branch with no error and no prompt — so on your own repos the ruleset is documentation, not a guard. Check before assuming it will stop you: `gh api repos/<owner>/<repo>/rulesets/$(gh api repos/<owner>/<repo>/rulesets --jq '.[0].id') --jq .bypass_actors`. Using that bypass is a **separate decision from the change itself**: approval for the edit is not approval for the bypass — ask explicitly, and prefer a branch + PR even when the push would succeed.
 **Trigger**: @commits
 **Why**: Direct-to-master commits skip review, skip CI, skip the audit trail. The 14-commits-on-origin-master trap (PR #1) happened this way: `git worktree add -b feat/foo origin/master` left upstream pointing at master so `git push` shipped to the wrong place. Hook + ruleset catch it before it happens.
 

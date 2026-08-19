@@ -2,26 +2,36 @@ id: go-architecture/counterfeiter-directive-on-interface
 language: go
 severity: error
 message: |
-  Every Go interface in a service package needs a //counterfeiter:generate
-  directive so go generate regenerates the fake when the interface drifts.
-  Without it, hand-written mocks drift silently — tests pass against a
-  stale contract while the production code adds methods.
+  An exported Go interface in a service package was found. Each interface
+  substituted via mocks in tests needs a //counterfeiter:generate directive
+  so go generate regenerates the fake when the interface drifts. Without
+  it, hand-written mocks drift silently — tests pass against a stale
+  contract while the production code adds methods.
+  EXEMPT: interfaces that already carry a //counterfeiter:generate
+  directive above them (possibly separated from the interface by its doc
+  comment), and unexported/internal interfaces not used across package
+  boundaries. The agent checks the comment block directly above the
+  interface before reporting.
   See docs/go-architecture-patterns.md (RULE go-architecture/counterfeiter-directive-on-interface).
 rule:
-  # ast-grep 0.43.0 shape: match a type_declaration that wraps a type_spec
-  # wrapping an interface_type, with the type name starting with an
-  # uppercase letter (Go exported convention), AND is NOT preceded
-  # (follows in tree-sitter 'previous-sibling' direction) by a comment
-  # containing 'counterfeiter:generate'.
+  # Anchor: an exported interface type declaration in production code.
+  # The agent adjudicates: reads the comment block directly above the
+  # interface and confirms whether a //counterfeiter:generate directive is
+  # present. The directive commonly sits above the interface's doc comment,
+  # and that block can be several lines long — ast-grep's `follows`/`precedes`
+  # relations only reach the IMMEDIATE previous sibling, so a doc comment
+  # between the directive and the interface makes the directive invisible to
+  # a mechanical `not.follows` check. The rule is therefore intentionally
+  # over-inclusive (flags every exported interface) and delegates the
+  # present-or-missing verdict to the adjudicator, matching the design of the
+  # sibling rule go-testing/counterfeiter-mocks-required and of the other
+  # judgment-backed detectors (main-test-with-compiles, external-call-logs-
+  # response, secret-fields-need-display-length, slog-not-glog-in-new-projects).
   #
-  # Verified the relation direction during smoke: 'not.follows' means
-  # "this node does NOT come after the matched sibling" — which for a
-  # type_declaration whose comment is the previous sibling is what we want.
-  #
-  # Exportedness filter (added after PR #31 review): the rule only
-  # applies to exported interfaces (those substituted via mocks in
-  # tests). Unexported / internal interfaces (lowercase names) are
-  # package-private and don't carry mockability obligations.
+  # Exportedness filter (kept from PR #31): the rule only anchors exported
+  # interfaces (uppercase name) — those substituted via mocks in tests.
+  # Unexported / internal interfaces are package-private and don't carry
+  # mockability obligations.
   kind: type_declaration
   has:
     kind: type_spec
@@ -31,10 +41,6 @@ rule:
       - has:
           kind: type_identifier
           regex: '^[A-Z]'
-  not:
-    follows:
-      kind: comment
-      regex: 'counterfeiter:generate'
 ignores:
   - "main.go"
   - "**/main.go"

@@ -11,6 +11,12 @@ valid:
     package p
     type userService struct{}
     func newUserService() *userService { return nil }
+  # Correct: Parse<X>Default paired-default function — exempt, naming mandated
+  # by paired-parse-and-parsedefault
+  - |
+    package p
+    type Config struct{ Host string }
+    func ParseConfigDefault(ctx context.Context, value string, def Config) Config { return def }
 invalid:
   # Make* prefix
   - |

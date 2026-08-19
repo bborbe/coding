@@ -5,10 +5,15 @@ message: |
   Exported function returns an exported type but name does not start with 'New'.
   'New*' is the universal Go signal for "this is the constructor". Without it consumers
   cannot tell UserService(...) from a regular function; tooling cannot surface it as a constructor.
+  EXEMPT: Parse<X>Default paired-default functions — go-parse/paired-parse-and-parsedefault
+  mandates that exact name; a New prefix would contradict it. Also exempt helper functions
+  that happen to return an exported type, and test helpers.
   See docs/go-architecture-patterns.md (RULE go-architecture/new-prefix-constructor-naming).
 rule:
   # Anchor: exported function_declaration whose name does NOT start with "New" but whose result
-  # is an exported type_identifier (interface or struct type alias).
+  # is an exported type_identifier (interface or struct type alias), AND is not a
+  # Parse<X>Default paired-default function (that naming is mandated by the
+  # paired-parse-and-parsedefault rule — firing on it here would contradict it).
   # The LLM adjudicates: rules out Create* factories in pkg/factory/** (covered by a different rule),
   # helper functions that happen to return an exported type, and test helpers.
   kind: function_declaration
@@ -18,7 +23,9 @@ rule:
         kind: identifier
         regex: '^[A-Z]'
         not:
-          regex: '^New'
+          any:
+            - regex: '^New'
+            - regex: '^Parse[A-Z].*Default$'
     - has:
         field: result
         kind: type_identifier

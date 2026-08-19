@@ -16,7 +16,7 @@ The standard pattern for Go packages in the Services follows this structure:
 ### RULE go-architecture/counterfeiter-directive-on-interface (MUST)
 
 **Owner**: go-architecture-assistant
-**Applies when**: an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests) has no preceding `//counterfeiter:generate` line. Concrete trigger: any package with `*_test.go` files that import a `mocks` package, plus every exported interface in that package.
+**Applies when**: an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests). The ast-grep anchor fires on every exported interface — over-inclusive by design, because the `//counterfeiter:generate` directive commonly sits above the interface's doc comment (a block of several lines), which ast-grep's immediate-sibling relations cannot see. The agent adjudicates: reads the comment block directly above the interface and reports only when no `//counterfeiter:generate` directive is present.
 **Enforcement**: `rules/go/counterfeiter-directive-on-interface.yml`
 **Why**: Hand-written mocks drift silently — when the interface gains a method, the mock keeps satisfying the old surface and tests pass against a stale contract. The `//counterfeiter:generate` directive forces `go generate ./...` to regenerate the fake, so any drift surfaces immediately at code-gen time. Missing the directive means the fake isn't regenerated, the test doesn't exercise the new method, and the bug ships.
 
@@ -65,7 +65,7 @@ type UserService interface {
 
 **Owner**: go-architecture-assistant
 **Applies when**: a Go function outside `pkg/factory/**` returns an exported interface or struct type and is intended to be the canonical construction site, but the function name does not start with `New`.
-**Enforcement**: `rules/go/new-prefix-constructor-naming.yml` (mechanical first-pass flags exported functions returning exported types without `New` prefix; `pkg/factory/**` excluded) + judgment-tier LLM adjudication to rule out `Create*` factories, helper functions, and non-constructor uses.
+**Enforcement**: `rules/go/new-prefix-constructor-naming.yml` (mechanical first-pass flags exported functions returning exported types without `New` prefix; `pkg/factory/**` excluded, and `Parse<X>Default` paired-default functions exempted so this rule cannot contradict go-parse/paired-parse-and-parsedefault) + judgment-tier LLM adjudication to rule out `Create*` factories, helper functions, and non-constructor uses.
 **Why**: `New*` is the universal Go signal for "this is the constructor — give it deps, get back a ready-to-use object". Without it, consumers can't tell `UserService(...)` from a regular function call; tooling (IDE search, godoc grouping, godoc renderers) treats it as ordinary; refactors don't surface the construction site. The convention is cheap; ignoring it costs every consumer a second of "wait, is this the constructor?". The `Create*` factory prefix is a deliberate exception scoped to `pkg/factory/**` — that's the factory pattern's home, not the service-construction site this rule covers.
 
 #### Bad

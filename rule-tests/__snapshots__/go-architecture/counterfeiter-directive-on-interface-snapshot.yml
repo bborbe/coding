@@ -1,0 +1,108 @@
+id: go-architecture/counterfeiter-directive-on-interface
+snapshots:
+  ? |
+    package pkg
+    import "context"
+    // UserService is the user-facing surface.
+    type Service interface {
+      Create(ctx context.Context, user User) error
+      Get(ctx context.Context, id string) (*User, error)
+    }
+  : labels:
+    - source: |-
+        type Service interface {
+          Create(ctx context.Context, user User) error
+          Get(ctx context.Context, id string) (*User, error)
+        }
+      style: primary
+      start: 72
+      end: 198
+    - source: |-
+        interface {
+          Create(ctx context.Context, user User) error
+          Get(ctx context.Context, id string) (*User, error)
+        }
+      style: secondary
+      start: 85
+      end: 198
+    - source: Service
+      style: secondary
+      start: 77
+      end: 84
+    - source: |-
+        Service interface {
+          Create(ctx context.Context, user User) error
+          Get(ctx context.Context, id string) (*User, error)
+        }
+      style: secondary
+      start: 77
+      end: 198
+  ? |
+    package pkg
+    import "context"
+    //counterfeiter:generate -o mocks/service.go --fake-name Service . Service
+
+    // Service handles the user lifecycle.
+    // Implementations MUST be concurrency-safe.
+    type Service interface {
+      Create(ctx context.Context, user User) error
+    }
+  : labels:
+    - source: |-
+        type Service interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: primary
+      start: 189
+      end: 262
+    - source: |-
+        interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: secondary
+      start: 202
+      end: 262
+    - source: Service
+      style: secondary
+      start: 194
+      end: 201
+    - source: |-
+        Service interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: secondary
+      start: 194
+      end: 262
+  ? |
+    package pkg
+    import "context"
+    //counterfeiter:generate -o mocks/service.go --fake-name Service . Service
+    type Service interface {
+      Create(ctx context.Context, user User) error
+    }
+  : labels:
+    - source: |-
+        type Service interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: primary
+      start: 104
+      end: 177
+    - source: |-
+        interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: secondary
+      start: 117
+      end: 177
+    - source: Service
+      style: secondary
+      start: 109
+      end: 116
+    - source: |-
+        Service interface {
+          Create(ctx context.Context, user User) error
+        }
+      style: secondary
+      start: 109
+      end: 177

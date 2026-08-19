@@ -1,0 +1,46 @@
+id: go-architecture/counterfeiter-directive-on-interface
+valid:
+  # Struct type — not an interface, not flagged
+  - |
+    package pkg
+    type UserService struct { db *DB }
+  # Unexported interface — no mockability obligation
+  - |
+    package pkg
+    type userService interface {
+      Get(ctx context.Context, id string) (User, error)
+    }
+invalid:
+  # Exported interface without directive — flagged; agent verifies no
+  # //counterfeiter:generate sits above it (through its doc comment)
+  - |
+    package pkg
+    import "context"
+    // UserService is the user-facing surface.
+    type Service interface {
+      Create(ctx context.Context, user User) error
+      Get(ctx context.Context, id string) (*User, error)
+    }
+  # Exported interface whose directive sits one line above — still anchored
+  # (over-inclusive first pass); the agent reads the block above and confirms
+  # the directive exists, so it is NOT reported as a finding.
+  - |
+    package pkg
+    import "context"
+    //counterfeiter:generate -o mocks/service.go --fake-name Service . Service
+    type Service interface {
+      Create(ctx context.Context, user User) error
+    }
+  # Exported interface with directive above its multi-line doc comment —
+  # still anchored (over-inclusive first pass); the agent confirms the
+  # directive exists above the doc block, so it is NOT reported.
+  - |
+    package pkg
+    import "context"
+    //counterfeiter:generate -o mocks/service.go --fake-name Service . Service
+
+    // Service handles the user lifecycle.
+    // Implementations MUST be concurrency-safe.
+    type Service interface {
+      Create(ctx context.Context, user User) error
+    }

@@ -243,7 +243,7 @@
     "anchor": "go-architecture/counterfeiter-directive-on-interface",
     "applies_when": "an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests). The ast-grep anchor fires on every exported interface — over-inclusive by design, because the `//counterfeiter:generate` directive commonly sits above the interface's doc comment (a block of several lines), which ast-grep's immediate-sibling relations cannot see. The agent adjudicates: reads the comment block directly above the interface and reports only when no `//counterfeiter:generate` directive is present.",
     "doc_path": "docs/go-architecture-patterns.md",
-    "enforcement": "`rules/go/counterfeiter-directive-on-interface.yml`",
+    "enforcement": "`rules/go/counterfeiter-directive-on-interface.yml` (mechanical first-pass — flags every exported interface declaration in production code) + judgment-tier LLM adjudication for whether a `//counterfeiter:generate` directive exists above the interface (the directive may sit above the interface's doc comment, which ast-grep's immediate-sibling relations cannot see)",
     "enforcement_type": "mechanical",
     "id": "go-architecture/counterfeiter-directive-on-interface",
     "level": "MUST",

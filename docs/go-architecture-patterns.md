@@ -17,7 +17,7 @@ The standard pattern for Go packages in the Services follows this structure:
 
 **Owner**: go-architecture-assistant
 **Applies when**: an exported `interface` declaration in a non-`main` Go service package (i.e. likely substituted via mocks in tests). The ast-grep anchor fires on every exported interface — over-inclusive by design, because the `//counterfeiter:generate` directive commonly sits above the interface's doc comment (a block of several lines), which ast-grep's immediate-sibling relations cannot see. The agent adjudicates: reads the comment block directly above the interface and reports only when no `//counterfeiter:generate` directive is present.
-**Enforcement**: `rules/go/counterfeiter-directive-on-interface.yml`
+**Enforcement**: `rules/go/counterfeiter-directive-on-interface.yml` (mechanical first-pass — flags every exported interface declaration in production code) + judgment-tier LLM adjudication for whether a `//counterfeiter:generate` directive exists above the interface (the directive may sit above the interface's doc comment, which ast-grep's immediate-sibling relations cannot see)
 **Why**: Hand-written mocks drift silently — when the interface gains a method, the mock keeps satisfying the old surface and tests pass against a stale contract. The `//counterfeiter:generate` directive forces `go generate ./...` to regenerate the fake, so any drift surfaces immediately at code-gen time. Missing the directive means the fake isn't regenerated, the test doesn't exercise the new method, and the bug ships.
 
 #### Bad

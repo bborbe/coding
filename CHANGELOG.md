@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.45.2
 
 - fix: `/commit` checks branch protection before pushing to master/main — a direct push with admin rights is silently accepted as a rule bypass, skipping required status checks; now surfaced with branch+PR offered instead
 

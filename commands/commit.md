@@ -134,6 +134,34 @@ fi
 
 See [[GitHub Auto-Release Guide]] for the full bot release flow, opt-in config, and manual fallback (`/github-release-repo`).
 
+### 2c. Detect branch protection (master/main only)
+
+A protected branch is the repo saying *changes go through a PR*. Pushing straight to it does not fail loudly when the operator holds admin rights — GitHub accepts the push and prints `Bypassed rule violations`, so the required status checks simply never run. That is a silent CI skip, and the operator usually only sees it scroll past.
+
+Run this whenever `IS_MASTER=true`, before any push:
+
+```bash
+PROTECTED=""
+if command -v gh >/dev/null 2>&1; then
+  PROTECTED=$(gh api "repos/{owner}/{repo}/rules/branches/$CURRENT_BRANCH" \
+    --jq '.[].type' 2>/dev/null \
+    | grep -E '^(pull_request|required_status_checks)$' | tr '\n' ' ')
+fi
+```
+
+`PROTECTED` non-empty means a direct push would bypass a rule. **Stop and surface it** — do not push, and do not silently rely on admin bypass:
+
+```
+⚠️ $CURRENT_BRANCH is protected: $PROTECTED
+A direct push bypasses it and skips required checks.
+  1. Branch + PR instead (recommended)
+  2. Push directly anyway (admin bypass, checks will not run)
+```
+
+Proceed with the direct push only on explicit confirmation. If `gh` is absent or the repo has no ruleset, `PROTECTED` is empty and every workflow continues unchanged — this check never blocks an unprotected repo.
+
+This mirrors the git workflow the [[Development Guide]] already mandates (worktree → branch → PR → merge). The rule was never missing; this command simply had no way to notice it was breaking it.
+
 ### 3. Detect Pipeline-Only Changes
 
 A change is **pipeline-only** if ALL changed/added/deleted files (committed since last tag + uncommitted) are inside these directories:
@@ -256,6 +284,8 @@ fi
 ```
 
 **Step A.6: Commit and push (NO tag)**
+
+If `IS_MASTER=true`, run the § 2c branch-protection check first — with `autoRelease: true` this workflow runs on master, which is exactly where a bypass can happen.
 ```bash
 # Always cd to project dir first (never use git -C)
 cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "descriptive message" && git push
@@ -342,6 +372,8 @@ fi
 ```
 
 **Step B.6: Commit, tag, and push**
+
+Run the § 2c branch-protection check first — this workflow is master-only.
 ```bash
 cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "release vX.Y.Z" && git tag vX.Y.Z && git push && git push origin vX.Y.Z
 ```
@@ -437,6 +469,8 @@ fi
 ```
 
 **Step C.7: Commit, tag, and push**
+
+Run the § 2c branch-protection check first — this workflow is master-only.
 ```bash
 cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "descriptive message" && git tag vX.Y.Z && git push && git push origin vX.Y.Z
 ```
@@ -471,6 +505,8 @@ fi
 ```
 
 **Step D.4: Commit and push**
+
+If `IS_MASTER=true`, run the § 2c branch-protection check first.
 ```bash
 cd $PROJECT_DIR && git add . && git commit -m "descriptive message" && git push
 ```
@@ -494,6 +530,8 @@ fi
 ```
 
 **Step E.3: Commit and push (NO changelog update, NO tag)**
+
+If `IS_MASTER=true`, run the § 2c branch-protection check first — a trivial change still bypasses required checks.
 ```bash
 cd $PROJECT_DIR && git add . && git commit -m "descriptive message" && git push
 ```

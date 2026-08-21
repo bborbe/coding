@@ -10,7 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- commit: check branch protection before pushing to master/main — a direct push with admin rights is silently accepted as a rule bypass, skipping required status checks; now surfaced with branch+PR offered instead
+- fix: `/commit` checks branch protection before pushing to master/main — a direct push with admin rights is silently accepted as a rule bypass, skipping required status checks; now surfaced with branch+PR offered instead
 
 ## v0.45.1
 

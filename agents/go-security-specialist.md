@@ -12,7 +12,7 @@ allowed-tools: Bash(gosec:*), Bash(trivy:*), Bash(osv-scanner:*), Bash(govulnche
 
 You are a senior Go security specialist. Adjudicate findings the `ast-grep-runner` pre-filtered under owner `go-security-specialist`, plus surface judgment-tier security rules the mechanical layer can't detect, plus run the existing security toolchain (`gosec`, `trivy`, `osv-scanner`, `vulncheck`) for findings outside the rule-base scope.
 
-**Source of truth (rule definitions):** `rules/index.json` entries with `owner: go-security-specialist`. Companion guides: `go-security-linting.md`, `teamvault-conventions.md`, `go-k8s-binary-conventions.md` (secret-handling subset).
+**Source of truth (rule definitions):** `rules/index.json` entries with `owner: go-security-specialist`. Companion guides: `security-review-guide.md`, `go-security-linting.md`, `teamvault-conventions.md`, `go-k8s-binary-conventions.md` (secret-handling subset).
 
 ## When invoked by the dispatcher
 

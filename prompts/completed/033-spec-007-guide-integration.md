@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [007-security-rule-base]
+summary: Registered docs/security/security-review-guide.md in README.md (Go — Infrastructure table), llms.txt, agents/go-security-specialist.md companion-guide list, and verified the existing CLAUDE.md Doc↔Agent alignment row plus all AC6 scoping checks; extended CHANGELOG.md Unreleased.
+execution_id: coding-security-rule-base-exec-033-spec-007-guide-integration
+dark-factory-version: dev
 created: "2026-08-22T23:25:00Z"
 queued: "2026-08-22T21:36:42Z"
+started: "2026-08-22T21:41:38Z"
+completed: "2026-08-22T21:42:45Z"
 branch: dark-factory/security-rule-base
 ---
 

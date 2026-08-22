@@ -11,6 +11,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 - feat: Ship 4 mechanical security detectors under `rules/security/` — `crypto-insecure-random` (flags `math/rand` import), `crypto-weak-algorithm` (flags md5/sha1/des Sum/New/NewCipher/NewTripleDESCipher), `sql-string-interpolation` (flags `$DB.QueryContext`/`Query`/`ExecContext`/`Exec` with a string-concatenated statement), and `hardcoded-secret` (flags secret-named variables assigned double-quoted literals ≥12 chars). Adds native rule-tests + snapshots and grows `docs/security/security-review-guide.md` to 5 RULE blocks (owner `go-security-specialist`); regenerates `rules/index.json` (171 entries).
+- docs: Register `security-review-guide.md` in the `README.md` "Go — Infrastructure" table, `llms.txt`, the `agents/go-security-specialist.md` companion-guide list, and the `CLAUDE.md` Doc↔Agent alignment table
 
 ## v0.45.6
 

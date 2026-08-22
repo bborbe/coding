@@ -162,6 +162,25 @@ Proceed with the direct push only on explicit confirmation. If `gh` is absent or
 
 This mirrors the git workflow the [[Development Guide]] already mandates (worktree → branch → PR → merge). The rule was never missing; this command simply had no way to notice it was breaking it.
 
+### 2d. Scope the commit — explicit pathspec, never `git add .`
+
+`git add .` stages **everything** dirty in the tree, not just the change you were asked to commit. Repos routinely carry unrelated work-in-progress — a half-edited sibling command, an untracked scratch dir, another session's files. Sweeping those into your commit is silent and hard to undo once pushed.
+
+Before every commit, determine `$CHANGED_PATHS` — the paths belonging to THIS change:
+
+```bash
+cd $PROJECT_DIR && git status --porcelain
+```
+
+- Everything dirty is part of this change → `$CHANGED_PATHS` may be `.`, but write it deliberately, not by default.
+- Anything dirty is unrelated → `$CHANGED_PATHS` lists **only** your paths. Directories are fine (`pkg/`, `commands/`); no need to enumerate every file.
+
+Pathspec placement matters: `git commit -m "msg" -- <paths>` works, `git commit -- <paths> -m "msg"` fails with `did not match any file(s) known to git`.
+
+`git add <paths>` alone is NOT sufficient — a later bare `git commit` still commits whatever was already staged. The `--` pathspec on the commit itself is what bounds it.
+
+**Exception — after `git rm --cached`:** do not use a pathspec (it commits working-tree state and silently re-adds files staged for deletion). Confirm `git diff --cached --name-only` lists only the intended deletions, then run a bare `git commit`.
+
 ### 3. Detect Pipeline-Only Changes
 
 A change is **pipeline-only** if ALL changed/added/deleted files (committed since last tag + uncommitted) are inside these directories:
@@ -288,7 +307,7 @@ fi
 If `IS_MASTER=true`, run the § 2c branch-protection check first — with `autoRelease: true` this workflow runs on master, which is exactly where a bypass can happen.
 ```bash
 # Always cd to project dir first (never use git -C)
-cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "descriptive message" && git push
+cd $PROJECT_DIR && git commit -m "descriptive message" -- CHANGELOG.md $CHANGED_PATHS && git push
 ```
 
 **NOTE**: No `git tag` command. Feature branches NEVER create tags.
@@ -375,7 +394,7 @@ fi
 
 Run the § 2c branch-protection check first — this workflow is master-only.
 ```bash
-cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "release vX.Y.Z" && git tag vX.Y.Z && git push && git push origin vX.Y.Z
+cd $PROJECT_DIR && git commit -m "release vX.Y.Z" -- CHANGELOG.md $CHANGED_PATHS && git tag vX.Y.Z && git push && git push origin vX.Y.Z
 ```
 
 ---
@@ -472,7 +491,7 @@ fi
 
 Run the § 2c branch-protection check first — this workflow is master-only.
 ```bash
-cd $PROJECT_DIR && git add CHANGELOG.md && git add . && git commit -m "descriptive message" && git tag vX.Y.Z && git push && git push origin vX.Y.Z
+cd $PROJECT_DIR && git commit -m "descriptive message" -- CHANGELOG.md $CHANGED_PATHS && git tag vX.Y.Z && git push && git push origin vX.Y.Z
 ```
 
 ---
@@ -508,7 +527,7 @@ fi
 
 If `IS_MASTER=true`, run the § 2c branch-protection check first.
 ```bash
-cd $PROJECT_DIR && git add . && git commit -m "descriptive message" && git push
+cd $PROJECT_DIR && git commit -m "descriptive message" -- $CHANGED_PATHS && git push
 ```
 
 #### Workflow E: Trivial or Pipeline-Only Change (any branch, any project)
@@ -533,7 +552,7 @@ fi
 
 If `IS_MASTER=true`, run the § 2c branch-protection check first — a trivial change still bypasses required checks.
 ```bash
-cd $PROJECT_DIR && git add . && git commit -m "descriptive message" && git push
+cd $PROJECT_DIR && git commit -m "descriptive message" -- $CHANGED_PATHS && git push
 ```
 
 ---

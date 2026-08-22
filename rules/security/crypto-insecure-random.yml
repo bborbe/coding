@@ -1,0 +1,17 @@
+id: go-security/crypto-insecure-random
+language: go
+severity: error
+message: |
+  math/rand must not be used for security-relevant randomness.
+  Use crypto/rand for tokens, IDs, and nonces.
+  See docs/security/security-review-guide.md (RULE go-security/crypto-insecure-random).
+rule:
+  kind: import_spec
+  has:
+    field: path
+    regex: '^"(math/rand|math/rand/v2)"$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

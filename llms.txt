@@ -25,6 +25,7 @@
 - [TDD Guide](docs/tdd-guide.md): Red-green-refactor cycle
 - [Linting](docs/go-linting-guide.md): Static analysis configuration
 - [Security Linting](docs/go-security-linting.md): Security-focused static analysis
+- [Security Review Guide](docs/security/security-review-guide.md): Mechanical security rule base (5 detectors) for Security Review Mode
 
 ## Go — Infrastructure & Tools
 - [Makefile Commands](docs/go-makefile-commands.md): Standardized build targets

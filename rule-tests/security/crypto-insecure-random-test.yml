@@ -1,0 +1,20 @@
+id: go-security/crypto-insecure-random
+valid:
+  - |
+    package main
+
+    import "crypto/rand"
+
+    func main() {
+        b := make([]byte, 16)
+        _, _ = rand.Read(b)
+    }
+invalid:
+  - |
+    package main
+
+    import "math/rand"
+
+    func main() {
+        _ = rand.Intn(100)
+    }

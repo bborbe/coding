@@ -1,0 +1,24 @@
+id: go-security/crypto-weak-algorithm
+language: go
+severity: error
+message: |
+  MD5, SHA-1, and DES are cryptographically broken and must not be used.
+  Use SHA-256+ or AES instead.
+  See docs/security/security-review-guide.md (RULE go-security/crypto-weak-algorithm).
+rule:
+  kind: call_expression
+  has:
+    kind: selector_expression
+    all:
+      - has:
+          kind: identifier
+          regex: '^(md5|sha1|des)$'
+      - has:
+          field: field
+          kind: field_identifier
+          regex: '^(Sum|New|NewCipher|NewTripleDESCipher)$'
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

@@ -1,0 +1,41 @@
+id: go-security/sql-string-interpolation
+language: go
+severity: error
+message: |
+  SQL statements must not be built by string concatenation.
+  Use parameterized queries (?) or prepared statements.
+  See docs/security/security-review-guide.md (RULE go-security/sql-string-interpolation).
+rule:
+  # Structural form required: a bare pattern like `$DB.Query($A + $B)` parses
+  # as a Go type_conversion_expression in ast-grep 0.45.1 (same silent-zero
+  # bug class as rules/go/no-fmt-errorf.yml) and matches nothing. This rule
+  # matches a call_expression whose function is a selector_expression on
+  # QueryContext/Query/ExecContext/Exec (operand = any expression $DB) and
+  # whose argument list contains a binary_expression with a string-literal
+  # child (the interpolated SQL statement). Verified 2026-08-22: fires on all
+  # four call shapes, silent on parameterized queries.
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: selector_expression
+        all:
+          - has:
+              field: operand
+              pattern: $DB
+          - has:
+              field: field
+              kind: field_identifier
+              regex: '^(QueryContext|Query|ExecContext|Exec)$'
+    - has:
+        field: arguments
+        kind: argument_list
+        has:
+          kind: binary_expression
+          has:
+            kind: interpreted_string_literal
+ignores:
+  - "**/*_test.go"
+  - "vendor/**"
+  - "**/vendor/**"
+  - "**/mocks/**"

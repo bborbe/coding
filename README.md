@@ -145,6 +145,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Replace Directive](docs/go-mod-replace-guide.md) | When to use `replace` in go.mod |
 | [Linting](docs/go-linting-guide.md) | Static analysis |
 | [Security Linting](docs/go-security-linting.md) | Security analysis |
+| [Security Review Guide](docs/security/security-review-guide.md) | Mechanical security rule base |
 | [Kubernetes CRD Controller](docs/go-kubernetes-crd-controller-guide.md) | CRD types, informer, self-install |
 | [Kubernetes Manifest Layout](docs/k8s-manifest-guide.md) | `k8s/` folder, filename suffixes, templating |
 

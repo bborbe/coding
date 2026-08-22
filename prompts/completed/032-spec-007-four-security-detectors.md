@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [007-security-rule-base]
+summary: Shipped 4 mechanical security detectors (crypto-insecure-random, crypto-weak-algorithm, sql-string-interpolation, hardcoded-secret) with rule-tests + generated snapshots, grew security-review-guide.md to 5 RULE blocks, regenerated rules/index.json (171 entries), updated CHANGELOG/CLAUDE.md
+execution_id: coding-security-rule-base-exec-032-spec-007-four-security-detectors
+dark-factory-version: dev
 created: "2026-08-22T23:25:00Z"
 queued: "2026-08-22T21:36:42Z"
+started: "2026-08-22T21:38:34Z"
+completed: "2026-08-22T21:41:37Z"
 branch: dark-factory/security-rule-base
 ---
 

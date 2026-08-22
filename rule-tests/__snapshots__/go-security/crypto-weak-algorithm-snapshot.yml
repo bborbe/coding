@@ -1,0 +1,27 @@
+id: go-security/crypto-weak-algorithm
+snapshots:
+  ? |
+    package main
+
+    import "crypto/md5"
+
+    func main() {
+        _ = md5.Sum([]byte("data"))
+    }
+  : labels:
+    - source: md5.Sum([]byte("data"))
+      style: primary
+      start: 57
+      end: 80
+    - source: md5
+      style: secondary
+      start: 57
+      end: 60
+    - source: Sum
+      style: secondary
+      start: 61
+      end: 64
+    - source: md5.Sum
+      style: secondary
+      start: 57
+      end: 64

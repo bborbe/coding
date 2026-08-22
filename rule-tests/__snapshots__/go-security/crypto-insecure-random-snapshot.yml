@@ -1,0 +1,19 @@
+id: go-security/crypto-insecure-random
+snapshots:
+  ? |
+    package main
+
+    import "math/rand"
+
+    func main() {
+        _ = rand.Intn(100)
+    }
+  : labels:
+    - source: '"math/rand"'
+      style: primary
+      start: 21
+      end: 32
+    - source: '"math/rand"'
+      style: secondary
+      start: 21
+      end: 32

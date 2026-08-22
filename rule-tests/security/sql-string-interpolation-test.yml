@@ -1,0 +1,29 @@
+id: go-security/sql-string-interpolation
+valid:
+  - |
+    package main
+
+    import "database/sql"
+
+    func main() {
+        db := &sql.DB{}
+        ctx := context.Background()
+        _ = db.QueryContext(ctx, "SELECT * FROM users WHERE name = ?", "alice")
+        _ = db.Query("SELECT * FROM users WHERE id = ?", 1)
+    }
+invalid:
+  - |
+    package main
+
+    import "database/sql"
+
+    func main() {
+        db := &sql.DB{}
+        ctx := context.Background()
+        name := "alice"
+        id := "1"
+        _ = db.QueryContext(ctx, "SELECT * FROM users WHERE name = '" + name + "'")
+        _ = db.Query("SELECT * FROM users WHERE id = " + id)
+        _ = db.ExecContext(ctx, "UPDATE users SET name = '" + name + "'")
+        _ = db.Exec("DELETE FROM users WHERE id = " + id)
+    }

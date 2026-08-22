@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: Ship 4 mechanical security detectors under `rules/security/` — `crypto-insecure-random` (flags `math/rand` import), `crypto-weak-algorithm` (flags md5/sha1/des Sum/New/NewCipher/NewTripleDESCipher), `sql-string-interpolation` (flags `$DB.QueryContext`/`Query`/`ExecContext`/`Exec` with a string-concatenated statement), and `hardcoded-secret` (flags secret-named variables assigned double-quoted literals ≥12 chars). Adds native rule-tests + snapshots and grows `docs/security/security-review-guide.md` to 5 RULE blocks (owner `go-security-specialist`); regenerates `rules/index.json` (171 entries).
+
 ## v0.45.6
 
 - fix: `/coding:commit`'s branch-protection pre-check no longer reports a protected branch as unprotected. It queried `repos/{owner}/{repo}/...`, letting `gh` infer the repo from the remote set — which on a fork resolves to the **upstream parent**, not the repo being pushed to. Observed 2026-08-22 on `bborbe/tts-mcp` (fork of `florianbuetow/tts-mcp`, remote named `fork` rather than `origin`): the check hit florianbuetow's repo, found no rulesets, reported clean, and the push then bypassed both a required PR and a required `test` status check. The slug is now derived from the actual push remote via `git remote get-url`. Additionally, `2>/dev/null` made a failed query indistinguishable from "no rules" — a query error now aborts with the reason instead of passing silently, since an unverifiable protection state is not an absent one. Also documents checking the push output for `Bypassed rule violations`, since the remote is the authority and the pre-check can still be wrong.

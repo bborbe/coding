@@ -1156,6 +1156,26 @@
     ]
   },
   {
+    "anchor": "go-security/crypto-insecure-random",
+    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` imports `math/rand` (the Go standard library's predictable PRNG).",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "`rules/security/crypto-insecure-random.yml` (mechanical flag; judgment-tier LLM adjudication decides whether the usage is security-relevant)",
+    "enforcement_type": "mechanical",
+    "id": "go-security/crypto-insecure-random",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/crypto-weak-algorithm",
+    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` calls `md5`/`sha1`/`des` `Sum`/`New`/`NewCipher`/`NewTripleDESCipher`.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "`rules/security/crypto-weak-algorithm.yml`",
+    "enforcement_type": "mechanical",
+    "id": "go-security/crypto-weak-algorithm",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
     "anchor": "go-security/dir-perms-too-permissive",
     "applies_when": "`os.MkdirAll($PATH, $PERM)` or `os.Mkdir($PATH, $PERM)` calls in a `*.go` file outside `*_test.go` and `vendor/`, where `$PERM` is a literal octal that is NOT `0750` / `0o750`.",
     "doc_path": "docs/go-security-linting.md",
@@ -1176,12 +1196,32 @@
     "owner": "go-security-specialist"
   },
   {
+    "anchor": "go-security/hardcoded-secret",
+    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` assigns a double-quoted string literal of at least 12 characters to a variable or constant whose name matches a secret identifier (token, secret, password, credential, apiKey, or underscored/hyphenated variants like api_key and auth-token), in short-declaration, assignment, `const`, or `var` form.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "`rules/security/hardcoded-secret.yml`",
+    "enforcement_type": "mechanical",
+    "id": "go-security/hardcoded-secret",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
     "anchor": "go-security/nosec-requires-reason",
     "applies_when": "a `// #nosec <CODE>` comment in a `*.go` file outside `*_test.go` and `vendor/` appears WITHOUT a `-- <reason>` text component on the same line.",
     "doc_path": "docs/go-security-linting.md",
     "enforcement": "`rules/go/nosec-requires-reason.yml`",
     "enforcement_type": "mechanical",
     "id": "go-security/nosec-requires-reason",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/sql-string-interpolation",
+    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` calls `$DB.QueryContext`, `$DB.Query`, `$DB.ExecContext`, or `$DB.Exec` with a statement argument built by string concatenation.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "`rules/security/sql-string-interpolation.yml`",
+    "enforcement_type": "mechanical",
+    "id": "go-security/sql-string-interpolation",
     "level": "MUST",
     "owner": "go-security-specialist"
   },

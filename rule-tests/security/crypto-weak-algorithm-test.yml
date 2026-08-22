@@ -1,0 +1,19 @@
+id: go-security/crypto-weak-algorithm
+valid:
+  - |
+    package main
+
+    import "crypto/sha256"
+
+    func main() {
+        _ = sha256.Sum256([]byte("data"))
+    }
+invalid:
+  - |
+    package main
+
+    import "crypto/md5"
+
+    func main() {
+        _ = md5.Sum([]byte("data"))
+    }

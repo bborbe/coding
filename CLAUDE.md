@@ -37,6 +37,7 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-doc-best-practices.md` | `godoc-assistant` |
 | `go-testing-guide.md` | `go-test-quality-assistant` |
 | `go-security-linting.md` | `go-security-specialist` |
+| `security-review-guide.md` | `go-security-specialist` (rule-base owner for the mechanical security detectors in `rules/security/`) |
 | `go-licensing-guide.md` | `license-assistant` |
 | `agent-command-development-guide.md` | `agent-auditor` + `slash-command-auditor` |
 | `claude-code-skill-writing-guide.md` | `skill-auditor` |

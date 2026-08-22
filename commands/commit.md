@@ -138,16 +138,42 @@ See [[GitHub Auto-Release Guide]] for the full bot release flow, opt-in config, 
 
 A protected branch is the repo saying *changes go through a PR*. Pushing straight to it does not fail loudly when the operator holds admin rights — GitHub accepts the push and prints `Bypassed rule violations`, so the required status checks simply never run. That is a silent CI skip, and the operator usually only sees it scroll past.
 
+**Resolve the repo from the push remote — never let `gh` infer it.** `{owner}/{repo}` is `gh`'s own guess from the remote set, and on a fork it resolves to the **upstream parent**, not the repo you are pushing to. Observed 2026-08-22 on `bborbe/tts-mcp` (a fork of `florianbuetow/tts-mcp`, whose only remote is named `fork`): the check queried florianbuetow's repo, which has no rulesets, returned empty, and reported the branch unprotected. The push then bypassed a required PR *and* a required `test` check. Any repo whose remote is not named `origin`, or which has an upstream parent, hits this.
+
+**And let a failed query be loud.** With `2>/dev/null`, "this repo has no rules" and "the query failed / hit the wrong repo" produce identical empty output — so the failure mode is a silent pass, exactly the case the check exists to prevent. See [[Checks That Report False Green]].
+
 Run this whenever `IS_MASTER=true`, before any push:
 
 ```bash
 PROTECTED=""
 if command -v gh >/dev/null 2>&1; then
-  PROTECTED=$(gh api "repos/{owner}/{repo}/rules/branches/$CURRENT_BRANCH" \
-    --jq '.[].type' 2>/dev/null \
-    | grep -E '^(pull_request|required_status_checks)$' | tr '\n' ' ')
+  # Derive owner/repo from the remote we actually push to, not from gh's inference.
+  PUSH_REMOTE=$(cd $PROJECT_DIR && git rev-parse --abbrev-ref --symbolic-full-name @{push} 2>/dev/null | cut -d/ -f1)
+  PUSH_REMOTE=${PUSH_REMOTE:-origin}
+  REPO_SLUG=$(cd $PROJECT_DIR && git remote get-url "$PUSH_REMOTE" \
+    | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')
+
+  if [ -z "$REPO_SLUG" ]; then
+    echo "⚠️ Could not resolve owner/repo from remote '$PUSH_REMOTE' — cannot verify branch protection." >&2
+    exit 1
+  fi
+
+  # Capture stderr so a failed query is distinguishable from "no rules".
+  RULES_ERR=$(mktemp)
+  RULES=$(gh api "repos/$REPO_SLUG/rules/branches/$CURRENT_BRANCH" --jq '.[].type' 2>"$RULES_ERR")
+  RULES_EXIT=$?
+  if [ $RULES_EXIT -ne 0 ]; then
+    echo "⚠️ Branch-protection query failed for $REPO_SLUG ($(head -1 "$RULES_ERR"))." >&2
+    echo "   Treating as UNVERIFIED, not as unprotected. Do not push until this is resolved." >&2
+    rm -f "$RULES_ERR"; exit 1
+  fi
+  rm -f "$RULES_ERR"
+
+  PROTECTED=$(printf '%s\n' "$RULES" | grep -E '^(pull_request|required_status_checks)$' | tr '\n' ' ')
 fi
 ```
+
+Sanity-check the slug before trusting an empty result: `echo "$REPO_SLUG"` must name the repo you believe you are pushing to. An empty `PROTECTED` from the wrong repo looks exactly like an empty one from the right repo.
 
 `PROTECTED` non-empty means a direct push would bypass a rule. **Stop and surface it** — do not push, and do not silently rely on admin bypass:
 
@@ -158,7 +184,9 @@ A direct push bypasses it and skips required checks.
   2. Push directly anyway (admin bypass, checks will not run)
 ```
 
-Proceed with the direct push only on explicit confirmation. If `gh` is absent or the repo has no ruleset, `PROTECTED` is empty and every workflow continues unchanged — this check never blocks an unprotected repo.
+Proceed with the direct push only on explicit confirmation. If `gh` is absent, the check is skipped and every workflow continues unchanged. If the repo genuinely has no ruleset, `PROTECTED` is empty and nothing blocks — but a *failed* query now aborts rather than passing silently, because an unverifiable protection state is not the same as an absent one.
+
+**Verify against the push output, too.** The pre-check can still be wrong; the remote is the authority. If a push prints `Bypassed rule violations`, a protected branch was written to regardless of what the check said — surface it to the operator immediately rather than letting it scroll past.
 
 This mirrors the git workflow the [[Development Guide]] already mandates (worktree → branch → PR → merge). The rule was never missing; this command simply had no way to notice it was breaking it.
 

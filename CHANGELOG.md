@@ -8,10 +8,13 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- exclude no-fix docker/containerd advisories in checker templates (GO-2026-4883/4887/5064/5338/5622 — v1 import path has no fix; v2 paths are fixable)
+
 ## v0.45.3
 
 - bump canonical GOLANGCI_LINT_VERSION to v2.13.1 (Go 1.27 compatibility — v2.11.4/v2.12.2 fail the lint gate under Go 1.27)
-- exclude no-fix docker/containerd advisories in checker templates (GO-2026-4883/4887/5064/5338/5622 — v1 import path has no fix; v2 paths are fixable)
 
 ## v0.45.2
 

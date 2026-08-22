@@ -9,7 +9,7 @@ rule:
   kind: import_spec
   has:
     field: path
-    regex: '^"math/rand"$'
+    regex: '^"(math/rand|math/rand/v2)"$'
 ignores:
   - "**/*_test.go"
   - "vendor/**"

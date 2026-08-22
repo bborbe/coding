@@ -3,7 +3,10 @@ valid:
   - |
     package main
 
-    import "database/sql"
+    import (
+        "context"
+        "database/sql"
+    )
 
     func main() {
         db := &sql.DB{}
@@ -15,7 +18,10 @@ invalid:
   - |
     package main
 
-    import "database/sql"
+    import (
+        "context"
+        "database/sql"
+    )
 
     func main() {
         db := &sql.DB{}

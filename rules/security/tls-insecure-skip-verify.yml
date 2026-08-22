@@ -10,13 +10,13 @@ rule:
   # with a fieldless package_identifier child plus a `name` field (NOT a
   # selector_expression); `true` is its own node kind (quote it as 'true' in
   # YAML); keyed_element has no named key/value fields in this grammar, so value
-  # scoping goes through the node-text regex `^InsecureSkipVerify:\s*true$`.
+  # scoping goes through the node-text regex `^InsecureSkipVerify\s*:\s*true$`.
   # This form fires on `tls.Config{InsecureSkipVerify: true}` (value or `&`
   # pointer form) and stays silent on `InsecureSkipVerify: false` and on any
   # other tls.Config field (e.g. MinVersion). Verified 2026-08-22 on 0.45.1.
   kind: keyed_element
   all:
-    - regex: '^InsecureSkipVerify:\s*true$'
+    - regex: '^InsecureSkipVerify\s*:\s*true$'
     - inside:
         kind: literal_value
         stopBy: end

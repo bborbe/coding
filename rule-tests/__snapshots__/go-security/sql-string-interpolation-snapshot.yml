@@ -44,3 +44,50 @@ snapshots:
       style: secondary
       start: 160
       end: 216
+  ? |
+    package main
+
+    import (
+        "context"
+        "database/sql"
+    )
+
+    func main() {
+        db := &sql.DB{}
+        ctx := context.Background()
+        name := "alice"
+        id := "1"
+        _ = db.QueryContext(ctx, "SELECT * FROM users WHERE name = '" + name + "'")
+        _ = db.Query("SELECT * FROM users WHERE id = " + id)
+        _ = db.ExecContext(ctx, "UPDATE users SET name = '" + name + "'")
+        _ = db.Exec("DELETE FROM users WHERE id = " + id)
+    }
+  : labels:
+    - source: db.QueryContext(ctx, "SELECT * FROM users WHERE name = '" + name + "'")
+      style: primary
+      start: 167
+      end: 238
+    - source: db
+      style: secondary
+      start: 167
+      end: 169
+    - source: QueryContext
+      style: secondary
+      start: 170
+      end: 182
+    - source: db.QueryContext
+      style: secondary
+      start: 167
+      end: 182
+    - source: '"''"'
+      style: secondary
+      start: 234
+      end: 237
+    - source: '"SELECT * FROM users WHERE name = ''" + name + "''"'
+      style: secondary
+      start: 188
+      end: 237
+    - source: (ctx, "SELECT * FROM users WHERE name = '" + name + "'")
+      style: secondary
+      start: 182
+      end: 238

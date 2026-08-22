@@ -1157,9 +1157,9 @@
   },
   {
     "anchor": "go-security/crypto-insecure-random",
-    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` imports `math/rand` (the Go standard library's predictable PRNG).",
+    "applies_when": "a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/` imports `math/rand` or `math/rand/v2` (the Go standard library's predictable PRNGs).",
     "doc_path": "docs/security/security-review-guide.md",
-    "enforcement": "`rules/security/crypto-insecure-random.yml` (mechanical flag; judgment-tier LLM adjudication decides whether the usage is security-relevant)",
+    "enforcement": "`rules/security/crypto-insecure-random.yml` (mechanical flag — fires on every import of `math/rand`/`math/rand/v2`; the judgment-tier adjudication of whether the usage is security-relevant ships with the judgment tier in a follow-up task, so the detector over-flags legitimate non-security uses by design until then)",
     "enforcement_type": "mechanical",
     "id": "go-security/crypto-insecure-random",
     "level": "MUST",
@@ -1167,7 +1167,7 @@
   },
   {
     "anchor": "go-security/crypto-weak-algorithm",
-    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` calls `md5`/`sha1`/`des` `Sum`/`New`/`NewCipher`/`NewTripleDESCipher`.",
+    "applies_when": "a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/` calls `md5.Sum`, `sha1.Sum`, `md5.New`, `sha1.New`, `des.NewCipher`, or `des.NewTripleDESCipher`.",
     "doc_path": "docs/security/security-review-guide.md",
     "enforcement": "`rules/security/crypto-weak-algorithm.yml`",
     "enforcement_type": "mechanical",
@@ -1197,7 +1197,7 @@
   },
   {
     "anchor": "go-security/hardcoded-secret",
-    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` assigns a double-quoted string literal of at least 12 characters to a variable or constant whose name matches a secret identifier (token, secret, password, credential, apiKey, or underscored/hyphenated variants like api_key and auth-token), in short-declaration, assignment, `const`, or `var` form.",
+    "applies_when": "a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/` assigns a double-quoted string literal of at least 12 characters to a variable or constant whose name matches a secret identifier (token, secret, password, credential, apiKey, or underscored/hyphenated variants like api_key and auth-token), in short-declaration, assignment, `const`, or `var` form.",
     "doc_path": "docs/security/security-review-guide.md",
     "enforcement": "`rules/security/hardcoded-secret.yml`",
     "enforcement_type": "mechanical",
@@ -1217,7 +1217,7 @@
   },
   {
     "anchor": "go-security/sql-string-interpolation",
-    "applies_when": "a `*.go` file outside `*_test.go` and `vendor/` calls `$DB.QueryContext`, `$DB.Query`, `$DB.ExecContext`, or `$DB.Exec` with a statement argument built by string concatenation.",
+    "applies_when": "a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/` calls `$DB.QueryContext`, `$DB.Query`, `$DB.ExecContext`, or `$DB.Exec` with a statement argument built by string concatenation.",
     "doc_path": "docs/security/security-review-guide.md",
     "enforcement": "`rules/security/sql-string-interpolation.yml`",
     "enforcement_type": "mechanical",
@@ -1227,7 +1227,7 @@
   },
   {
     "anchor": "go-security/tls-insecure-skip-verify",
-    "applies_when": "a `tls.Config` composite literal sets `InsecureSkipVerify: true` in a `*.go` file outside `*_test.go` and `vendor/`.",
+    "applies_when": "a `tls.Config` composite literal sets `InsecureSkipVerify: true` in a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/`.",
     "doc_path": "docs/security/security-review-guide.md",
     "enforcement": "`rules/security/tls-insecure-skip-verify.yml`",
     "enforcement_type": "mechanical",

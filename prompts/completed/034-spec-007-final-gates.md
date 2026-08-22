@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [007-security-rule-base]
+summary: 'Verified the shipped 5-rule security base end-to-end: citation gate accepts all 5 ids, index holds exactly 5 mechanical go-security-specialist rules byte-identical to the regenerated one, all per-detector and full rule-test gates pass (51/51), scope-lock negatives hold, CHANGELOG Unreleased entry appended, and make precommit exits 0'
+execution_id: coding-security-rule-base-exec-034-spec-007-final-gates
+dark-factory-version: dev
 created: "2026-08-22T23:25:00Z"
 queued: "2026-08-22T21:36:42Z"
+started: "2026-08-22T21:42:46Z"
+completed: "2026-08-22T21:43:54Z"
 branch: dark-factory/security-rule-base
 ---
 

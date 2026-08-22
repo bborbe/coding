@@ -12,6 +12,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 - feat: Ship 4 mechanical security detectors under `rules/security/` — `crypto-insecure-random` (flags `math/rand` import), `crypto-weak-algorithm` (flags md5/sha1/des Sum/New/NewCipher/NewTripleDESCipher), `sql-string-interpolation` (flags `$DB.QueryContext`/`Query`/`ExecContext`/`Exec` with a string-concatenated statement), and `hardcoded-secret` (flags secret-named variables assigned double-quoted literals ≥12 chars). Adds native rule-tests + snapshots and grows `docs/security/security-review-guide.md` to 5 RULE blocks (owner `go-security-specialist`); regenerates `rules/index.json` (171 entries).
 - docs: Register `security-review-guide.md` in the `README.md` "Go — Infrastructure" table, `llms.txt`, the `agents/go-security-specialist.md` companion-guide list, and the `CLAUDE.md` Doc↔Agent alignment table
+- feat: Ship the 5-rule mechanical security rule base in rules/security/ (tls-insecure-skip-verify, crypto-insecure-random, crypto-weak-algorithm, sql-string-interpolation, hardcoded-secret), each with a rule-tests/security fixture proving it fires
+- fix: Repair tls-insecure-skip-verify's silent-zero (value scoping now via keyed_element node-text regex, pinned to ast-grep 0.45.1)
+- feat: Add docs/security/security-review-guide.md (5 RULE blocks, owner go-security-specialist) and register it in README.md, llms.txt, and agents/go-security-specialist.md
+- feat: Wire ast-grep test -c sgconfig.yml into make precommit as check-rule-tests (CI gate over the native rule-test harness); build-index.py now walks docs/security/*.md
 
 ## v0.45.6
 

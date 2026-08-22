@@ -91,11 +91,13 @@ def derive_enforcement_type(enforcement: str) -> str:
 
 
 def walk_docs(docs_dir: pathlib.Path) -> list[dict]:
-    """Walk docs/*.md, extract every ### RULE block, return sorted entry list."""
+    """Walk docs/*.md and docs/security/*.md, extract every ### RULE block, return sorted entry list."""
     entries = []
     seen_ids = {}  # id -> doc_path
 
-    for md_file in sorted(docs_dir.glob("*.md")):
+    # Union of both sets so a file can never be walked twice; still sorted.
+    md_files = sorted(set(docs_dir.glob("*.md")) | set(docs_dir.glob("security/*.md")))
+    for md_file in md_files:
         # Skip the schema documentation file itself
         if md_file.name == "rule-block-schema.md":
             continue

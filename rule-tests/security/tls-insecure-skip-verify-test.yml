@@ -1,0 +1,21 @@
+id: go-security/tls-insecure-skip-verify
+valid:
+  - |
+    package main
+
+    import "crypto/tls"
+
+    func main() {
+        cfg := tls.Config{MinVersion: tls.VersionTLS12}
+        _ = cfg
+    }
+invalid:
+  - |
+    package main
+
+    import "crypto/tls"
+
+    func main() {
+        cfg := tls.Config{InsecureSkipVerify: true}
+        _ = cfg
+    }

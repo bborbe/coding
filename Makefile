@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-json check-index check-coverage check-acceptance bench-test
+precommit: check-links check-json check-index check-coverage check-acceptance check-rule-tests bench-test
 
 .PHONY: bench
 bench:
@@ -15,6 +15,10 @@ bench-test:
 .PHONY: check-acceptance
 check-acceptance:
 	@bash scripts/acceptance.sh
+
+.PHONY: check-rule-tests
+check-rule-tests:
+	@ast-grep test -c sgconfig.yml
 
 .PHONY: release-check
 release-check: precommit check-versions

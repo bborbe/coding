@@ -1186,6 +1186,16 @@
     "owner": "go-security-specialist"
   },
   {
+    "anchor": "go-security/tls-insecure-skip-verify",
+    "applies_when": "a `tls.Config` composite literal sets `InsecureSkipVerify: true` in a `*.go` file outside `*_test.go` and `vendor/`.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "`rules/security/tls-insecure-skip-verify.yml`",
+    "enforcement_type": "mechanical",
+    "id": "go-security/tls-insecure-skip-verify",
+    "level": "MUST",
+    "owner": "go-security-specialist"
+  },
+  {
     "anchor": "go-service-impl/no-context-object-injection",
     "applies_when": "a Go service method receives a struct (by value OR by pointer) named `Context` / `ServiceContext` / `Deps` / etc. that bundles multiple service dependencies (logger, repository, validator, etc.) and passes them through method calls instead of through the constructor.",
     "doc_path": "docs/go-service-implementation-patterns.md",

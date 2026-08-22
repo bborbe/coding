@@ -1,11 +1,12 @@
 ---
-status: prompted
+status: verifying
 tags:
     - dark-factory
     - spec
 approved: "2026-08-09T09:04:41Z"
 generating: "2026-08-09T10:17:53Z"
 prompted: "2026-08-09T10:20:32Z"
+verifying: "2026-08-22T21:18:00Z"
 branch: dark-factory/bench-golden-scoring-and-report
 ---
 

@@ -1,0 +1,36 @@
+id: go-security/tls-insecure-skip-verify
+snapshots:
+  ? |
+    package main
+
+    import "crypto/tls"
+
+    func main() {
+        cfg := tls.Config{InsecureSkipVerify: true}
+        _ = cfg
+    }
+  : labels:
+    - source: 'InsecureSkipVerify: true'
+      style: primary
+      start: 71
+      end: 95
+    - source: tls
+      style: secondary
+      start: 60
+      end: 63
+    - source: Config
+      style: secondary
+      start: 64
+      end: 70
+    - source: tls.Config
+      style: secondary
+      start: 60
+      end: 70
+    - source: 'tls.Config{InsecureSkipVerify: true}'
+      style: secondary
+      start: 60
+      end: 96
+    - source: '{InsecureSkipVerify: true}'
+      style: secondary
+      start: 70
+      end: 96

@@ -124,10 +124,10 @@ Example entry:
 
 ```json
 {
-  "id": "go-security/resource-access",
+  "id": "go-security/resource-ownership",
   "level": "MUST",
   "doc_path": "docs/security/security-review-guide.md",
-  "anchor": "go-security/resource-access",
+  "anchor": "go-security/resource-ownership",
   "owner": "go-security-specialist",
   "applies_when": "A handler reads a resource addressed by a path parameter without first verifying the authenticated user owns it.",
   "enforcement": "judgment — LLM adjudicator resolves the resource's authorization_functions from the derived session security model per docs/security/security-review-pipeline.md.",

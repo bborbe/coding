@@ -1,6 +1,6 @@
 # Security Review Guide
 
-Companion to [go-security-linting.md](go-security-linting.md) (the gosec workflow), [teamvault-conventions.md](teamvault-conventions.md) (secret handling), and [rule-block-schema.md](../rule-block-schema.md) (the `### RULE` block contract). This guide is the source of truth for the mechanical security rule base that Security Review Mode enforces: every rule maps to a detector in `rules/security/*.yml` and an entry in `rules/index.json` owned by `go-security-specialist`.
+Companion to [go-security-linting.md](../go-security-linting.md) (the gosec workflow), [teamvault-conventions.md](../teamvault-conventions.md) (secret handling), and [rule-block-schema.md](../rule-block-schema.md) (the `### RULE` block contract). This guide is the source of truth for the security rule base that Security Review Mode enforces, across three tiers: mechanical rules map to detectors in `rules/security/*.yml`, judgment rules require LLM adjudication, and invariant-linked rules fire against the derived session security model. Every rule is an entry in `rules/index.json` owned by `go-security-specialist`.
 
 ## Tiers
 
@@ -10,7 +10,7 @@ Security Review Mode organizes rules into three tiers:
 - **Judgment tier** — MUST-level rules that require LLM adjudication at review time (SSRF, authorization/IDOR, invariant-preservation concerns).
 - **Invariant tier** — rules that require whole-repo reasoning rather than a single AST shape.
 
-This guide is the source of truth for the mechanical and judgment tiers of the security rule base; the invariant-tier rules land with the walker `Class` support.
+This guide is the source of truth for the security rule base across all three tiers — mechanical, judgment, and invariant; the invariant-tier rules are live here, gated by the walker `Class` support.
 
 ## Rules
 
@@ -129,7 +129,7 @@ apiKey := os.Getenv("API_KEY")
 
 - **A mechanical rule without a rule-test** — every `rules/security/*.yml` must carry a `rule-tests/security/*-test.yml` (valid → 0, invalid → ≥1) and a snapshot; the `check-rule-tests` precommit gate fails otherwise.
 - **Silent-zero detectors** — a detector that matches nothing is dead coverage; the acceptance bar is every Bad sample → ≥1 finding and every Good sample → 0.
-- **Judgment-tier RULE blocks are in scope for this guide** — the judgment tier is live here alongside the mechanical tier, and the invariant-tier rules land with the walker `Class` support.
+- **Excluding judgment/invariant-tier rules from this guide** — all three tiers (mechanical / judgment / invariant) are live here; the invariant-tier rules are gated by the walker `Class` support.
 - **A security finding without provenance** — findings must cite a `rule_id` that resolves in `rules/index.json`; invented security policy is rejected by `validate-citations.sh`.
 - **`InsecureSkipVerify: true` "temporarily"** — there is no temporary; it is a permanent MITM acceptance.
 - **Secrets in source** — hardcoded credentials, tokens, and keys are rejected by `hardcoded-secret`; read them from environment or a secrets manager.
@@ -454,6 +454,7 @@ func ListInvoices(w http.ResponseWriter, r *http.Request) {
     }
     json.NewEncoder(w).Encode(invoices)
 }
+```
 
 ## Cross-language detector layout
 

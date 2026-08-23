@@ -60,7 +60,7 @@ A small set of judgment-tier RULE blocks carry a `**Class**:` field immediately 
 
 ### Recommended Field: `Why`
 
-Most rule blocks in this repo carry a `**Why**:` paragraph immediately after `**Enforcement**:`. The `Why` is not indexed (the walker ignores it) but is highly recommended as the *only* place the rule's rationale lives — it tells future authors, agents, and bot reviewers *what failure mode this rule prevents*, which is what makes the rule defensible during code review.
+Most rule blocks in this repo carry a `**Why**:` paragraph immediately after the field block (after `**Enforcement**:`, and after `**Trigger**:` / `**Class**:` where present). The `Why` is not indexed (the walker ignores it) but is highly recommended as the *only* place the rule's rationale lives — it tells future authors, agents, and bot reviewers *what failure mode this rule prevents*, which is what makes the rule defensible during code review.
 
 ```markdown
 **Why**: <one or two sentences explaining the failure mode this rule prevents

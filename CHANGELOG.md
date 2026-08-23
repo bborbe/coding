@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: Add agents/security-verifier.md — post-adjudication falsification gate (7-item checklist, verdict confirmed|plausible|rejected, counterevidence_checked on survivors) — and extend scripts/validate-citations.sh to the polymorphic citation contract (kind rule/invariant/toolchain, SECURITY_MODEL_FILE, fail-closed on absent model); register the agent and land three draft security-mode scenario fixtures
+
 ## v0.47.0
 
 - feat: Add docs/security/security-review-pipeline.md — per-review evidence-pointered security-model derivation procedure (entry points, resources + authorization functions, invariants, freshness gate, diff-relevant truncation, attack-surface inventory drift bridge, report contract) and register it in README.md and llms.txt

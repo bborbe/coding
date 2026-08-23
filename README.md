@@ -270,6 +270,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `coding-guidelines-finder` | Search docs/ |
 | `release-changelog-assistant` | Classify semver bump from `## Unreleased` + optionally rewrite to conventional-prefix style; invoked by `/coding:commit` Workflow B, `/coding:github-release`, and K8s `agent/github-releaser` |
 | `project-docs-finder` | Search project docs/ |
+| `security-verifier` | Security-mode post-adjudication falsification gate — attempts to falsify high-severity findings before they emit (precision vs the judge's recall) |
 
 </details>
 

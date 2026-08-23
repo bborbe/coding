@@ -27,6 +27,7 @@
 - [Security Linting](docs/go-security-linting.md): Security-focused static analysis
 - [Security Review Guide](docs/security/security-review-guide.md): Mechanical security rule base (5 detectors) for Security Review Mode
 - [Security Review Pipeline](docs/security/security-review-pipeline.md): Per-review evidence-pointered security model derivation procedure — entry points, resources + authorization functions, invariants, attack-surface inventory (procedure contract, not a rule guide)
+- [security-verifier](agents/security-verifier.md): Security-mode post-adjudication falsification gate — verdicts confirmed|plausible|rejected, counterevidence_checked on survivors (not in any command dispatch list)
 
 ## Go — Infrastructure & Tools
 - [Makefile Commands](docs/go-makefile-commands.md): Standardized build targets

@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [009-security-verifier-citations]
+summary: 'Registered the security-verifier agent in README.md (Other agents) and llms.txt, landed three draft scenario fixtures (007 confirmed IDOR / 008 rejected-by-verifier / 009 toolchain-fail-closed) under scenarios/, added the ## Unreleased changelog entry naming the verifier gate and polymorphic citation validation, and proved the scope-lock negatives (step headings byte-unchanged, rule base 5/5/171, no command/index/CLAUDE.md leakage, version strings untouched) with make precommit green.'
+execution_id: coding-security-verifier-exec-041-spec-009-registrations-scenarios-scope-lock
+dark-factory-version: dev
 created: "2026-08-23T10:01:50Z"
+queued: "2026-08-23T10:28:26Z"
+started: "2026-08-23T10:28:28Z"
+completed: "2026-08-23T10:30:18Z"
 branch: dark-factory/security-verifier-citations
 ---
 

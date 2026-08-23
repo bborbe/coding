@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [008-security-review-pipeline]
+summary: 'Verified the security review pipeline scope-lock and integrity gates: no agent/command/validator/CLAUDE.md changes, rule base intact at exactly 5 rules / 5 detectors / 171 index entries, all AC1-AC8 evidence greps pass, changelog + 4-version alignment intact, and make precommit exits 0'
+execution_id: coding-security-review-pipeline-exec-037-spec-008-scope-lock-gates
+dark-factory-version: dev
 created: "2026-08-23T10:30:00Z"
 queued: "2026-08-23T08:26:14Z"
+started: "2026-08-23T08:29:48Z"
+completed: "2026-08-23T08:30:44Z"
 branch: dark-factory/security-review-pipeline
 ---
 

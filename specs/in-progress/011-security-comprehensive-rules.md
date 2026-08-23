@@ -132,3 +132,21 @@ Rationale: prompt 1 lands the judgment-tier surface with no dependency on the Cl
 ## Do-Nothing Option
 
 If this task does not ship, the guide's promise that the judgment and invariant tiers "ship in a follow-up task" stays unfulfilled, and security review mode keeps only 5 mechanical MUST detectors. Its findings on real apps remain limited to mechanical shapes (secrets, TLS, weak crypto, SQL interpolation); the authz/business-logic findings that differentiate security review from generic linters never fire, and the invariant-linked authz rules — the design's core differentiator — do not exist in the rule base or the index. The goal's "decent → comprehensive" progression is blocked at decent. The current approach is not acceptable: the comprehensive tier is the stated deliverable of this task, and the guide currently ships an explicit placeholder for it.
+
+## Verification Result
+
+**Verified:** 2026-08-23T21:18:46Z (HEAD 3c1f966)
+**Binary:** n/a — structural spec, verified directly in worktree; AC10 gate references installed coding plugin v0.49.0 (see Evidence)
+**Scenario:** n/a — no new scenario file (AC10 operator DoD deferred, see Evidence)
+**Evidence:**
+- AC1: `grep -Ec '^### RULE go-security/(…7 slugs…)'` = 7; jq 7 entries (5 MUST / 2 SHOULD, enforcement_type judgment, owner go-security-specialist, trigger non-empty); total `^### RULE ` = 14; Why/Bad/Good each = 14
+- AC2: 2 invariant RULE headings; `**Class**: security-invariant` = 2; jq 2 entries class=security-invariant, MUST, judgment, trigger ["@commits"]; `security-review-pipeline.md` cited 4×
+- AC3: `build-index.py:64` — `"Class"` in field key tuple; jq `has("class")` length = 2; schema doc `**Class**:` hits (51,54,58,63) and `"class"` hits (51,119,136)
+- AC4: `make check-index` exit 0; index length 180; `security/` 3-component count 0; go-security ID count 18; removed-go-security-ID diff count 0; rules/index.json clean in git
+- AC5: citation fixture `validate-citations.sh` exit 0, `.findings | length` = 3, `.dropped_count` = 0 (non-vacuous)
+- AC6: layout decision at guide:461 (`rules/security/{go,python,node}`); `rules/security/*.yml` count 5; `git status --short -- rules/security/` empty
+- AC7: `git status --short` empty; `git diff origin/master...HEAD --stat` touches no `scripts/validate-citations.sh`, `commands/`, `agents/*`, `.maintainer.yaml`, `scenarios/`
+- AC8: `make precommit` exit 0; CHANGELOG `## Unreleased` present + 1 `feat:` bullet
+- AC9: negative greps all 0 — `follow-up task|ships in a follow-up|ship.*follow-up` = 0; `Judgment/invariant-tier RULE blocks in this guide` = 0; `until then` = 0
+- AC10 (DEFERRED — verified-with-deferred-runtime-evidence): installed coding plugin at spec-verification time is v0.49.0 — `--security` wiring live (local-review.md, 6 hits) and go-security-specialist/security-verifier agents live, but the rule base is NOT installed (installed guide = 5 RULE blocks, installed index has 0 `go-security/ssrf-user-controlled-url` entries). The SSRF DoD fixture therefore cannot produce a finding that the installed validator keeps; scenario 007/008 walks not run (no /tmp/scen007-*/scen008-* evidence). AC10 to be satisfied post-release v0.50.0.
+**Verdict:** PASS (AC1-AC9 verified against fresh in-repo evidence; AC10 verified-with-deferred-runtime-evidence, pending v0.50.0 release)

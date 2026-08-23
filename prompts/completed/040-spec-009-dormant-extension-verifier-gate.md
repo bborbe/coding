@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [009-security-verifier-citations]
+summary: Extended the dormant Security Extension in docs/selector-mode-guide.md with the verifier gate, the severity-orthogonal blocking model plus per-surface thresholds table, and the three-kind polymorphic finding contract; reworded the stale task-3 sentence to reference validate-citations.sh.
+execution_id: coding-security-verifier-exec-040-spec-009-dormant-extension-verifier-gate
+dark-factory-version: dev
 created: "2026-08-23T10:01:50Z"
+queued: "2026-08-23T10:26:48Z"
+started: "2026-08-23T10:26:50Z"
+completed: "2026-08-23T10:28:18Z"
 branch: dark-factory/security-verifier-citations
 ---
 

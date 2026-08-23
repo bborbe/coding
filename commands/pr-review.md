@@ -82,7 +82,7 @@ cd <REPO_DIR> && git worktree remove /tmp/pr-review-<repo>-<SOURCE_BRANCH> --for
 - `short|quick|fast` → **Short mode** (manual review only)
 - `full|comprehensive|complete` → **Full mode** (all agents, per-owner dispatch)
 - Otherwise (including `standard`, `selector`, `--selector`, or no token) → **Selector mode (default)** (in-session classify + adjudicate, zero sub-agent spawns)
-- When `SECURITY_REVIEW` is set, the security-mode steps in Step 4 run in **every** mode — including short mode, which otherwise skips Step 4 (the existing short-mode "skip Step 4" directive applies only to the non-security funnel) — the flag is never silently ignored.
+- When `SECURITY_REVIEW` is set, the security-mode steps in Step 4 run in **every** mode — including short mode, which otherwise skips Step 4 (the existing short-mode "skip Step 4" directive applies only to the non-security funnel). This includes the Step 4b-i candidate computation the security classifier's HARD INVARIANT requires — the candidate set is produced and the security pipeline runs in full; the flag is never silently ignored.
 
 ### Step 2: Project Detection
 
@@ -299,7 +299,7 @@ Include the traceability section per `docs/selector-mode-guide.md` § Traceabili
 
 #### Security Findings (under `--security` only)
 
-When `SECURITY_REVIEW` is set, list every security finding (rule, invariant, and toolchain) with `file:line`, provenance (`kind` + `rule_id`/`invariant_id`), verifier verdict fields (`confidence`, `exploitability`, `impact`, `counterevidence_checked`), and the derived blocking state.
+When `SECURITY_REVIEW` is set, list every security finding (rule, invariant, and toolchain) with `file:line`, provenance (`kind` + `rule_id`/`invariant_id`), verifier verdict fields (`confidence`, `exploitability`, `impact`, `counterevidence_checked`), and the derived blocking state. **Render each finding's verdict fields as JSON** (`"confidence": "confirmed"`, `"exploitability": "high"`, `"impact": "high"`, `"counterevidence_checked": [...]`, `"blocking": true`) — the fields must be machine-greppable exactly as the scenarios assert.
 
 #### Security Model (under `--security` only)
 

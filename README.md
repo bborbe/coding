@@ -146,6 +146,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Linting](docs/go-linting-guide.md) | Static analysis |
 | [Security Linting](docs/go-security-linting.md) | Security analysis |
 | [Security Review Guide](docs/security/security-review-guide.md) | Mechanical security rule base |
+| [Security Review Pipeline](docs/security/security-review-pipeline.md) | Per-review evidence-pointered security model derivation (entry points, resources, invariants) |
 | [Kubernetes CRD Controller](docs/go-kubernetes-crd-controller-guide.md) | CRD types, informer, self-install |
 | [Kubernetes Manifest Layout](docs/k8s-manifest-guide.md) | `k8s/` folder, filename suffixes, templating |
 

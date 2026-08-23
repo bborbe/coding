@@ -41,9 +41,9 @@ FIELD_RE = re.compile(r"^\*\*([A-Za-z ]+)\*\*:\s*(.+)$|^([A-Za-z ]+):\s*(.+)$")
 
 
 def parse_fields(doc_path: str, rule_id: str, lines):
-    """Extract Owner, Applies when, Enforcement, and optional Trigger from field lines.
+    """Extract Owner, Applies when, Enforcement, optional Trigger, and optional Class from field lines.
 
-    Returns a dict with keys: owner, applies_when, enforcement, and optionally trigger.
+    Returns a dict with keys: owner, applies_when, enforcement, and optionally trigger and class.
     Exits via sys.exit on missing required field.
     """
     result = {}
@@ -61,7 +61,7 @@ def parse_fields(doc_path: str, rule_id: str, lines):
             key = m.group(3).strip()
             value = m.group(4).strip()
 
-        if key in ("Owner", "Applies when", "Enforcement", "Trigger"):
+        if key in ("Owner", "Applies when", "Enforcement", "Trigger", "Class"):
             result[key.lower().replace(" ", "_")] = value
 
     required = ["owner", "applies_when", "enforcement"]
@@ -154,6 +154,10 @@ def walk_docs(docs_dir: pathlib.Path) -> list[dict]:
                     trigger_list = [t.strip() for t in raw_trigger.split(",") if t.strip()]
                     if trigger_list:
                         entry["trigger"] = trigger_list
+
+                # Parse optional Class field into a class string (v1 token: security-invariant)
+                if "class" in fields and fields["class"]:
+                    entry["class"] = fields["class"]
 
                 # Check duplicate ID
                 if rule_id in seen_ids:

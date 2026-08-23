@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [010-security-review-command-wiring]
+summary: 'Wired the --security mode into the repo surface: README Commands table + Quick Start + Acceptance Scenarios rows 007-010, verified llms.txt and agent-table alignment (no new guide/agent), and extended the existing ## Unreleased with a feat: changelog bullet above v0.48.0 — version strings untouched, make precommit and make check-versions both exit 0.'
+execution_id: coding-security-pr-review-command-exec-046-spec-010-repo-surface-integration
+dark-factory-version: dev
 created: "2026-08-23T17:19:00Z"
+queued: "2026-08-23T16:13:28Z"
+started: "2026-08-23T16:14:07Z"
+completed: "2026-08-23T16:15:09Z"
 branch: dark-factory/security-review-command-wiring
 ---
 

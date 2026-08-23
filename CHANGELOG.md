@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.49.0
 
 - feat: Wire the `--security` security-review mode into the review commands (`/coding:pr-review`, `/coding:code-review`, `/coding:local-review`) — activates the dormant selector-mode security extension (recon-derived session-local `/tmp/security-model.json`, six classifier trait groups with non-negotiable authz over-selection and deterministic invariant selection, verifier-gated high-severity findings, derived blocking, `SECURITY_MODEL_FILE` citation validation); JSON-rendered `Security Findings` + `Security Model` provenance report sections; PR-mode diff anchoring (pr-review/local-review) / whole-repo audit scope (code-review); fail-closed dependency toolchain pass; finalize acceptance scenarios 007-010 and register the mode in README.md
 

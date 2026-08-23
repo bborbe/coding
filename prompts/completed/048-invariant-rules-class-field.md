@@ -7,15 +7,7 @@ created: "2026-08-23T20:53:15Z"
 queued: "2026-08-23T20:53:15Z"
 started: "2026-08-23T20:54:34Z"
 completed: "2026-08-23T20:57:22Z"
----
----
-status: pending
-spec: [011-security-comprehensive-rules]
-summary: Extend scripts/build-index.py with **Class** field parsing → class index key, document the field and key in docs/rule-block-schema.md, append two invariant-linked RULE blocks (go-security/resource-ownership and go-security/tenant-isolation with **Class**: security-invariant, **Trigger**: @commits), regenerate rules/index.json to 180 entries, and leave the tree for the daemon commit.
-execution_id: pending
-dark-factory-version: dev
 branch: dark-factory/security-comprehensive-rules
-created: "2026-08-23T20:30:00Z"
 ---
 
 # Invariant-linked authz rules + walker Class field

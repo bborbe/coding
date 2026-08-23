@@ -41,9 +41,9 @@ FIELD_RE = re.compile(r"^\*\*([A-Za-z ]+)\*\*:\s*(.+)$|^([A-Za-z ]+):\s*(.+)$")
 
 
 def parse_fields(doc_path: str, rule_id: str, lines):
-    """Extract Owner, Applies when, Enforcement, and optional Trigger from field lines.
+    """Extract Owner, Applies when, Enforcement, optional Trigger, and optional Class from field lines.
 
-    Returns a dict with keys: owner, applies_when, enforcement, and optionally trigger.
+    Returns a dict with keys: owner, applies_when, enforcement, and optionally trigger and class.
     Exits via sys.exit on missing required field.
     """
     result = {}

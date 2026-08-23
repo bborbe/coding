@@ -207,6 +207,17 @@ Pathspec placement matters: `git commit -m "msg" -- <paths>` works, `git commit 
 
 `git add <paths>` alone is NOT sufficient — a later bare `git commit` still commits whatever was already staged. The `--` pathspec on the commit itself is what bounds it.
 
+**Untracked files must be `git add`-ed first.** A commit pathspec matches only paths git already knows, so a brand-new file is rejected outright — `error: pathspec '<file>' did not match any file(s) known to git` — and the whole commit fails. This hits every commit that introduces a new file, which is most feature work. It reads like a contradiction of the line above; it is not. Both hold: `git add` is required to make a new path commit-able, and the `--` pathspec is required to bound what gets committed.
+
+Sequence when any path is untracked:
+
+```bash
+git diff --cached --name-only          # must be empty, or only yours — abort if a sibling session pre-staged something
+git add <new paths>
+git diff --cached --name-only          # confirm only your paths are staged
+git commit -m "msg" -- <all paths>     # pathspec still bounds the commit
+```
+
 **Exception — after `git rm --cached`:** do not use a pathspec (it commits working-tree state and silently re-adds files staged for deletion). Confirm `git diff --cached --name-only` lists only the intended deletions, then run a bare `git commit`.
 
 ### 3. Detect Pipeline-Only Changes

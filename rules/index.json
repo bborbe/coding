@@ -1159,7 +1159,7 @@
     "anchor": "go-security/crypto-insecure-random",
     "applies_when": "a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/` imports `math/rand` or `math/rand/v2` (the Go standard library's predictable PRNGs).",
     "doc_path": "docs/security/security-review-guide.md",
-    "enforcement": "`rules/security/crypto-insecure-random.yml` (mechanical flag — fires on every import of `math/rand`/`math/rand/v2`; the judgment-tier adjudication of whether the usage is security-relevant ships with the judgment tier in a follow-up task, so the detector over-flags legitimate non-security uses by design until then)",
+    "enforcement": "`rules/security/crypto-insecure-random.yml` (mechanical flag — fires on every import of `math/rand`/`math/rand/v2`; the detector over-flags legitimate non-security uses by design; the judgment-tier adjudication of whether a flagged usage is security-relevant lives with the judgment rules and applies at review time)",
     "enforcement_type": "mechanical",
     "id": "go-security/crypto-insecure-random",
     "level": "MUST",
@@ -1174,6 +1174,19 @@
     "id": "go-security/crypto-weak-algorithm",
     "level": "MUST",
     "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/deserialization-unsafe",
+    "applies_when": "a Go file outside `*_test.go`, `vendor/`, `mocks/` calls `json.Unmarshal` / `gob.NewDecoder` / `yaml.Unmarshal` / `xml.Unmarshal` on data received from an untrusted source (HTTP request body, message-bus payload, file uploaded by a user) into a struct without a schema gate — i.e. fields are bound directly without `json.Decoder.DisallowUnknownFields` or equivalent strict-mode flags.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator checks the source provenance of the bytes and the presence of a strict-mode decoder. No mechanical YAML.",
+    "enforcement_type": "judgment",
+    "id": "go-security/deserialization-unsafe",
+    "level": "MUST",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-security/dir-perms-too-permissive",
@@ -1206,6 +1219,32 @@
     "owner": "go-security-specialist"
   },
   {
+    "anchor": "go-security/insecure-defaults",
+    "applies_when": "a Go file outside `*_test.go`, `vendor/`, `mocks/` ships a security-relevant default (TLS min version, cookie `Secure`/`HttpOnly`/`SameSite`, password hashing cost, session timeout, CORS wildcard, CSP `unsafe-inline`) at a value weaker than the secure baseline, instead of failing closed to the secure value.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator compares the shipped default against the secure baseline (e.g. `MinVersion: tls.VersionTLS12`, cookie `Secure`/`HttpOnly`/`SameSite` set, non-wildcard CORS, no `unsafe-inline` CSP) and flags any security-relevant default weaker than it. No mechanical YAML.",
+    "enforcement_type": "judgment",
+    "id": "go-security/insecure-defaults",
+    "level": "SHOULD",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
+  },
+  {
+    "anchor": "go-security/mass-assignment",
+    "applies_when": "a Go file outside `*_test.go`, `vendor/`, `mocks/` binds an HTTP request body or query directly into a domain struct that carries authorization-relevant fields (role flags, ownership pointers, billing status) without an explicit allow-list of bindable fields.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator checks the struct-to-DTO separation and the bind path. No mechanical YAML.",
+    "enforcement_type": "judgment",
+    "id": "go-security/mass-assignment",
+    "level": "SHOULD",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
+  },
+  {
     "anchor": "go-security/nosec-requires-reason",
     "applies_when": "a `// #nosec <CODE>` comment in a `*.go` file outside `*_test.go` and `vendor/` appears WITHOUT a `-- <reason>` text component on the same line.",
     "doc_path": "docs/go-security-linting.md",
@@ -1214,6 +1253,19 @@
     "id": "go-security/nosec-requires-reason",
     "level": "MUST",
     "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/open-redirect",
+    "applies_when": "a Go HTTP handler outside `*_test.go`, `vendor/`, `mocks/` reads a `next` / `return_to` / `redirect` query parameter (or similar) and forwards the user to the parsed URL via `http.Redirect` / `http.RedirectHandler` / manual `Location:` header without an allow-list of permitted hosts / paths.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator checks the data flow from the request parameter to the redirect target. No mechanical YAML.",
+    "enforcement_type": "judgment",
+    "id": "go-security/open-redirect",
+    "level": "MUST",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-security/sql-string-interpolation",
@@ -1226,6 +1278,19 @@
     "owner": "go-security-specialist"
   },
   {
+    "anchor": "go-security/ssrf-user-controlled-url",
+    "applies_when": "a Go file outside `*_test.go`, `vendor/`, `mocks/` issues an outbound HTTP request (`http.Get`, `http.NewRequest`, `http.Client.Do`) where the URL or host is derived from a request parameter, header, body field, or other user-controlled source without an allow-list / scheme-and-host validation step.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator checks the request URL's data flow back to a user-controlled source. No mechanical YAML.",
+    "enforcement_type": "judgment",
+    "id": "go-security/ssrf-user-controlled-url",
+    "level": "MUST",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
+  },
+  {
     "anchor": "go-security/tls-insecure-skip-verify",
     "applies_when": "a `tls.Config` composite literal sets `InsecureSkipVerify: true` in a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/`.",
     "doc_path": "docs/security/security-review-guide.md",
@@ -1234,6 +1299,32 @@
     "id": "go-security/tls-insecure-skip-verify",
     "level": "MUST",
     "owner": "go-security-specialist"
+  },
+  {
+    "anchor": "go-security/webhook-verification",
+    "applies_when": "a Go HTTP handler outside `*_test.go`, `vendor/`, `mocks/` exposes a webhook-receiving endpoint that processes the request body without verifying a provider signature (`X-Hub-Signature-256` / `Stripe-Signature` / equivalent HMAC header) before treating the payload as trusted.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator checks the signature-verification step preceding payload processing. No mechanical YAML.",
+    "enforcement_type": "judgment",
+    "id": "go-security/webhook-verification",
+    "level": "MUST",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
+  },
+  {
+    "anchor": "go-security/xss-untrusted-html",
+    "applies_when": "a Go file outside `*_test.go`, `vendor/`, `mocks/` writes user-supplied data into an HTML response (template `html/template` is fine; `text/template`, `fmt.Fprintf(w, ...)`, raw concatenation into HTML is not) without HTML-escaping or a sanitizer.",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator checks the response writer and the data-flow provenance of the interpolated value.",
+    "enforcement_type": "judgment",
+    "id": "go-security/xss-untrusted-html",
+    "level": "MUST",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "**/*.go"
+    ]
   },
   {
     "anchor": "go-service-impl/no-context-object-injection",

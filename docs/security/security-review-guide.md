@@ -454,4 +454,12 @@ func ListInvoices(w http.ResponseWriter, r *http.Request) {
     }
     json.NewEncoder(w).Encode(invoices)
 }
+
+## Cross-language detector layout
+
+When security rules grow beyond a single language, the detector tree splits per-language under `rules/security/{go,python,node}/` (one subdir per language the rule base covers). The runner that scans a multi-language repo gains a per-language case mirroring the existing `node/frontend` special-case in `scripts/ast-grep-runner.sh` (node rules are skipped on frontend projects), dispatching each language's detectors to the matching `ast-grep scan --lang <lang>` invocation.
+
+For the v1 release, security rules are go-first: every detector lives flat under `rules/security/` (no per-language subdirectories). This matches the rule base's actual coverage today — five mechanical detectors plus nine judgment / invariant rules, all Go-targeted. The split documented above is the target layout for the cross-language expansion (the python and node language cases), deferred until non-Go rules ship.
+
+The decision is recorded here as a spike outcome (no structural reorganization ships with this version): the cross-language split is the chosen shape; the go-first v1 stays flat because no non-Go detectors exist yet.
 ```

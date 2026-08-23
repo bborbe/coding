@@ -10,7 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- feat: Extend `scripts/build-index.py` with a `**Class**:` field parser that emits an optional `class` index key (v1 token `security-invariant`), document the field and key in `docs/rule-block-schema.md`, append 2 invariant-linked RULE blocks to `docs/security/security-review-guide.md` — `go-security/resource-ownership` and `go-security/tenant-isolation` (MUST, `class: security-invariant`, `trigger: @commits`) — and regenerate `rules/index.json` to 180 entries
+- feat: Ship the comprehensive security v1 rule base in `docs/security/security-review-guide.md` — 7 judgment-tier rules (SSRF, XSS, deserialization, open redirect, webhook verification MUST; mass assignment, insecure defaults SHOULD) and 2 invariant-linked authz rules (resource ownership, tenant isolation MUST) with `**Class**: security-invariant` and `@commits` triggers; extend `scripts/build-index.py` to emit a `class` index key and document the new field in `docs/rule-block-schema.md`; regenerate `rules/index.json` from 171 to 180 entries; record the cross-language detector layout decision (per-language `rules/security/{go,python,node}/` target, go-first v1 stays flat)
 
 ## v0.49.0
 

@@ -1,11 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [011-security-comprehensive-rules]
-summary: Record the cross-language detector layout decision in docs/security/security-review-guide.md, perform the final guide reconciliation (three-tier framing now fully shipped), add the
-execution_id: pending
+summary: 'Recorded the cross-language detector layout decision in the security-review-guide, reconciled the CHANGELOG ## Unreleased to a single comprehensive feat bullet, and confirmed all cross-cutting gates green (make precommit exit 0, index 180, class count 2, AC5 citations resolve non-vacuously)'
+execution_id: coding-security-comprehensive-rules-exec-049-layout-decision-changelog-final-gates
 dark-factory-version: dev
 created: "2026-08-23T20:30:00Z"
 queued: "2026-08-23T20:53:15Z"
+started: "2026-08-23T20:57:24Z"
+completed: "2026-08-23T20:58:55Z"
 branch: dark-factory/security-comprehensive-rules
 ---
 

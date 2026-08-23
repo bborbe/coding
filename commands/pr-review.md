@@ -299,7 +299,7 @@ Include the traceability section per `docs/selector-mode-guide.md` § Traceabili
 
 #### Security Findings (under `--security` only)
 
-When `SECURITY_REVIEW` is set, list every security finding (rule, invariant, and toolchain) with `file:line`, provenance (`kind` + `rule_id`/`invariant_id`), verifier verdict fields (`confidence`, `exploitability`, `impact`, `counterevidence_checked`), and the derived blocking state. **Render each finding's verdict fields as JSON** (`"confidence": "confirmed"`, `"exploitability": "high"`, `"impact": "high"`, `"counterevidence_checked": [...]`, `"blocking": true`) — the fields must be machine-greppable exactly as the scenarios assert.
+When `SECURITY_REVIEW` is set, list every security finding (rule, invariant, and toolchain) with `file:line`, provenance (`kind` + `rule_id`/`invariant_id`), verifier verdict fields (`confidence`, `exploitability`, `impact`, `counterevidence_checked`), and the derived blocking state. **Render each finding's verdict fields as JSON** (`"confidence": "confirmed"`, `"exploitability": "high"`, `"impact": "high"`, `"counterevidence_checked": [...]`, `"blocking": true`) — the fields must be machine-greppable exactly as the scenarios assert. Toolchain findings additionally render their `tool`, `package`, `version`, and `advisory` fields. **Render the verifier gate's outcome for every candidate that passed through it — including rejected and plausible candidates — as a JSON verdict block** (`"confidence": "rejected"` + `reject_reason`, `"confidence": "plausible"`), so the rejected-candidate and toolchain evidence the scenarios grep for is machine-greppable.
 
 #### Security Model (under `--security` only)
 

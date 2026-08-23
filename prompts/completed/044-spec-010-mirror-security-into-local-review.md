@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [010-security-review-command-wiring]
+summary: 'Mirrored the --security wiring from commands/pr-review.md into commands/local-review.md: position-independent SECURITY_REVIEW=1 flag parsing, a Security mode subsection (recon over git diff HEAD~1, /tmp/security-model.json, six trait groups, verifier gate, derived blocking, diff-changed-lines anchoring, fail-closed deps pass, SECURITY_MODEL_FILE citation validation), and Security Findings + Security Model report sections, with all AC1-AC6 greps, frozen-file checksums, and the acceptance suite green (make precommit exit 0)'
+execution_id: coding-security-pr-review-command-exec-044-spec-010-mirror-security-into-local-review
+dark-factory-version: dev
 created: "2026-08-23T17:17:00Z"
+queued: "2026-08-23T15:13:28Z"
+started: "2026-08-23T15:14:01Z"
+completed: "2026-08-23T15:16:11Z"
 branch: dark-factory/security-review-command-wiring
 ---
 

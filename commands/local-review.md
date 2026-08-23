@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+)
-argument-hint: "[short|full|selector] [directory]"
+argument-hint: "[short|full|selector] [directory] [--security]"
 description: Perform a comprehensive review of local uncommitted/recent changes
 ---
 
@@ -21,6 +21,8 @@ Parse the first argument to determine mode:
 - If first arg is `short|quick|fast` → **Short mode** (manual review only)
 - If first arg is `full|comprehensive|complete` → **Full mode** (all agents, per-owner dispatch)
 - Otherwise (including `standard`, `selector`, `--selector`, or no token) → **Selector mode (default)** (in-session classify + adjudicate, zero sub-agent spawns)
+
+`--security` is a position-independent boolean flag that may appear anywhere in the argument list (before or after the mode token and the directory); when present, set `SECURITY_REVIEW=1`, independent of the mode token. It is recognized as a flag and is NOT treated as the directory path by the "Any remaining arguments are treated as the directory path" rule. The flag is never silently ignored — the security pipeline runs in-session over the reviewed scope regardless of mode token; the existing short-mode "skip Step 4" directive applies only to the non-security funnel.
 
 Any remaining arguments are treated as the directory path.
 
@@ -156,6 +158,19 @@ On the guide's short-circuit condition the report line is `selector clean — no
 
 Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
 
+#### Security mode (under `--security` only)
+
+This subsection runs only when `SECURITY_REVIEW` is set (Step 1). It activates the dormant `## Security Extension (dormant)` in `docs/selector-mode-guide.md` — when the signal is absent, Steps 4c-sel/4d-sel run byte-for-byte as the existing procedure above. It references the frozen pipeline guide (`docs/security/security-review-pipeline.md`), the selector-mode security extension, the verifier agent (`agents/security-verifier.md`), and the polymorphic validator (`scripts/validate-citations.sh`) by name — it does NOT re-implement or re-document the procedure. It runs in **every** mode (short, selector, full) and never bypasses or softens the existing Step 4.0 toolchain fail-fast (ast-grep/sg preflight → "Must Fix toolchain failure") or the Step 4a mechanical funnel — a `--security` review without the mechanical funnel would silently miss every MUST-tier finding.
+
+1. **Recon and model derivation** — per `docs/security/security-review-pipeline.md` (the derivation contract is frozen there): the recon and the adjudicator consume the local diff `git diff HEAD~1` (or the directory diff parsed in Step 1); enumerate entry points from the diff's touched packages (recall-oriented), resolve identities and auth mechanisms, resolve resources and their `authorization_functions`, and derive invariants as `resource → identifier → authorization_function` with `file:line` evidence. Write the model to `/tmp/security-model.json` (session-local, mirroring `/tmp/local-review-findings.json`) and never to any path inside the reviewed directory — if the model is accidentally written in-tree, delete it and rewrite it to the session-local path. Apply the freshness gate (changed-evidence entries re-derived, unchanged carried forward; stale entries whose evidence no longer resolves are dropped and surfaced with the literal `model refresh:` line) and diff-relevant truncation on large repos (note the truncation in the report). Record the attack-surface inventory counts.
+2. **Classifier trait groups** — per the dormant extension: exactly six groups `authz`, `input-origin`, `data-to-sink`, `external-io`, `crypto`, `secrets`. `authz` over-selection is non-negotiable: a diff touching a file cited as evidence by an entry point operating on a modeled resource, or cited as evidence by a modeled resource's `authorization_function`, MUST select `authz`. Deterministic invariant selection: a diff touching an invariant's `attack_surfaces` or its `evidence` source forces that `invariant_id` into the applicable set — no LLM judgment, never skipped. The HARD INVARIANT holds: the applicable set is a subset of the Step 4b-i candidate set; trait groups never add a rule the glob did not produce.
+3. **Adjudicator inputs** — the Step 4d-sel adjudicator input gains the diff-relevant model subset, the applicable invariants with their evidence authorization functions, and the attack-surface inventory as a drift signal. Each applicable invariant is judged against the diff slice with the single question: does this change preserve the invariant? Invariant-kind findings cite `invariant_id`.
+4. **Verifier gate** — after adjudication, before emission, run the falsification gate per `agents/security-verifier.md` (7-item falsification checklist; verdict `confirmed | plausible | rejected` with `confidence`, `exploitability`, `impact`, `attack_preconditions`, `attack_path`, `security_boundary_missing`, `counterevidence_checked`, and `reject_reason` required on rejection). It is a hard pre-emission step for `severity=critical` and for `severity=major` when `confidence=confirmed`; every surviving high-severity finding carries a populated `counterevidence_checked`. The execution mechanism (in-session role vs sub-agent spawn) is an implementation detail the session decides, preserving the gate's hard pre-emission property. Residual false kills are caught by the `ai_review` post-post backstop (dismiss + COMMENT + human_review).
+5. **Blocking derived, never stored as severity** — `blocking = confidence==confirmed ∧ exploitability==high ∧ impact≥medium`; no per-surface config fields, no opt-out flags. A `plausible` critical does NOT block merge — it is reported as a required human review item.
+6. **Diff anchoring** — in local mode (PR mode), report security findings ONLY on diff-changed lines or invariants whose attack surface the diff touched; whole-file context is permitted for reasoning, never for gating.
+7. **Toolchain/deps pass (fail-closed)** — run a dependency scan over the local repo's dependency manifests (osv-scanner / trivy / govulncheck, whichever are available; govulncheck for Go modules), executed via the `coding:go-security-specialist` agent or in-session per the selector-mode zero-spawn property, and emit findings as `kind=toolchain` carrying `tool`, `package`, `version`, `advisory`, `file`, `line`. A scan failure, a database-fetch timeout, or a flagged vulnerability surfaces as a Must-Fix toolchain finding in the report — never a silent skip.
+8. **Citation validation** — the Step 4d-sel citation-validation invocation passes `SECURITY_MODEL_FILE=/tmp/security-model.json` so invariant-kind findings resolve against the session model's `invariants[].id`. Each finding resolves exactly one provenance (`kind=rule` → `rule_id` in `rules/index.json`; `kind=invariant` → `invariant_id` in the model; `kind=toolchain` → no id). Absent an unset/missing/unreadable/unparseable model, invariant findings drop fail-closed (WARN to stderr) and are never kept — the validator enforces this; the command only supplies the model file.
+
 #### Full mode: per-owner dispatch
 
 **Full mode only** — skip this section in selector and short mode.
@@ -237,6 +252,14 @@ Agent-reported minor issues (style, documentation, naming conventions, version u
 #### Selector Mode: Classify Traceability (selector mode only)
 
 Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
+
+#### Security Findings (under `--security` only)
+
+When `SECURITY_REVIEW` is set, list every security finding (rule, invariant, and toolchain) with `file:line`, provenance (`kind` + `rule_id`/`invariant_id`), verifier verdict fields (`confidence`, `exploitability`, `impact`, `counterevidence_checked`), and the derived blocking state.
+
+#### Security Model (under `--security` only)
+
+When `SECURITY_REVIEW` is set, record the provenance block: `derived_from` (repo, head, review_id), the entry-point count, each attack-surface inventory count, and any `model refresh:` lines verbatim. A scope containing Go source always produces this block (never a silent skip); a scope with no Go source — including when the Step 4 early-exit fires on a non-rule-relevant diff — states `no Go source — security model not derived` explicitly instead of omitting the section.
 
 ### Step 6: Next Steps
 

@@ -11,6 +11,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 - feat: Ship the comprehensive security v1 rule base in `docs/security/security-review-guide.md` — 7 judgment-tier rules (SSRF, XSS, deserialization, open redirect, webhook verification MUST; mass assignment, insecure defaults SHOULD) and 2 invariant-linked authz rules (resource ownership, tenant isolation MUST) with `**Class**: security-invariant` and `@commits` triggers; extend `scripts/build-index.py` to emit a `class` index key and document the new field in `docs/rule-block-schema.md`; regenerate `rules/index.json` from 171 to 180 entries; record the cross-language detector layout decision (per-language `rules/security/{go,python,node}/` target, go-first v1 stays flat)
+- fix: `/coding:commit` § 2d — document that untracked files must be `git add`-ed before the pathspec commit; a commit pathspec matches only tracked paths, so every commit introducing a new file failed with `did not match any file(s) known to git`
 
 ## v0.49.0
 

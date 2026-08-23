@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "rule",
+    "rule_id": "go-security/hardcoded-secret",
+    "file": "pkg/auth/user.go",
+    "line": 42
+  }
+]

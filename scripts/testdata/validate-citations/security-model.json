@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "invariants": [
+    {
+      "id": "INV-1",
+      "statement": "a member may only read orders they own",
+      "evidence": "pkg/authz/order.go:33",
+      "attack_surfaces": ["admin-only"]
+    }
+  ]
+}

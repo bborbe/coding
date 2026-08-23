@@ -105,7 +105,45 @@ Under the signal, the Step 4d-sel ADJUDICATE input additionally gains:
 - the applicable invariants with their evidence authorization functions, and
 - the attack-surface inventory as a drift signal (per [security-review-pipeline.md](security/security-review-pipeline.md)).
 
-Each applicable invariant is judged against the diff slice with the single question: does this change preserve the invariant? Invariant-kind findings cite `invariant_id` (the polymorphic finding contract); validation of those ids is task 3 — NOT implemented in this change.
+Each applicable invariant is judged against the diff slice with the single question: does this change preserve the invariant? Invariant-kind findings cite `invariant_id` (the polymorphic finding contract); under the signal those ids are validated by `scripts/validate-citations.sh` against the session's security model (see the polymorphic finding contract below).
+
+### Verifier gate (post-adjudication, pre-emission)
+
+Under the signal, a verifier gate runs between the Step 4d-sel adjudication output and emission. It is a **hard pre-emission step** for `severity=critical` findings and for `severity=major` findings when `confidence=confirmed` — a high-severity finding cannot emit without passing this gate. Every surviving high-severity finding carries a populated `counterevidence_checked` field.
+
+The verdict contract is produced by [security-verifier.md](../agents/security-verifier.md): each candidate resolves to `confirmed | plausible | rejected` with the fields `confidence`, `exploitability`, `impact`, `attack_preconditions`, `attack_path`, `security_boundary_missing`, and `counterevidence_checked` (`reject_reason` is required on rejection). The verifier is **precision-control, not a proof** — a residual false positive is caught by the `ai_review` post-post backstop: **dismiss + COMMENT + human_review**. `dismiss` drops the finding from the report, `COMMENT` records it in the traceability section for the operator, and `human_review` flags it for a human. That backstop is the remaining safety net for anything the gate misses.
+
+### Blocking model (orthogonal to severity)
+
+Under the signal, merge blocking is derived from the verifier verdict, orthogonal to severity:
+
+`blocking = confidence==confirmed ∧ exploitability==high ∧ impact≥medium`
+
+Blocking never consults the finding's `severity` label. A `plausible` critical does NOT block merge — it is reported as a required human review item instead of a merge block. Only a fully confirmed, high-exploitability, medium-or-higher-impact finding blocks.
+
+Per-surface thresholds (documented contract, not executable knobs):
+
+| Surface | v1 default |
+|---------|-----------|
+| `local` | `confidence==confirmed ∧ exploitability==high ∧ impact≥medium` |
+| `bot` | `confidence==confirmed ∧ exploitability==high ∧ impact≥medium` |
+| `audit` | `confidence==confirmed ∧ exploitability==high ∧ impact≥medium` |
+
+The uniform v1 default for all three surfaces is the formula itself; tuning after real usage is a separate task and is explicitly deferred. No per-surface configuration exists yet — this table is a documented contract, not executable configuration; there are no config fields and no opt-out flags.
+
+### Polymorphic finding contract (three kinds)
+
+Under the signal, each finding resolves exactly one provenance, chosen by its `kind` field:
+
+| `kind` | Provenance | Resolution |
+|--------|------------|-----------|
+| `rule` | `rule_id` | resolves in `rules/index.json` |
+| `invariant` | `invariant_id` | resolves in the model's `invariants[].id` (per [security-review-pipeline.md](security/security-review-pipeline.md)) |
+| `toolchain` | no id — tool output | kept by the validator as-is |
+
+Toolchain findings (gosec/trivy/osv-scanner/vulncheck) are tool output, not rule violations — they carry no `rule_id` and are kept without id validation. A finding with no `kind` field is treated as `rule` (legacy path).
+
+**Validator role under the signal**: the Step 4d-sel citation-validation invocation passes `SECURITY_MODEL_FILE` pointing at the session's security model, so invariant findings resolve against the model's `invariants[].id`. Absent the model — unset, missing, unreadable, or unparseable — invariant findings drop **fail-closed** with a WARN to stderr and are never kept. `scripts/validate-citations.sh` is the enforcing mechanism; any other `kind` value is dropped as unprovenanced.
 
 ## Traceability Report Section
 

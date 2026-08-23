@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "rule",
+    "rule_id": "security/fake/does-not-exist",
+    "file": "pkg/auth/user.go",
+    "line": 42
+  }
+]

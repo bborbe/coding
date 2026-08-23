@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "invariant",
+    "invariant_id": "INV-99",
+    "file": "pkg/authz/order.go",
+    "line": 33
+  }
+]

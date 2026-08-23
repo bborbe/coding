@@ -1,0 +1,16 @@
+[
+  {
+    "kind": "rule",
+    "rule_id": "go-security/hardcoded-secret",
+    "invariant_id": "INV-99",
+    "file": "pkg/auth/user.go",
+    "line": 42
+  },
+  {
+    "kind": "invariant",
+    "invariant_id": "INV-1",
+    "rule_id": "security/fake/does-not-exist",
+    "file": "pkg/authz/order.go",
+    "line": 33
+  }
+]

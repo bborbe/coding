@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: Add docs/security/security-review-pipeline.md — per-review evidence-pointered security-model derivation procedure (entry points, resources + authorization functions, invariants, freshness gate, diff-relevant truncation, attack-surface inventory drift bridge, report contract) and register it in README.md and llms.txt
+
 ## v0.46.0
 
 - feat: Ship 4 mechanical security detectors under `rules/security/` — `crypto-insecure-random` (flags `math/rand` import), `crypto-weak-algorithm` (flags md5/sha1/des Sum/New/NewCipher/NewTripleDESCipher), `sql-string-interpolation` (flags `$DB.QueryContext`/`Query`/`ExecContext`/`Exec` with a string-concatenated statement), and `hardcoded-secret` (flags secret-named variables assigned double-quoted literals ≥12 chars). Adds native rule-tests + snapshots and grows `docs/security/security-review-guide.md` to 5 RULE blocks (owner `go-security-specialist`); regenerates `rules/index.json` (171 entries).

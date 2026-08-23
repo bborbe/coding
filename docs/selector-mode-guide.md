@@ -70,6 +70,43 @@ VALIDATOR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scri
 bash "$VALIDATOR" <findings.json>
 ```
 
+## Security Extension (dormant)
+
+The security model consumption layer extends the classify/adjudicate contract. It is **active only when the current review session carries the security-review signal**. No command sets that signal yet — task 4's command wiring does — so this extension is **dormant**: it is documented now as the classify/adjudicate contract that the steps below will honor once the signal exists. When the signal is absent, the procedure runs byte-for-byte as the existing Step 4c-sel / Step 4d-sel steps above and this section is inert.
+
+The security model this extension consumes is derived per [security-review-pipeline.md](security/security-review-pipeline.md); the model fields (`entry_points`, `resources[].authorization_functions`, `invariants[]`), the freshness gate, diff-relevant truncation, and the attack-surface inventory drift bridge are frozen there.
+
+### Classifier sub-step — security trait groups
+
+Under the signal, security-relevant selection is grouped into exactly six trait groups: `authz`, `input-origin`, `data-to-sink`, `external-io`, `crypto`, `secrets`. Selecting a trait group selects the security rules in its scope; the groups are how the deterministic drift bridge (see the pipeline guide) and the classifier's judgment both contribute to the applicable set.
+
+**Non-negotiable `authz` over-selection**: any diff touching a resource handler — a diff that changes a file cited as evidence by an entry point operating on a modeled resource, or a file cited as evidence by a modeled resource's `authorization_function` — MUST select the `authz` group. A missed authz rule is worse than an extra evaluation: over-selecting `authz` costs one extra rule read, while under-selecting it can ship an authorization regression unexamined. Example: a diff touching `pkg/handler/order.go` — a file cited as evidence by an entry point that operates on the modeled `order` resource — selects `authz` even when the changed lines look cosmetic.
+
+**`crypto` and `secrets` selection**: the `crypto` group is selected when `go-security/crypto-*` findings are present in the Step 4a output, or the diff changes a file that imports `crypto/*`/`hash/*` or calls a crypto-handling function. The `secrets` group is selected when `go-security/hardcoded-secret` findings are present in the Step 4a output, or the diff changes a file that calls a secret-handling function. The mechanical findings referenced are `go-security/crypto-insecure-random`, `go-security/crypto-weak-algorithm`, and `go-security/hardcoded-secret` from [security-review-guide.md](security/security-review-guide.md).
+
+The applicable set remains a subset of the Step 4b-i candidate set — the HARD INVARIANT above still holds. Trait groups never add a rule the Step 4b-i glob did not produce.
+
+### Deterministic invariant selection
+
+Invariants come from the security model derived per [security-review-pipeline.md](security/security-review-pipeline.md); each invariant carries an `id`, `evidence`, and `attack_surfaces`. Invariant selection is fully deterministic — no LLM judgment:
+
+- if the diff changes the evidence file of any entry point whose path appears in an invariant's `attack_surfaces`, OR
+- the diff changes the invariant's own `evidence` source,
+
+then that `invariant_id` is in the applicable set. Example: for an invariant `INV-1` (`a member may only read orders they own`) whose `attack_surfaces` includes the path of an entry point's evidence file, any diff changing that evidence file forces `INV-1` into the applicable set.
+
+Invariants behave like the architecture-tier bypass above — always considered when their attack surface is touched, never subject to a skip decision.
+
+### Adjudicator input extension
+
+Under the signal, the Step 4d-sel ADJUDICATE input additionally gains:
+
+- the diff-relevant security model subset (per the pipeline guide's freshness gate and diff-relevant truncation),
+- the applicable invariants with their evidence authorization functions, and
+- the attack-surface inventory as a drift signal (per [security-review-pipeline.md](security/security-review-pipeline.md)).
+
+Each applicable invariant is judged against the diff slice with the single question: does this change preserve the invariant? Invariant-kind findings cite `invariant_id` (the polymorphic finding contract); validation of those ids is task 3 — NOT implemented in this change.
+
 ## Traceability Report Section
 
 Include this section in the Step 5 report only when the review ran in selector mode. List counts and every classify skip so operators can spot false drops:

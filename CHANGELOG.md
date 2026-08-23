@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.47.0
 
 - feat: Add docs/security/security-review-pipeline.md — per-review evidence-pointered security-model derivation procedure (entry points, resources + authorization functions, invariants, freshness gate, diff-relevant truncation, attack-surface inventory drift bridge, report contract) and register it in README.md and llms.txt
 

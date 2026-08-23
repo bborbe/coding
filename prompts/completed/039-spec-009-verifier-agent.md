@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [009-security-verifier-citations]
+summary: Created agents/security-verifier.md — a read-only adversarial falsification gate (7-item checklist, confirmed|plausible|rejected verdict contract, counterevidence_checked/reject_reason fields, precision-over-recall incentive) with no dispatch-list, README, llms, CLAUDE.md, or CHANGELOG registration (owned by prompt 4); make precommit exits 0.
+execution_id: coding-security-verifier-exec-039-spec-009-verifier-agent
+dark-factory-version: dev
 created: "2026-08-23T10:01:50Z"
+queued: "2026-08-23T10:24:40Z"
+started: "2026-08-23T10:24:41Z"
+completed: "2026-08-23T10:26:37Z"
 branch: dark-factory/security-verifier-citations
 ---
 

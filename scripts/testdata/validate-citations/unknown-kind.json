@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "mystery",
+    "severity": "high",
+    "file": "pkg/auth/user.go",
+    "line": 42
+  }
+]

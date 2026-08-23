@@ -1,0 +1,11 @@
+[
+  {
+    "kind": "toolchain",
+    "tool": "osv-scanner",
+    "package": "golang.org/x/crypto",
+    "version": "v0.17.0",
+    "advisory": "GHSA-45x7-px36-r8r7",
+    "file": "go.mod",
+    "line": 5
+  }
+]

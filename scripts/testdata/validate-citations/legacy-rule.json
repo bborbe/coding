@@ -1,0 +1,7 @@
+[
+  {
+    "rule_id": "go-security/hardcoded-secret",
+    "file": "x.go",
+    "line": 1
+  }
+]

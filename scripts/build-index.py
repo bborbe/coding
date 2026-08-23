@@ -61,7 +61,7 @@ def parse_fields(doc_path: str, rule_id: str, lines):
             key = m.group(3).strip()
             value = m.group(4).strip()
 
-        if key in ("Owner", "Applies when", "Enforcement", "Trigger"):
+        if key in ("Owner", "Applies when", "Enforcement", "Trigger", "Class"):
             result[key.lower().replace(" ", "_")] = value
 
     required = ["owner", "applies_when", "enforcement"]
@@ -154,6 +154,10 @@ def walk_docs(docs_dir: pathlib.Path) -> list[dict]:
                     trigger_list = [t.strip() for t in raw_trigger.split(",") if t.strip()]
                     if trigger_list:
                         entry["trigger"] = trigger_list
+
+                # Parse optional Class field into a class string (v1 token: security-invariant)
+                if "class" in fields and fields["class"]:
+                    entry["class"] = fields["class"]
 
                 # Check duplicate ID
                 if rule_id in seen_ids:

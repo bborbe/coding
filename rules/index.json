@@ -1268,6 +1268,20 @@
     ]
   },
   {
+    "anchor": "go-security/resource-ownership",
+    "applies_when": "a Go handler / service method outside `*_test.go`, `vendor/`, `mocks/` reads, mutates, or deletes a resource (DB row, file, third-party-API object) addressed by a path parameter, query parameter, body field, or header value, without first verifying that the authenticated user owns the resource. \"Owns\" is defined per resource by the `authorization_functions` field in the derived session security model (see `docs/security/security-review-pipeline.md`).",
+    "class": "security-invariant",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator resolves the resource's `authorization_functions` from the derived session security model per `docs/security/security-review-pipeline.md`, fires when the diff accesses a resource by identifier without the owning authorization function enforced, and emits findings as `kind=invariant` with `invariant_id` resolving in the session model.",
+    "enforcement_type": "judgment",
+    "id": "go-security/resource-ownership",
+    "level": "MUST",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "@commits"
+    ]
+  },
+  {
     "anchor": "go-security/sql-string-interpolation",
     "applies_when": "a `*.go` file outside `*_test.go`, `vendor/`, and `mocks/` calls `$DB.QueryContext`, `$DB.Query`, `$DB.ExecContext`, or `$DB.Exec` with a statement argument built by string concatenation.",
     "doc_path": "docs/security/security-review-guide.md",
@@ -1288,6 +1302,20 @@
     "owner": "go-security-specialist",
     "trigger": [
       "**/*.go"
+    ]
+  },
+  {
+    "anchor": "go-security/tenant-isolation",
+    "applies_when": "a Go handler / service method outside `*_test.go`, `vendor/`, `mocks/` issues a query, mutation, or third-party call scoped by an account / tenant / org identifier without first verifying the authenticated user belongs to that tenant. \"Belongs\" is defined per tenant resource by the `authorization_functions` field in the derived session security model (see `docs/security/security-review-pipeline.md`).",
+    "class": "security-invariant",
+    "doc_path": "docs/security/security-review-guide.md",
+    "enforcement": "judgment — LLM adjudicator resolves the tenant resource's `authorization_functions` from the derived session security model per `docs/security/security-review-pipeline.md`, fires when the diff scopes the call by tenant without the owning authorization function enforced, and emits findings as `kind=invariant` with `invariant_id` resolving in the session model.",
+    "enforcement_type": "judgment",
+    "id": "go-security/tenant-isolation",
+    "level": "MUST",
+    "owner": "go-security-specialist",
+    "trigger": [
+      "@commits"
     ]
   },
   {

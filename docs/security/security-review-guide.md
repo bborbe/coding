@@ -378,3 +378,80 @@ var cookieCfg = http.Cookie{
     SameSite: http.SameSiteStrictMode,
 }
 ```
+
+## Invariant-tier rules
+
+### RULE go-security/resource-ownership (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: a Go handler / service method outside `*_test.go`, `vendor/`, `mocks/` reads, mutates, or deletes a resource (DB row, file, third-party-API object) addressed by a path parameter, query parameter, body field, or header value, without first verifying that the authenticated user owns the resource. "Owns" is defined per resource by the `authorization_functions` field in the derived session security model (see `docs/security/security-review-pipeline.md`).
+**Enforcement**: judgment — LLM adjudicator resolves the resource's `authorization_functions` from the derived session security model per `docs/security/security-review-pipeline.md`, fires when the diff accesses a resource by identifier without the owning authorization function enforced, and emits findings as `kind=invariant` with `invariant_id` resolving in the session model.
+**Trigger**: @commits
+**Class**: security-invariant
+**Why**: resource-ownership gaps are the canonical IDOR / BOLA class — the attacker authenticates as a legitimate user and accesses another user's data via a guessed or harvested identifier. Generic linters cannot detect these: the missing check is the absence of an authorization call, not the presence of a forbidden call. Whole-repo reasoning against the derived model is the only enforcement path.
+
+#### Bad
+
+```go
+func GetOrder(w http.ResponseWriter, r *http.Request) {
+    orderID := chi.URLParam(r, "orderID")
+    order, err := orderRepo.Find(r.Context(), orderID)
+    if err != nil {
+        http.Error(w, "not found", http.StatusNotFound)
+        return
+    }
+    json.NewEncoder(w).Encode(order)
+}
+```
+
+#### Good
+
+```go
+func GetOrder(w http.ResponseWriter, r *http.Request) {
+    user := userFromCtx(r.Context())
+    orderID := chi.URLParam(r, "orderID")
+    order, err := orderRepo.FindOwnedBy(r.Context(), orderID, user.ID)
+    if err != nil {
+        http.Error(w, "not found", http.StatusNotFound)
+        return
+    }
+    json.NewEncoder(w).Encode(order)
+}
+```
+
+### RULE go-security/tenant-isolation (MUST)
+
+**Owner**: go-security-specialist
+**Applies when**: a Go handler / service method outside `*_test.go`, `vendor/`, `mocks/` issues a query, mutation, or third-party call scoped by an account / tenant / org identifier without first verifying the authenticated user belongs to that tenant. "Belongs" is defined per tenant resource by the `authorization_functions` field in the derived session security model (see `docs/security/security-review-pipeline.md`).
+**Enforcement**: judgment — LLM adjudicator resolves the tenant resource's `authorization_functions` from the derived session security model per `docs/security/security-review-pipeline.md`, fires when the diff scopes the call by tenant without the owning authorization function enforced, and emits findings as `kind=invariant` with `invariant_id` resolving in the session model.
+**Trigger**: @commits
+**Class**: security-invariant
+**Why**: tenant isolation gaps let an authenticated user in tenant A read or mutate tenant B's data via a guessed tenant identifier — cross-tenant data leakage at scale. The authorization check is a missing-call absence, not a forbidden-call presence; whole-repo reasoning against the derived model is required.
+
+#### Bad
+
+```go
+func ListInvoices(w http.ResponseWriter, r *http.Request) {
+    tenantID := r.URL.Query().Get("tenant_id")
+    invoices, err := invoiceRepo.List(r.Context(), tenantID)
+    if err != nil {
+        http.Error(w, "list failed", http.StatusInternalServerError)
+        return
+    }
+    json.NewEncoder(w).Encode(invoices)
+}
+```
+
+#### Good
+
+```go
+func ListInvoices(w http.ResponseWriter, r *http.Request) {
+    user := userFromCtx(r.Context())
+    invoices, err := invoiceRepo.ListForTenant(r.Context(), user.TenantID)
+    if err != nil {
+        http.Error(w, "list failed", http.StatusInternalServerError)
+        return
+    }
+    json.NewEncoder(w).Encode(invoices)
+}
+```

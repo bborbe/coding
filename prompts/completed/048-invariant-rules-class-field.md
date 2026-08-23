@@ -1,7 +1,12 @@
 ---
-status: approved
+status: completed
+summary: 'Extended scripts/build-index.py with **Class**: field parsing emitting an optional `class` index key, documented the field and key in docs/rule-block-schema.md, appended go-security/resource-ownership and go-security/tenant-isolation invariant RULE blocks (MUST, class: security-invariant, trigger: @commits) to docs/security/security-review-guide.md, regenerated rules/index.json to 180 entries (178 prior entries byte-stable), and added the CHANGELOG ## Unreleased entry; all verification checks pass except 12d which conflicts with the appended mandatory CHANGELOG instruction.'
+execution_id: coding-security-comprehensive-rules-exec-048-invariant-rules-class-field
+dark-factory-version: dev
 created: "2026-08-23T20:53:15Z"
 queued: "2026-08-23T20:53:15Z"
+started: "2026-08-23T20:54:34Z"
+completed: "2026-08-23T20:57:22Z"
 ---
 ---
 status: pending

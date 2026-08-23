@@ -46,6 +46,18 @@ Judgment-tier rules carry a `**Trigger**:` field immediately after `**Enforcemen
 - Missing `Trigger` field → `trigger` key omitted from the index entry (no scoping applied).
 - All judgment-tier rules MUST have a `Trigger` field. Mechanical and script rules omit it (they are always run by the funnel unconditionally).
 
+### Optional Field: Class
+
+A small set of judgment-tier RULE blocks carry a `**Class**:` field immediately after `**Trigger**:` (or immediately after `**Enforcement**:` when no Trigger is present). The walker indexes it as a `class` string in `rules/index.json`. The dispatcher uses it to scope which owner agents consume which judgment tier — invariant-linked rules (`class: security-invariant`) require the derived session security model to fire and are scoped by `**Trigger**: @commits`.
+
+```markdown
+**Class**: <token>
+```
+
+- v1 token: `security-invariant`. Marks a rule that requires whole-repo reasoning against the derived session security model (see `docs/security/security-review-pipeline.md`).
+- Missing `**Class**:` field → `class` key omitted from the index entry (no scoping applied).
+- All judgment-tier rules MAY carry a Class; mechanical and script rules omit it.
+
 ### Recommended Field: `Why`
 
 Most rule blocks in this repo carry a `**Why**:` paragraph immediately after `**Enforcement**:`. The `Why` is not indexed (the walker ignores it) but is highly recommended as the *only* place the rule's rationale lives — it tells future authors, agents, and bot reviewers *what failure mode this rule prevents*, which is what makes the rule defensible during code review.
@@ -104,6 +116,7 @@ The index is a JSON array of rule entries. Top-level key is an array; entries ar
 | `enforcement` | string | **Enforcement**: field | Copied verbatim |
 | `enforcement_type` | string | Derived from `enforcement` | `mechanical` (cites `rules/<lang>/<slug>.yml`), `script` (cites `scripts/rule-checks.sh`), or `judgment` (neither) |
 | `trigger` | array of strings | Optional **Trigger**: field | Glob patterns; present only when the doc block includes a `**Trigger**:` line. `@commits` is a special value meaning "always active for PR commit review". Missing = no dispatcher-level scoping (owner runs whenever invoked). |
+| `class` | string | Optional **Class**: field | Present only when the doc block includes a `**Class**:` line. v1 value: `security-invariant`. |
 
 JSON object keys are alphabetically sorted in output.
 
@@ -111,13 +124,16 @@ Example entry:
 
 ```json
 {
-  "id": "go/context-cancel-in-loop",
-  "level": "SHOULD",
-  "doc_path": "docs/go-context-cancellation-in-loops.md",
-  "anchor": "go/context-cancel-in-loop",
-  "owner": "go-context-assistant",
-  "applies_when": "Go for loop body lacks a non-blocking select { case <-ctx.Done(): ...; default: } check, outside *_test.go and vendor/.",
-  "enforcement": "rules/go/cancel-check-in-loop.yml (mechanical flag) + judgment-tier LLM adjudication for long-running enough to matter."
+  "id": "go-security/resource-access",
+  "level": "MUST",
+  "doc_path": "docs/security/security-review-guide.md",
+  "anchor": "go-security/resource-access",
+  "owner": "go-security-specialist",
+  "applies_when": "A handler reads a resource addressed by a path parameter without first verifying the authenticated user owns it.",
+  "enforcement": "judgment — LLM adjudicator resolves the resource's authorization_functions from the derived session security model per docs/security/security-review-pipeline.md.",
+  "enforcement_type": "judgment",
+  "trigger": ["@commits"],
+  "class": "security-invariant"
 }
 ```
 

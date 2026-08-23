@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: Wire the `--security` flag into `commands/pr-review.md` — position-independent flag parsing (`SECURITY_REVIEW=1`), a Security mode subsection that activates the dormant selector-mode security extension (recon-derived session-local model under `/tmp`, six classifier trait groups with deterministic invariant selection, verifier-gated high-severity findings, derived blocking, PR-mode diff anchoring, fail-closed toolchain pass, `SECURITY_MODEL_FILE` citation validation), and `Security Findings` + `Security Model` report sections — by referencing the frozen pipeline guide, selector-mode guide, verifier agent, and polymorphic validator rather than re-implementing them
+
 ## v0.48.0
 
 - feat: Add agents/security-verifier.md — post-adjudication falsification gate (7-item checklist, verdict confirmed|plausible|rejected, counterevidence_checked on survivors) — and extend scripts/validate-citations.sh to the polymorphic citation contract (kind rule/invariant/toolchain, SECURITY_MODEL_FILE, fail-closed on absent model); register the agent and land three draft security-mode scenario fixtures

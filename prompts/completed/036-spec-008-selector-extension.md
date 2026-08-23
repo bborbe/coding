@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [008-security-review-pipeline]
+summary: Inserted the dormant '## Security Extension (dormant)' section before the Traceability section in docs/selector-mode-guide.md — six trait groups (authz non-negotiable over-selection on resource-handler diffs), deterministic invariant selection via attack_surfaces, and the adjudicator input extension (model subset, applicable invariants, attack-surface inventory drift signal) — gated on the future security-review signal, additive and section-local with existing 4c-sel/4d-sel steps, HARD INVARIANT, and traceability kept byte-identical; no RULE headings, no command wiring, rule index stays at 171.
+execution_id: coding-security-review-pipeline-exec-036-spec-008-selector-extension
+dark-factory-version: dev
 created: "2026-08-23T10:30:00Z"
 queued: "2026-08-23T08:26:14Z"
+started: "2026-08-23T08:28:10Z"
+completed: "2026-08-23T08:29:47Z"
 branch: dark-factory/security-review-pipeline
 ---
 

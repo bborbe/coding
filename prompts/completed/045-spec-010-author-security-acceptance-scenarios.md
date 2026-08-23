@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [010-security-review-command-wiring]
+summary: 'Finalized scenarios 007/008/009 (replaced TBD fixture blocks with inline-built generic Go fixtures + exact /coding:local-review --security invocation, zero TBD) and authored new 010 security-zero-findings; all four stay status: draft with the five-section format, observable assertions, security-model.json provenance guards, and closing walk-status lines; CHANGELOG ## Unreleased extended.'
+execution_id: coding-security-pr-review-command-exec-045-spec-010-author-security-acceptance-scenarios
+dark-factory-version: dev
 created: "2026-08-23T17:18:00Z"
+queued: "2026-08-23T16:00:10Z"
+started: "2026-08-23T16:00:11Z"
+completed: "2026-08-23T16:03:00Z"
 branch: dark-factory/security-review-command-wiring
 ---
 

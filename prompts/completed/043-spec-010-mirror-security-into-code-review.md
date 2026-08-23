@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [010-security-review-command-wiring]
+summary: 'Mirrored the --security wiring from commands/pr-review.md into commands/code-review.md — frontmatter argument-hint, Step 0 flag parsing (SECURITY_REVIEW=1 + --refresh-baseline interaction), a Step 4 Security mode subsection with audit-scope whole-repo semantics (no diff anchoring, whole-repo recon/model under /tmp/security-model.json, six trait groups, verifier gate, derived blocking, fail-closed deps pass, SECURITY_MODEL_FILE citation validation), and baseline-independent Security Findings + Security Model report sections — plus a CHANGELOG.md ## Unreleased entry, with all frozen contracts verified byte-unchanged'
+execution_id: coding-security-pr-review-command-exec-043-spec-010-mirror-security-into-code-review
+dark-factory-version: dev
 created: "2026-08-23T17:16:00Z"
+queued: "2026-08-23T14:59:59Z"
+started: "2026-08-23T15:00:01Z"
+completed: "2026-08-23T15:01:26Z"
 branch: dark-factory/security-review-command-wiring
 ---
 

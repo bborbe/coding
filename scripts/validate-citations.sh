@@ -69,7 +69,10 @@ if model_path:
     try:
         with open(model_path) as f:
             model = json.load(f)
-        model_invariant_ids = {inv["id"] for inv in model.get("invariants", [])}
+        model_invariant_ids = {
+            inv["id"] for inv in model.get("invariants", [])
+            if isinstance(inv, dict) and inv.get("id")
+        }
         model_available = True
     except (OSError, json.JSONDecodeError):
         model_available = False

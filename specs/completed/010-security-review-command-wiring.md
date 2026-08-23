@@ -1,5 +1,5 @@
 ---
-status: verifying
+status: completed
 tags:
     - dark-factory
     - spec
@@ -7,6 +7,7 @@ approved: "2026-08-23T14:23:48Z"
 generating: "2026-08-23T14:23:49Z"
 prompted: "2026-08-23T14:40:03Z"
 verifying: "2026-08-23T14:52:08Z"
+completed: "2026-08-23T16:59:08Z"
 branch: dark-factory/security-review-command-wiring
 ---
 

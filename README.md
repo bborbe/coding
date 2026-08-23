@@ -33,6 +33,7 @@ Review your current branch against all guidelines:
 
 ```
 /coding:pr-review
+/coding:pr-review --security        # security review mode: derived model + six trait groups + verifier gate + Security Findings report
 ```
 
 Review local uncommitted changes in selector mode (default — zero LLM spawns, in-session classify + adjudicate) or full mode (per-owner dispatch, concurrent agents):
@@ -66,9 +67,9 @@ Commit with changelog and version bump:
 
 | Command | Description |
 |---------|-------------|
-| `/coding:pr-review` | Branch diff vs target — selector mode default; full mode = per-owner dispatch |
-| `/coding:local-review [short\|selector\|full]` | Local uncommitted/recent diff vs `HEAD~1` — selector mode default |
-| `/coding:code-review [--include-optional] [--refresh-baseline]` | Whole-codebase audit — severity-filtered (Must + Should) + baseline-aware (`.code-review-baseline.yaml`) |
+| `/coding:pr-review` | Branch diff vs target — selector mode default; full mode = per-owner dispatch; add `--security` to run the security review pipeline |
+| `/coding:local-review [short\|selector\|full]` | Local uncommitted/recent diff vs `HEAD~1` — selector mode default; add `--security` for the security review pipeline |
+| `/coding:code-review [--include-optional] [--refresh-baseline]` | Whole-codebase audit — severity-filtered (Must + Should) + baseline-aware (`.code-review-baseline.yaml`); add `--security` for the security review pipeline |
 | `/coding:architecture-review [directory]` | Deep whole-codebase architectural review — top-down + dimensions, consolidated Must/Should/Could |
 | `/coding:check-guides "task"` | Find relevant guides before implementation |
 | `/coding:commit` | Git commit with changelog and versioning |
@@ -284,6 +285,10 @@ End-to-end acceptance walks for the doc-driven review pipeline, following the [d
 | 002 | [clean-pr-zero-findings](scenarios/002-clean-pr-zero-findings.md) | `/coding:local-review master` against a zero-violation diff produces empty Must Fix / Should Fix / Nice to Have (no LLM hallucination) |
 | 003 | [scaling-funnel-100-files](scenarios/003-scaling-funnel-100-files.md) | 100-file synthetic fixture: mechanical funnel ≤30s, distinct Owners ≤30 (structural ceiling on Step 4b LLM calls) |
 | 004 | [findings-exist-path](scenarios/004-findings-exist-path.md) | `/coding:pr-review` against the stable test PR [bborbe/maintainer#2](https://github.com/bborbe/maintainer/pull/2): Step 4a surfaces ≥4 findings, every Owner has an agent file, citation discipline holds |
+| 007 | [security-idor-confirmed](scenarios/007-security-idor-confirmed.md) | `--security` review of an order app with a seeded ownership-check bypass: verifier confirms the invariant IDOR finding (counterevidence_checked populated) and blocking holds |
+| 008 | [security-idor-rejected-by-verifier](scenarios/008-security-idor-rejected-by-verifier.md) | `--security` review of an order app guarded by a service-layer ownership check: verifier rejects the naive IDOR claim (reject_reason recorded), no finding, no blocking |
+| 009 | [security-toolchain-fail-closed](scenarios/009-security-toolchain-fail-closed.md) | toolchain findings pass citation validation; invariant findings fail closed without a model; a `--security` deps pass surfaces a vulnerable dependency as Must-Fix, never a silent skip |
+| 010 | [security-zero-findings](scenarios/010-security-zero-findings.md) | `--security` review of a clean generic Go app: Security Findings section with zero findings + Security Model provenance block, no blocking |
 
 ## Contributing
 

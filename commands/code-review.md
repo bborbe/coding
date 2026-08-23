@@ -1,6 +1,6 @@
 ---
 allowed-tools: Task, Bash(git ls-files:+), Bash(git status:+), Bash(git log:+), Bash(git branch:+)
-argument-hint: "[short|full|selector] [directory] [--include-optional] [--refresh-baseline]"
+argument-hint: "[short|full|selector] [directory] [--include-optional] [--refresh-baseline] [--security]"
 description: Whole-codebase audit — severity-filtered + baseline-aware
 ---
 
@@ -28,6 +28,9 @@ Design rationale: see `docs/three-command-review-split.md`.
 - Second positional → directory (default: current)
 - `--include-optional` → include `Nice to Have` findings (default: filtered out)
 - `--refresh-baseline` → write current finding set to `.code-review-baseline.yaml` and exit (no report)
+- `--security` → set `SECURITY_REVIEW=1`, activating the dormant `## Security Extension (dormant)` in `docs/selector-mode-guide.md` over the reviewed scope. It is a position-independent boolean flag, independent of the mode token and the other flags (`--include-optional`, `--refresh-baseline`). When set, the security pipeline (Step 4 Security mode) runs in-session over the whole repo regardless of mode token — the existing short-mode "skip Step 5 entirely" directive applies only to the non-security adjudication. The flag is never silently ignored.
+
+**`--refresh-baseline` × `--security`**: when `--refresh-baseline` is set, the command writes the current finding set to `.code-review-baseline.yaml` and exits WITHOUT a report (existing behavior, unchanged) — on such an invocation no security pipeline runs, because there is no review being performed; this is not a silent ignore of the flag, it is the maintenance-mode exit that produces no findings at all.
 
 Defaults are conservative — `selector` mode + Must Fix + Should Fix only — because whole-codebase output on a mature codebase is otherwise overwhelming.
 
@@ -85,6 +88,18 @@ RUNNER="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts
 ```
 
 The runner is scope-agnostic — it processes whatever file list it receives. We pass the whole codebase.
+
+#### Security mode (under `--security` only)
+
+This subsection runs only when `SECURITY_REVIEW` is set (Step 0). It activates the dormant `## Security Extension (dormant)` in `docs/selector-mode-guide.md` — when the signal is absent, the existing Steps 0–10 above run byte-for-byte as written. It references the frozen pipeline guide (`docs/security/security-review-pipeline.md`), the selector-mode security extension, the verifier agent (`agents/security-verifier.md`), and the polymorphic validator (`scripts/validate-citations.sh`) by name — it does NOT re-implement or re-document the procedure. In audit mode the scope is the whole repo — no diff anchoring — and the security pipeline runs in every mode (short, selector, full); it never bypasses or softens the existing Step 3 toolchain fail-fast (ast-grep/sg preflight → "Must Fix toolchain failure") or the Step 4 mechanical funnel.
+
+1. **Scope and recon** — audit scope is the whole tracked codebase as of HEAD, so there is no diff anchoring: every security finding is in scope regardless of the baseline diff or the severity filter. Per `docs/security/security-review-pipeline.md` (the derivation contract is frozen there), enumerate entry points over the whole codebase (recall-oriented), resolve identities and auth mechanisms, resolve resources and their `authorization_functions`, and derive invariants as `resource → identifier → authorization_function` with `file:line` evidence. Write the model to `/tmp/security-model.json` (session-local, mirroring `/tmp/code-review-findings.json`) and never to any path inside the reviewed repo — if the model is accidentally written in-tree, delete it and rewrite it to the session-local path. Apply the freshness gate (changed-evidence entries re-derived, unchanged-evidence entries carried forward; stale entries whose evidence no longer resolves are dropped and surfaced with the literal `model refresh:` line) and note whole-repo truncation on large repos in the report. Record the attack-surface inventory counts.
+2. **Classifier trait groups** — per the dormant extension: exactly six groups `authz`, `input-origin`, `data-to-sink`, `external-io`, `crypto`, `secrets`. `authz` over-selection is non-negotiable: a whole-repo file cited as evidence by an entry point operating on a modeled resource, or cited as evidence by a modeled resource's `authorization_function`, MUST select `authz`. Deterministic invariant selection: any invariant whose `attack_surfaces` or `evidence` source resolves in scope forces that `invariant_id` into the applicable set — no LLM judgment, never skipped. The HARD INVARIANT holds: the applicable set is a subset of the Step 5 candidate set (the whole-codebase judgment-rule candidates this command computes in Step 5); trait groups never add a rule the glob did not produce.
+3. **Adjudicator inputs** — the Step 5 selector-mode adjudication (the same 4d-sel contract) gains the whole-repo model subset, the applicable invariants with their evidence authorization functions, and the attack-surface inventory as a drift signal. Each applicable invariant is judged with the single question: does the code preserve the invariant? Invariant-kind findings cite `invariant_id`.
+4. **Verifier gate** — after adjudication, before emission, run the falsification gate per `agents/security-verifier.md` (7-item falsification checklist; verdict `confirmed | plausible | rejected` with `confidence`, `exploitability`, `impact`, `attack_preconditions`, `attack_path`, `security_boundary_missing`, `counterevidence_checked`, and `reject_reason` required on rejection). It is a hard pre-emission step for `severity=critical` and for `severity=major` when `confidence=confirmed`; every surviving high-severity finding carries a populated `counterevidence_checked`. The execution mechanism (in-session role vs sub-agent spawn) is an implementation detail the session decides, preserving the gate's hard pre-emission property. Residual false kills are caught by the `ai_review` post-post backstop (dismiss + COMMENT + human_review).
+5. **Blocking derived, never stored as severity** — `blocking = confidence==confirmed ∧ exploitability==high ∧ impact≥medium`; no per-surface config fields, no opt-out flags. A `plausible` critical does NOT block — it is reported as a required human review item.
+6. **Toolchain/deps pass (fail-closed)** — run a dependency scan over the whole-repo dependency manifests (osv-scanner / trivy / govulncheck, whichever are available; govulncheck for Go modules), executed via the `coding:go-security-specialist` agent or in-session per the selector-mode zero-spawn property, and emit findings as `kind=toolchain` carrying `tool`, `package`, `version`, `advisory`, `file`, `line`. A scan failure, a database-fetch timeout, or a flagged vulnerability surfaces as a Must-Fix toolchain finding in the report — never a silent skip.
+7. **Citation validation** — the Step 5 citation-validation invocation passes `SECURITY_MODEL_FILE=/tmp/security-model.json` so invariant-kind findings resolve against the session model's `invariants[].id`. Each finding resolves exactly one provenance (`kind=rule` → `rule_id` in `rules/index.json`; `kind=invariant` → `invariant_id` in the model; `kind=toolchain` → no id). Absent an unset/missing/unreadable/unparseable model, invariant findings drop fail-closed (WARN to stderr) and are never kept — the validator enforces this; the command only supplies the model file.
 
 ## Step 5: Adjudication
 
@@ -174,6 +189,14 @@ Three buckets (per `/coding:pr-review` Step 5):
 #### Selector mode traceability (selector mode only)
 
 Per `docs/selector-mode-guide.md` § Traceability Report Section.
+
+#### Security Findings (under `--security` only)
+
+When `SECURITY_REVIEW` is set, list every security finding (rule, invariant, and toolchain) with `file:line`, provenance (`kind` + `rule_id`/`invariant_id`), verifier verdict fields (`confidence`, `exploitability`, `impact`, `counterevidence_checked`), and the derived blocking state. **Render each finding's verdict fields as JSON** (`"confidence": "confirmed"`, `"exploitability": "high"`, `"impact": "high"`, `"counterevidence_checked": [...]`, `"blocking": true`) — the fields must be machine-greppable exactly as the scenarios assert. Toolchain findings additionally render their `tool`, `package`, `version`, and `advisory` fields. **Render the verifier gate's outcome for every candidate that passed through it — including rejected and plausible candidates — as a JSON verdict block** (`"confidence": "rejected"` + `reject_reason`, `"confidence": "plausible"`), so the rejected-candidate and toolchain evidence the scenarios grep for is machine-greppable. This section is a **baseline-independent whole-repo inventory** — it lists every security finding regardless of the Step 6 baseline diff and the Step 7 severity filter, which continue to govern only the normal severity buckets above (`--include-optional` does not suppress a security finding); derived blocking applies to every listed security finding. Security findings are NOT classified into the baseline's NEW/CARRIED/FIXED buckets.
+
+#### Security Model (under `--security` only)
+
+When `SECURITY_REVIEW` is set, record the provenance block: `derived_from` (repo, head, review_id), the entry-point count, each attack-surface inventory count, and any `model refresh:` lines verbatim. A whole-repo scope containing Go source always produces this block (never a silent skip); a scope with no Go source states `no Go source — security model not derived` explicitly instead of omitting the section.
 
 ## Step 10: Next steps
 

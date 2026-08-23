@@ -151,3 +151,19 @@ Rationale: prompts 1 and 2 are independent — the validator is fixture-driven a
 ## Do-Nothing Option
 
 If this task does not ship, the polymorphic contract stays half-enforced: invariant-kind findings (already emitted by the dormant adjudicator extension) pass the funnel with no validation — an invented `invariant_id` is indistinguishable from a real one — toolchain findings have no formal `kind` entry in the contract, high-severity security findings emit without a falsification check, and the blocking model stays coupled to severity (the admin-override treadmill the design set out to fix). The current approach is not acceptable: the verifier gate is the precision half of the judge→recall / verifier→precision split, and task 4's command wiring and task 5's bot deployment both build on the gate and the validated citation contract this task ships.
+
+## Verification Result
+
+**Verified:** 2026-08-23T10:38:54Z (HEAD 79e3319)
+**Binary:** installed dark-factory CLI (version dev) for the spec-lifecycle gate; validator exercised via `bash scripts/validate-citations.sh`
+**Scenario:** fixture matrix replay (11 runs) + acceptance.sh + doc grep anchors + make precommit on HEAD 79e3319
+**Evidence:**
+- Fixture matrix: rule-valid / legacy-rule / toolchain / invariant-valid+model / both-ids+model → exit 0, dropped_count 0; rule-invalid / unknown-kind / invariant-valid-no-model / SECURITY_MODEL_FILE=/nonexistent / invariant-invalid / security-model-bad / both-ids-no-model → exit 1 + `WARN: dropped` naming the offending id (malformed model fail-closed WARN, no KeyError traceback)
+- `bash scripts/acceptance.sh` → PASS 30 / FAIL 0 (section 4(d): fake rule_id exits non-zero)
+- `make precommit` → exit 0 (check-coverage OK, acceptance PASS 30/0)
+- agents/security-verifier.md: counterevidence_checked=6 (≥3), verdict words=13 (≥3), 7 checklist anchors present (lines 42-48), reject_reason present
+- docs/selector-mode-guide.md: blocking formula line 120, plausible-critical-does-not-block line 122, local/bot/audit thresholds table lines 128-130
+- README.md:1 (Other-agents row L273) + llms.txt:1 (L30); CHANGELOG `## Unreleased` L11 with feat bullet naming verifier gate + polymorphic validation
+- scenarios/007-009: status draft, exactly the 5 required headings each; Step 4c-sel / 4d-sel headings byte-unchanged vs origin/master
+- scope-lock: 24 changed files vs origin/master all in allowed set; rules/security/*.yml = 5; rules/index.json unchanged; shellcheck scripts/validate-citations.sh exit 0
+**Verdict:** PASS

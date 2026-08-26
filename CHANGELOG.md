@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.50.1
 
 - fix: flip the `tts-mcp#13` conventional-prefix entry from `accepted` to `rejected` in the golden set (`golden-curated-3` → `golden-curated-4`; 158 entries unchanged, 138/20 → 137/21). Verified against the PR head `59f9fe8`: `tts-mcp` declares no conventional-prefix requirement (absent from both `CLAUDE.md` and `AGENTS.md`) and its own released `v0.2.0`/`v0.1.0` CHANGELOG sections use the same prose-bullet style — a correct observation that names no defect, which the golden set's own rule rejects. It was promoted on 2026-08-18 on the strength of three-model agreement (m3+m2.7+deepseek); that reasoning was wrong because all three share a conventional-commit training prior, so agreement amplified a shared bias rather than triangulating truth. **Model agreement is not independent evidence when the models share priors** — verification has to run against the repository, not a vote. Scores computed against `golden-curated-3` credited models for reproducing a non-defect and penalised them for missing it; the entry now works as a precision probe instead
 

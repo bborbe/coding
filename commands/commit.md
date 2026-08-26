@@ -288,6 +288,37 @@ Triggered for:
 - Any feature branch with `CHANGELOG.md`
 - **Any branch (including master) when `.maintainer.yaml: release.autoRelease: true`** — `github-releaser-agent` will rename `## Unreleased` → `## vX.Y.Z` and tag within ~10 min of push.
 
+**Step A.0: Verify the branch base is current**
+
+Do this BEFORE composing any changelog entry.
+
+```bash
+cd $PROJECT_DIR && git fetch
+cd $PROJECT_DIR && git diff origin/master -- CHANGELOG.md | grep -E '^[-+]## '
+```
+
+Must print **only** `+## Unreleased`. A `-## vX.Y.Z` line means a release was cut
+after your branch point: `## Unreleased` was renamed to that version upstream, so
+your bullets will merge INTO the released section instead of a new Unreleased
+block. Git resolves this cleanly with no conflict marker — nothing warns you.
+
+Two consequences, both silent: the tag and the CHANGELOG disagree about what
+shipped, and with no `## Unreleased` left the release watcher has nothing to cut,
+so this PR's work never gets released at all.
+
+Recover by refreshing the base, then re-applying the entry:
+
+```bash
+cd $PROJECT_DIR && git reset --hard origin/master   # save your non-CHANGELOG edits first
+# re-apply the entry, then re-run the check above
+```
+
+**On `autoRelease: true` repos, run this before EVERY commit, not once per
+session.** The cut is triggered by your own merges, so merging PR-1 stales your
+base for PR-2 minutes later — no second contributor required. Observed 2026-08-26
+on `bborbe/nuke`: missed once (needed a repair PR), then caught on the next two
+commits the same afternoon by running it.
+
 **Step A.1: Pre-commit validation**
 ```bash
 make precommit  # Skip if target doesn't exist

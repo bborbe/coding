@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: add `/coding:confluence-sync` command — publish markdown pages carrying the `confluence_export` frontmatter marker to Confluence via the Atlassian MCP (scriptless: read/convert/write with Claude Code tools; frontmatter contract + usage in `docs/confluence-sync.md`)
+
 ## v0.50.2
 
 - fix(commit): add Step A.0 to Workflow A — verify the branch base is current before composing a changelog entry. On `autoRelease: true` repos your own merge cuts a release that renames `## Unreleased`, so a branch created minutes earlier is already stale and its bullets merge INTO the released section with no conflict marker. Two silent consequences: the tag and CHANGELOG disagree about what shipped, and with no `## Unreleased` left the release watcher has nothing to cut, so the work never gets released. The guard was documented in memory but nothing ran it; the command that writes CHANGELOG now does.

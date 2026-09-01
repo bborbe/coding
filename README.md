@@ -72,6 +72,7 @@ Commit with changelog and version bump:
 | `/coding:code-review [--include-optional] [--refresh-baseline]` | Whole-codebase audit — severity-filtered (Must + Should) + baseline-aware (`.code-review-baseline.yaml`); add `--security` for the security review pipeline |
 | `/coding:architecture-review [directory]` | Deep whole-codebase architectural review — top-down + dimensions, consolidated Must/Should/Could |
 | `/coding:check-guides "task"` | Find relevant guides before implementation |
+| `/coding:confluence-sync [file.md\|--scan <dir>]` | Sync markdown pages carrying the `confluence_export` frontmatter marker to Confluence (create/update via Atlassian MCP) |
 | `/coding:commit` | Git commit with changelog and versioning |
 | `/coding:go-write-test [basic\|standard\|integration]` | Generate Go tests for changed files |
 | `/coding:github-release [target] [--dry-run]` | Release a git repo (cwd, dir, or `owner/repo` clone-to-tmp) — classify bump, rewrite header, commit, tag, push, PR fallback |

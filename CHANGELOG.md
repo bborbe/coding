@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.50.3
 
 - fix: `/coding:github-release` pushes the branch name instead of `HEAD:<branch>` (pre-push hook rejected the refspec, tag pushed without the commit) and uses `--merge` not `--squash` in the PR fallback
 

@@ -310,7 +310,7 @@ COMMIT_SHA=$(git rev-parse HEAD)
 ### 9. Try direct push
 
 ```bash
-git push origin "HEAD:$(default_branch)"
+git push origin "$(default_branch)"   # branch name, NOT HEAD:<branch> — the wt-feat pre-push hook rejects that refspec even when HEAD is the default branch
 ```
 
 - Success → step 10 (tag + push)
@@ -335,7 +335,7 @@ git push -u origin "$branch"
 gh pr create --base "$(default_branch)" --head "$branch" \
   --title "release ${next}" \
   --body "Auto-release via /coding:github-release. Bump: ${bump}. Reasoning: ${reasoning}."
-gh pr merge --auto --squash --delete-branch
+gh pr merge --auto --merge --delete-branch   # never --squash: bborbe repos set allow_squash_merge=false
 ```
 
 Polling loop (up to 5 min, 10s interval):

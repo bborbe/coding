@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.51.0
 
 - feat: `/coding:pr-review` honours a repo-root `.reviewignore` (gitignore syntax), filtering the reviewed file list through `git check-ignore` so declared non-reviewable paths cost no reviewer tokens; reports `N files excluded by .reviewignore` rather than excluding silently
 

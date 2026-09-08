@@ -9,8 +9,8 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * PATCH version when you make backwards-compatible bug fixes.
 
 ## Unreleased
-- bench: record the `fable` / `xhigh` / `full` result on `curated-1` scored against `golden-curated-4` — recall **0.124** (17 hits / 137 in scope), precision **0.944**, 9110s wall over 20/20 PRs, config `8a720c0be85af085`. Measured against the same rules baseline as every other row (`ecc803331f860b84`, coding v0.38.0), pinned via `--coding-repo`. Fable reaches ~71% of opus's recall at comparable wall time, so it does not displace opus as the review model; both remain far above the `sonnet` configuration production actually ships (0.036). The `opus` 0.832 row is NOT a valid comparator — that is the pass the golden set was seeded from and self-matches by construction; opus's independent runs score 0.175 and 0.163
-- bench: rescore the existing report pages against `golden-curated-4` (previously `golden-curated-3`), which shifts several published recall figures by a few thousandths
+- chore: record the `fable` / `xhigh` / `full` result on `curated-1` scored against `golden-curated-4` — recall **0.124** (17 hits / 137 in scope), precision **0.944**, 9110s wall over 20/20 PRs, config `8a720c0be85af085`. Measured against the same rules baseline as every other row (`ecc803331f860b84`, coding v0.38.0), pinned via `--coding-repo`. Fable reaches ~71% of opus's recall at comparable wall time, so it does not displace opus as the review model; both remain far above the `sonnet` configuration production actually ships (0.036). The `opus` 0.832 row is NOT a valid comparator — that is the pass the golden set was seeded from and self-matches by construction; opus's independent runs score 0.175 and 0.163
+- chore: rescore the existing report pages against `golden-curated-4` (previously `golden-curated-3`), which shifts several published recall figures by a few thousandths
 
 ## v0.51.0
 

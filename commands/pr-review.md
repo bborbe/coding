@@ -59,37 +59,68 @@ Set `REVIEW_DIR=/tmp/pr-review-<repo>-<SOURCE_BRANCH>` for all subsequent steps.
 
 #### 0c: Generate diff
 
-Run this one block. It computes the reviewable file list once — `vendor/` and
-`node_modules/` always excluded, plus whatever the repo's own `.reviewignore`
-declares — and then diffs only those paths.
+Set `FILE_DIR=/tmp/pr-review-files-<repo>-<SOURCE_BRANCH>` and substitute it
+textually below (same convention as `REVIEW_DIR`).
+
+Run the file-list block below **exactly once**. It computes the reviewable file
+list — `vendor/` and `node_modules/` always excluded, plus whatever the repo's own
+`.reviewignore` declares — and the two diff commands after it consume that list.
+If it errors, report the failure; do NOT re-run individual stages or probe them
+one at a time.
 
 ```bash
 cd <REVIEW_DIR> && \
+rm -rf <FILE_DIR> && mkdir -p <FILE_DIR> && \
 git diff --name-only origin/<TARGET_BRANCH>...HEAD -- . \
-  ':(exclude,glob)**/vendor/**' ':(exclude,glob)**/node_modules/**' > /tmp/pr-review-all.txt && \
+  ':(exclude,glob)**/vendor/**' ':(exclude,glob)**/node_modules/**' > <FILE_DIR>/all.txt && \
 if [ -f .reviewignore ]; then
-  grep -vxF '.reviewignore' /tmp/pr-review-all.txt > /tmp/pr-review-cand.txt || true
-  git -c core.excludesFile=.reviewignore check-ignore --no-index --stdin \
-    < /tmp/pr-review-cand.txt > /tmp/pr-review-skip.txt || true
-  grep -vxF -f /tmp/pr-review-skip.txt /tmp/pr-review-all.txt > /tmp/pr-review-keep.txt || true
+  grep -vxF '.reviewignore' <FILE_DIR>/all.txt > <FILE_DIR>/cand.txt || true
+  git init -q <FILE_DIR>/probe && cp .reviewignore <FILE_DIR>/probe/.reviewignore && \
+  ( cd <FILE_DIR>/probe && git -c core.excludesFile=.reviewignore check-ignore \
+      --no-index --stdin ) < <FILE_DIR>/cand.txt > <FILE_DIR>/skip.txt || true
+  grep -vxF -f <FILE_DIR>/skip.txt <FILE_DIR>/all.txt > <FILE_DIR>/keep.txt || true
 else
-  : > /tmp/pr-review-skip.txt
-  cp /tmp/pr-review-all.txt /tmp/pr-review-keep.txt
-fi
-echo "reviewing $(wc -l < /tmp/pr-review-keep.txt) files, $(wc -l < /tmp/pr-review-skip.txt) excluded by .reviewignore"
+  : > <FILE_DIR>/skip.txt && cp <FILE_DIR>/all.txt <FILE_DIR>/keep.txt
+fi && \
+echo "reviewing $(wc -l < <FILE_DIR>/keep.txt) files, $(wc -l < <FILE_DIR>/skip.txt) excluded by .reviewignore"
 ```
 
-If `/tmp/pr-review-keep.txt` is empty, clean up the worktree and report "No changes
-to review" and stop — do NOT run the diffs below. An empty file list makes `xargs`
-invoke `git diff` with no pathspec at all, which diffs the *entire* branch and
-silently undoes every exclusion just computed.
+Three details in that block are load-bearing; none is incidental style:
+
+- **The whole chain is `&&`-joined, including before the final `echo`.** Left
+  unchained, a failed `git diff --name-only` (bad or unfetched `<TARGET_BRANCH>`)
+  skips the `if` but still prints a confident `reviewing N files, M excluded`
+  summary computed from a *previous* run's leftover files, exit code 0. A
+  fabricated summary is worse than an error, because nothing downstream can tell.
+- **`<FILE_DIR>` is a textual placeholder, not a shell variable, and it is
+  namespaced per `<repo>-<SOURCE_BRANCH>` then `rm -rf`'d first.** Substitute it
+  literally everywhere it appears, exactly as you do `<REVIEW_DIR>`. It must not
+  become `FL=…` or any other shell variable: each command here runs in a separate
+  shell, so an assignment in this block is gone by the time the diff commands run
+  and `<FILE_DIR>/keep.txt` would expand to `/keep.txt`. The namespacing itself matters
+  because fixed `/tmp` filenames let a partial earlier run silently seed the next
+  invocation — including one for a different repo.
+- **`check-ignore` runs in a throwaway `git init` repo holding only a copy of
+  `.reviewignore`.** `core.excludesFile` sets the *global* excludes slot; it does
+  not isolate. Run in the real repo, the repo's own `.gitignore` and
+  `.git/info/exclude` are consulted **as well**, so a force-added tracked file
+  that `.gitignore` matches would be dropped from the diff though `.reviewignore`
+  never named it — a silent exclusion from a source the repo never declared for
+  review, and a divergence from the size gate, which reads `.reviewignore` alone.
+
+If `<FILE_DIR>/keep.txt` is empty, clean up the worktree and report "No changes to review"
+and stop — do NOT run the diffs below. On GNU xargs (the Linux/Alpine containers
+this file targets) an empty file list invokes `git diff` with no pathspec at all,
+which diffs the *entire* branch and silently undoes every exclusion just computed.
+BSD/macOS xargs no-ops on empty stdin instead, so this hazard does not reproduce
+locally on a Mac — treat the guard as required regardless.
 
 ```bash
-cd <REVIEW_DIR> && tr '\n' '\0' < /tmp/pr-review-keep.txt | xargs -0 git diff origin/<TARGET_BRANCH>...HEAD --
+cd <REVIEW_DIR> && tr '\n' '\0' < <FILE_DIR>/keep.txt | xargs -0 git diff origin/<TARGET_BRANCH>...HEAD --
 ```
 
 ```bash
-cd <REVIEW_DIR> && tr '\n' '\0' < /tmp/pr-review-keep.txt | xargs -0 git diff --stat origin/<TARGET_BRANCH>...HEAD --
+cd <REVIEW_DIR> && tr '\n' '\0' < <FILE_DIR>/keep.txt | xargs -0 git diff --stat origin/<TARGET_BRANCH>...HEAD --
 ```
 
 `xargs -0` rather than `--pathspec-from-file`: `git diff` does not accept that flag
@@ -108,7 +139,7 @@ the diff. Driving git's own ignore engine avoids maintaining that translation.
 `.reviewignore` can never exclude itself (the `grep -vxF '.reviewignore'` above) —
 a repo must not be able to hide edits to the file that decides what is hidden.
 
-When `/tmp/pr-review-skip.txt` is non-empty, state the count in the Step 5 report:
+When `<FILE_DIR>/skip.txt` is non-empty, state the count in the Step 5 report:
 `N files excluded by .reviewignore`. Report it even though the excluded files are
 absent from the diff — a silent exclusion is the failure mode this file's
 visibility rule exists to prevent.

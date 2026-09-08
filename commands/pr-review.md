@@ -59,15 +59,59 @@ Set `REVIEW_DIR=/tmp/pr-review-<repo>-<SOURCE_BRANCH>` for all subsequent steps.
 
 #### 0c: Generate diff
 
+Run this one block. It computes the reviewable file list once — `vendor/` and
+`node_modules/` always excluded, plus whatever the repo's own `.reviewignore`
+declares — and then diffs only those paths.
+
 ```bash
-cd <REVIEW_DIR> && git diff origin/<TARGET_BRANCH>...HEAD -- . ':(exclude,glob)**/vendor/**' ':(exclude,glob)**/node_modules/**'
+cd <REVIEW_DIR> && \
+git diff --name-only origin/<TARGET_BRANCH>...HEAD -- . \
+  ':(exclude,glob)**/vendor/**' ':(exclude,glob)**/node_modules/**' > /tmp/pr-review-all.txt && \
+if [ -f .reviewignore ]; then
+  grep -vxF '.reviewignore' /tmp/pr-review-all.txt > /tmp/pr-review-cand.txt || true
+  git -c core.excludesFile=.reviewignore check-ignore --no-index --stdin \
+    < /tmp/pr-review-cand.txt > /tmp/pr-review-skip.txt || true
+  grep -vxF -f /tmp/pr-review-skip.txt /tmp/pr-review-all.txt > /tmp/pr-review-keep.txt || true
+else
+  : > /tmp/pr-review-skip.txt
+  cp /tmp/pr-review-all.txt /tmp/pr-review-keep.txt
+fi
+echo "reviewing $(wc -l < /tmp/pr-review-keep.txt) files, $(wc -l < /tmp/pr-review-skip.txt) excluded by .reviewignore"
+```
+
+If `/tmp/pr-review-keep.txt` is empty, clean up the worktree and report "No changes
+to review" and stop — do NOT run the diffs below. An empty file list makes `xargs`
+invoke `git diff` with no pathspec at all, which diffs the *entire* branch and
+silently undoes every exclusion just computed.
+
+```bash
+cd <REVIEW_DIR> && tr '\n' '\0' < /tmp/pr-review-keep.txt | xargs -0 git diff origin/<TARGET_BRANCH>...HEAD --
 ```
 
 ```bash
-cd <REVIEW_DIR> && git diff --stat origin/<TARGET_BRANCH>...HEAD -- . ':(exclude,glob)**/vendor/**' ':(exclude,glob)**/node_modules/**'
+cd <REVIEW_DIR> && tr '\n' '\0' < /tmp/pr-review-keep.txt | xargs -0 git diff --stat origin/<TARGET_BRANCH>...HEAD --
 ```
+
+`xargs -0` rather than `--pathspec-from-file`: `git diff` does not accept that flag
+(only `add` / `commit` / `checkout` do — it exits with a usage dump). NUL separation
+rather than a bare `$(cat …)` so paths containing spaces survive.
 
 If diff is empty, clean up worktree and report "No changes to review" and stop.
+
+**`.reviewignore`** is the repo's own declaration of what the reviewer skips —
+gitignore syntax, repo root. It is read by `git check-ignore` rather than
+translated into `:(exclude,glob)` pathspecs, because the two are **not**
+equivalent: a gitignore `mocks/` matches at any depth, while the same string as a
+pathspec matches only a root-level `mocks/`, silently leaving nested matches in
+the diff. Driving git's own ignore engine avoids maintaining that translation.
+
+`.reviewignore` can never exclude itself (the `grep -vxF '.reviewignore'` above) —
+a repo must not be able to hide edits to the file that decides what is hidden.
+
+When `/tmp/pr-review-skip.txt` is non-empty, state the count in the Step 5 report:
+`N files excluded by .reviewignore`. Report it even though the excluded files are
+absent from the diff — a silent exclusion is the failure mode this file's
+visibility rule exists to prevent.
 
 #### 0d: Cleanup (after ALL review steps complete)
 

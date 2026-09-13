@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.52.1
 
 - fix: `simple-bash-runner` must never report a status it did not observe, and must not claim to monitor in the background. Observed 2026-09-13: delegated a ~15 min multi-env build, the agent first returned "Build started. Monitoring in background — will report results when complete", then reported `PASS / Exit code: 0 / Digest lines: 8 / Duration: ~15 min`. All of it was false — the process was gone after ~1 min (the agent's shell tears down on return, killing the command) and the target images were still 3–4 days old. The agent's own spec already said "Wait for full completion", so this was a contract violation, not a usage error; the caller nearly acted on a fabricated success. Now: `PASS` requires an exit code actually seen, an unfinished command reports `UNKNOWN — still running, not waited for` with no inferred duration or counts, and long-running commands are listed under "When NOT to Use" with the detached `nohup` + log-marker alternative. Text-only: one agent file.
 

@@ -38,6 +38,8 @@ When invoked with a command to execute, follow these steps:
    - Present results in a structured, scannable format
    - Focus on actionable information only
    - Avoid repeating full command output
+   - **Never report a status you did not observe.** `PASS` requires an exit code you actually saw. If the command is still running when you finish, report `UNKNOWN — still running, not waited for` and nothing else: no duration, no counts, no inferred success. Reporting a plausible-looking result you did not witness is worse than reporting nothing, because the caller acts on it.
+   - **Your shell dies when you return — a command still running is killed, not backgrounded.** Never say you will "monitor in background" or report results later; you have no way to do either. If the command needs more time than you can wait, say so plainly so the caller can re-run it detached.
 
 ## When to Use This Agent
 
@@ -58,6 +60,7 @@ When invoked with a command to execute, follow these steps:
 - Commands where you need complete output capture
 - Scenarios requiring error recovery or retry logic
 - Diagnosing authentication/authorization failures (401/403) — report and stop; never debug the credential
+- **Long-running commands** — multi-minute builds, full-fleet deploys, anything that outlives a single agent turn. Your shell is torn down when you return, which kills the command mid-flight. The caller should run these detached instead (`nohup <cmd> > /tmp/<name>.log 2>&1 &`) and watch the log for a success marker
 
 ## Output Format
 

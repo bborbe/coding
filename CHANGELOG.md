@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.52.2
 
 - fix: `ast-grep-runner.sh` refuses to report an empty scan as clean. Observed 2026-09-13: `/coding:pr-review` passed its changed-file list through an unquoted variable, zsh did not word-split it, and the runner received one bogus path — it scanned nothing and returned `findings_count: 0` in ~110ms, a payload indistinguishable from a genuinely clean diff, on a change that had **29** findings (the same diff re-run with literal arguments: 29 findings in ~2s). Every file-scanning rule needs a file to scan, so a run that resolves *none* of its arguments is now treated as a caller bug: it names the likely cause and exits 2. A **partially** unresolved list still passes — `git diff --name-only` legitimately lists deletions, and a deleted file has nothing to scan — so the guard fires only when nothing at all resolved. The runner already validated `TARGET_DIR` and the rules index; file arguments were the one input it trusted blindly
 

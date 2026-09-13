@@ -67,6 +67,7 @@ TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 # changed-file args.  Filter out any path containing /.git/ or starting
 # with .git/ — defense in depth (the runner and caller both exclude).
 CHANGED_FILES=()
+RESOLVED=0
 for f in "$@"; do
   case "$f" in
     /*) abs="$f" ;;
@@ -76,8 +77,31 @@ for f in "$@"; do
   case "$abs" in
     */.git/*) continue ;;
   esac
+  # A path that does not exist is legitimate on its own — `git diff --name-only`
+  # lists deletions, and a deleted file has nothing to scan. Counted rather than
+  # rejected, so the guard below can tell "some deletions" from "nothing at all".
+  [ -e "$abs" ] || continue
   CHANGED_FILES+=("$abs")
+  RESOLVED=$((RESOLVED + 1))
 done
+
+# Incident 2026-09-13: a caller passed its changed-files list through an
+# unquoted variable. zsh does not word-split those, so this runner received one
+# bogus path, scanned nothing, and reported findings_count 0 in ~110ms — a
+# result indistinguishable from a genuinely clean diff, on a change that had 29
+# findings. The same diff re-run with literal arguments reported all 29.
+#
+# Every rule that scans files needs a file to scan, so a run that resolved none
+# of its arguments is a caller bug, never a clean result. Fail loudly instead of
+# reporting the empty scan as green.
+if [ "$#" -gt 0 ] && [ "$RESOLVED" -eq 0 ]; then
+  printf 'error: none of the %s changed-file argument(s) resolved under %s\n' "$#" "$TARGET_DIR" >&2
+  printf '       refusing to report an empty scan as clean. Common cause: the caller\n' >&2
+  printf '       passed the file list through an unquoted variable (zsh does not\n' >&2
+  printf '       word-split it, so all paths arrive as one). Pass them as literal\n' >&2
+  printf '       arguments.\n' >&2
+  exit 2
+fi
 
 START_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
 

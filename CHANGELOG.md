@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: `ast-grep-runner.sh` refuses to report an empty scan as clean. Observed 2026-09-13: `/coding:pr-review` passed its changed-file list through an unquoted variable, zsh did not word-split it, and the runner received one bogus path — it scanned nothing and returned `findings_count: 0` in ~110ms, a payload indistinguishable from a genuinely clean diff, on a change that had **29** findings (the same diff re-run with literal arguments: 29 findings in ~2s). Every file-scanning rule needs a file to scan, so a run that resolves *none* of its arguments is now treated as a caller bug: it names the likely cause and exits 2. A **partially** unresolved list still passes — `git diff --name-only` legitimately lists deletions, and a deleted file has nothing to scan — so the guard fires only when nothing at all resolved. The runner already validated `TARGET_DIR` and the rules index; file arguments were the one input it trusted blindly
+
 ## v0.52.1
 
 - fix: `simple-bash-runner` must never report a status it did not observe, and must not claim to monitor in the background. Observed 2026-09-13: delegated a ~15 min multi-env build, the agent first returned "Build started. Monitoring in background — will report results when complete", then reported `PASS / Exit code: 0 / Digest lines: 8 / Duration: ~15 min`. All of it was false — the process was gone after ~1 min (the agent's shell tears down on return, killing the command) and the target images were still 3–4 days old. The agent's own spec already said "Wait for full completion", so this was a contract violation, not a usage error; the caller nearly acted on a fabricated success. Now: `PASS` requires an exit code actually seen, an unfinished command reports `UNKNOWN — still running, not waited for` with no inferred duration or counts, and long-running commands are listed under "When NOT to Use" with the detached `nohup` + log-marker alternative. Text-only: one agent file.

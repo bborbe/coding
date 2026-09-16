@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.52.3
 
 - docs: `teamvault-conventions` now records that a `{{ … }}` inside a YAML **comment** is still evaluated. The parser is text-based, not YAML-aware, so a placeholder written in prose fails the whole render with `unexpected <.> in operand`. It cost time twice — once in the agent-platform mirror work, once writing a new `*-secret.yaml` — and the second time the fix was rediscovered rather than recalled. Text-only: one guide
 

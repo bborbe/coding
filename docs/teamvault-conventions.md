@@ -141,6 +141,14 @@ PEM_KEY: |
 PEM_KEY: '{{ "WATCHER_X_PEM_KEY" | env | teamvaultFileBase64 }}'
 ```
 
+**A `{{ … }}` inside a YAML comment is still evaluated.** The parser is text-based, not YAML-aware — it scans for the delimiters and does not know what a `#` means. A placeholder written in *prose* therefore fails the entire render, including in a file header:
+
+```
+Error: parse config failed: template: config:4: unexpected <.> in operand
+```
+
+Keep comment text free of the template delimiters. This has now cost time twice — once in the agent-platform mirror work, once writing a new `*-secret.yaml` — and the second time the fix was rediscovered rather than recalled.
+
 ## Non-k8s / launchd services
 
 For services not on k8s (macOS launchd daemons, background agents), the same rule holds — the config references a lookup key, never the raw secret — but there is no `teamvault-config-parser` at apply time. Resolve the secret into an env var at startup:

@@ -8,6 +8,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+- fix(pr-review): the selector-mode precommit skip asserted CI that may not exist. *"skip this step entirely … CI covers lint+test"* is false on a repo with no workflows — `bborbe/nuke` has no `.github/workflows/` at all and its ruleset requires only `pull_request`, so a selector-mode review would have reported clean on a completely unvalidated YAML diff, with nothing else in the funnel covering it. The skip now applies only where CI exists; a repo without it must run `make precommit` and report its real exit code.
+
 ## v0.52.3
 
 - docs: `teamvault-conventions` now records that a `{{ … }}` inside a YAML **comment** is still evaluated. The parser is text-based, not YAML-aware, so a placeholder written in prose fails the whole render with `unexpected <.> in operand`. It cost time twice — once in the agent-platform mirror work, once writing a new `*-secret.yaml` — and the second time the fix was rediscovered rather than recalled. Text-only: one guide

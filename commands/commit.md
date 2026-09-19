@@ -377,7 +377,7 @@ fi
 If `IS_MASTER=true`, run the § 2c branch-protection check first — with `autoRelease: true` this workflow runs on master, which is exactly where a bypass can happen.
 ```bash
 # Always cd to project dir first (never use git -C)
-cd $PROJECT_DIR && git commit -m "descriptive message" -- CHANGELOG.md $CHANGED_PATHS && git push
+cd $PROJECT_DIR && git commit -m "descriptive message" -- CHANGELOG.md $CHANGED_PATHS && git push origin "$(git branch --show-current)"
 ```
 
 **NOTE**: No `git tag` command. Feature branches NEVER create tags.
@@ -464,7 +464,7 @@ fi
 
 Run the § 2c branch-protection check first — this workflow is master-only.
 ```bash
-cd $PROJECT_DIR && git commit -m "release vX.Y.Z" -- CHANGELOG.md $CHANGED_PATHS && git tag vX.Y.Z && git push && git push origin vX.Y.Z
+cd $PROJECT_DIR && git commit -m "release vX.Y.Z" -- CHANGELOG.md $CHANGED_PATHS && git tag vX.Y.Z && git push origin "$(git branch --show-current)" && git push origin vX.Y.Z
 ```
 
 ---
@@ -561,7 +561,7 @@ fi
 
 Run the § 2c branch-protection check first — this workflow is master-only.
 ```bash
-cd $PROJECT_DIR && git commit -m "descriptive message" -- CHANGELOG.md $CHANGED_PATHS && git tag vX.Y.Z && git push && git push origin vX.Y.Z
+cd $PROJECT_DIR && git commit -m "descriptive message" -- CHANGELOG.md $CHANGED_PATHS && git tag vX.Y.Z && git push origin "$(git branch --show-current)" && git push origin vX.Y.Z
 ```
 
 ---
@@ -597,7 +597,7 @@ fi
 
 If `IS_MASTER=true`, run the § 2c branch-protection check first.
 ```bash
-cd $PROJECT_DIR && git commit -m "descriptive message" -- $CHANGED_PATHS && git push
+cd $PROJECT_DIR && git commit -m "descriptive message" -- $CHANGED_PATHS && git push origin "$(git branch --show-current)"
 ```
 
 #### Workflow E: Trivial or Pipeline-Only Change (any branch, any project)
@@ -622,7 +622,7 @@ fi
 
 If `IS_MASTER=true`, run the § 2c branch-protection check first — a trivial change still bypasses required checks.
 ```bash
-cd $PROJECT_DIR && git commit -m "descriptive message" -- $CHANGED_PATHS && git push
+cd $PROJECT_DIR && git commit -m "descriptive message" -- $CHANGED_PATHS && git push origin "$(git branch --show-current)"
 ```
 
 ---
@@ -726,7 +726,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - **Push fails**:
   - Report error with failure message
   - Note: Tags and commits already created locally
-  - User can retry with `git push && git push origin <tag>`
+  - User can retry with `git push origin "$(git branch --show-current)" && git push origin <tag>`
 
 - **Version increment ambiguous**:
   - If unable to determine patch vs minor, default to patch increment
@@ -824,6 +824,7 @@ When multiple feature branches add entries to `## Unreleased`, merge conflicts a
 ## Notes
 
 - All git write operations are chained with `&&` for single approval
+- Push with an **explicit refspec** — `git push origin "$(git branch --show-current)"` — never a bare `git push`. The global pre-push hook refuses a bare push (*"the target branch cannot be determined from the command"*) and rejects the **whole chained call**, so a prescribed `git commit … && git push` loses the commit too, not just the push, with nothing but that one line to say so.
 - Tags are ONLY created on master/main branch (never on feature branches)
 - Feature branches use `## Unreleased` section to collect changes
 - Multiple feature branches can safely add to `## Unreleased` (merge conflicts are simple to resolve)

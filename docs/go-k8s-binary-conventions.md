@@ -114,8 +114,25 @@ func (a *application) runHTTPServer(work run.Func) run.Func {
 }
 ```
 
-- `/healthz` and `/readiness` MUST return 200 unconditionally (binary running = healthy). Keep them trivial; never put database / upstream checks here — those belong in `/metrics` as gauges.
+- `/healthz` MUST return 200 unconditionally and MUST NOT be gated on anything upstream. A liveness failure **restarts** the pod, so an upstream blip would restart every replica at once.
+- `/readiness` answers a different question — "should this pod take traffic?" — so a non-200 (**503**, never 500) is how you tell Kubernetes to drain it. The handler above is always-ready; use the gated form below when the service must fail closed.
+- Whether `/readiness` may consult an upstream is a **drain-cost** decision, not a fixed rule. Where a drain is cheap — several replicas, no in-flight state — checking upstream on each probe is fine. Where a drain discards in-flight work — a single replica holding in-memory session state — gate on a flag set **once at boot** instead, so a transient upstream blip cannot un-ready a healthy pod.
+- See [[node-service-guide.md]] § Health Endpoints for the same contract from the Node side — it likewise permits dependency checks in `/readiness`, and requires 503 (not 500) when they fail. Dependency *levels* belong in `/metrics` as gauges, never in a probe.
 - `/metrics` exposes Prometheus counters / histograms registered via `prometheus.MustRegister(...)`.
+
+Readiness that must fail closed — the expensive-drain case above, gated on a flag set once at boot rather than recomputed per request:
+
+```go
+// ready is an atomic.Bool on application, stored true only after the
+// boot-time checks have passed.
+router.Path("/readiness").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+    if !a.ready.Load() {
+        w.WriteHeader(http.StatusServiceUnavailable)
+        return
+    }
+    _, _ = w.Write([]byte("OK"))
+})
+```
 
 ## Compose: HTTP + work loop via run.CancelOnFirstFinish
 
@@ -225,6 +242,7 @@ The one-shot variants skip the HTTP server — they exit on completion, k8s neve
 ## Related
 
 - [[go-http-service-guide.md]] — HTTP handler patterns
+- [[node-service-guide.md]] — the same health-endpoint contract for Node services
 - [[go-prometheus-metrics-guide.md]] — metric naming + pre-init
 - [[go-context-cancellation-in-loops.md]] — context propagation rules (including the `context.Background()` in `main()` exception)
 - [[go-glog-guide.md]] — log levels for the v= flag

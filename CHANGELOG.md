@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: `/coding:commit` no longer prescribes a bare `git push`. The global pre-push hook refuses it — *"Refused: git push with no arguments — the target branch cannot be determined from the command"* — and the refusal rejects the **whole `&&`-chained call**, so the prescribed `git commit … && git push` lost the commit as well as the push, with nothing but that one line to say so. All six prescribed push invocations now pass an explicit refspec (`git push origin "$(git branch --show-current)"`), and a Notes bullet records why so it is not simplified back. Found by running the skill's own Workflow A step verbatim on `bborbe/nuke` (PR #294): the commit did not land and `git log -1` still showed the base commit.
+
 ## v0.52.5
 
 - fix: the two `coding` Go guides no longer give contradictory answers about what `/readiness` may return. `go-k8s-binary-conventions.md` said `/healthz` **and** `/readiness` MUST return 200 unconditionally; `go-http-service-guide.md`'s endpoint catalog said readiness may 503 — and that same file's worked example, the block a new service is told to copy verbatim, wired `/readiness` to an always-200 `NewPrintHandler` that cannot produce a 503 at all. The rule is now split by endpoint and by **drain cost**: `/healthz` is never upstream-gated, because a liveness failure restarts the pod and an upstream blip would then restart every replica at once; `/readiness` may 503 (never 500), and whether it consults an upstream depends on what draining costs — a per-probe check is fine where replicas are many and state is external, and must become a flag set once at boot where a drain discards in-flight work. Both guides now show a gated handler, the endpoint catalog no longer points at an always-200 factory for a 503-capable endpoint, and the Go guide cross-references the Node one, which already permitted dependency checks in readiness.

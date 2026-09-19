@@ -11,6 +11,7 @@ Every long-running Go service exposes a consistent admin HTTP server with operat
 ```go
 import (
     "context"
+    "net/http"
     "time"
 
     libhttp "github.com/bborbe/http"
@@ -33,7 +34,7 @@ func (a *application) createHTTPServer(
 
         router := mux.NewRouter()
         router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
-        router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+        router.Path("/readiness").HandlerFunc(a.handleReadiness)
         router.Path("/metrics").Handler(promhttp.Handler())
         router.Path("/setloglevel/{level}").
             Handler(log.NewSetLoglevelHandler(ctx, log.NewLogLevelSetter(2, 5*time.Minute)))
@@ -46,6 +47,19 @@ func (a *application) createHTTPServer(
         glog.V(2).Infof("starting http server listen on %s", a.Listen)
         return libhttp.NewServer(a.Listen, router).Run(ctx)
     }
+}
+
+// handleReadiness returns 503 until the boot-time checks have passed, so k8s drains
+// the pod instead of restarting it. `ready` is an atomic.Bool on `application`,
+// stored true only after those checks pass. A service where a drain is cheap may
+// check upstream on each probe instead; one that is ready as soon as it is up may
+// use libhttp.NewPrintHandler("OK").
+func (a *application) handleReadiness(w http.ResponseWriter, req *http.Request) {
+    if !a.ready.Load() {
+        w.WriteHeader(http.StatusServiceUnavailable)
+        return
+    }
+    _, _ = w.Write([]byte("OK"))
 }
 ```
 
@@ -62,7 +76,7 @@ func (a *application) createHTTPServer(
 // main.go — admin server missing /setloglevel and /gc
 router := mux.NewRouter()
 router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
-router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/readiness").HandlerFunc(a.handleReadiness)
 router.Path("/metrics").Handler(promhttp.Handler())
 // debug session means: edit StatefulSet -v=, restart pod, wait — every time
 ```
@@ -73,7 +87,7 @@ router.Path("/metrics").Handler(promhttp.Handler())
 // main.go — all five canonical endpoints registered
 router := mux.NewRouter()
 router.Path("/healthz").Handler(libhttp.NewPrintHandler("OK"))
-router.Path("/readiness").Handler(libhttp.NewPrintHandler("OK"))
+router.Path("/readiness").HandlerFunc(a.handleReadiness)
 router.Path("/metrics").Handler(promhttp.Handler())
 router.Path("/setloglevel/{level}").
     Handler(log.NewSetLoglevelHandler(ctx, log.NewLogLevelSetter(2, 5*time.Minute)))
@@ -85,7 +99,7 @@ router.Path("/gc").Handler(libhttp.NewGarbageCollectorHandler())
 | Endpoint | Required | Purpose | Library |
 |---|---|---|---|
 | `/healthz` | always | Liveness probe (always 200 OK) | `libhttp.NewPrintHandler` |
-| `/readiness` | always | Readiness probe (200 OK or 503 if not ready) | `libhttp.NewPrintHandler` |
+| `/readiness` | always | Readiness probe — 200 when ready, **503** when not (never 500) | gated `HandlerFunc` (see `handleReadiness` above); `libhttp.NewPrintHandler` only when always ready |
 | `/metrics` | always | Prometheus scrape endpoint | `promhttp.Handler()` |
 | `/setloglevel/{level}` | always | Raise glog `-v` at runtime, auto-resets after 5 min | `log.NewSetLoglevelHandler` |
 | `/gc` | always | Manually trigger Go GC for memory inspection | `libhttp.NewGarbageCollectorHandler` |

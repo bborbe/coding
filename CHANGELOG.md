@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.52.4
 - fix: the selector-mode precommit skip asserted CI that may not exist. *"skip this step entirely … CI covers lint+test"* is false on a repo with no workflows — `bborbe/nuke` has no `.github/workflows/` at all and its ruleset requires only `pull_request`, so a selector-mode review would have reported clean on a completely unvalidated YAML diff, with nothing else in the funnel covering it. The skip now applies only where CI exists; a repo without it must run `make precommit` and report its real exit code.
 
 ## v0.52.3

@@ -174,7 +174,7 @@ Detect project type in `REVIEW_DIR`:
 
 **3b. Run make precommit (Full mode only)**
 
-Running the full test suite is CI's job; the review needs the result, not a re-run. In **Selector** and **Short** mode, skip this step entirely and include in the Step 5 report: "precommit skipped (selector mode) — CI covers lint+test".
+Running the full test suite is CI's job; the review needs the result, not a re-run. In **Selector** and **Short** mode, skip this step entirely **when the repo has CI**, and include in the Step 5 report: "precommit skipped (selector mode) — CI covers lint+test". **A repo with no CI workflows must still run it** — there the stated rationale is false in both halves: nothing covers lint+test, and no other step validates the change, so the review would report clean on a completely unvalidated diff. Check `<REVIEW_DIR>/.github/workflows/`; if it is absent, run `make precommit` (respecting any `BRANCH`/stage guard the Makefile imposes) and report its real exit code.
 
 **Full mode only**: Check if `REVIEW_DIR/Makefile` exists and has `precommit` target. If yes:
 ```

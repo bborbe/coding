@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.52.6
 
 - fix: `/coding:commit` no longer prescribes a bare `git push`. The global pre-push hook refuses it — *"Refused: git push with no arguments — the target branch cannot be determined from the command"* — and the refusal rejects the **whole `&&`-chained call**, so the prescribed `git commit … && git push` lost the commit as well as the push, with nothing but that one line to say so. All six prescribed push invocations now pass an explicit refspec (`git push origin "$(git branch --show-current)"`), and a Notes bullet records why so it is not simplified back. Found by running the skill's own Workflow A step verbatim on `bborbe/nuke` (PR #294): the commit did not land and `git log -1` still showed the base commit.
 

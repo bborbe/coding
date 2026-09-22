@@ -495,11 +495,14 @@ This matters when a verification step, CI check, or agent prompt asserts a named
 # BAD — returns 0 against a passing suite, so the check is satisfiable only by broken tests
 go test ./pkg/foo/... -v | grep -c "<spec name>"
 
-# GOOD
-go test ./pkg/foo/... -v -ginkgo.v | grep -c "<spec name>"
+# GOOD — compile, then run the binary; the only form verified to print spec names
+go test -c -o /tmp/foo.test ./pkg/foo/
+/tmp/foo.test -ginkgo.v | grep -c "<spec name>"
 ```
 
-`-v -args -ginkgo.v` also works; note `-args` applies to every test binary matched by a `./...` pattern.
+**Prefer the compiled-binary form.** Observed 2026-09-21 on a Go 1.27.1 / Ginkgo v2 module: `go test -count=1 -v -ginkgo.v ./pkg/foo/` printed `Running Suite: Main Test Suite … Ran 1 of 1 Specs` — the **root** suite, not the named package's — while the compiled binary printed the package's own suite with all spec names. Every `go test` flag permutation tried that day returned **0** spec-name matches. The misattribution was not fully explained, so do not read this as "`go test` is broken" — only as: when the check must prove *which* specs ran, the compiled binary is the form that has been verified, and a `0` from a `go test` invocation is not by itself evidence the spec is missing.
+
+Do **not** use `-args -ginkgo.v` for this. It returned 0 in both positions in that same test, and it applies to every test binary matched by a `./...` pattern.
 
 Two related traps when writing such checks:
 

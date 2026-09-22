@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: the Go testing guide's prescribed form for proving a *named* Ginkgo spec ran does not print spec names. `go test ./pkg/foo/... -v -ginkgo.v` returned 0 matches against a suite whose specs had all run, so the check reported "spec missing" on a passing suite — the exact false negative the section exists to prevent. The `-args -ginkgo.v` variant it also recommended returned 0 in both flag positions and is now marked do-not-use. The verified form is compile-then-run (`go test -c -o /tmp/foo.test ./pkg/foo/` then `/tmp/foo.test -ginkgo.v`), with a note that a `0` from a `go test` invocation is not by itself evidence a spec is missing.
+
 ## v0.52.6
 
 - fix: `/coding:commit` no longer prescribes a bare `git push`. The global pre-push hook refuses it — *"Refused: git push with no arguments — the target branch cannot be determined from the command"* — and the refusal rejects the **whole `&&`-chained call**, so the prescribed `git commit … && git push` lost the commit as well as the push, with nothing but that one line to say so. All six prescribed push invocations now pass an explicit refspec (`git push origin "$(git branch --show-current)"`), and a Notes bullet records why so it is not simplified back. Found by running the skill's own Workflow A step verbatim on `bborbe/nuke` (PR #294): the commit did not land and `git log -1` still showed the base commit.

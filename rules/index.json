@@ -2079,6 +2079,141 @@
     ]
   },
   {
+    "anchor": "rest/actions-as-exception",
+    "applies_when": "a new `POST /<resource>/{id}/<verb>` endpoint is added.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment",
+    "enforcement_type": "judgment",
+    "id": "rest/actions-as-exception",
+    "level": "SHOULD",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/domain-names-not-schema",
+    "applies_when": "a path exposes storage terminology (table names, `_tbl`, `records`, `entries`, bucket names) instead of the domain noun.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment",
+    "enforcement_type": "judgment",
+    "id": "rest/domain-names-not-schema",
+    "level": "SHOULD",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/kebab-case-segments",
+    "applies_when": "a multi-word path segment uses camelCase, snake_case, or uppercase.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment (route-table review)",
+    "enforcement_type": "judgment",
+    "id": "rest/kebab-case-segments",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/nouns-not-verbs",
+    "applies_when": "a route segment encodes a CRUD verb (`get`, `create`, `update`, `delete`, `list`) or a verb disguised as a noun (`user-search`, `order-processing`).",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment (route-table review)",
+    "enforcement_type": "judgment",
+    "id": "rest/nouns-not-verbs",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/opaque-ids",
+    "applies_when": "clients are expected to parse or construct meaning from an ID path segment.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment",
+    "enforcement_type": "judgment",
+    "id": "rest/opaque-ids",
+    "level": "SHOULD",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/plural-collections",
+    "applies_when": "a new route addresses a collection of resources (or a member of one) using a singular noun — e.g. `/user/123`, `/order`.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment (route-table review)",
+    "enforcement_type": "judgment",
+    "id": "rest/plural-collections",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/query-params-for-queries",
+    "applies_when": "filtering, sorting, searching, or paginating a collection is modelled as a separate path instead of query parameters.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment",
+    "enforcement_type": "judgment",
+    "id": "rest/query-params-for-queries",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/shallow-nesting",
+    "applies_when": "a route nests more than two collection levels, or nests a child whose ID is already globally unique.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment",
+    "enforcement_type": "judgment",
+    "id": "rest/shallow-nesting",
+    "level": "SHOULD",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
+    "anchor": "rest/singular-singletons",
+    "applies_when": "a route addresses a resource that exists exactly once per parent (or once per service) and names it in plural.",
+    "doc_path": "docs/rest-api-naming-guide.md",
+    "enforcement": "judgment (route-table review)",
+    "enforcement_type": "judgment",
+    "id": "rest/singular-singletons",
+    "level": "MUST",
+    "owner": "go-http-handler-assistant",
+    "trigger": [
+      "**/*.go",
+      "**/*.ts",
+      "**/*.py"
+    ]
+  },
+  {
     "anchor": "skill-writing/scripts-in-scripts-subdir",
     "applies_when": "a Claude Code skill places executable scripts (`*.sh`, `*.py`) directly alongside `SKILL.md` instead of in a `scripts/` subdirectory.",
     "doc_path": "docs/claude-code-skill-writing-guide.md",

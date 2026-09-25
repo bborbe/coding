@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-json check-index check-coverage check-acceptance check-rule-tests bench-test
+precommit: check-links check-changelog-fold check-json check-index check-coverage check-acceptance check-rule-tests bench-test
 
 .PHONY: bench
 bench:
@@ -27,6 +27,10 @@ release-check: precommit check-versions
 .PHONY: check-links
 check-links:
 	@bash scripts/check-links.sh
+
+.PHONY: check-changelog-fold
+check-changelog-fold:
+	@bash scripts/check-changelog-fold.sh
 
 .PHONY: check-json
 check-json:

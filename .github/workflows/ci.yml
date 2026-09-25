@@ -11,6 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # `make precommit` includes check-changelog-fold, which compares the
+          # working tree's released sections against the newest tag. The default
+          # fetch-depth: 1 clone carries no tags, so the guard fails loudly
+          # rather than passing silently — tags must be fetched.
+          fetch-depth: 0
+          fetch-tags: true
       - name: Install ast-grep
         # ast-grep is the mechanical-funnel layer for the doc-driven review pipeline.
         # scripts/acceptance.sh section 4 invokes `ast-grep scan` to verify

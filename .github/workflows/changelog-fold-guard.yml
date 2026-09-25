@@ -1,0 +1,52 @@
+name: Changelog Fold Guard
+
+# Reusable workflow. Call it from the CONSUMING repo's own post-merge job:
+#
+#   # .github/workflows/changelog-fold.yml  — in the consuming repo
+#   name: Changelog Fold Guard
+#   on:
+#     push:
+#       branches: [master]
+#   jobs:
+#     changelog-fold:
+#       uses: bborbe/coding/.github/workflows/changelog-fold-guard.yml@master
+#
+# WHY THE TRIGGER LIVES IN THE CALLER, AND WHY IT IS `push` ON MASTER:
+# the fold happens in GitHub's merge resolution, after the branch is already
+# final. A pull-request check runs against that branch and is structurally blind
+# to it — which is the whole reason this guard exists rather than another rule
+# in rules/. A rule is evaluated by the pr-review bot on the PR, so a rule
+# cannot carry this check.
+#
+# WHY THE CHECKOUT IS NOT THE CALLER'S: the guard compares the working tree's
+# released sections against the newest tag, so the checkout must carry tags.
+# actions/checkout defaults to fetch-depth: 1 with no tags, and the guard fails
+# loudly on a shallow clone rather than passing silently.
+#
+# The guard *tool* ships from bborbe/coding; this file is only the wiring.
+
+on:
+  workflow_call:
+
+jobs:
+  changelog-fold:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo under test
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check out the guard
+        uses: actions/checkout@v4
+        with:
+          repository: bborbe/coding
+          path: .changelog-fold-guard
+
+      - name: Run the changelog fold guard
+        env:
+          # The script roots itself at its own repo by default; here the
+          # CHANGELOG under test belongs to the calling repo, not to coding.
+          CHANGELOG_ROOT: ${{ github.workspace }}
+        run: .changelog-fold-guard/scripts/check-changelog-fold.sh

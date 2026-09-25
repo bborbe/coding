@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: `/coding:self-improve` now scans for avoidable token spend — large tool-output/file dumps landing in main context, inline work a Haiku/Sonnet sub-agent could have done, repeated reads of the same file/data, and watcher/loop events that woke the model for no state change. Adds a Step 3 `Token cost` score row (+1 one-off, +2 recurring per loop) and requires each token-cost proposal to state a rough per-occurrence token saving.
+
 ## v0.53.0
 
 - feat: add `docs/rest-api-naming-guide.md` — REST resource-naming rules (plural collections, singular singletons, nouns not verbs, kebab-case segments, query params for filtering/sorting/pagination, shallow nesting, actions only where `PATCH` cannot express it). Admin/ops endpoints and shipped routes are named exceptions.

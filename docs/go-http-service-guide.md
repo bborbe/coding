@@ -136,7 +136,7 @@ type application struct {
 
 - **Always `9090`** for the admin HTTP server. Mirrors the standard across all bborbe services and the Prometheus scrape annotations.
 - Listen address comes from a flag/env: `Listen string \`required:"false" arg:"listen" env:"LISTEN" default:":9090"\``.
-- Public API (frontend-accessible data) lives on a different prefix (`/api/1.0/...`) — typically same port via the same router, or a separate listener.
+- Public API (frontend-accessible data) lives on a different prefix (`/api/1.0/...`) — typically same port via the same router, or a separate listener. Resource naming under that prefix: [rest-api-naming-guide.md](rest-api-naming-guide.md).
 
 ## `/setloglevel/{level}` — Constructor Args
 

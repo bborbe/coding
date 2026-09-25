@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: add `docs/rest-api-naming-guide.md` — REST resource-naming rules (plural collections, singular singletons, nouns not verbs, kebab-case segments, query params for filtering/sorting/pagination, shallow nesting, actions only where `PATCH` cannot express it). Admin/ops endpoints and shipped routes are named exceptions.
+
 ## v0.52.7
 
 - fix: the Go testing guide's prescribed form for proving a *named* Ginkgo spec ran does not print spec names. `go test ./pkg/foo/... -v -ginkgo.v` returned 0 matches against a suite whose specs had all run, so the check reported "spec missing" on a passing suite — the exact false negative the section exists to prevent. The `-args -ginkgo.v` variant it also recommended returned 0 in both flag positions and is now marked do-not-use. The verified form is compile-then-run (`go test -c -o /tmp/foo.test ./pkg/foo/` then `/tmp/foo.test -ginkgo.v`), with a note that a `0` from a `go test` invocation is not by itself evidence a spec is missing.

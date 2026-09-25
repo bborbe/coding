@@ -157,6 +157,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 |-------|-------------|
 | [HTTP Service](docs/go-http-service-guide.md) | Canonical admin endpoint block, port 9090, gateway annotations |
 | [HTTP Handlers](docs/go-http-handler-refactoring-guide.md) | Handler organization |
+| [REST API Naming](docs/rest-api-naming-guide.md) | Plural collections, singular singletons, kebab-case, query params, actions |
 | [JSON Error Handler](docs/go-json-error-handler-guide.md) | Structured error responses |
 
 ### Python

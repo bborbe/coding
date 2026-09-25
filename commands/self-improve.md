@@ -32,13 +32,20 @@ Scan the transcript for:
 - a correction the user made that was general, not one-off
 - a preventable mistake that cost real back-and-forth
 - a workflow reinvented from scratch that a tool already half-covers
+- avoidable token spend — a large tool output or file dump landing in main context
+  that a `head`/`grep`/sub-agent could have summarised; work done inline that a
+  Haiku/Sonnet sub-agent could have done; the same file or dataset read 3+ times;
+  a watcher/loop event that woke the model for no state change
 
 Ignore anything that happened once with no cost. One-offs never graduate.
 
 Record each candidate as an **incident** — what happened, what it cost — not
-as a rule. Do NOT draft rule wording or a diff sketch until Step 5 has chosen
-the home: wording drafted early comes out CLAUDE.md-shaped (a terse imperative
-bullet) and biases placement toward memory files.
+as a rule. For a token-spend incident, "what it cost" is a rough per-occurrence
+token figure; the operator judges worth-it at a glance from that number, and a
+token-cost candidate without one is not yet an incident. Do NOT draft rule
+wording or a diff sketch until Step 5 has chosen the home: wording drafted early
+comes out CLAUDE.md-shaped (a terse imperative bullet) and biases placement
+toward memory files.
 
 ### 3. Rate each candidate
 Gate first, then grade — the same shape as `/vault-cli:reflect`'s significance filter.
@@ -52,6 +59,7 @@ Passers get a **worth-it score**:
 |---|---|
 | Recurrence — plausibly recurs in 3+ future sessions | +2 |
 | Cost — the miss cost real back-and-forth (retry, correction, wasted turns) | +1 |
+| Token cost — avoidable recurring context spend a cheaper path would have avoided | +1 one-off / +2 recurring per loop |
 | Generality — the fix applies beyond this one task / project / file | +1 |
 | Repair — fixes a tool that misfired, not a new rule bolted on | +1 |
 | Obvious-anyway — the "fix" is just doing the naturally obvious thing | −2 |
@@ -154,6 +162,8 @@ Short. Max two proposals, ranked.
 Per proposal:
 - **Change:** what, and where (exact target file / artifact)
 - **Worth-it:** <score> (e.g. recurrence +2, cost +1)
+- **Token saving:** for a token-cost proposal, the rough per-occurrence saving
+  (e.g. "~285k tokens/wake × 27 wakes") — omit for other proposals
 - **Evidence:** verbatim quote(s) + how often
 - **Placement:** discovery hits (top candidate homes as file paths) + the ladder walk (rung → named candidate → one-line why-not), ending at the chosen home; global-`CLAUDE.md` targets append the four admission-argument lines
 - **Edit or new:** if new, why nothing existing fit

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.53.0
 
 - feat: add `docs/rest-api-naming-guide.md` — REST resource-naming rules (plural collections, singular singletons, nouns not verbs, kebab-case segments, query params for filtering/sorting/pagination, shallow nesting, actions only where `PATCH` cannot express it). Admin/ops endpoints and shipped routes are named exceptions.
 

@@ -11,6 +11,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 - fix: `check-changelog-fold` now compares each released section against **its own** tag instead of the newest tag's snapshot. The newest tag's file already carries every earlier section as it stood at that later cut — including one that had already been folded — so the working tree's bullets came out a subset, the extras came out empty, and the fold was silently masked on exactly the repos that had released since. Measured 2026-09-26 on `bborbe/claude-supervisor`: `## v0.57.2` held 1 bullet in its own tag and 4 in `v0.57.3`'s snapshot, so master read clean while a bullet whose merge was in no `v0.57.2` sat misfiled there. A guard that goes quiet after the next release is worse than no guard. Also: a bullet no commit in the file's history introduced is now reported and stepped over rather than fatal, since aborting there hid every finding after it — it still exits non-zero. The pickaxe also gains `-m`: `git log -S` skips merge commits by default, so a bullet introduced by a merge resolution — the fold's own mechanism — could not be attributed at all.
+- chore: unfold nine bullets that sat under a release which does not contain them. Each was moved into the section for the tag that actually contains its merge — **not** into `## Unreleased`, since all nine shipped in a later release and moving them here would duplicate the entry in the next one. Found by `check-changelog-fold` once it compared each released section against **its own** tag instead of the newest tag's snapshot, which had been masking them.
+
+## v0.55.1
+
+- fix: **`simple-bash-runner` no longer loses a verbose command's failure to output truncation.** The agent captured stdout/stderr raw, and its Bash result is truncated at roughly 20k characters, so a verbose suite could come back as a truncation notice instead of a verdict — observed 2026-09-26 on `make test`: *"Captured output was truncated mid-stream (~20,004 characters elided), so the exact failing assertion/line is NOT present in the output I received"*, with three extra caller calls spent recovering the failure. Instruction 1 now carries a size guard: for `make test`, `go test ./...`, `npm install` and similar, capture to a `mktemp` file and report from greps of it rather than reading it back — `mktemp` rather than a fixed path, since two agent turns can run concurrently and a shared name would collide, with `rm -f` when done. The agent's reporting rules are unchanged — it already refused to invent a status it had not observed, which is why the truncation surfaced as a truncation rather than as a wrong verdict.
 
 ## v0.55.0
 
@@ -124,6 +129,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## v0.45.1
 
 - fix: stop false-positive counterfeiter and Parse*Default findings (counterfeiter-directive-on-interface is now an over-inclusive mechanical anchor + judgment-tier adjudication; new-prefix-constructor-naming exempts Parse<X>Default)
+- fix: `license-assistant` Step 0 visibility detection — read the repo's own `isPrivate` flag via `gh repo view --json isPrivate` instead of inferring from the remote host. Host-based detection misclassifies private `Seibert-Data/*` repos hosted on `github.com` as public, causing MUST-tier LICENSE false positives that block merges org-wide (surfaced 2026-08 on Seibert-Data/moco#5). Matches `docs/go-licensing-guide.md` § Public vs Private and `scripts/rule-checks.sh`.
 
 ## v0.45.0
 
@@ -131,7 +137,6 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## v0.44.0
 
-- fix: `license-assistant` Step 0 visibility detection — read the repo's own `isPrivate` flag via `gh repo view --json isPrivate` instead of inferring from the remote host. Host-based detection misclassifies private `Seibert-Data/*` repos hosted on `github.com` as public, causing MUST-tier LICENSE false positives that block merges org-wide (surfaced 2026-08 on Seibert-Data/moco#5). Matches `docs/go-licensing-guide.md` § Public vs Private and `scripts/rule-checks.sh`.
 
 - feat: promote 2 m3 findings deepseek-verified as real into the golden set (`golden-curated-1` → `golden-curated-2`, 155 → 157 entries). `recurring-task-creator#30` — `make precommit` genuinely red (govulncheck reproduced GO-2026-6179/6180 against `golang.org/x/mod@v0.37.0`, neither in `VULNCHECK_IGNORE`); `discord-assistant#5` — `strip_wake_phrase` lstrip omits the apostrophe, so `"hey bot's weather"` becomes `"'s weather"` (reproduced exactly). These are the first entries backed by **two models' independent agreement** (m3 found, deepseek verified with runnable evidence) rather than a single model's opinion — the evidence class the golden-set design has always specified for promotion. Two other deepseek-verified candidates (unbounded `uncaughtException` swallow, supervise orphan) were dropped: the aliasing check showed they were re-statements of entries the set already held, so promoting them would have double-counted. Net effect on scores vs `golden-curated-1`: m3 recall 0.052 → 0.066, deepseek 0.096 → 0.109, opus self-match 0.844 → 0.832 (new entries are findings opus missed — the tautology loosening, as intended)
 
@@ -142,11 +147,11 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## v0.43.2
 
 - docs: `teamvault-conventions.md` gains a "Config vs secrets" section — TeamVault holds secret VALUES, never config STRUCTURE. A complete config file stored as a TeamVault file entry is bad practice (no git review, API 500 on large blobs, non-secret parts hidden from the repo). Config structure checks in; individual secret values resolve via inline `{{ "KEY" | teamvaultPassword }}` lookups (minio-env-configuration precedent). Learned from the claude-code-router cluster deploy (2026-08-17): first attempt stored the whole config.yaml in TeamVault; reworked to checked-in config + inline token.
+- docs: `teamvault-conventions.md` gains a "Non-k8s / launchd services" section — config holds the lookup KEY (never the raw secret, never the display NAME; `teamvault-cli password <name>` 404s), a launchd wrapper resolves the key into an env var via the absolute teamvault-cli path, and the resolved value is never written back to any file
 
 ## v0.43.1
 
 - fix: ledger rows now carry an explicit `run_id` stamped once per invocation, so run boundaries no longer have to be inferred from `pr_id` occurrence order. That inference was exact only when every run scored the same PRs; under row loss it mis-split — measured 2026-08-10, a 5-run config with 2–7 dropped rows per run chunked as `[20,20,19,17,8]` against the true `[18,13,17,18,18]`, making the report page's per-run table wrong for any config that loses rows. `chunk_runs` now keys on `run_id` when every row carries one, falling back to occurrence index for legacy rows. Rows written before this change keep their old shape and score unchanged
-- docs: `teamvault-conventions.md` gains a "Non-k8s / launchd services" section — config holds the lookup KEY (never the raw secret, never the display NAME; `teamvault-cli password <name>` 404s), a launchd wrapper resolves the key into an env var via the absolute teamvault-cli path, and the resolved value is never written back to any file
 
 ## v0.43.0
 
@@ -367,10 +372,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## v0.26.0
 
 - **feat: split review commands into 3 distinct scopes.** Renames current `/coding:code-review` → `/coding:local-review` (preserving its diff-vs-`HEAD~1` semantics for pre-commit local checks), AND introduces a brand-new `/coding:code-review` that scans the WHOLE codebase via `git ls-files`. New command ships with severity filter (default-on: Must Fix + Should Fix only; `--include-optional` to opt in), rule-id dedup at consolidation (N occurrences → 1 summary with sample sites), and baseline file (`.code-review-baseline.yaml` via `--refresh-baseline`) so subsequent runs only flag NEW findings (drift since last sweep) rather than the operator's full accepted tech-debt set. Design rationale: `docs/three-command-review-split.md`. 10 reference sites updated across `llms.txt`, `README.md`, `scenarios/*`, and 4 agent definitions to point at `/coding:local-review` (preserving old semantics). **Migration**: sharp behavior cutover on the `/coding:code-review` slot — operators previously relying on its diff-vs-`HEAD~1` behavior must move to `/coding:local-review`. The contrast pair `pr-review` (remote, branch vs target) / `local-review` (local, pre-commit) reads cleanly; `code-review` takes the unmarked whole-codebase slot.
+- docs: add `docs/three-command-review-split.md` — design note locking the proposed shape for splitting the review commands into three distinct scopes (`/coding:pr-review` remote diff, `/coding:local-review` local pre-commit diff (renamed from current `/coding:code-review`), new `/coding:code-review` whole-codebase audit). The doc pins defaults for baseline-file location (`.code-review-baseline.yaml` at repo root, `--baseline-path` override), monorepo handling (one baseline per repo by default; per-subproject via override), `--refresh-baseline` clean-tree requirement, and `.gitignore` semantics (respected; no separate `.claude-ignore` introduced).
 
 ## v0.25.1
 
-- docs: add `docs/three-command-review-split.md` — design note locking the proposed shape for splitting the review commands into three distinct scopes (`/coding:pr-review` remote diff, `/coding:local-review` local pre-commit diff (renamed from current `/coding:code-review`), new `/coding:code-review` whole-codebase audit). The doc pins defaults for baseline-file location (`.code-review-baseline.yaml` at repo root, `--baseline-path` override), monorepo handling (one baseline per repo by default; per-subproject via override), `--refresh-baseline` clean-tree requirement, and `.gitignore` semantics (respected; no separate `.claude-ignore` introduced).
 
 ## v0.25.0
 
@@ -445,18 +450,18 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 - perf: add Step 0a-pre short-circuit to `pr-review.md` — if the cwd is already a clean checkout at origin/<SOURCE_BRANCH> HEAD, skip worktree creation/removal entirely (saves ~18 tool calls in the agent pod where cwd is already at PR HEAD).
 - perf: tighten ast-grep Step 4.0 preflight in both commands — run exactly one compound check, once; on failure report and skip Step 4. Explicitly forbid further investigation (`which`, `ls rules/`, retry variants) to prevent the 4-probe drift observed in prod.
 - perf: change `!git diff HEAD~1` context injection to `!git diff --stat HEAD~1` in `code-review.md` — review steps pull full diffs per-file on demand; the unconditional full diff injection was pure token waste.
-
-## v0.16.0
-
-- feat(rules): bootstrap `docs/go-functional-composition-pattern.md` with 5 `### RULE` blocks (`go-functional-composition/func-type-name`, `list-type-name`, `list-checks-ctx-done`, `list-wraps-errors-with-ctx`, `multi-method-func-explicit-delegate`). Covers the four load-bearing conventions of the pattern (Func/List naming, ctx-aware iteration, error wrapping with caller context, multi-method nil-safe delegation).
 - feat(rules): bootstrap `docs/git-commit-guide.md` with 3 `### RULE` blocks (`git-commit/imperative-mood`, `git-commit/subject-under-50-chars`, `git-commit/feature-branch-no-tag`). All judgment-tier; the agent reads commit messages via `git log` rather than diff-time AST patterns. The doc also carries an explicit cross-reference to the pre-existing `git-workflow/no-ai-attribution-in-commits` rule (canonical in `docs/git-workflow.md`) instead of duplicating it.
 - feat(rules): mechanical ast-grep YAML for `go-testing/suite-timeout-required`. Flags `func TestXxx(t *testing.T)` bodies that call `GinkgoConfiguration()` but don't assign to `suiteConfig.Timeout` before `RunSpecs`. The only cleanly-tractable of the 5 remaining `go-testing/*` MUST rules — the others need errcheck-equivalent type inference or file-existence checks. Mechanical YAML count: 28 → 29.
 - feat(dispatcher): per-Owner timing instrumentation in Step 4b of both `commands/pr-review.md` and `commands/code-review.md` — JSONL log per Owner agent dispatch (event / owner / findings_in / wall_ms) plus roll-up summary. Makes "is this Owner worth dispatching?" answerable with data; previously the funnel ROI was anecdotal.
 - Total rules in index after this batch: 131 → 139 (+8 — 5 functional-composition + 3 git-commit; the AI-attribution rule already existed in git-workflow.md). 0-rule docs remaining: 15 → 13 (still ~7 meta-docs of those out of scope). Mechanical YAML count: 28 → 29.
 
+## v0.16.0
+
+- feat(rules): bootstrap `docs/go-functional-composition-pattern.md` with 5 `### RULE` blocks (`go-functional-composition/func-type-name`, `list-type-name`, `list-checks-ctx-done`, `list-wraps-errors-with-ctx`, `multi-method-func-explicit-delegate`). Covers the four load-bearing conventions of the pattern (Func/List naming, ctx-aware iteration, error wrapping with caller context, multi-method nil-safe delegation).
+- feat(scripts): new `scripts/acceptance.sh` + `make check-acceptance` Makefile target — 12 fast assertions covering the dispatcher contract that doesn't need an E2E scenario walk: mode coverage (short/standard/full), per-Owner routing + index-to-agent integrity, Step 2.5 context-glob mappings, broken-YAML isolation. Wired into `make precommit` so CI catches dispatcher drift. Closes the 4 acceptance items listed on `[[Refactor coding pr-review to doc-driven rules pipeline]]` task page that were left over from the scenario-cut.
+
 ## v0.15.1
 
-- feat(scripts): new `scripts/acceptance.sh` + `make check-acceptance` Makefile target — 12 fast assertions covering the dispatcher contract that doesn't need an E2E scenario walk: mode coverage (short/standard/full), per-Owner routing + index-to-agent integrity, Step 2.5 context-glob mappings, broken-YAML isolation. Wired into `make precommit` so CI catches dispatcher drift. Closes the 4 acceptance items listed on `[[Refactor coding pr-review to doc-driven rules pipeline]]` task page that were left over from the scenario-cut.
 - fix(rules): `go-errors/no-fmt-errorf.yml` rewritten as a structural rule. The original `pattern: fmt.Errorf($$$ARGS)` was parsed by tree-sitter Go grammar as a `type_conversion_expression` (because `Type(arg)` is a valid Go type cast at pattern-compile time), so the rule matched no real call sites — silently emitting zero findings since the YAML shipped. Replaced with `kind: call_expression` + structural `selector_expression` match on `fmt.Errorf`. Verified against scenario 004's fixture (`pkg/scenarios-test-fixture/violations.go` on bborbe/maintainer#2): the `Boom` function's `fmt.Errorf` now fires. Scenario 004's `findings_count` floor lifted ≥4 → ≥5.
 
 ## v0.15.0
@@ -497,10 +502,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## v0.12.0
 
 - feat(rules): add four `### RULE` blocks to `docs/go-http-handler-refactoring-guide.md` — `go-http-handler/no-inline-error-handler`, `go-http-handler/no-inline-background-handler`, `go-http-handler/new-prefix-naming`, `go-http-handler/kebab-case-handler-files`; matching ast-grep YAMLs for the two mechanical rules + `rules/index.json` entries grown from 17 to 21
+- feat(rules): add four `### RULE` blocks to `docs/go-security-linting.md` — `go-security/file-perms-too-permissive`, `go-security/dir-perms-too-permissive`, `go-security/nosec-requires-reason`, `go-security/chmod-return-checked`; matching ast-grep YAMLs + `rules/index.json` entries
 
 ## v0.11.1
 
-- feat(rules): add four `### RULE` blocks to `docs/go-security-linting.md` — `go-security/file-perms-too-permissive`, `go-security/dir-perms-too-permissive`, `go-security/nosec-requires-reason`, `go-security/chmod-return-checked`; matching ast-grep YAMLs + `rules/index.json` entries
 - chore(release): live-verify `github-releaser-agent` plugin-manifest bumping — release commit should rewrite `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` version fields alongside the CHANGELOG (feature shipped via `bborbe/maintainer` PR #33).
 
 ## v0.11.0

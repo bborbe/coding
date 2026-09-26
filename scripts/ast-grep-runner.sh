@@ -14,7 +14,11 @@
 # Usage:
 #   scripts/ast-grep-runner.sh <target-dir> [changed-file ...]
 #
-# When changed files are given only those files are scanned (diff-scope).
+# When changed files are given only those files are scanned. The scope is
+# FILE-scope, not line-scope: every line of each changed file is scanned, so a
+# pre-existing violation inside a changed file is reported alongside the diff's
+# own. Narrowing to the diff's hunks would need the base ref, which this script
+# is never given — a caller wanting line scope must filter the findings itself.
 # Paths may be relative to target-dir or absolute.
 #
 # Exit codes:

@@ -67,7 +67,12 @@ Do not emit a per-rule "passed" entry for rules with no violation — silently o
 ```bash
 VALIDATOR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/validate-citations.sh"
 [ -x "$VALIDATOR" ] || VALIDATOR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/scripts/validate-citations.sh"
-bash "$VALIDATOR" <findings.json>
+# ⚠️ Invoke it from the plugin root. The validator resolves rules/index.json
+# from the cwd or an ancestor, so the invocation this guide used to document —
+# run from the repo under review — exits 2 with "rules/index.json not found.
+# Run from repo root." on every repo except this plugin's own checkout. The
+# message reads like a broken install rather than the wrong working directory.
+( cd "$(dirname "$(dirname "$VALIDATOR")")" && bash scripts/validate-citations.sh <findings.json> )
 ```
 
 ## Security Extension (dormant)

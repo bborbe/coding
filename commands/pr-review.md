@@ -215,6 +215,8 @@ RUNNER="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts
 "$RUNNER" <REVIEW_DIR> <changed files, space-separated> > /tmp/pr-review-findings.json
 ```
 
+⚠️ **The runner's scope is changed FILES, not changed LINES.** It is handed a file list and scans each of those files whole — it is never given the base ref, so it cannot narrow to the diff's hunks. A finding on a line the diff never touched is therefore **expected**, not a sign the run went wrong: a changed file drags in every pre-existing violation it already carried. Step 5's rule that only changed code is reportable makes filtering them out the *adjudicator's* job, not the runner's — check each finding's line against the diff before adjudicating it, rather than assuming the funnel already did. Measured 2026-09-26 on a 232-line Go diff: 15 findings across 4 owners, every one on an unchanged line (a pre-existing `glog` import, counterfeiter `Returns` calls, in-memory `range` loops, untyped enum constants).
+
 Run exactly this one Bash call, once. The runner emits `{stats, findings_by_owner: {<agent-name>: [...findings]}, errors}` — read it from `/tmp/pr-review-findings.json`. Do NOT spawn an agent for this step (the former `coding:ast-grep-runner` agent is deprecated). If the runner is missing or fails: note "mechanical funnel unavailable" for the Step 5 report and continue with Step 4b using judgment-rule triggers only — do NOT investigate (no `find`, no `which`, no path probing).
 
 #### 4b: Findings-scoped candidate computation

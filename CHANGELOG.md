@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.2
 
 - chore: unfold nine bullets that sat under a release which does not contain them. Each was moved into the section for the tag that actually contains its merge — **not** into `## Unreleased`, since all nine shipped in a later release and moving them here would duplicate the entry in the next one. Found by `check-changelog-fold` once it compared each released section against **its own** tag instead of the newest tag's snapshot, which had been masking them.
 

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.2
 
 - fix: `check-changelog-fold` now compares each released section against **its own** tag instead of the newest tag's snapshot. The newest tag's file already carries every earlier section as it stood at that later cut — including one that had already been folded — so the working tree's bullets came out a subset, the extras came out empty, and the fold was silently masked on exactly the repos that had released since. Measured 2026-09-26 on `bborbe/claude-supervisor`: `## v0.57.2` held 1 bullet in its own tag and 4 in `v0.57.3`'s snapshot, so master read clean while a bullet whose merge was in no `v0.57.2` sat misfiled there. A guard that goes quiet after the next release is worse than no guard. Also: a bullet no commit in the file's history introduced is now reported and stepped over rather than fatal, since aborting there hid every finding after it — it still exits non-zero. The pickaxe also gains `-m`: `git log -S` skips merge commits by default, so a bullet introduced by a merge resolution — the fold's own mechanism — could not be attributed at all.
 - chore: unfold nine bullets that sat under a release which does not contain them. Each was moved into the section for the tag that actually contains its merge — **not** into `## Unreleased`, since all nine shipped in a later release and moving them here would duplicate the entry in the next one. Found by `check-changelog-fold` once it compared each released section against **its own** tag instead of the newest tag's snapshot, which had been masking them.

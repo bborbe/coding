@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.5
 
 - fix: require the `/coding:pr-review` report to state whether the judgment tier ran, so a skipped selector-mode pass is distinguishable from a clean one. The command already required its report to declare two other skipped steps — `Step 4 skipped: no rule-relevant files changed` and `precommit skipped (selector mode) — CI covers lint+test` — but said nothing about the judgment tier, which is the half the mechanical funnel cannot cover: the funnel finds MUST-tier YAML violations and nothing else. A run that skipped the `4c-sel`/`4d-sel` classify-and-adjudicate steps therefore produced a report indistinguishable from a full selector review, and the omission failed in the one direction that matters — silence read as a pass. Observed 2026-09-26: a review on `bborbe/attention-controller#20` ran the funnel, adjudicated its output by hand, never resolved whether the selector-mode guide existed, and reported a complete review; the gap surfaced only when the session audited itself afterwards. The new line is mandatory in all three modes and reads `Judgment tier: selector ran`, `Judgment tier: skipped — <reason>`, or `Judgment tier: n/a — short mode`.
 

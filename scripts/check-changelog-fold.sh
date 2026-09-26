@@ -153,13 +153,21 @@ while IFS= read -r heading; do
 		printf '%s\n' "$tagged" | grep -qxF -- "$bullet" && continue
 		tested=$((tested + 1))
 
+		# `-m` is required, not cosmetic: `git log -S` skips merge commits by
+		# default, and a bullet introduced by a merge RESOLUTION — the fold's own
+		# mechanism — is then unattributable and reported UNVERIFIABLE. Measured
+		# 2026-09-26: the `three-command-review-split` bullet is verbatim in HEAD,
+		# plain `-S` finds no commit for it, and `-S -m` finds the merge that
+		# introduced it. Without this the guard fails on exactly the shape it
+		# exists to catch.
+		#
 		# `tail -1` takes the EARLIEST commit that changed this line's count —
 		# where the text first appeared. Deliberate: an unfold PR re-placing an
 		# already-released bullet introduces the text a second time, and the
 		# later commit would be misread as the feature's own merge. The first
 		# appearance is the feature's branch commit, which is what the
 		# `--contains` test needs. Verified against both shapes 2026-09-26.
-		sha=$(git log --format=%H -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
+		sha=$(git log --format=%H -m -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
 		if [ -z "$sha" ]; then
 			# Unanswerable, so never a pass — but reported and stepped over
 			# rather than fatal. Aborting here would hide every finding after

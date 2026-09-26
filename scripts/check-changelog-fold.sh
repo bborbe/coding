@@ -71,10 +71,15 @@ if [ -z "$TAG" ]; then
 	exit 0
 fi
 
-TAGFILE=$(mktemp)
-trap 'rm -f "$TAGFILE"' EXIT
-git show "$TAG:$CHANGELOG" >"$TAGFILE" 2>/dev/null ||
-	die "cannot read $CHANGELOG at $TAG — the tag does not carry the file"
+# Every released section below is compared against ITS OWN tag, never against the
+# newest tag's snapshot. The newest tag's file necessarily carries every earlier
+# section as it stood at that later cut — including one that had already been
+# folded — so comparing against it makes the working tree's bullets a SUBSET, the
+# extras come out empty, and the fold is silently masked on exactly the repos that
+# have released since. Measured 2026-09-26 on `bborbe/claude-supervisor`:
+# `## v0.57.2` held 1 bullet in its own tag and 4 in `v0.57.3`'s snapshot, so
+# master read clean while a bullet whose merge was in no `v0.57.2` was misfiled
+# there. A guard that goes quiet after the next release is worse than no guard.
 
 # Body of `## <heading>` on stdin, stopping at the next `## ` heading.
 section() { # $1 = heading text without the leading "## "
@@ -97,6 +102,7 @@ folded=0
 tested=0
 sections=0
 stalled=0
+unverifiable=0
 
 # --- the stall signature ---------------------------------------------------
 # The fold consumes `## Unreleased`, and a repo with unreleased work but no
@@ -117,19 +123,21 @@ if ! grep -qxF "## Unreleased" "$CHANGELOG"; then
 fi
 
 while IFS= read -r heading; do
-	# A section present only in the working tree is a new release in flight,
-	# not a fold — the tag has nothing to compare it against.
-	grep -qxF "## $heading" "$TAGFILE" || continue
-
-	# The section's own tag is what decides the verdict. Without it the section
-	# is unverifiable — reported, never silently passed.
+	# The section's own tag is both the comparison source and the basis of the
+	# verdict. A section present only in the working tree is a new release in
+	# flight, not a fold — and it is skipped as unverifiable rather than
+	# compared against some other release's snapshot.
 	if ! git rev-parse -q --verify "refs/tags/$heading" >/dev/null 2>&1; then
 		printf '  unverifiable: %s has no tag of its own — skipped\n' "$heading" >&2
 		continue
 	fi
+	if ! git cat-file -e "$heading:$CHANGELOG" 2>/dev/null; then
+		printf '  unverifiable: %s does not carry %s — skipped\n' "$heading" "$CHANGELOG" >&2
+		continue
+	fi
 
 	work=$(section "$heading" <"$CHANGELOG" | grep -E '^- ' || true)
-	tagged=$(section "$heading" <"$TAGFILE" | grep -E '^- ' || true)
+	tagged=$(git show "$heading:$CHANGELOG" | section "$heading" | grep -E '^- ' || true)
 
 	sections=$((sections + 1))
 
@@ -152,9 +160,16 @@ while IFS= read -r heading; do
 		# appearance is the feature's branch commit, which is what the
 		# `--contains` test needs. Verified against both shapes 2026-09-26.
 		sha=$(git log --format=%H -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
-		[ -n "$sha" ] ||
-			die "cannot find the commit that introduced this bullet, so its release is unknowable:
-     $bullet"
+		if [ -z "$sha" ]; then
+			# Unanswerable, so never a pass — but reported and stepped over
+			# rather than fatal. Aborting here would hide every finding after
+			# this bullet, which is the same silence in a different costume.
+			unverifiable=$((unverifiable + 1))
+			printf 'UNVERIFIABLE: %s\n' "$bullet" >&2
+			printf '              sits under: %s\n' "$(sits_under "$bullet")" >&2
+			printf '              no commit in this file'\''s history introduced this line — release unknowable\n' >&2
+			continue
+		fi
 
 		# The authoritative test: is this bullet's merge an ancestor of THIS
 		# section's own tag? Asking `git tag --contains` for *any* tag is the
@@ -193,10 +208,17 @@ if [ "$stalled" -gt 0 ]; then
 	printf 'a section with no bullets.\n' >&2
 fi
 
-# Both signatures are reported before exiting: the fold names the misfiled
-# bullets, the stall names the consequence, and a reader needs both.
-if [ "$folded" -gt 0 ] || [ "$stalled" -gt 0 ]; then
+if [ "$unverifiable" -gt 0 ]; then
+	printf '\nFAIL: %d bullet(s) could not be attributed to a commit, so their release is unknowable.\n' \
+		"$unverifiable" >&2
+	printf 'Reported rather than passed, and still a failure: an unanswered question is not a clean tree.\n' >&2
+fi
+
+# Every signature is reported before exiting — the fold names the misfiled
+# bullets, the stall names the consequence, and unverifiable names what could
+# not be answered at all. A reader needs all three.
+if [ "$folded" -gt 0 ] || [ "$stalled" -gt 0 ] || [ "$unverifiable" -gt 0 ]; then
 	exit 1
 fi
 
-echo "  changelog-fold ok: $sections released section(s) at $TAG, $tested candidate(s), 0 folded"
+echo "  changelog-fold ok: $sections released section(s), $tested candidate(s), 0 folded"

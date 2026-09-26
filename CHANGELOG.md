@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: `check-changelog-fold` now compares each released section against **its own** tag instead of the newest tag's snapshot. The newest tag's file already carries every earlier section as it stood at that later cut — including one that had already been folded — so the working tree's bullets came out a subset, the extras came out empty, and the fold was silently masked on exactly the repos that had released since. Measured 2026-09-26 on `bborbe/claude-supervisor`: `## v0.57.2` held 1 bullet in its own tag and 4 in `v0.57.3`'s snapshot, so master read clean while a bullet whose merge was in no `v0.57.2` sat misfiled there. A guard that goes quiet after the next release is worse than no guard. Also: a bullet no commit in the file's history introduced is now reported and stepped over rather than fatal, since aborting there hid every finding after it — it still exits non-zero.
+
 ## v0.55.0
 
 - feat: a post-merge `check-changelog-fold` guard catches the changelog fold — the race where a release cut renames `## Unreleased` and a later merge splices its bullets into the already-released section, leaving the changelog claiming work its tag does not contain. The verdict is per-bullet `git tag --contains <merge-sha>`, never bullet placement: placement reads identically on a folded bullet and on one an unfold PR re-placed after it had already shipped, and acting on placement moves shipped features into the next release. It also catches the stall that follows — unreleased work with no `## Unreleased` left for the release watcher to cut. Consuming repos call the reusable workflow from a post-merge job on master; a PR check is structurally blind to this, because the fold happens in the merge.

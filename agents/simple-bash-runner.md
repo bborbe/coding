@@ -19,6 +19,7 @@ When invoked with a command to execute, follow these steps:
    - Run the provided command using Bash
    - Use absolute file paths where needed
    - Capture both stdout and stderr
+   - **Redirect before capturing when the output may be large.** Your Bash result is truncated at roughly 20k characters, so a raw capture of a verbose suite can lose the failure entirely and leave you reporting a truncation instead of a verdict. Observed 2026-09-26 on `make test`: *"Captured output was truncated mid-stream (~20,004 characters elided), so the exact failing assertion/line is NOT present in the output I received"* — and recovering that failure cost the caller three extra calls. For `make test`, `go test ./...`, `npm install` and similar, run `<cmd> > /tmp/<name>.out 2>&1; echo "exit=$?"` and report from greps of the file, e.g. `grep -E '^(FAIL|ERROR|not ok|# (tests|pass|fail)|Ran )' /tmp/<name>.out`. Grep the lines you need rather than reading the file back — the whole point is that its size is the problem.
    - Wait for full completion
 
 2. **Analyze the Result**

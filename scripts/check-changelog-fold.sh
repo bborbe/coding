@@ -151,7 +151,7 @@ while IFS= read -r heading; do
 		# later commit would be misread as the feature's own merge. The first
 		# appearance is the feature's branch commit, which is what the
 		# `--contains` test needs. Verified against both shapes 2026-09-26.
-		sha=$(git log --format=%H -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
+		sha=$(git log --format=%H -m -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
 		[ -n "$sha" ] ||
 			die "cannot find the commit that introduced this bullet, so its release is unknowable:
      $bullet"

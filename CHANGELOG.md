@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: **`simple-bash-runner` no longer loses a verbose command's failure to output truncation.** The agent captured stdout/stderr raw, and its Bash result is truncated at roughly 20k characters, so a verbose suite could come back as a truncation notice instead of a verdict — observed 2026-09-26 on `make test`: *"Captured output was truncated mid-stream (~20,004 characters elided), so the exact failing assertion/line is NOT present in the output I received"*, with three extra caller calls spent recovering the failure. Instruction 1 now carries a size guard: for `make test`, `go test ./...`, `npm install` and similar, capture to a `mktemp` file and report from greps of it rather than reading it back — `mktemp` rather than a fixed path, since two agent turns can run concurrently and a shared name would collide, with `rm -f` when done. The agent's reporting rules are unchanged — it already refused to invent a status it had not observed, which is why the truncation surfaced as a truncation rather than as a wrong verdict.
+
 ## v0.55.0
 
 - feat: a post-merge `check-changelog-fold` guard catches the changelog fold — the race where a release cut renames `## Unreleased` and a later merge splices its bullets into the already-released section, leaving the changelog claiming work its tag does not contain. The verdict is per-bullet `git tag --contains <merge-sha>`, never bullet placement: placement reads identically on a folded bullet and on one an unfold PR re-placed after it had already shipped, and acting on placement moves shipped features into the next release. It also catches the stall that follows — unreleased work with no `## Unreleased` left for the release watcher to cut. Consuming repos call the reusable workflow from a post-merge job on master; a PR check is structurally blind to this, because the fold happens in the merge.

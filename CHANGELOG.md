@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.0
 
 - feat: a post-merge `check-changelog-fold` guard catches the changelog fold — the race where a release cut renames `## Unreleased` and a later merge splices its bullets into the already-released section, leaving the changelog claiming work its tag does not contain. The verdict is per-bullet `git tag --contains <merge-sha>`, never bullet placement: placement reads identically on a folded bullet and on one an unfold PR re-placed after it had already shipped, and acting on placement moves shipped features into the next release. It also catches the stall that follows — unreleased work with no `## Unreleased` left for the release watcher to cut. Consuming repos call the reusable workflow from a post-merge job on master; a PR check is structurally blind to this, because the fold happens in the merge.
 

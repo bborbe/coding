@@ -347,6 +347,8 @@ The script exits non-zero if any finding's `rule_id` is not in `rules/index.json
 
 **MANDATORY**: Always include all three headers. Write "None." if empty.
 
+**MANDATORY**: State the judgment tier's status on its own line — `Judgment tier: selector ran`, `Judgment tier: skipped — <reason>`, or `Judgment tier: n/a — short mode`. A report silent about it reads as complete whether the tier ran or not, and the mechanical funnel alone misses every judgment-tier rule, so an unstated skip is indistinguishable from a clean pass. Same discipline as the `Step 4 skipped:` and `precommit skipped (selector mode)` lines above.
+
 **MANDATORY**: Every finding must be attributable. Write each finding as a list item that **begins** with a bold file reference, and append the rule tag when the finding comes from a rule:
 
 ```

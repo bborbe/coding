@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.9
 - docs: `docs/releasing-coding.md` now states releases are automatic under `.maintainer.yaml: release.autoRelease: true` (`github-releaser-agent` bumps and tags after merge) and labels the manual bump/tag procedure as fallback only — the summary table previously sent operators to hand-bump, racing the bot
 
 ## v0.55.8

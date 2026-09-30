@@ -1,6 +1,6 @@
 # Releasing coding
 
-How to ship a new version of the `coding` plugin. Mandatory reading before tagging or bumping plugin JSONs.
+How to ship a new version of the `coding` plugin. Mandatory reading before any release. Releases are automatic: `.maintainer.yaml` sets `release.autoRelease: true`, so `github-releaser-agent` cuts every release after a merge to `master` — never hand-bump or hand-tag while that flag is set.
 
 ## One surface, one version stream
 
@@ -8,7 +8,7 @@ Unlike `vault-cli` / `dark-factory` / `semantic-search` which ship both a binary
 
 | Surface | Versioned by | Consumed by | Bumped how |
 |---------|--------------|-------------|------------|
-| **Plugin** | `CHANGELOG.md` top entry + `.claude-plugin/plugin.json` `version` + `.claude-plugin/marketplace.json` (`metadata.version` AND `plugins[0].version`) | Claude Code via the marketplace | Manual — operator bumps the four fields together |
+| **Plugin** | `CHANGELOG.md` top entry + `.claude-plugin/plugin.json` `version` + `.claude-plugin/marketplace.json` (`metadata.version` AND `plugins[0].version`) | Claude Code via the marketplace | Automatic — `github-releaser-agent` bumps all four fields and tags after a merge to `master`, because `.maintainer.yaml` sets `release.autoRelease: true` (e.g. `v0.55.8`: the bot's own `release v0.55.8` commit touched `CHANGELOG.md`, `plugin.json`, `marketplace.json`). Manual procedure is **fallback only** — see below |
 
 ## 🚨 Version alignment — locked at release time only
 
@@ -23,7 +23,7 @@ The check is **release-time only** — `make precommit` does NOT run it.
 
 **Why not in `precommit`**: every refactor commit would otherwise have to bump plugin JSONs in lockstep, burning release numbers on internal work. Drift during development is fine; alignment is enforced when versions are bumped for a release. (Same lesson `dark-factory`, `vault-cli`, and `semantic-search` apply.)
 
-## The release gate (run BEFORE every plugin bump)
+## The release gate (run BEFORE merging a release-bearing PR)
 
 `make precommit` is the development gate (link check + JSON syntax). It does NOT cover real Claude Code load, slash-command surfaces, or marketplace ingestion.
 
@@ -49,7 +49,17 @@ bash scripts/check-versions.sh
 
 **NOT wired into `make precommit`** — see "Version alignment" above for why.
 
-## Release procedure
+## Release procedure (normal path)
+
+1. Add an `## Unreleased` bullet to `CHANGELOG.md` in your PR.
+2. Merge the PR to `master`.
+3. `github-releaser-agent` classifies the bump, rewrites `## Unreleased` to `## vX.Y.Z`, bumps the three JSON fields, commits `release vX.Y.Z`, and tags. Verify with `git fetch --tags && git show --stat vX.Y.Z`.
+
+Do **not** touch the version fields yourself — a hand-bump races the bot for the same version number.
+
+## Fallback: manual release procedure
+
+Fallback only — use these steps **only when `.maintainer.yaml` does not set `release.autoRelease: true`** (or the releaser is confirmed down and the release cannot wait). While the flag is set, stop here.
 
 1. **Land all changes** for the release on `master`.
 2. **Pick the next version.** Increment per SemVer based on what changed (patch for fixes, minor for new commands/agents/skills, major for breaking).
@@ -69,7 +79,7 @@ bash scripts/check-versions.sh
 
 7. **Verify:** the marketplace re-checks periodically; new sessions load the bumped plugin automatically.
 
-### Common release mistakes
+### Common fallback-release mistakes
 
 - Forgetting one of the three `.claude-plugin/` JSON fields. The marketplace rejects mismatches silently and refuses to load the plugin.
 - Creating a separate "Plugin vX" CHANGELOG section. Wrong — there is one CHANGELOG.

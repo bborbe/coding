@@ -153,10 +153,60 @@ pre_image() { # $1 = commit, $2 = exact line at $1
 		'
 }
 
-# The commit that introduced $1's CONTENT, or empty when unanswerable.
+# The line anywhere in $2's changelog that shares the longest opening with $1,
+# or empty.
 #
-# TWO defects make the naive `git log -S` walk answer with a commit that is not
-# the bullet's merge. Both were measured 2026-09-30 on `bborbe/claude-supervisor`,
+# Used only after attribution from the diff has already FAILED, and it exists for
+# one shape: a squash rewrite. Squashing the repository into a new root re-adds
+# CHANGELOG.md carrying the CURRENT wording, so `-S` on that wording finds the
+# root and nothing else, while the merge that actually introduced the bullet sits
+# in the disconnected pre-squash history — reachable through the tags, but
+# holding the wording as it read BEFORE the rewrite. Measured 2026-09-30 on
+# `bborbe/claude-supervisor`: the root `4b228e3` (164 files, no parents) is the
+# ONLY `-S` candidate for every bullet, and the scrub commits live on
+# `chore/scrub-personal-content-2`, merged into no branch — so a CI checkout of
+# master plus tags cannot see them at all. The tag still carries the pre-rewrite
+# wording of the same bullet, and recovering it there restores the attribution.
+#
+# The WHOLE file is searched, not just the section the bullet now sits under, and
+# that is deliberate: an unfold repair MOVES a bullet between released sections,
+# so the tag carries it under whichever section it occupied at that cut. On
+# `claude-supervisor` the 2026-09-28 repair moved five bullets into `## v0.63.0`,
+# where they were absent at tag `v0.63.0` and present at `v0.62.5`. A
+# section-scoped search finds nothing for those and reports them unverifiable;
+# the file-wide search recovers the wording, and the `--contains` test still
+# decides which section that merge belongs to.
+#
+# The bar is the same `min_prefix` `pre_image` uses, and it matters for the same
+# reason: a genuinely folded bullet is nowhere in its tag, so it matches nothing
+# here and still reports FOLDED. A loose match would let a fold borrow a
+# neighbouring bullet's wording and read as shipped.
+tag_wording() { # $1 = exact bullet line, $2 = a tag that carries the bullet
+	local min_prefix=40
+	git show "$2:$CHANGELOG" 2>/dev/null |
+		awk -v want="$1" -v min_prefix="$min_prefix" '
+			function lcp(a, b,   i, n) {
+				n = (length(a) < length(b)) ? length(a) : length(b)
+				for (i = 1; i <= n; i++)
+					if (substr(a, i, 1) != substr(b, i, 1)) break
+				return i - 1
+			}
+			/^- / {
+				s = lcp($0, want)
+				if (s > best) {
+					best = s
+					best_line = $0
+				}
+			}
+			END { if (best >= min_prefix) print best_line }
+		'
+}
+
+# The commit that introduced $1's CONTENT, or empty when unanswerable. $2 is the
+# section's own tag, needed only by the last fallback.
+#
+# THREE defects make the naive `git log -S` walk answer with a commit that is not
+# the bullet's merge. All were measured 2026-09-30 on `bborbe/claude-supervisor`,
 # where together they produced 69 FOLDED bullets of which every one was a false
 # positive — the whole released changelog reading as folded.
 #
@@ -169,38 +219,65 @@ pre_image() { # $1 = commit, $2 = exact line at $1
 #
 # 2. `-S` CANNOT SEE THROUGH A TEXT REWRITE. A bulk wording edit — the
 #    vault-title scrub batches — changes a line's text without adding work, so
-#    `-S` on the NEW wording finds only the rewrite. The rewrite is on master but
-#    in no tag, and "no tag" is this guard's signal for FOLDED: the bullet reads
-#    folded although its content shipped. Stepping over such a commit and walking
-#    back to the wording it replaced re-attributes the bullet to the commit that
-#    introduced its CONTENT, which is what the `--contains` test needs.
+#    `-S` on the NEW wording finds only the rewrite. The rewrite is in no tag, and
+#    "no tag" is this guard's signal for FOLDED: the bullet reads folded although
+#    its content shipped. Stepping over such a commit and walking back to the
+#    wording it replaced re-attributes the bullet to the commit that introduced
+#    its CONTENT, which is what the `--contains` test needs.
 #
-# A commit in NO tag is therefore only trusted when it ADDED the line. A paired
+# 3. A SQUASH ROOT IS BOTH UNWALKABLE AND TAGGED. When the rewrite is a squash
+#    the root has no parent, so there is no `pre_image` to step back to; and
+#    because the squash carries the project forward it sits UNDER every later
+#    tag, so the "in some tag" test trusts it. That is what makes this defect
+#    survive a `--all` walk — the root is the only candidate AND it looks
+#    released. A commit that CREATED the changelog is therefore never the answer
+#    to "which merge introduced this line": `-S` sees every line's count go
+#    0 -> 1 there, so it answers for the whole file at once. The wording is
+#    recovered from the tag instead.
+#
+# A commit in NO tag is trusted only when it ADDED the line. A paired
 # removal+addition is a rewrite and is walked back; a pure addition is a genuine
 # introduction whose work has not been released, and stays the answer so that a
 # real fold is still reported as one rather than degraded to UNVERIFIABLE.
-attribute() { # $1 = exact bullet line
-	local bullet="$1" sha prev tries=0
+attribute() { # $1 = exact bullet line, $2 = the section's own tag
+	local bullet="$1" tag="$2" sha prev tries=0
 	while [ "$tries" -lt 8 ]; do
 		sha=$(git log --all --format=%H -m -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
-		[ -n "$sha" ] || return 1
 
-		# In some tag -> the bullet's content shipped by then, so this is the
-		# commit the `--contains` test wants.
-		if [ -n "$(git tag --contains "$sha" 2>/dev/null | head -1)" ]; then
+		# Skip a commit that created the changelog outright — a rewrite's root,
+		# never a feature merge, however many tags happen to contain it.
+		if [ -n "$sha" ] && git rev-parse --verify --quiet "$sha^:$CHANGELOG" >/dev/null; then
+			# In some tag -> the bullet's content shipped by then, so this is the
+			# commit the `--contains` test wants.
+			if [ -n "$(git tag --contains "$sha" 2>/dev/null | head -1)" ]; then
+				printf '%s\n' "$sha"
+				return 0
+			fi
+
+			prev=$(pre_image "$sha" "$bullet")
+			if [ -z "$prev" ]; then
+				# Added, not rewritten: a genuine introduction, still unreleased.
+				printf '%s\n' "$sha"
+				return 0
+			fi
+
+			bullet="$prev"
+			tries=$((tries + 1))
+			continue
+		fi
+
+		# Unattributable from the diff — the squash case. The tag still carries
+		# this bullet's pre-rewrite wording; attribute that instead.
+		prev=$(tag_wording "$bullet" "$tag")
+		if [ -z "$prev" ] || [ "$prev" = "$bullet" ]; then
+			return 1
+		fi
+		sha=$(git log --all --format=%H -m -S"$prev" -- "$CHANGELOG" 2>/dev/null | tail -1)
+		if [ -n "$sha" ]; then
 			printf '%s\n' "$sha"
 			return 0
 		fi
-
-		prev=$(pre_image "$sha" "$bullet")
-		if [ -z "$prev" ]; then
-			# Added, not rewritten: a genuine introduction, still unreleased.
-			printf '%s\n' "$sha"
-			return 0
-		fi
-
-		bullet="$prev"
-		tries=$((tries + 1))
+		return 1
 	done
 	return 1
 }
@@ -276,8 +353,10 @@ while IFS= read -r heading; do
 		# `--contains` test needs. Verified against both shapes 2026-09-26.
 		#
 		# The walk itself lives in `attribute`, which also compensates for the
-		# two attribution defects documented there.
-		sha=$(attribute "$bullet" || true)
+		# three attribution defects documented there. `$heading` is passed so the
+		# last fallback can recover a pre-rewrite wording from this section's own
+		# tag.
+		sha=$(attribute "$bullet" "$heading" || true)
 		if [ -z "$sha" ]; then
 			# Unanswerable, so never a pass — but reported and stepped over
 			# rather than fatal. Aborting here would hide every finding after

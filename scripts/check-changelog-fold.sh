@@ -98,6 +98,113 @@ sits_under() { # $1 = exact bullet line
 	' "$CHANGELOG"
 }
 
+# The wording $2 replaced at commit $1, or empty when that commit ADDED the line
+# outright — which is how the caller tells a rewrite from a genuine introduction.
+#
+# Exact index pairing comes first, because it cannot be wrong: it fires only
+# when the target sits in a hunk whose removals and additions line up, which is
+# what an in-place rewrite looks like. The similarity fallback covers the hunks
+# where they do not — measured 2026-09-30 on `bborbe/claude-supervisor`, where
+# the last of 69 false positives sat in a hunk of 7 removals against 15
+# additions and so had no line at its own index to pair with.
+#
+# The fallback is a guess, so it is held to a high bar: only the removed line
+# sharing the longest opening with the target, and only if that opening clears
+# `min_prefix` characters. Both bounds matter — a loose match would pair a genuinely
+# new bullet with an unrelated removal and attribute it to old work, which masks
+# a real fold rather than merely mislabelling one, and that is the one direction
+# this guard must never fail in.
+pre_image() { # $1 = commit, $2 = exact line at $1
+	local min_prefix=40
+	git diff --unified=0 "$1^" "$1" -- "$CHANGELOG" 2>/dev/null |
+		awk -v want="$2" -v min_prefix="$min_prefix" '
+			function lcp(a, b,   i, n) {
+				n = (length(a) < length(b)) ? length(a) : length(b)
+				for (i = 1; i <= n; i++)
+					if (substr(a, i, 1) != substr(b, i, 1)) break
+				return i - 1
+			}
+			/^@@/ { h++; n[h] = 0; m[h] = 0; next }
+			/^-/ && !/^---/ { n[h]++; minus[h, n[h]] = substr($0, 2); next }
+			/^\+/ && !/^\+\+\+/ { m[h]++; plus[h, m[h]] = substr($0, 2); next }
+			END {
+				for (k = 1; k <= h; k++)
+					for (i = 1; i <= m[k]; i++)
+						if (plus[k, i] == want && i <= n[k]) {
+							print minus[k, i]
+							exit
+						}
+				for (k = 1; k <= h; k++) {
+					best = 0
+					best_line = ""
+					for (i = 1; i <= n[k]; i++) {
+						s = lcp(minus[k, i], want)
+						if (s > best) {
+							best = s
+							best_line = minus[k, i]
+						}
+					}
+					if (best >= min_prefix) {
+						print best_line
+						exit
+					}
+				}
+			}
+		'
+}
+
+# The commit that introduced $1's CONTENT, or empty when unanswerable.
+#
+# TWO defects make the naive `git log -S` walk answer with a commit that is not
+# the bullet's merge. Both were measured 2026-09-30 on `bborbe/claude-supervisor`,
+# where together they produced 69 FOLDED bullets of which every one was a false
+# positive — the whole released changelog reading as folded.
+#
+# 1. A HEAD-ONLY WALK COLLAPSES AFTER A HISTORY REWRITE. Rewriting history
+#    re-adds CHANGELOG.md wholesale at the new root, so the root is the earliest
+#    change in HEAD's ancestry for EVERY bullet. `merge-base --is-ancestor <root>
+#    <old-tag>` is then false for every old tag, and the file reads folded
+#    throughout. There, all 69 named the same root commit. `--all` is the fix: it
+#    reaches the pre-rewrite history through the tags that still point into it.
+#
+# 2. `-S` CANNOT SEE THROUGH A TEXT REWRITE. A bulk wording edit — the
+#    vault-title scrub batches — changes a line's text without adding work, so
+#    `-S` on the NEW wording finds only the rewrite. The rewrite is on master but
+#    in no tag, and "no tag" is this guard's signal for FOLDED: the bullet reads
+#    folded although its content shipped. Stepping over such a commit and walking
+#    back to the wording it replaced re-attributes the bullet to the commit that
+#    introduced its CONTENT, which is what the `--contains` test needs.
+#
+# A commit in NO tag is therefore only trusted when it ADDED the line. A paired
+# removal+addition is a rewrite and is walked back; a pure addition is a genuine
+# introduction whose work has not been released, and stays the answer so that a
+# real fold is still reported as one rather than degraded to UNVERIFIABLE.
+attribute() { # $1 = exact bullet line
+	local bullet="$1" sha prev tries=0
+	while [ "$tries" -lt 8 ]; do
+		sha=$(git log --all --format=%H -m -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
+		[ -n "$sha" ] || return 1
+
+		# In some tag -> the bullet's content shipped by then, so this is the
+		# commit the `--contains` test wants.
+		if [ -n "$(git tag --contains "$sha" 2>/dev/null | head -1)" ]; then
+			printf '%s\n' "$sha"
+			return 0
+		fi
+
+		prev=$(pre_image "$sha" "$bullet")
+		if [ -z "$prev" ]; then
+			# Added, not rewritten: a genuine introduction, still unreleased.
+			printf '%s\n' "$sha"
+			return 0
+		fi
+
+		bullet="$prev"
+		tries=$((tries + 1))
+	done
+	return 1
+}
+
 folded=0
 tested=0
 sections=0
@@ -167,7 +274,10 @@ while IFS= read -r heading; do
 		# later commit would be misread as the feature's own merge. The first
 		# appearance is the feature's branch commit, which is what the
 		# `--contains` test needs. Verified against both shapes 2026-09-26.
-		sha=$(git log --format=%H -m -S"$bullet" -- "$CHANGELOG" 2>/dev/null | tail -1)
+		#
+		# The walk itself lives in `attribute`, which also compensates for the
+		# two attribution defects documented there.
+		sha=$(attribute "$bullet" || true)
 		if [ -z "$sha" ]; then
 			# Unanswerable, so never a pass — but reported and stepped over
 			# rather than fatal. Aborting here would hide every finding after

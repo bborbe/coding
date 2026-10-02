@@ -286,7 +286,38 @@ folded=0
 tested=0
 sections=0
 stalled=0
+stranded=0
 unverifiable=0
+
+# --- the stranded-Unreleased signature -------------------------------------
+# A fold renames the TOP `## Unreleased` to `## vX.Y.Z`. A merge resolution that
+# re-inserts an older branch's `## Unreleased` leaves a SECOND one stranded lower
+# in the file, and two failures follow, both silent. The released-section walk
+# below reads only `^## vX.Y.Z$` headings, so a bullet misfiled under the
+# stranded heading is never inspected; and the stall check was satisfied by ANY
+# `## Unreleased` anywhere, so the stranded heading suppressed that report too.
+# Measured 2026-10-02 on `bborbe/claude-supervisor`: a second `## Unreleased` sat
+# between `## v0.87.5` and `## v0.87.4` holding a bullet whose merge `4c9ea75`
+# was already contained by `v0.95.0`, and the guard reported neither it nor the
+# stall it was masking — the workflow read red for the two folds it did see
+# while a third defect of the same family sat 100 lines below them.
+#
+# The rule is not "one must exist": an absent `## Unreleased` is the normal state
+# between a release cut and the next PR that adds unreleased work. The rule is
+# that none may sit below the first section.
+first_section=$(grep -nE '^## ' "$CHANGELOG" | head -1 | cut -d: -f1 || true)
+top_heading=$(grep -E '^## ' "$CHANGELOG" | head -1 || true)
+stranded_lines=$(grep -nE '^## Unreleased[[:space:]]*$' "$CHANGELOG" | cut -d: -f1 \
+	| grep -vx "${first_section:-0}" || true)
+if [ -n "$stranded_lines" ]; then
+	stranded=1
+	count=$(printf '%s\n' "$stranded_lines" | grep -c . || true)
+	printf 'STRANDED: %s `## Unreleased` heading(s) below the topmost section (line %s):\n' \
+		"$count" "$first_section" >&2
+	printf '%s\n' "$stranded_lines" | sed 's/^/         line /' >&2
+	printf '         a fold consumes the TOP `## Unreleased`; any other one is residue that\n' >&2
+	printf '         the released-section walk cannot see and that masks the stall check below\n' >&2
+fi
 
 # --- the stall signature ---------------------------------------------------
 # The fold consumes `## Unreleased`, and a repo with unreleased work but no
@@ -294,12 +325,19 @@ unverifiable=0
 # `no-release-files` and the change can never ship. That is the same defect one
 # step later, and it is the failure `unreleased_not_found` is a symptom of — so
 # it is checked here rather than left to the releaser to discover.
-if ! grep -qxF "## Unreleased" "$CHANGELOG"; then
+#
+# The test is on the TOPMOST section, never on the file as a whole. `grep -qxF`
+# matched an `## Unreleased` anywhere, so a stranded heading — exactly the
+# residue the check above now names — read as a healthy one and silenced this
+# report. Asking the topmost heading is also the truer question: the releaser
+# cuts the section at the top of the file, so a section anywhere else is not one
+# it can cut.
+if [ "$top_heading" != "## Unreleased" ]; then
 	unreleased=$(git diff --name-only "$TAG" HEAD 2>/dev/null | grep -vxF "$CHANGELOG" || true)
 	if [ -n "$unreleased" ]; then
 		stalled=1
 		count=$(printf '%s\n' "$unreleased" | grep -c . || true)
-		printf 'STALLED: no `## Unreleased` section, but %s file(s) differ from %s:\n' \
+		printf 'STALLED: no topmost `## Unreleased` section, but %s file(s) differ from %s:\n' \
 			"$count" "$TAG" >&2
 		printf '%s\n' "$unreleased" | head -5 | sed 's/^/         /' >&2
 		printf '         the release watcher has nothing to cut, so this work can never ship\n' >&2
@@ -397,8 +435,17 @@ release.
 EOF
 fi
 
+if [ "$stranded" -gt 0 ]; then
+	printf '\nFAIL: a `## Unreleased` heading is stranded below the topmost section at %s.\n' \
+		"$TAG" >&2
+	printf 'Move each bullet under it into the released section whose own tag contains\n' >&2
+	printf 'the merge for that bullet (`git tag --contains`), then delete the heading. Do\n' >&2
+	printf 'not move it to the top: a stranded heading holds work that already shipped, and\n' >&2
+	printf 'a top section would announce it as pending and duplicate it in the next cut.\n' >&2
+fi
+
 if [ "$stalled" -gt 0 ]; then
-	printf '\nFAIL: the releaser is stalled at %s — unreleased work with no `## Unreleased` section.\n' \
+	printf '\nFAIL: the releaser is stalled at %s — unreleased work with no topmost `## Unreleased` section.\n' \
 		"$TAG" >&2
 	printf 'Add a `## Unreleased` heading above the top released section and move the\n' >&2
 	printf 'unreleased entries into it. An empty one is not enough — the releaser rejects\n' >&2
@@ -412,9 +459,10 @@ if [ "$unverifiable" -gt 0 ]; then
 fi
 
 # Every signature is reported before exiting — the fold names the misfiled
-# bullets, the stall names the consequence, and unverifiable names what could
-# not be answered at all. A reader needs all three.
-if [ "$folded" -gt 0 ] || [ "$stalled" -gt 0 ] || [ "$unverifiable" -gt 0 ]; then
+# bullets, the stranded heading names the residue the released-section walk
+# cannot see, the stall names the consequence, and unverifiable names what could
+# not be answered at all. A reader needs all four.
+if [ "$folded" -gt 0 ] || [ "$stranded" -gt 0 ] || [ "$stalled" -gt 0 ] || [ "$unverifiable" -gt 0 ]; then
 	exit 1
 fi
 

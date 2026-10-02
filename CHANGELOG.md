@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.11
 - docs: `commands/pr-review.md` Step 4a now hands the ast-grep runner the file list NUL-separated (`tr '\n' '\0' < <FILE_DIR>/keep.txt | xargs -0 "$RUNNER"`) instead of the `<changed files, space-separated>` placeholder. That placeholder read as a shell variable, and the natural implementation — `FILES=$(cat keep.txt)` then `"$RUNNER" <dir> $FILES` — passes the whole list as ONE argument under zsh, which does not word-split an unquoted expansion. The runner refuses that (`none of the 1 changed-file argument(s) resolved`) rather than reporting an empty scan as clean, so the failure was safe but cost a call and a re-run. The step now also states why: the runner's refusal is the check working, not a broken invocation.
 
 ## v0.55.10

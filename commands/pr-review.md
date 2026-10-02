@@ -212,8 +212,12 @@ Run `scripts/ast-grep-runner.sh` (deterministic — covers ast-grep YAMLs AND sc
 RUNNER="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/ast-grep-runner.sh"
 [ -x "$RUNNER" ] || RUNNER="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/scripts/ast-grep-runner.sh"
 [ -x "$RUNNER" ] || RUNNER="$HOME/Documents/workspaces/coding/scripts/ast-grep-runner.sh"
-"$RUNNER" <REVIEW_DIR> <changed files, space-separated> > /tmp/pr-review-findings.json
+# ⚠️ NUL-separated — see the note below the fence.
+tr '\n' '\0' < <FILE_DIR>/keep.txt \
+  | xargs -0 "$RUNNER" <REVIEW_DIR> > /tmp/pr-review-findings.json
 ```
+
+⚠️ **Hand the runner the file list, never a variable holding it.** The list is `<FILE_DIR>/keep.txt` from Step 0c, and `xargs -0` is what makes each path its own argument. A `$FILES=$(cat keep.txt)` written into the command above reads as correct and fails at runtime: the shell passes one argument, the runner resolves none of them, and it exits non-zero with `none of the 1 changed-file argument(s) resolved under …`. That refusal is the runner working — a silent empty result would have read as a clean review. (Bit 2026-10-02 on `bborbe/attention-controller#73`.)
 
 ⚠️ **The runner's scope is changed FILES, not changed LINES.** It is handed a file list and scans each of those files whole — it is never given the base ref, so it cannot narrow to the diff's hunks. A finding on a line the diff never touched is therefore **expected**, not a sign the run went wrong: a changed file drags in every pre-existing violation it already carried. Step 5's rule that only changed code is reportable makes filtering them out the *adjudicator's* job, not the runner's — check each finding's line against the diff before adjudicating it, rather than assuming the funnel already did. Measured 2026-09-26 on a 232-line Go diff: 15 findings across 4 owners, every one on an unchanged line (a pre-existing `glog` import, counterfeiter `Returns` calls, in-memory `range` loops, untyped enum constants).
 

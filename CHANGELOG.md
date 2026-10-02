@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.12
 - fix: **the fold guard now reports a `## Unreleased` heading stranded below the topmost section, and no longer lets one mask the stall check.** Two failures followed from the same residue, both silent. The released-section walk reads only `^## vX.Y.Z$` headings (`scripts/check-changelog-fold.sh`), so a bullet misfiled under a stranded `## Unreleased` was never inspected; and the stall check was `! grep -qxF "## Unreleased"`, satisfied by **any** `## Unreleased` anywhere, so the stranded heading suppressed that report too. Measured 2026-10-02 on `bborbe/claude-supervisor`: a second `## Unreleased` sat between `## v0.87.5` and `## v0.87.4` holding a bullet whose merge `4c9ea75` was already contained by `v0.95.0`, and the guard read red for the two folds it did see while a third defect of the same family sat 100 lines below them. A `STRANDED:` signature is added, and the stall check now asks the **topmost** heading rather than the file as a whole — which is also the truer question, since the releaser cuts the section at the top. ⚠️ **Not "one must exist"**: an absent `## Unreleased` is the normal state between a release cut and the next PR that adds unreleased work, so the rule is only that none may sit below the first section. Verified in both directions — on the pre-repair tree the new guard reports `STRANDED` + `STALLED` where the old one reported neither, and against a healthy repo it reports nothing.
 
 ## v0.55.11

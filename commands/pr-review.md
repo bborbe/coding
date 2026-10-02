@@ -212,9 +212,7 @@ Run `scripts/ast-grep-runner.sh` (deterministic — covers ast-grep YAMLs AND sc
 RUNNER="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/ast-grep-runner.sh"
 [ -x "$RUNNER" ] || RUNNER="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/scripts/ast-grep-runner.sh"
 [ -x "$RUNNER" ] || RUNNER="$HOME/Documents/workspaces/coding/scripts/ast-grep-runner.sh"
-# ⚠️ Pass the file list NUL-separated, never as an unquoted "$FILES". zsh does NOT
-# word-split an unquoted expansion, so the whole list arrives as ONE argument and
-# the runner refuses it — by design, rather than reporting an empty scan as clean.
+# ⚠️ NUL-separated — see the note below the fence.
 tr '\n' '\0' < <FILE_DIR>/keep.txt \
   | xargs -0 "$RUNNER" <REVIEW_DIR> > /tmp/pr-review-findings.json
 ```

@@ -8,6 +8,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+- bench: **`prs.json` extended to 31 PRs for the review-bot model head-to-head.** Eleven merged PRs (4 bug-fix, 4 feature, 3 config) drawn from the bot's actual `github.com/bborbe/*` allowlist surface join the existing 20, so a model comparison runs over a class-mixed set instead of one repo's pin-bump tail. Every addition is a merge-commit under the prod watcher's park thresholds (`MAX_ADDITIONS=1200`, `MAX_CHANGED_FILES=100`), so each is a PR the bot would actually review; every addition carries `role: unreviewed`, since it has no golden entries and so scores as a gap-triage candidate rather than a precision failure. ⚠️ **`prs_version` is deliberately left at `curated-1`**, which keeps the set scoreable against `golden-curated-4` — but `config_hash` does not include manifest content, so a run over this extended set must not share a ledger with a run over the 20-PR set: archive `bench/results/results.jsonl` first, or `--score` silently pools incomparable rows.
+
 ## v0.55.9
 - docs: `docs/releasing-coding.md` now states releases are automatic under `.maintainer.yaml: release.autoRelease: true` (`github-releaser-agent` bumps and tags after merge) and labels the manual bump/tag procedure as fallback only — the summary table previously sent operators to hand-bump, racing the bot
 

@@ -196,16 +196,45 @@ class TestLoadManifest(unittest.TestCase):
                 self.assertIn(case.get("owner") or case.get("repo"), str(ctx.exception))
 
     def test_load_manifest_accepts_real_fixture(self):
-        """load_manifest on the shipped bench/prs.json returns curated-1 with 20 entries.
+        """load_manifest on the shipped bench/prs.json returns curated-1 with 31 entries.
 
         Pinned on purpose: the version and count are part of the config identity,
         so a manifest change must be a conscious edit here rather than something
         a scored run discovers.  `dev-1`/5 was the 5-PR development fixture; its
         3-sigma was ~119% of the mean, which is why it could not carry a score.
+
+        2026-10-02: 20 -> 31 for the review-bot model head-to-head — 11 merged
+        `bborbe/*` PRs (4 bug-fix, 4 feature, 3 config), each a merge-commit under
+        the prod watcher's park thresholds so the set stays representative of what
+        the bot actually reviews.  `prs_version` is deliberately unchanged, which
+        keeps the set scoreable against `golden-curated-4`; the cost is that
+        `config_hash` (which omits manifest content) no longer separates a 20-PR
+        run from a 31-PR one, so runs over this set must not share a ledger with
+        earlier ones.
         """
         m = run.load_manifest(run.BENCH_DIR / "prs.json")
         self.assertEqual(m["version"], "curated-1")
-        self.assertEqual(len(m["prs"]), 20)
+        self.assertEqual(len(m["prs"]), 31)
+
+    def test_curated_manifest_holds_the_class_mix_it_was_extended_for(self):
+        """The 2026-10-02 extension exists so no single PR class dominates the set.
+
+        Without this guard the mix is a claim in the description rather than a
+        property of the fixture: a later edit could drop every config PR and the
+        head-to-head would still run, quietly measuring a narrower set than it
+        reports.  Entries predating the extension carry no `class` and are skipped.
+        """
+        m = run.load_manifest(run.BENCH_DIR / "prs.json")
+
+        counts = {"bug-fix": 0, "feature": 0, "config": 0}
+        for entry in m["prs"]:
+            klass = entry.get("class")
+            if klass in counts:
+                counts[klass] += 1
+
+        self.assertGreaterEqual(counts["bug-fix"], 2, f"too few bug-fix PRs: {counts}")
+        self.assertGreaterEqual(counts["feature"], 2, f"too few feature PRs: {counts}")
+        self.assertGreaterEqual(counts["config"], 2, f"too few config PRs: {counts}")
 
     def test_curated_manifest_holds_the_spread_it_was_curated_for(self):
         """The fixture's whole purpose is spread; assert it rather than trust it."""

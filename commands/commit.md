@@ -605,9 +605,18 @@ cd $PROJECT_DIR && git commit -m "descriptive message" -- $CHANGED_PATHS && git 
 For changes that are purely comments, whitespace, or TODO/FIXME annotations — OR changes that only touch `prompts/`, `specs/`, or `scenarios/` directories. No CHANGELOG update, no version bump, no tag.
 
 **Step E.1: Pre-commit validation**
+
+A change in this workflow's scope cannot affect the build — comments, whitespace, TODO annotations, and pipeline metadata — so the full gate is CI's job and running it locally spends a build for nothing. Run it only where no CI would catch what a local run would.
+
 ```bash
-make precommit  # Skip if target doesn't exist
+# The full gate is CI's job for a build-inert change; run it only where
+# no CI would catch what a local run would. Still skip if the target is absent.
+ls .github/workflows/ >/dev/null 2>&1 || make precommit
 ```
+
+⚠️ **This narrowing is scoped to Workflow E deliberately, and must not be read across to Workflows A–D.** Those cover real code changes, where a local gate still earns its cost; the exemption is for changes that cannot break the build, not for changes that are merely small.
+
+⚠️ **And it is a BUILD argument, which decides nothing where `precommit` is content validation.** The exemption assumes the gate exists to catch a broken build, so a change that cannot break one has nothing to gain from it. Check what the target's `precommit` actually does before skipping it: where it is link, index, changelog-fold, coverage or rule checks — as in `bborbe/coding` itself — a markdown change is *exactly* what it validates, and the argument above does not apply. Read the target's `Makefile` `precommit` line; the reasoning here is about builds, and this rule is not one to carry by analogy.
 
 **Step E.2: Safety check for Claude/MCP files**
 ```bash

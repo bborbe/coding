@@ -78,7 +78,7 @@ Abort with "No changes to commit" only if **both** are empty. If there are unrel
 1. Simple commit without versioning (unchanged)
 
 ### Workflow E: Trivial or Pipeline-Only Change (any branch, any project)
-1. Run `make precommit` (if available)
+1. `ls .github/workflows/ >/dev/null 2>&1 || make precommit` — the full gate is CI's job for a change that cannot affect the build (see Step E.1)
 2. Commit with descriptive message
 3. Push — no CHANGELOG update, no version bump, no tag
 4. Pipeline-only = all files in `prompts/`, `specs/`, or `scenarios/`

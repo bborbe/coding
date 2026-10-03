@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Coding guidelines, code review commands, and quality agents for Go and Python development",
-    "version": "0.55.12"
+    "version": "0.55.13"
   },
   "plugins": [
     {
       "name": "coding",
       "description": "Coding guidelines, code review commands, and quality agents for Go and Python development",
       "source": "./",
-      "version": "0.55.12",
+      "version": "0.55.13",
       "strict": true
     }
   ]

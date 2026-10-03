@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.13
 - test: **add the three scored report pages from the 2026-10-02 model head-to-head.** `bench/reports/{1313d717,7194d985,fc7b5707}….md` are the `MiniMax-M2.7-highspeed`, `MiniMax-M3`, and `MiniMax-M3.1-Flash-Preview[1m]` arms over the extended 31-PR `curated-1` fixture, each carrying its own `config_hash` and full per-PR scoring table. They are the evidence for switching the prod review bot's model to `MiniMax-M3.1-Flash-Preview[1m]` — 198 findings against the incumbent's 106, converting to 17 golden hits versus 3, at precision 0.944. Committed here because `bench/reports/` is this repo's established home for these artifacts (10 sibling pages already track there) and because the ledger that produces them is local-only and untracked, so the pages are the only durable record of the run.
 
 ## v0.55.12

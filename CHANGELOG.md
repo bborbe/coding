@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.15
 
 - fix: **Workflow A now states that repo history is not a reason to skip it.** `coding`'s own `commands/commit.md` routes to Workflow A whenever `.maintainer.yaml` sets `release.autoRelease: true`, and that routing is correct — but the skill said nothing about overriding it, and the obvious-looking override is wrong. A repo whose past CI-only commits carry no `## Unreleased` bullet reads as evidence the bullet is unwanted, when the maintainer reviewer enforces it regardless: `changelog/unreleased-entry-required` is checked on every `autoRelease: true` repo, and a missing bullet returns as a request-changes. **History describes what shipped; the reviewer describes what is enforced.** Observed 2026-10-05 on `Seibert-Data/lib-mdm#14`: the skill routed correctly, the session overrode it citing that repo's own CI-only commits (every one touched only `.github/` with no bullet; the single CI line in its changelog rode in on a mixed dependency-bump commit), and the reviewer rejected the PR until the bullet was added on the next push.
 

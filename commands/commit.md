@@ -288,6 +288,8 @@ Triggered for:
 - Any feature branch with `CHANGELOG.md`
 - **Any branch (including master) when `.maintainer.yaml: release.autoRelease: true`** — `github-releaser-agent` will rename `## Unreleased` → `## vX.Y.Z` and tag within ~10 min of push.
 
+**Do not skip this workflow on repo-history grounds.** A repo whose past CI-only commits carry no `## Unreleased` bullet is not evidence that the bullet is unwanted. The maintainer reviewer enforces `changelog/unreleased-entry-required` on every `autoRelease: true` repo, and a missing bullet returns as a request-changes. **History describes what shipped; the reviewer describes what is enforced.** Observed 2026-10-05 on `Seibert-Data/lib-mdm#14`: this skill routed here correctly, the session overrode it citing the repo's own CI-only commits, and the reviewer rejected the PR until the bullet was added on the next push.
+
 **Step A.0: Verify the branch base is current**
 
 Do this BEFORE composing any changelog entry.

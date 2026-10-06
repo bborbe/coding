@@ -149,6 +149,18 @@ Error: parse config failed: template: config:4: unexpected <.> in operand
 
 Keep comment text free of the template delimiters. This has now cost time twice — once in the agent-platform mirror work, once writing a new `*-secret.yaml` — and the second time the fix was rediscovered rather than recalled.
 
+**The delimiters break the render anywhere in the file, not only in comments.** A non-comment `{{ direction }}` — Grafana mustache, a Go template in a Prometheus query, any literal braces — is read as a template *action* and fails at parse time with `function "direction" not defined`. That is a different failure from the comment case above (`unexpected <.> in operand`), and it reads like a code error rather than a quoting mistake, so the cause is not obvious from the message.
+
+The blast radius is the whole component, not the file: the component Makefile renders **every** `*.yaml` in its directory, so one such value breaks `make apply` for all of them, on both clusters.
+
+A YAML or JSON parser accepts the same file happily — the braces are legal there, and so is a Grafana panel model. Only the renderer objects. Validate with the renderer itself before pushing:
+
+```bash
+cat <file> | teamvault-cli config parse
+```
+
+(2026-10-07, `bborbe/nuke#388`: a Grafana panel legend written as `{{direction}}` for the `direction` label. The local `/coding:pr-review` loop and two task audits passed it; only the pr-reviewer bot caught it, after the PR was open and `make apply` would have failed for the entire `grafana-instance/` directory.)
+
 ## Non-k8s / launchd services
 
 For services not on k8s (macOS launchd daemons, background agents), the same rule holds — the config references a lookup key, never the raw secret — but there is no `teamvault-config-parser` at apply time. Resolve the secret into an env var at startup:

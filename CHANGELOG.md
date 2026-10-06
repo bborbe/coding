@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.55.17
 
 - docs: Widen the `{{ … }}` rule in `teamvault-conventions.md` from comments to the whole file. The existing rule warned only about the delimiters appearing in YAML *comments*; a non-comment value — Grafana mustache, a Go template in a Prometheus query, any literal braces — fails at parse time with `function "…" not defined`, a different error that reads like a code fault rather than a quoting mistake. Since the component Makefile renders every `*.yaml` in its directory, one such value breaks `make apply` for all of them on both clusters. Adds the failure mode, the blast radius, and the `teamvault-cli config parse` pre-push check.
 

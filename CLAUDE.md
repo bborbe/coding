@@ -163,7 +163,7 @@ templates/          Project templates (Makefile, tools.go, .gitignore)
 - Never number filenames — dark-factory assigns numbers on approve
 - Never manually edit frontmatter status — use CLI (`dark-factory prompt approve`, `dark-factory spec approve`)
 - Always audit before approving (`/dark-factory:audit-prompt`, `/dark-factory:audit-spec`)
-- **Never approve or run dark-factory without explicit user confirmation**
+- Run `dark-factory prompt approve` / `dark-factory spec approve` yourself once the prompt/spec passed its auditor (global rule execution-phase-no-reask)
 - `autoRelease: false` — dark-factory commits locally; release is handled by maintainer-agent-releaser per `.maintainer.yaml`
 
 ## Development Standards

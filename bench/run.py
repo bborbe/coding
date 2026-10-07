@@ -38,6 +38,8 @@ RUNNER_VERSION = "1"
 REVIEW_TIMEOUT_SECONDS = 45 * 60
 BENCH_DIR = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = BENCH_DIR.parent
+SUITES_ROOT = BENCH_DIR / "suites"
+DEFAULT_SUITE = "dev-1"
 VERIFY_CONFIG_DIR_NAME = ".claude-verify"
 HASHED_SUBDIRS = ("rules", "commands")
 VALID_MODES = ("short", "full", "selector")
@@ -679,6 +681,71 @@ def ledger_path(results_dir: pathlib.Path) -> pathlib.Path:
 
 def lock_path(results_dir: pathlib.Path) -> pathlib.Path:
     return results_dir / ".lock"
+
+
+# ----------------------------------------------------------------------
+# Suite resolution
+# ----------------------------------------------------------------------
+@dataclasses.dataclass(frozen=True)
+class Suite:
+    """The paths that identify one benchmark suite.
+
+    A suite is the fixture a configuration is measured against: a PR manifest,
+    a golden set, a ledger directory and a report directory.  The configuration
+    identity (config_hash) deliberately does NOT include the suite — the suite
+    is the fixture, the config is the instrument, and they are orthogonal.
+    Report pages are therefore disambiguated by directory, not by filename.
+    """
+
+    name: str
+    manifest: pathlib.Path
+    out_dir: pathlib.Path
+    reports_dir: pathlib.Path
+    golden: pathlib.Path | None
+    cache_root: pathlib.Path
+
+
+def resolve_suite(args) -> Suite:
+    """Resolve a Suite from --suite plus any explicit path overrides.
+
+    Resolution order per path is: explicit flag > suite-derived > built-in
+    default.  The built-in default suite resolves to BENCH_DIR itself, so its
+    manifest, ledger and report paths are byte-identical to the pre-suite
+    layout and existing results stay scoreable unchanged.
+
+    The cache root is shared across suites: its key is config_hash plus PR
+    identity, and two suites hold disjoint PRs, so keys never collide.
+    """
+    # `is not None`, not truthiness: an explicitly empty --suite must be
+    # rejected by the name check rather than silently meaning the default.
+    name = args.suite if args.suite is not None else DEFAULT_SUITE
+    if not NAME_RE.match(name):
+        raise BenchError(
+            f"invalid --suite {name!r} (must match {NAME_RE.pattern!r})"
+        )
+
+    if name == DEFAULT_SUITE:
+        base = BENCH_DIR
+    else:
+        base = SUITES_ROOT / name
+        # assert_under rejects a resolved path equal to root or outside it, so
+        # it must NOT run on the default branch, where base IS BENCH_DIR.
+        assert_under(base, SUITES_ROOT)
+
+    golden = args.golden
+    if golden is None and args.suite is not None:
+        candidate = base / "golden.json"
+        if candidate.exists():
+            golden = candidate
+
+    return Suite(
+        name=name,
+        manifest=args.manifest or base / "prs.json",
+        out_dir=args.out_dir or base / "results",
+        reports_dir=args.reports_dir or base / "reports",
+        golden=golden,
+        cache_root=BENCH_DIR / ".cache",
+    )
 
 
 # ----------------------------------------------------------------------
@@ -1747,16 +1814,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the coding plugin repository (default: repo root)",
     )
     parser.add_argument(
+        "--suite",
+        type=str,
+        default=None,
+        help=(
+            f"Benchmark suite to run (default: {DEFAULT_SUITE}). Resolves the "
+            f"manifest, ledger and report directory from bench/suites/<name>/; "
+            f"the default suite resolves to bench/ itself. An explicit "
+            f"--manifest/--out-dir/--reports-dir/--golden wins over the suite."
+        ),
+    )
+    parser.add_argument(
         "--manifest",
         type=pathlib.Path,
-        default=BENCH_DIR / "prs.json",
-        help="Path to the PR manifest JSON (default: bench/prs.json)",
+        default=None,
+        help="Path to the PR manifest JSON (default: <suite>/prs.json)",
     )
     parser.add_argument(
         "--out-dir",
         type=pathlib.Path,
-        default=BENCH_DIR / "results",
-        help="Directory for result ledger (default: bench/results)",
+        default=None,
+        help="Directory for result ledger (default: <suite>/results)",
     )
     parser.add_argument(
         "--model",
@@ -1781,7 +1859,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--golden",
         type=pathlib.Path,
         default=None,
-        help="Golden set JSON; scores the run (or the ledger, with --score) and writes report pages",
+        help=(
+            "Golden set JSON; scores the run (or the ledger, with --score) and "
+            "writes report pages. Default: <suite>/golden.json when --suite is "
+            "given explicitly, otherwise none"
+        ),
     )
     parser.add_argument(
         "--score",
@@ -1792,8 +1874,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--reports-dir",
         type=pathlib.Path,
-        default=BENCH_DIR / "reports",
-        help="Directory for report pages (default: bench/reports)",
+        default=None,
+        help="Directory for report pages (default: <suite>/reports)",
     )
     parser.add_argument(
         "--print-config-hash",
@@ -2709,6 +2791,14 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
+        # Resolve the suite before anything reads a path, so every downstream
+        # consumer sees the same resolved manifest / ledger / reports / golden.
+        suite = resolve_suite(args)
+        args.manifest = suite.manifest
+        args.out_dir = suite.out_dir
+        args.reports_dir = suite.reports_dir
+        args.golden = suite.golden
+
         if args.print_config_hash:
             print(content_hash(args.coding_repo.resolve()))
             return 0
@@ -2717,7 +2807,7 @@ def main(argv=None) -> int:
         if args.reharvest:
             return reharvest_ledger(
                 results_dir=args.out_dir,
-                cache_root=BENCH_DIR / ".cache",
+                cache_root=suite.cache_root,
                 coding_repo=args.coding_repo.resolve(),
             )
 
@@ -2782,7 +2872,7 @@ def main(argv=None) -> int:
             coding_repo=args.coding_repo.resolve(),
             manifest_path=args.manifest,
             results_dir=args.out_dir,
-            cache_root=BENCH_DIR / ".cache",
+            cache_root=suite.cache_root,
             model=args.model,
             effort=args.effort,
             mode=args.mode,

@@ -1,0 +1,117 @@
+{
+  "version": "golden-reviewbench-pilot-1",
+  "created": "2026-10-07",
+  "prs_version": "reviewbench-pilot-1",
+  "baseline": {
+    "coding_version": "0.55.17",
+    "source": "github.com/review-bench/ReviewBench golden/k1LoW_gh-copilot-review_9-f9828193.json",
+    "source_findings": 12,
+    "source_tp": 7,
+    "source_fp": 5
+  },
+  "match_rule": "EVERY signature keyword present case-insensitively in the finding body. rule_id is an ADDITIONAL constraint when both sides carry one, never a short-circuit. Neither path nor line is read: both are coordinates the reviewer chooses when citing an issue, not properties of the issue.",
+  "states": {
+    "accepted": "a finding the reviewer SHOULD produce. A miss costs recall.",
+    "rejected": "a known false positive. A hit costs precision.",
+    "unreviewed": "not adjudicated. Excluded from both numerator and denominator."
+  },
+  "conversion_note": "Converted by hand from ReviewBench's golden schema. ReviewBench's tp_fp 'tp' maps to 'accepted' and 'fp' maps to 'rejected' — an fp entry is a plausible claim its adjudicators judged not to be a real issue, which is exactly this bench's 'rejected' semantics. Signatures were authored by hand, not derived, because all 12 findings sit in two files and share vocabulary (fetch / page / commits / reviews / freshness); derived keywords would cross-match and the pilot exists to measure exactly that risk. No signature embeds a line reference.",
+  "entries": [
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["first page", "commits"],
+      "state": "accepted",
+      "line_when_seen": 84,
+      "excerpt": "c.rest.Get() fetches only the first page (30 items by default) from the commits endpoint."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["first page", "reviews"],
+      "state": "accepted",
+      "line_when_seen": 100,
+      "excerpt": "c.rest.Get() fetches only the first page (30 items) from the reviews endpoint."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["committer", "clock"],
+      "state": "accepted",
+      "line_when_seen": 91,
+      "excerpt": "Committer dates are set by the committer's local clock and can be arbitrary."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["second fetch", "rate limit"],
+      "state": "accepted",
+      "line_when_seen": 100,
+      "excerpt": "IsCopilotReviewFresh makes a second fetch of the reviews endpoint ... this adds an extra API call instead."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["submitted_at", "null"],
+      "state": "rejected",
+      "line_when_seen": 105,
+      "excerpt": "GitHub returns submitted_at as null for PENDING reviews; this deserialises to the zero time.Time."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "cmd/root.go",
+      "signature": ["called after", "earlier commit"],
+      "state": "accepted",
+      "line_when_seen": 70,
+      "excerpt": "IsCopilotReviewFresh is called after HasCopilotPendingReview, meaning a non-pending state ... from an earlier commit could still satisfy the freshness check."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["network errors", "logical errors"],
+      "state": "rejected",
+      "line_when_seen": 78,
+      "excerpt": "Error handling in IsCopilotReviewFresh does not distinguish between network errors and logical errors."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["fallback path", "no review exists"],
+      "state": "rejected",
+      "line_when_seen": 97,
+      "excerpt": "The function does not provide a fallback path when Copilot reviews are absent."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "cmd/root.go",
+      "signature": ["not differentiated", "logged"],
+      "state": "rejected",
+      "line_when_seen": 26,
+      "excerpt": "error messages returned by client.IsCopilotReviewFresh are not differentiated or logged."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "cmd/root.go",
+      "signature": ["retry", "transient"],
+      "state": "rejected",
+      "line_when_seen": 68,
+      "excerpt": "The RequestCopilotReview method invocation does not retry or handle transient errors."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "internal/github/github.go",
+      "signature": ["diverges", "description"],
+      "state": "accepted",
+      "line_when_seen": 75,
+      "excerpt": "The implementation here diverges substantially from what the PR description states."
+    },
+    {
+      "pr_id": "k1LoW-gh-copilot-review#9",
+      "path": "cmd/root.go",
+      "signature": ["minimize", "outdated"],
+      "state": "accepted",
+      "line_when_seen": 73,
+      "excerpt": "This freshness check runs after MinimizeCopilotComments ... the current/fresh Copilot review is hidden as OUTDATED."
+    }
+  ]
+}

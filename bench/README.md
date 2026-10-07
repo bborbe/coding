@@ -25,6 +25,21 @@ Five already-merged PRs, deliberately **not** representative. They exist to buil
 
 Every entry records `base_sha` and `head_sha` explicitly because reconstructing a merged PR's diff requires knowing the merge strategy.
 
+## Suites
+
+A *suite* is the fixture a configuration is measured against: a PR manifest, a golden set, a ledger directory and a report directory. `--suite <name>` selects one.
+
+| Suite | Resolves to | Contents |
+|---|---|---|
+| `dev-1` (default) | `bench/` itself | the curated manifest and golden set described on this page |
+| any other name | `bench/suites/<name>/` | that suite's `prs.json`, `golden.json`, `results/`, `reports/` |
+
+The default suite deliberately keeps its pre-suite paths, so existing ledgers and report pages stay scoreable unchanged. An explicit `--manifest`, `--out-dir`, `--reports-dir` or `--golden` overrides the suite-derived path; when `--suite` is given without `--golden`, `<suite>/golden.json` is used if it exists.
+
+The suite is **not** part of `config_hash`. The config is the instrument (rules + commands content, model, effort, mode) and the suite is the fixture — they are orthogonal, and two configurations are the same configuration whatever they are measured against. Report pages are therefore disambiguated by directory, not by filename.
+
+The cache under `bench/.cache/` is shared across suites: its key is the config hash plus the PR identity, and different suites hold different PRs, so keys cannot collide.
+
 ## Running it
 
 ```bash

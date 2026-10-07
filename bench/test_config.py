@@ -434,11 +434,35 @@ class TestSuiteResolution(unittest.TestCase):
         self.assertEqual(suite.out_dir, base / "results")
         self.assertEqual(suite.reports_dir, base / "reports")
 
-    def test_named_suite_shares_the_cache_root(self):
-        """The cache is deliberately shared: keys are config_hash + PR identity,
-        and two suites hold disjoint PRs."""
+    def test_named_suite_gets_a_namespaced_cache_root(self):
+        """Each named suite gets its own cache namespace; the default keeps the bare root.
+
+        The cache key is config_hash + the manifest-declared pr_id, and pr_id
+        carries no SHA — so a shared root would let two suites declaring the
+        same id at different SHAs collide and serve a stale review as fresh.
+        """
         suite = run.resolve_suite(self._args(["--suite", "reviewbench-pilot"]))
-        self.assertEqual(suite.cache_root, run.BENCH_DIR / ".cache")
+        self.assertEqual(
+            suite.cache_root,
+            run.BENCH_DIR / ".cache" / "suites" / "reviewbench-pilot",
+        )
+        self.assertNotEqual(
+            suite.cache_root, run.resolve_suite(self._args([])).cache_root
+        )
+
+    def test_explicit_default_suite_name_behaves_like_no_flag(self):
+        """`--suite dev-1` must resolve exactly as omitting the flag does.
+
+        The golden auto-pick is a named-suite convenience.  Gating it on
+        `args.suite is not None` rather than on the name made the default suite
+        behave differently when named explicitly — silently enabling scoring,
+        and a GOLDEN_VERSION_MISMATCH exit-2 path, on a command line that had
+        neither.
+        """
+        bare = run.resolve_suite(self._args([]))
+        named = run.resolve_suite(self._args(["--suite", run.DEFAULT_SUITE]))
+        self.assertEqual(bare, named)
+        self.assertIsNone(named.golden)
 
     def test_explicit_path_flag_beats_suite(self):
         """An explicit --manifest wins; the untouched paths still come from the suite."""

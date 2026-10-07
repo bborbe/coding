@@ -713,8 +713,11 @@ def resolve_suite(args) -> Suite:
     manifest, ledger and report paths are byte-identical to the pre-suite
     layout and existing results stay scoreable unchanged.
 
-    The cache root is shared across suites: its key is config_hash plus PR
-    identity, and two suites hold disjoint PRs, so keys never collide.
+    The review cache is namespaced per suite.  Its key is config_hash plus the
+    manifest-declared pr_id, and pr_id carries no SHA, so a shared root would
+    let two suites declaring the same id at different SHAs collide and serve a
+    stale review as fresh.  The default suite keeps the bare bench/.cache so
+    its existing entries stay valid.
     """
     # `is not None`, not truthiness: an explicitly empty --suite must be
     # rejected by the name check rather than silently meaning the default.
@@ -726,14 +729,24 @@ def resolve_suite(args) -> Suite:
 
     if name == DEFAULT_SUITE:
         base = BENCH_DIR
+        cache_root = BENCH_DIR / ".cache"
     else:
         base = SUITES_ROOT / name
         # assert_under rejects a resolved path equal to root or outside it, so
         # it must NOT run on the default branch, where base IS BENCH_DIR.
         assert_under(base, SUITES_ROOT)
+        # Namespaced per suite.  The review cache is keyed on config_hash plus
+        # the manifest-declared pr_id, and pr_id carries no SHA — so two suites
+        # declaring the same id at different SHAs would collide and silently
+        # serve a stale review as fresh.  The default suite keeps the bare
+        # bench/.cache so its existing cache entries stay valid.
+        cache_root = BENCH_DIR / ".cache" / "suites" / name
 
     golden = args.golden
-    if golden is None and args.suite is not None:
+    # Gate on the name, not on `args.suite is not None`: naming the default
+    # suite explicitly must behave exactly like omitting the flag, or
+    # `--suite dev-1` silently turns on scoring the bare default path skips.
+    if golden is None and name != DEFAULT_SUITE:
         candidate = base / "golden.json"
         if candidate.exists():
             golden = candidate
@@ -744,7 +757,7 @@ def resolve_suite(args) -> Suite:
         out_dir=args.out_dir or base / "results",
         reports_dir=args.reports_dir or base / "reports",
         golden=golden,
-        cache_root=BENCH_DIR / ".cache",
+        cache_root=cache_root,
     )
 
 

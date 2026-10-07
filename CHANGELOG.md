@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.56.0
 
 - feat: **The review bench can score more than one suite.** `bench/run.py` gains `--suite <name>`, which resolves a suite's manifest, golden set, ledger and report directory from `bench/suites/<name>/`. The built-in default suite keeps its pre-suite paths exactly, so existing ledger rows and report pages stay scoreable unchanged, and an explicit `--manifest`/`--out-dir`/`--reports-dir`/`--golden` still overrides the suite. The suite is deliberately **not** part of `config_hash`: the config is the instrument (rules + commands content, model, effort, mode) and the suite is the fixture, so two configurations stay the same configuration whatever they are measured against and report pages are disambiguated by directory rather than by filename. Also seeds `bench/suites/reviewbench-pilot/` — the first PR converted from the external ReviewBench corpus, which exists to measure whether keyword-substring signatures survive that corpus's finding density before the remaining 218 PRs are converted.
 

@@ -491,7 +491,10 @@ class TestSuiteResolution(unittest.TestCase):
     def test_named_suite_picks_up_its_own_golden(self):
         """--suite with no --golden uses <suite>/golden.json when it exists."""
         with tempfile.TemporaryDirectory() as td:
-            suites_root = pathlib.Path(td) / "suites"
+            # .resolve(): assert_under binds its canonical return, and on macOS
+            # the temp dir is a symlink (/var -> /private/var), so an unresolved
+            # root here would compare unequal for reasons unrelated to the test.
+            suites_root = pathlib.Path(td).resolve() / "suites"
             (suites_root / "probe").mkdir(parents=True)
             (suites_root / "probe" / "golden.json").write_text("{}", encoding="utf-8")
             with mock.patch.object(run, "SUITES_ROOT", suites_root):

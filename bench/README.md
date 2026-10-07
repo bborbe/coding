@@ -29,6 +29,8 @@ Every entry records `base_sha` and `head_sha` explicitly because reconstructing 
 
 A *suite* is the fixture a configuration is measured against: a PR manifest, a golden set, a ledger directory and a report directory. `--suite <name>` selects one.
 
+Throughout this page, **`<suite>`** is `bench/` for the default suite and `bench/suites/<name>/` otherwise, and **`<cache>`** is `bench/.cache/` for the default suite and `bench/.cache/suites/<name>/` otherwise.
+
 | Suite | Resolves to | Contents |
 |---|---|---|
 | `dev-1` (default) | `bench/` itself | the curated manifest and golden set described on this page |
@@ -210,10 +212,10 @@ All five entries were verified this way on 2026-08-06: 1 / 17 / 21 / 18 / 8 file
 
 ## Fixed invariants
 
-These are deliberately not configurable. Below, `<suite>` is `bench/` for the default suite and `bench/suites/<name>/` otherwise, and `<cache>` is `bench/.cache/` for the default suite and `bench/.cache/suites/<name>/` otherwise:
+These are deliberately not configurable:
 
 - **Review timeout:** 45 minutes per PR (`REVIEW_TIMEOUT_SECONDS = 45 * 60`)
-- **Cache:** lives under `bench/.cache/`, namespaced per suite — `bench/.cache/` for the default suite, `bench/.cache/suites/<name>/` otherwise (gitignored — no benchmark output is ever committed; the two named exceptions are report pages under `<suite>/reports/` and the four frozen ledger slices under `bench/testdata/`)
+- **Cache:** lives under `<cache>`, namespaced per suite (gitignored — no benchmark output is ever committed; the two named exceptions are report pages under `<suite>/reports/` and the four frozen ledger slices under `bench/testdata/`)
 - **Results:** live under `<suite>/results/` (gitignored)
 - **Failure artifacts:** one file per failed `(PR, configuration)` pair under `<cache>/failures/`, each containing both subprocess streams labelled with their stream name; empty streams marked explicitly
 - **Isolated config:** `$HOME/.claude-verify` with `DISABLE_AUTOUPDATER=1`; the runner aborts the whole run before the first review when the install record names a path whose content hash differs from `--coding-repo`'s, or when any of the abort conditions in the Plugin load path section applies

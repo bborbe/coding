@@ -731,10 +731,11 @@ def resolve_suite(args) -> Suite:
         base = BENCH_DIR
         cache_root = BENCH_DIR / ".cache"
     else:
-        base = SUITES_ROOT / name
         # assert_under rejects a resolved path equal to root or outside it, so
-        # it must NOT run on the default branch, where base IS BENCH_DIR.
-        assert_under(base, SUITES_ROOT)
+        # it must NOT run on the default branch, where base IS BENCH_DIR.  Bind
+        # its return: the canonical path it validated is the one every later
+        # read should use, matching how git() and remove_worktree() consume it.
+        base = assert_under(SUITES_ROOT / name, SUITES_ROOT)
         # Fail at resolution, not later: without this a typo'd name surfaces as
         # "cannot read manifest ...: No such file or directory" from load_manifest,
         # or as a misleading "--score requires --golden" when the absent suite

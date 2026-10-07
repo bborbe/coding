@@ -1,0 +1,24 @@
+{
+  "version": "reviewbench-pilot-1",
+  "description": "ReviewBench pilot suite — one PR, converted from github.com/review-bench/ReviewBench's golden format into this bench's schema. Seeded to measure whether keyword-substring signatures survive ReviewBench's finding density (~19 findings per PR) before the remaining 218 PRs are converted. Deliberately NOT representative: it is the smallest Go PR in the corpus and it sits in ReviewBench's 25-PR test set.",
+  "created": "2026-10-07",
+  "verified": "2026-10-07: both frozen SHAs confirmed reachable from https://github.com/k1LoW/gh-copilot-review (refs/heads/* plus refs/pull/9/head).",
+  "prs": [
+    {
+      "id": "k1LoW-gh-copilot-review#9",
+      "owner": "k1LoW",
+      "repo": "gh-copilot-review",
+      "number": 9,
+      "language": "go",
+      "merge_strategy": "squash",
+      "merge_sha": "f98281938e63acd1d2df9b89d6af98dcf58c9fa8",
+      "base_sha": "5f3765a9ef25d9c5a57699418bed105d9ac54691",
+      "head_sha": "f98281938e63acd1d2df9b89d6af98dcf58c9fa8",
+      "changed_files": 2,
+      "additions": 58,
+      "deletions": 10,
+      "role": "pilot",
+      "notes": "ReviewBench corpus entry k1LoW/gh-copilot-review#9 (language Go, 2 files, 68 changed lines). ReviewBench freezes base/head at capture time; the PR's live refs/pull/9/head has since moved to 395fb81237f1cce30bfbdfa7b24a53edc3ce8e93, so head_sha here is the FROZEN commit, not the current PR head. merge_sha is set to head_sha with merge_strategy 'squash' so resolve_diff_range takes the single-parent path and yields base..head, matching ReviewBench's own three-dot base...head diff. The id is owner-qualified because ReviewBench's corpus holds 18 duplicate bare repo names and PR_ID_RE forbids a slash."
+    }
+  ]
+}

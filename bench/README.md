@@ -17,13 +17,30 @@ Goal: `[[PR Review Bench]]` in the Personal vault.
 
 The runner drives the real `/coding:pr-review` slash command over the pinned PR manifest (`bench/prs.json`) and writes one machine-readable row per PR. A scoring layer turns a ledger plus `bench/golden.json` into per-run precision and recall, and a committed report page per configuration. The scoring layer invokes no review, spends no tokens, and needs no network — it is a pure function over data already on disk.
 
-Two entry points exist: `--golden` on a live run scores that run's configuration after the last PR completes; `--score` over an existing ledger scores every configuration in it. `--reports-dir` defaults to `bench/reports`.
+Two entry points exist: `--golden` on a live run scores that run's configuration after the last PR completes; `--score` over an existing ledger scores every configuration in it. `--reports-dir` defaults to `<suite>/reports`.
 
 ## `prs.json`
 
 Five already-merged PRs, deliberately **not** representative. They exist to build the runner against: language spread (Go ×2, TypeScript, Node, Python), size spread (3 → 783 lines), one known-clean PR, one with two documented defects, and both merge strategies.
 
 Every entry records `base_sha` and `head_sha` explicitly because reconstructing a merged PR's diff requires knowing the merge strategy.
+
+## Suites
+
+A *suite* is the fixture a configuration is measured against: a PR manifest, a golden set, a ledger directory and a report directory. `--suite <name>` selects one.
+
+Throughout this page, **`<suite>`** is `bench/` for the default suite and `bench/suites/<name>/` otherwise, and **`<cache>`** is `bench/.cache/` for the default suite and `bench/.cache/suites/<name>/` otherwise.
+
+| Suite | Resolves to | Contents |
+|---|---|---|
+| `dev-1` (default) | `bench/` itself | the curated manifest and golden set described on this page |
+| any other name | `bench/suites/<name>/` | that suite's `prs.json`, `golden.json`, `results/`, `reports/` |
+
+The default suite deliberately keeps its pre-suite paths, so existing ledgers and report pages stay scoreable unchanged. An explicit `--manifest`, `--out-dir`, `--reports-dir` or `--golden` overrides the suite-derived path. When `--suite` names a **non-default** suite and `--golden` is absent, `<suite>/golden.json` is used if it exists — naming the default suite explicitly (`--suite dev-1`) behaves exactly like omitting the flag, so it does not pick up `bench/golden.json`.
+
+The suite is **not** part of `config_hash`. The config is the instrument (rules + commands content, model, effort, mode) and the suite is the fixture — they are orthogonal, and two configurations are the same configuration whatever they are measured against. Report pages are therefore disambiguated by directory, not by filename.
+
+The cache is namespaced per suite: `bench/.cache/` for the default suite, `bench/.cache/suites/<name>/` otherwise. The key is the config hash plus the manifest-declared `pr_id`, and `pr_id` carries no SHA — so a shared root would let two suites declaring the same id at different SHAs collide and serve a stale review as fresh.
 
 ## Running it
 
@@ -33,11 +50,11 @@ make bench-test
 python3 bench/run.py --score --golden bench/golden.json
 ```
 
-`--model`, `--effort`, and `--mode` are mandatory for a live run: they are recorded as the configuration identity in every result row and have no safe default. Results land in `bench/results/results.jsonl`. `make bench-test` is also wired into `make precommit` so the unit tests gate every later change to the repo.
+`--model`, `--effort`, and `--mode` are mandatory for a live run: they are recorded as the configuration identity in every result row and have no safe default. Results land in `<suite>/results/results.jsonl`. `make bench-test` is also wired into `make precommit` so the unit tests gate every later change to the repo.
 
 `python3 bench/run.py --print-config-hash` prints the content hash of `rules/` + `commands/` from the current `--coding-repo` and exits immediately.
 
-`--golden <path>` scores the run after the last PR completes and requires `--model`, `--effort`, `--mode` to be supplied; the scored ledger is then available for the score-only mode. `--score` mode reads an existing ledger, scores every distinct `config_hash` in it, and writes one report page per configuration — it invokes no review and needs no model/effort/mode. `--reports-dir` defaults to `bench/reports`.
+`--golden <path>` scores the run after the last PR completes and requires `--model`, `--effort`, `--mode` to be supplied; the scored ledger is then available for the score-only mode. `--score` mode reads an existing ledger, scores every distinct `config_hash` in it, and writes one report page per configuration — it invokes no review and needs no model/effort/mode. `--reports-dir` defaults to `<suite>/reports`.
 
 **Exit codes:** 0 when every PR produced a row (ok or cache hit); 1 when one or more PRs failed; 2 for a usage, manifest, preflight failure, missing or invalid golden set, empty or absent ledger, corrupt ledger line, or a live-run `prs_version` disagreement with the golden set.
 
@@ -45,7 +62,7 @@ python3 bench/run.py --score --golden bench/golden.json
 
 The benchmark calls the real `/coding:pr-review` command, which itself invokes the real `claude` binary. The `claude` binary must be able to authenticate — the runner does not set `ANTHROPIC_AUTH_TOKEN` and never will: any value of that variable switches Claude Code into API-key mode and bypasses the OAuth path entirely, for every operator, including those whose OAuth is already working. Setting it to save one `export` would silently change the authentication path of a measurement instrument.
 
-A failed run leaves one artifact per failed `(PR, configuration)` pair under `bench/.cache/failures/`. Each artifact records both of the subprocess's output streams, each labelled with its stream name; an empty stream is marked explicitly rather than omitted.
+A failed run leaves one artifact per failed `(PR, configuration)` pair under `<cache>/failures/`. Each artifact records both of the subprocess's output streams, each labelled with its stream name; an empty stream is marked explicitly rather than omitted.
 
 > **Why the runner labels both streams.** Claude Code writes its real errors to stdout — an expired OAuth session, an unknown command — while stderr carries incidental warnings. An artifact that holds only stderr therefore systematically preserves the wrong half. The `bench-pr-20` failure on 2026-08-08 was diagnosed as a model-name warning until the stdout half was recovered.
 
@@ -70,7 +87,7 @@ Every condition below aborts the whole run before the first review starts, with 
 
 ## Two-ref guarantee
 
-Before any review is invoked, the prepared working copy under `bench/.cache/repos/` contains exactly the checked-out head branch `bench-pr-<N>` plus the two synthetic remote-tracking refs `origin/bench-base-<N>` and `origin/bench-pr-<N>`, and nothing else. Every other branch, every other remote-tracking ref, every tag, and the default-branch symref are removed on every run — including against a cache directory an earlier version of the runner populated. The commits the manifest names stay reachable, so range resolution and the offline short-circuit still work on a repeat run.
+Before any review is invoked, the prepared working copy under `<cache>/repos/` contains exactly the checked-out head branch `bench-pr-<N>` plus the two synthetic remote-tracking refs `origin/bench-base-<N>` and `origin/bench-pr-<N>`, and nothing else. Every other branch, every other remote-tracking ref, every tag, and the default-branch symref are removed on every run — including against a cache directory an earlier version of the runner populated. The commits the manifest names stay reachable, so range resolution and the offline short-circuit still work on a repeat run.
 
 > **Why this was necessary.** The `bench-pr-20` run on 2026-08-08 handed the reviewer a working copy that also carried `origin/main`, `origin/feature/streaming-playback`, and `origin/fix/lead-silence-startup-clipping`. The reviewer replied: "Target branch options: 1. `main` 2. `feature/streaming-playback` 3. `fix/lead-silence-startup-clipping` — Which should I use as the target for comparison?" The v0.35.2 sanity gate correctly rejected it as a non-review. An earlier run with identical inputs had reviewed correctly. Removing the alternatives removes the question; instructing the reviewer more firmly would leave the choice present and make determinism a property of the model's disposition.
 
@@ -137,7 +154,7 @@ The four observed bold-reference shapes and their resulting `path` and `line` va
 
 An item inside a severity section that yields neither a `path` nor a `rule_id` cannot be keyed, cannot be matched against a golden set, and is never written as a body-only finding. Such a PR fails with `UNATTRIBUTABLE FINDING` — in the same class as the existing `NOT A REVIEW` gate: no ledger row, no `<key>.json` row marker, the PR listed as failed, remaining PRs still processed, process exits non-zero.
 
-The two gates differ in what they leave behind. `NOT A REVIEW` fires before the raw-output write and leaves nothing; `UNATTRIBUTABLE FINDING` fires after it, so the `<key>.stdout.txt` stays on disk and the review is re-harvestable after a parser fix without spending tokens again. A both-stream failure artifact is written under `bench/.cache/failures/`. There is no opt-out.
+The two gates differ in what they leave behind. `NOT A REVIEW` fires before the raw-output write and leaves nothing; `UNATTRIBUTABLE FINDING` fires after it, so the `<key>.stdout.txt` stays on disk and the review is re-harvestable after a parser fix without spending tokens again. A both-stream failure artifact is written under `<cache>/failures/`. There is no opt-out.
 
 > **Why a body-only finding is refused.** A finding with no path and no rule id is an unmatchable measurement dressed as a data point. A false rejection costs one operator decision and a re-run; a false acceptance writes an unscoreable row into an append-only ledger.
 
@@ -174,7 +191,7 @@ Every golden entry carries one of three states, and the state governs what a hit
 
 **Rows recorded against another PR manifest.** Every ledger row whose own `prs_version` differs from the golden set's is skipped **before scoring**, named on stderr with the literal `PRS VERSION SKIP` together with its `config_hash` and both version strings. A configuration with no surviving rows gets **no page at all**. A configuration with some survivors gets a page whose Configuration block records how many rows were skipped. On the ledger as of 2026-08-09, 4 of the 66 rows carry `empty-diff-probe`, `mode-full-probe` or `ruleid-probe` and are skipped; they belong to 3 of the 7 configurations. Scoring produces no new ledger rows and mutates none that exist. A scorer change requires **no cache clear** — the config hash covers `rules/` + `commands/` but not `bench/run.py`, and scoring consumes already-normalised findings. The cache-clearing rule continues to apply to **harvest** changes alone.
 
-**Report page.** Each scored configuration gets one page at `bench/reports/<config_hash>.md` — the full 64-character lowercase-hex hash, because a truncated filename reintroduces the identity ambiguity the hash exists to remove. The page is tracked in git and carries no generation timestamp, so re-scoring an unchanged ledger produces a byte-identical file. The page has four sections in order: **Configuration** (model, effort, mode, config_hash, rules_commands_hash, prs_version, coding version, golden version, runner_version, rows skipped, cost-not-recorded note, and both ratio caveats), **Runs** (one row per run with span, PR coverage, complete/partial label, golden entries in scope, findings, hits, misses, matched rejected, gap candidates, recall, precision, wall time), **Per-PR** (per run and PR: golden entries in scope, hits, misses, findings, gap candidates, duration), and **Gap-triage candidates** (every unmatched finding, quoted verbatim, under its own heading). Cost is not recorded because the ledger carries no cost field.
+**Report page.** Each scored configuration gets one page at `<suite>/reports/<config_hash>.md` — the full 64-character lowercase-hex hash, because a truncated filename reintroduces the identity ambiguity the hash exists to remove. The page is tracked in git and carries no generation timestamp, so re-scoring an unchanged ledger produces a byte-identical file. The page has four sections in order: **Configuration** (model, effort, mode, config_hash, rules_commands_hash, prs_version, coding version, golden version, runner_version, rows skipped, cost-not-recorded note, and both ratio caveats), **Runs** (one row per run with span, PR coverage, complete/partial label, golden entries in scope, findings, hits, misses, matched rejected, gap candidates, recall, precision, wall time), **Per-PR** (per run and PR: golden entries in scope, hits, misses, findings, gap candidates, duration), and **Gap-triage candidates** (every unmatched finding, quoted verbatim, under its own heading). Cost is not recorded because the ledger carries no cost field.
 
 ## Verifying an entry without cloning
 
@@ -198,9 +215,9 @@ All five entries were verified this way on 2026-08-06: 1 / 17 / 21 / 18 / 8 file
 These are deliberately not configurable:
 
 - **Review timeout:** 45 minutes per PR (`REVIEW_TIMEOUT_SECONDS = 45 * 60`)
-- **Cache:** lives under `bench/.cache/` (gitignored — no benchmark output is ever committed; the two named exceptions are report pages under `bench/reports/` and the four frozen ledger slices under `bench/testdata/`)
-- **Results:** live under `bench/results/` (gitignored)
-- **Failure artifacts:** one file per failed `(PR, configuration)` pair under `bench/.cache/failures/`, each containing both subprocess streams labelled with their stream name; empty streams marked explicitly
+- **Cache:** lives under `<cache>`, namespaced per suite (gitignored — no benchmark output is ever committed; the two named exceptions are report pages under `<suite>/reports/` and the four frozen ledger slices under `bench/testdata/`)
+- **Results:** live under `<suite>/results/` (gitignored)
+- **Failure artifacts:** one file per failed `(PR, configuration)` pair under `<cache>/failures/`, each containing both subprocess streams labelled with their stream name; empty streams marked explicitly
 - **Isolated config:** `$HOME/.claude-verify` with `DISABLE_AUTOUPDATER=1`; the runner aborts the whole run before the first review when the install record names a path whose content hash differs from `--coding-repo`'s, or when any of the abort conditions in the Plugin load path section applies
 - **Plugin load path:** the runner hashes the directory named by the isolated config directory's `installed_plugins.json` record (the directory Claude Code really loads from), not the marketplace path; there is no fallback when the record is absent, unreadable, stale, out-of-tree, scope-mismatched, or hash-mismatched
 - **Two-ref guarantee:** the prepared working copy carries exactly the checked-out head branch and the two synthetic remote-tracking refs for that PR; every other branch, tag and the default-branch symref are removed on every run
@@ -213,18 +230,18 @@ These are deliberately not configurable:
 - **Match rule:** every signature keyword present case-insensitively in body; `rule_id` an additional constraint when both sides carry one, never a short-circuit; neither `path` nor `line` is part of identity; signatures need >= 2 keywords and may not embed a line reference
 - **Golden states:** `accepted` (recall miss on no-match), `rejected` (precision penalty on match), `unreviewed` (excluded from both ratios); a finding matching no entry is a gap-triage candidate, **not a precision failure**
 - **Run chunking:** per-PR occurrence index in ledger file order; the k-th row for a given `pr_id` belongs to run k; no clock, no threshold
-- **Report location:** `bench/reports/<64-lowercase-hex>.md`; full hash, no truncation; tracked in git
+- **Report location:** `<suite>/reports/<64-lowercase-hex>.md`; full hash, no truncation; tracked in git
 - **Ratio rendering:** three decimals via `format(value, '.3f')`; `n/a` when denominator is zero; no `0.000` for a zero denominator
 - **Report generation:** no timestamp written; re-scoring unchanged data yields byte-identical file
 - **Precondition literals:** `GOLDEN SET NOT FOUND`, `INVALID GOLDEN SET`, `GOLDEN VERSION MISMATCH`, `PRS VERSION SKIP`, `EMPTY LEDGER`, `CORRUPT LEDGER`, `INVALID CONFIG HASH`
 
 ## Safety invariant
 
-Every `git` invocation the runner issues targets a path under `bench/.cache/repos/`. The runner never touches a clone the operator uses for real work. `/coding:pr-review` itself holds `git worktree`, `git fetch`, `git branch`, and `rm -rf` permissions once invoked, so reusing a real clone could destructively mutate it.
+Every `git` invocation the runner issues targets a path under `<cache>/repos/`. The runner never touches a clone the operator uses for real work. `/coding:pr-review` itself holds `git worktree`, `git fetch`, `git branch`, and `rm -rf` permissions once invoked, so reusing a real clone could destructively mutate it.
 
 ## Result row
 
-Each row in `bench/results/results.jsonl` records:
+Each row in `<suite>/results/results.jsonl` records:
 
 | Field | Description |
 |---|---|

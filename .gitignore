@@ -6,5 +6,6 @@
 /prompts/log
 /specs/log
 /bench/results/
+/bench/suites/*/results/
 /bench/.cache/
 __pycache__/

@@ -399,6 +399,147 @@ class TestCliContract(unittest.TestCase):
                 self.assertIn(flag, result.stderr)
 
 
+class TestSuiteResolution(unittest.TestCase):
+    """Suite selector: default paths unchanged, named suites resolved, flags win.
+
+    The default-suite test is a regression lock.  If it ever fails, every
+    existing ledger row and report page has become unreachable, because
+    --score reads the ledger from the resolved out_dir.
+    """
+
+    @staticmethod
+    def _args(argv):
+        """Parse argv through the real parser, so its defaults are under test."""
+        return run.build_parser().parse_args(argv)
+
+    def test_default_suite_resolves_to_legacy_paths(self):
+        """No --suite resolves to today's bench/ paths, unchanged."""
+        suite = run.resolve_suite(self._args([]))
+        self.assertEqual(suite.name, run.DEFAULT_SUITE)
+        self.assertEqual(suite.manifest, run.BENCH_DIR / "prs.json")
+        self.assertEqual(suite.out_dir, run.BENCH_DIR / "results")
+        self.assertEqual(suite.reports_dir, run.BENCH_DIR / "reports")
+        self.assertEqual(suite.cache_root, run.BENCH_DIR / ".cache")
+
+    def test_default_suite_does_not_auto_pick_a_golden(self):
+        """Without --suite, --golden stays unset — no implicit scoring."""
+        self.assertIsNone(run.resolve_suite(self._args([])).golden)
+
+    def test_named_suite_resolves_under_suites_root(self):
+        """--suite <name> resolves all three paths under bench/suites/<name>/."""
+        suite = run.resolve_suite(self._args(["--suite", "reviewbench-pilot"]))
+        base = run.SUITES_ROOT / "reviewbench-pilot"
+        self.assertEqual(suite.name, "reviewbench-pilot")
+        self.assertEqual(suite.manifest, base / "prs.json")
+        self.assertEqual(suite.out_dir, base / "results")
+        self.assertEqual(suite.reports_dir, base / "reports")
+
+    def test_named_suite_gets_a_namespaced_cache_root(self):
+        """Each named suite gets its own cache namespace; the default keeps the bare root.
+
+        The cache key is config_hash + the manifest-declared pr_id, and pr_id
+        carries no SHA — so a shared root would let two suites declaring the
+        same id at different SHAs collide and serve a stale review as fresh.
+        """
+        suite = run.resolve_suite(self._args(["--suite", "reviewbench-pilot"]))
+        self.assertEqual(
+            suite.cache_root,
+            run.BENCH_DIR / ".cache" / "suites" / "reviewbench-pilot",
+        )
+        self.assertNotEqual(
+            suite.cache_root, run.resolve_suite(self._args([])).cache_root
+        )
+
+    def test_explicit_default_suite_name_behaves_like_no_flag(self):
+        """`--suite dev-1` must resolve exactly as omitting the flag does.
+
+        The golden auto-pick is a named-suite convenience.  Gating it on
+        `args.suite is not None` rather than on the name made the default suite
+        behave differently when named explicitly — silently enabling scoring,
+        and a GOLDEN_VERSION_MISMATCH exit-2 path, on a command line that had
+        neither.
+        """
+        bare = run.resolve_suite(self._args([]))
+        named = run.resolve_suite(self._args(["--suite", run.DEFAULT_SUITE]))
+        self.assertEqual(bare, named)
+        self.assertIsNone(named.golden)
+
+    def test_explicit_path_flag_beats_suite(self):
+        """An explicit --manifest wins; the untouched paths still come from the suite."""
+        suite = run.resolve_suite(
+            self._args(
+                ["--suite", "reviewbench-pilot", "--manifest", "/tmp/other.json"]
+            )
+        )
+        self.assertEqual(suite.manifest, pathlib.Path("/tmp/other.json"))
+        self.assertEqual(
+            suite.reports_dir, run.SUITES_ROOT / "reviewbench-pilot" / "reports"
+        )
+
+    def test_explicit_golden_beats_suite_golden(self):
+        """An explicit --golden is never overridden by <suite>/golden.json."""
+        with tempfile.TemporaryDirectory() as td:
+            suites_root = pathlib.Path(td) / "suites"
+            (suites_root / "probe").mkdir(parents=True)
+            (suites_root / "probe" / "golden.json").write_text("{}", encoding="utf-8")
+            with mock.patch.object(run, "SUITES_ROOT", suites_root):
+                suite = run.resolve_suite(
+                    self._args(["--suite", "probe", "--golden", "/tmp/g.json"])
+                )
+        self.assertEqual(suite.golden, pathlib.Path("/tmp/g.json"))
+
+    def test_named_suite_picks_up_its_own_golden(self):
+        """--suite with no --golden uses <suite>/golden.json when it exists."""
+        with tempfile.TemporaryDirectory() as td:
+            # .resolve(): assert_under binds its canonical return, and on macOS
+            # the temp dir is a symlink (/var -> /private/var), so an unresolved
+            # root here would compare unequal for reasons unrelated to the test.
+            suites_root = pathlib.Path(td).resolve() / "suites"
+            (suites_root / "probe").mkdir(parents=True)
+            (suites_root / "probe" / "golden.json").write_text("{}", encoding="utf-8")
+            with mock.patch.object(run, "SUITES_ROOT", suites_root):
+                suite = run.resolve_suite(self._args(["--suite", "probe"]))
+        self.assertEqual(suite.golden, suites_root / "probe" / "golden.json")
+
+    def test_invalid_suite_name_is_rejected(self):
+        """A traversal, an empty string, or a malformed name raises BenchError.
+
+        The values are assigned onto a parsed Namespace rather than passed as
+        argv: argparse rejects a leading-dash value (`--suite -lead`) as an
+        option before it ever reaches the guard, so argv would test argparse
+        rather than resolve_suite.  An empty --suite is the case that matters
+        most here — it must not silently mean the default suite.
+        """
+        for bad in ["../etc", "a/b", "", ".", "-lead", ".."]:
+            with self.subTest(suite=bad):
+                args = run.build_parser().parse_args([])
+                args.suite = bad
+                with self.assertRaises(run.BenchError):
+                    run.resolve_suite(args)
+
+    def test_unknown_suite_name_is_rejected_at_resolution(self):
+        """A syntactically valid name with no directory fails at resolution.
+
+        Without the check a typo surfaces later as a manifest read error, or as
+        a misleading "--score requires --golden" when the absent suite simply
+        had no golden to auto-pick.
+        """
+        with self.assertRaises(run.BenchError) as ctx:
+            run.resolve_suite(self._args(["--suite", "no-such-suite-here"]))
+        self.assertIn("unknown suite", str(ctx.exception))
+
+    def test_bad_suite_exits_two(self):
+        """The rejection surfaces as exit code 2 through main(), not a traceback."""
+        result = subprocess.run(
+            [sys.executable, str(run.BENCH_DIR / "run.py"),
+             "--suite", "../etc", "--score", "--golden", "bench/golden.json"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("invalid --suite", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+
 class TestPluginLoadPathResolution(unittest.TestCase):
     """Plugin load-path resolution preflight tests (AC2-AC7, AC13)."""
 

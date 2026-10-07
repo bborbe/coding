@@ -34,7 +34,7 @@ A *suite* is the fixture a configuration is measured against: a PR manifest, a g
 | `dev-1` (default) | `bench/` itself | the curated manifest and golden set described on this page |
 | any other name | `bench/suites/<name>/` | that suite's `prs.json`, `golden.json`, `results/`, `reports/` |
 
-The default suite deliberately keeps its pre-suite paths, so existing ledgers and report pages stay scoreable unchanged. An explicit `--manifest`, `--out-dir`, `--reports-dir` or `--golden` overrides the suite-derived path; when `--suite` is given without `--golden`, `<suite>/golden.json` is used if it exists.
+The default suite deliberately keeps its pre-suite paths, so existing ledgers and report pages stay scoreable unchanged. An explicit `--manifest`, `--out-dir`, `--reports-dir` or `--golden` overrides the suite-derived path. When `--suite` names a **non-default** suite and `--golden` is absent, `<suite>/golden.json` is used if it exists — naming the default suite explicitly (`--suite dev-1`) behaves exactly like omitting the flag, so it does not pick up `bench/golden.json`.
 
 The suite is **not** part of `config_hash`. The config is the instrument (rules + commands content, model, effort, mode) and the suite is the fixture — they are orthogonal, and two configurations are the same configuration whatever they are measured against. Report pages are therefore disambiguated by directory, not by filename.
 
@@ -60,7 +60,7 @@ python3 bench/run.py --score --golden bench/golden.json
 
 The benchmark calls the real `/coding:pr-review` command, which itself invokes the real `claude` binary. The `claude` binary must be able to authenticate — the runner does not set `ANTHROPIC_AUTH_TOKEN` and never will: any value of that variable switches Claude Code into API-key mode and bypasses the OAuth path entirely, for every operator, including those whose OAuth is already working. Setting it to save one `export` would silently change the authentication path of a measurement instrument.
 
-A failed run leaves one artifact per failed `(PR, configuration)` pair under `bench/.cache/failures/`. Each artifact records both of the subprocess's output streams, each labelled with its stream name; an empty stream is marked explicitly rather than omitted.
+A failed run leaves one artifact per failed `(PR, configuration)` pair under `<cache>/failures/`. Each artifact records both of the subprocess's output streams, each labelled with its stream name; an empty stream is marked explicitly rather than omitted.
 
 > **Why the runner labels both streams.** Claude Code writes its real errors to stdout — an expired OAuth session, an unknown command — while stderr carries incidental warnings. An artifact that holds only stderr therefore systematically preserves the wrong half. The `bench-pr-20` failure on 2026-08-08 was diagnosed as a model-name warning until the stdout half was recovered.
 
@@ -85,7 +85,7 @@ Every condition below aborts the whole run before the first review starts, with 
 
 ## Two-ref guarantee
 
-Before any review is invoked, the prepared working copy under `bench/.cache/repos/` contains exactly the checked-out head branch `bench-pr-<N>` plus the two synthetic remote-tracking refs `origin/bench-base-<N>` and `origin/bench-pr-<N>`, and nothing else. Every other branch, every other remote-tracking ref, every tag, and the default-branch symref are removed on every run — including against a cache directory an earlier version of the runner populated. The commits the manifest names stay reachable, so range resolution and the offline short-circuit still work on a repeat run.
+Before any review is invoked, the prepared working copy under `<cache>/repos/` contains exactly the checked-out head branch `bench-pr-<N>` plus the two synthetic remote-tracking refs `origin/bench-base-<N>` and `origin/bench-pr-<N>`, and nothing else. Every other branch, every other remote-tracking ref, every tag, and the default-branch symref are removed on every run — including against a cache directory an earlier version of the runner populated. The commits the manifest names stay reachable, so range resolution and the offline short-circuit still work on a repeat run.
 
 > **Why this was necessary.** The `bench-pr-20` run on 2026-08-08 handed the reviewer a working copy that also carried `origin/main`, `origin/feature/streaming-playback`, and `origin/fix/lead-silence-startup-clipping`. The reviewer replied: "Target branch options: 1. `main` 2. `feature/streaming-playback` 3. `fix/lead-silence-startup-clipping` — Which should I use as the target for comparison?" The v0.35.2 sanity gate correctly rejected it as a non-review. An earlier run with identical inputs had reviewed correctly. Removing the alternatives removes the question; instructing the reviewer more firmly would leave the choice present and make determinism a property of the model's disposition.
 
@@ -152,7 +152,7 @@ The four observed bold-reference shapes and their resulting `path` and `line` va
 
 An item inside a severity section that yields neither a `path` nor a `rule_id` cannot be keyed, cannot be matched against a golden set, and is never written as a body-only finding. Such a PR fails with `UNATTRIBUTABLE FINDING` — in the same class as the existing `NOT A REVIEW` gate: no ledger row, no `<key>.json` row marker, the PR listed as failed, remaining PRs still processed, process exits non-zero.
 
-The two gates differ in what they leave behind. `NOT A REVIEW` fires before the raw-output write and leaves nothing; `UNATTRIBUTABLE FINDING` fires after it, so the `<key>.stdout.txt` stays on disk and the review is re-harvestable after a parser fix without spending tokens again. A both-stream failure artifact is written under `bench/.cache/failures/`. There is no opt-out.
+The two gates differ in what they leave behind. `NOT A REVIEW` fires before the raw-output write and leaves nothing; `UNATTRIBUTABLE FINDING` fires after it, so the `<key>.stdout.txt` stays on disk and the review is re-harvestable after a parser fix without spending tokens again. A both-stream failure artifact is written under `<cache>/failures/`. There is no opt-out.
 
 > **Why a body-only finding is refused.** A finding with no path and no rule id is an unmatchable measurement dressed as a data point. A false rejection costs one operator decision and a re-run; a false acceptance writes an unscoreable row into an append-only ledger.
 
@@ -210,12 +210,12 @@ All five entries were verified this way on 2026-08-06: 1 / 17 / 21 / 18 / 8 file
 
 ## Fixed invariants
 
-These are deliberately not configurable. `<suite>` below is `bench/` for the default suite and `bench/suites/<name>/` otherwise:
+These are deliberately not configurable. Below, `<suite>` is `bench/` for the default suite and `bench/suites/<name>/` otherwise, and `<cache>` is `bench/.cache/` for the default suite and `bench/.cache/suites/<name>/` otherwise:
 
 - **Review timeout:** 45 minutes per PR (`REVIEW_TIMEOUT_SECONDS = 45 * 60`)
 - **Cache:** lives under `bench/.cache/`, namespaced per suite — `bench/.cache/` for the default suite, `bench/.cache/suites/<name>/` otherwise (gitignored — no benchmark output is ever committed; the two named exceptions are report pages under `<suite>/reports/` and the four frozen ledger slices under `bench/testdata/`)
 - **Results:** live under `<suite>/results/` (gitignored)
-- **Failure artifacts:** one file per failed `(PR, configuration)` pair under `bench/.cache/failures/`, each containing both subprocess streams labelled with their stream name; empty streams marked explicitly
+- **Failure artifacts:** one file per failed `(PR, configuration)` pair under `<cache>/failures/`, each containing both subprocess streams labelled with their stream name; empty streams marked explicitly
 - **Isolated config:** `$HOME/.claude-verify` with `DISABLE_AUTOUPDATER=1`; the runner aborts the whole run before the first review when the install record names a path whose content hash differs from `--coding-repo`'s, or when any of the abort conditions in the Plugin load path section applies
 - **Plugin load path:** the runner hashes the directory named by the isolated config directory's `installed_plugins.json` record (the directory Claude Code really loads from), not the marketplace path; there is no fallback when the record is absent, unreadable, stale, out-of-tree, scope-mismatched, or hash-mismatched
 - **Two-ref guarantee:** the prepared working copy carries exactly the checked-out head branch and the two synthetic remote-tracking refs for that PR; every other branch, tag and the default-branch symref are removed on every run
@@ -235,7 +235,7 @@ These are deliberately not configurable. `<suite>` below is `bench/` for the def
 
 ## Safety invariant
 
-Every `git` invocation the runner issues targets a path under `bench/.cache/repos/`. The runner never touches a clone the operator uses for real work. `/coding:pr-review` itself holds `git worktree`, `git fetch`, `git branch`, and `rm -rf` permissions once invoked, so reusing a real clone could destructively mutate it.
+Every `git` invocation the runner issues targets a path under `<cache>/repos/`. The runner never touches a clone the operator uses for real work. `/coding:pr-review` itself holds `git worktree`, `git fetch`, `git branch`, and `rm -rf` permissions once invoked, so reusing a real clone could destructively mutate it.
 
 ## Result row
 

@@ -735,6 +735,12 @@ def resolve_suite(args) -> Suite:
         # assert_under rejects a resolved path equal to root or outside it, so
         # it must NOT run on the default branch, where base IS BENCH_DIR.
         assert_under(base, SUITES_ROOT)
+        # Fail at resolution, not later: without this a typo'd name surfaces as
+        # "cannot read manifest ...: No such file or directory" from load_manifest,
+        # or as a misleading "--score requires --golden" when the absent suite
+        # simply had no golden to auto-pick.
+        if not base.is_dir():
+            raise BenchError(f"unknown suite {name!r}: {base} is not a directory")
         # Namespaced per suite.  The review cache is keyed on config_hash plus
         # the manifest-declared pr_id, and pr_id carries no SHA — so two suites
         # declaring the same id at different SHAs would collide and silently
@@ -1874,8 +1880,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Golden set JSON; scores the run (or the ledger, with --score) and "
-            "writes report pages. Default: <suite>/golden.json when --suite is "
-            "given explicitly, otherwise none"
+            "writes report pages. Default: <suite>/golden.json when --suite "
+            "names a non-default suite, otherwise none"
         ),
     )
     parser.add_argument(

@@ -514,6 +514,17 @@ class TestSuiteResolution(unittest.TestCase):
                 with self.assertRaises(run.BenchError):
                     run.resolve_suite(args)
 
+    def test_unknown_suite_name_is_rejected_at_resolution(self):
+        """A syntactically valid name with no directory fails at resolution.
+
+        Without the check a typo surfaces later as a manifest read error, or as
+        a misleading "--score requires --golden" when the absent suite simply
+        had no golden to auto-pick.
+        """
+        with self.assertRaises(run.BenchError) as ctx:
+            run.resolve_suite(self._args(["--suite", "no-such-suite-here"]))
+        self.assertIn("unknown suite", str(ctx.exception))
+
     def test_bad_suite_exits_two(self):
         """The rejection surfaces as exit code 2 through main(), not a traceback."""
         result = subprocess.run(

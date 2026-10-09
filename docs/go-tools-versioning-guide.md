@@ -90,7 +90,7 @@ GOLINES_VERSION            ?= v0.13.0
 GO_MODTOOL_VERSION         ?= v0.7.1
 GOSEC_VERSION              ?= v2.26.1
 GOVULNCHECK_VERSION        ?= v1.3.0
-OSV_SCANNER_VERSION        ?= v2.3.1
+OSV_SCANNER_VERSION        ?= v2.6.0
 ```
 
 Every repo keeps its `tools.env` in sync with `~/Documents/workspaces/coding/templates/tools.env` (the canonical version). When upgrading a tool, update the canonical file and propagate to all repos.
@@ -146,7 +146,7 @@ If a project genuinely needs to vendor a tool binary into a Docker image (and `g
 Some tools don't support `go install` reliably:
 
 - **trivy** — Aqua Security distributes a binary. Install via `apt`/`apk`/`brew`. Invoke as a system binary in the Makefile (no `go run`).
-- **osv-scanner** — Currently broken upstream for `go install osv-scanner@v2.3.2+` due to a transitive dep (`buildtools/build`) that Go's module loader can't resolve. **Pin to `v2.3.1`** until upstream releases a fix. Alternative: install the SLSA-compliant prebuilt binary via `brew install osv-scanner` and invoke it as a system binary like trivy.
+- **osv-scanner** — installs normally at v2.6.0 (`go run github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.6.0`). The old "broken upstream for `v2.3.2+`" caveat is **stale** — that transitive-dep resolution failure was fixed, and v2.6.0 both installs and runs. ⚠️ **Do not pin to `v2.3.1`**: it pins `golang.org/x/tools` v0.38.0, whose SSA builder aborts with `unexpected expr: *ast.KeyValueExpr` on the promoted-field composite-literal key Go 1.27 permits in the Linux stdlib's `internal/poll/splice_linux.go`. darwin never parses that file, so a repo on the old pin passes locally and fails only in Linux CI.
 
 ## errcheck: Run via golangci-lint, Not Standalone
 
@@ -448,7 +448,7 @@ After all libraries migrate, downstream services (code-reviewer, etc.) get a cle
 - **Hardcoded version lists in migration prompts truncate.** Don't enumerate "bump errors@v1.5.11, run@v1.9.23, …" in a prompt — the LLM may copy from a 'head -8' truncated dep list. Use `@latest` script-driven instead. Always.
 - **`gosec` prints `Gosec : dev`** when run via `go run pkg@version`. This is cosmetic — the version metadata isn't compiled in. Functionality is unaffected.
 - **`go mod tidy -e` can truncate go.mod** if package resolution fails partway. After deleting `tools.go`, write a minimal known-good `go.mod` (just direct deps + `go 1.x`) and run `go mod tidy` from there. Don't run `tidy -e` on the polluted go.mod.
-- **`go run pkg@version` ignores local `replace` directives.** Replaces in your go.mod do NOT affect tools invoked this way — the tool is built in a temp module with its own dep graph. This is why some tools (like osv-scanner v2.3.2+) can't be locally patched and must be pinned to a working upstream version.
+- **`go run pkg@version` ignores local `replace` directives.** Replaces in your go.mod do NOT affect tools invoked this way — the tool is built in a temp module with its own dep graph. This is why a tool pinned to a broken upstream version cannot be locally patched, and the pin must be moved to a working release instead. (osv-scanner was held at v2.3.1 on exactly this reasoning; that caveat is stale — v2.6.0 installs and runs, and v2.3.1 is the version that panics.)
 - **Multi-module repos** keep the local `replace github.com/<org>/<repo>/<sub> => ../<sub>` directives — those resolve sister sub-modules locally. Drop the OTHER replaces (cellbuf, go-header, etc.) but keep the local-path ones.
 - **CI cold-start is slower** the first time a tool is invoked at a given version (Go has to compile it). Subsequent runs hit the build cache. For tight CI loops, install the binary in the CI image.
 

@@ -25,7 +25,7 @@ The pattern was validated end-to-end on `bborbe/errors`. Key concepts:
 - Each Makefile tool invocation uses `go run pkg@$(VERSION)` instead of `go run -mod=mod pkg`. This builds the tool in a temporary module — the host project's `go.mod` is untouched.
 - `//go:generate` directives use hardcoded `@version` (counterfeiter is the only common case): `//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6@v6.12.2 -generate`. Hardcoded because `go generate` runs from the package directory and Make variables aren't visible there.
 - After deleting `tools.go`, write a minimal known-good `go.mod` (just direct deps + `go 1.x`), then `go mod tidy` repopulates legitimate indirects.
-- `osv-scanner` must be pinned to `@v2.3.1` — newer versions are broken upstream (osv-scalibr's `bazelbuild/buildtools/build` package fails to resolve).
+- `osv-scanner` pins `@v2.6.0`. Do **not** pin `@v2.3.1` — it pins `golang.org/x/tools` v0.38.0, whose SSA builder panics on Go 1.27's Linux stdlib. The older "newer versions are broken upstream" caveat is stale.
 - `trivy` is invoked as a SYSTEM binary (not `go run`) — leave its Makefile target unchanged.
 - `go vet -mod=mod`, `go test -mod=mod`, `go list -mod=mod`, `go generate -mod=mod` are built-in Go subcommands, NOT third-party tools — leave these unchanged.
 </context>
@@ -48,7 +48,7 @@ The pattern was validated end-to-end on `bborbe/errors`. Key concepts:
    GO_MODTOOL_VERSION         ?= v0.7.1
    GOSEC_VERSION              ?= v2.26.1
    GOVULNCHECK_VERSION        ?= v1.3.0
-   OSV_SCANNER_VERSION        ?= v2.3.1
+   OSV_SCANNER_VERSION        ?= v2.6.0
    ```
 
 2. **Update `Makefile`.** Add `include tools.env` near the top (after any `export ROOTDIR ?= ...` style line, before the first target). Replace every `go run -mod=mod pkg` invoking a third-party tool with `go run pkg@$(VERSION_VAR)`:

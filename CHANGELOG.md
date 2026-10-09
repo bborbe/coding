@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.56.1
 
 - fix: bump the canonical `osv-scanner` pin to v2.6.0 and correct the guidance that told every repo to hold at v2.3.1. The old caveat claimed `v2.3.2+` was broken upstream; it is stale — v2.6.0 installs and runs. v2.3.1 is the version that breaks: it pins `golang.org/x/tools` v0.38.0, whose SSA builder aborts with `unexpected expr: *ast.KeyValueExpr` on the promoted-field composite-literal key Go 1.27 permits in the Linux stdlib's `internal/poll/splice_linux.go`, so a repo on the old pin passes locally on darwin and fails only in Linux CI. Corrected in all five stale spots — `templates/tools.env`, `docs/go-tools-versioning-guide.md` (the tools.env example, the "tools without `go install` support" note, and the `replace`-directive gotcha that cited osv-scanner as un-patchable) and `templates/prompt-migrate-tools-go.md` (its prose rule and its tools.env template block). Left uncorrected, the next repo migration would have re-pinned v2.3.1 and re-introduced the panic.
 

@@ -31,7 +31,6 @@ make precommit
 **Why**: `go build ./...` compiles every package but doesn't run any tests. A change that breaks a Ginkgo spec, introduces a race condition, drops coverage below the threshold, or violates an `errcheck` assertion all pass `go build ./...` cleanly and still ship the bug. `make test` wraps:
 - Ginkgo v2 test runner with `-race` enabled (catches concurrent-write panics)
 - Coverage threshold enforcement (prevents silent untested-code-path drift)
-- `errcheck` + linter passes (catches `_ = doSomething()` discarded errors) — these run in `make check` → `lint`, not in `make test`
 - Counterfeiter mock regeneration sanity (catches interface-vs-mock drift)
 
 A "compiles cleanly" PR that fails `make test` is a textbook reviewer-confidence-misalignment: the author thinks it's done, the reviewer trusts the author's verification, the build breaks on master. `make test` is the canonical "ready to merge" signal.

@@ -114,9 +114,9 @@ include tools.env
 lint:
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
 
-.PHONY: gosec
-gosec:
-	go run github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) -exclude=G104 ./...
+# NOTE: no `gosec:` target. gosec runs inside golangci-lint's `lint` — a standalone
+# target dies on Go 1.27.2 for the same reason errcheck does (see "errcheck: Run via
+# golangci-lint, Not Standalone" below).
 
 .PHONY: osv-scanner
 osv-scanner:

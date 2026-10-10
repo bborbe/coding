@@ -82,10 +82,10 @@ A flat key-value file at the repo root with the canonical version of every tool:
 ```makefile
 ADDLICENSE_VERSION         ?= v1.2.0
 COUNTERFEITER_VERSION      ?= v6.12.2
-ERRCHECK_VERSION           ?= v1.10.0
+ERRCHECK_VERSION           ?= v1.20.0
 GINKGO_VERSION             ?= v2.28.3
 GOIMPORTS_REVISER_VERSION  ?= v3.12.6
-GOLANGCI_LINT_VERSION      ?= v2.11.4
+GOLANGCI_LINT_VERSION      ?= v2.14.0
 GOLINES_VERSION            ?= v0.13.0
 GO_MODTOOL_VERSION         ?= v0.7.1
 GOSEC_VERSION              ?= v2.26.1
@@ -114,9 +114,9 @@ include tools.env
 lint:
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
 
-.PHONY: gosec
-gosec:
-	go run github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) -exclude=G104 ./...
+# NOTE: no `gosec:` target. gosec runs inside golangci-lint's `lint` — a standalone
+# target dies on Go 1.27.2 for the same reason errcheck does (see "errcheck: Run via
+# golangci-lint, Not Standalone" below).
 
 .PHONY: osv-scanner
 osv-scanner:
@@ -189,13 +189,13 @@ linters:
 In `Makefile.precommit`:
 
 ```makefile
-# DO NOT add a standalone errcheck target.
-# DO NOT include errcheck in the check: list — golangci-lint runs it.
+# DO NOT add standalone errcheck or gosec targets.
+# DO NOT include errcheck or gosec in the check: list — golangci-lint runs both.
 .PHONY: check
-check: lint vet vulncheck osv-scanner gosec trivy
+check: lint vet vulncheck osv-scanner trivy
 ```
 
-In `tools.env`: **omit** `ERRCHECK_VERSION` — version flows from golangci-lint's bundled errcheck.
+In `tools.env`: **omit** `ERRCHECK_VERSION` — version flows from golangci-lint's bundled errcheck. ⚠️ `templates/tools.env` deliberately **keeps** `ERRCHECK_VERSION` and `GOSEC_VERSION` while any not-yet-migrated repo still expands them (a Makefile still invoking `@$(GOSEC_VERSION)` would expand to `gosec@` and break); delete both once no repo references them.
 
 ### Migration from standalone errcheck
 

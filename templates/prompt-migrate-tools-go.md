@@ -40,10 +40,10 @@ The pattern was validated end-to-end on `bborbe/errors`. Key concepts:
 
    ADDLICENSE_VERSION         ?= v1.2.0
    COUNTERFEITER_VERSION      ?= v6.12.2
-   ERRCHECK_VERSION           ?= v1.10.0
+   ERRCHECK_VERSION           ?= v1.20.0
    GINKGO_VERSION             ?= v2.28.3
    GOIMPORTS_REVISER_VERSION  ?= v3.12.6
-   GOLANGCI_LINT_VERSION      ?= v2.11.4
+   GOLANGCI_LINT_VERSION      ?= v2.14.0
    GOLINES_VERSION            ?= v0.13.0
    GO_MODTOOL_VERSION         ?= v0.7.1
    GOSEC_VERSION              ?= v2.26.1
@@ -57,10 +57,10 @@ The pattern was validated end-to-end on `bborbe/errors`. Key concepts:
    - `go run -mod=mod github.com/incu6us/goimports-reviser/v3` → `go run github.com/incu6us/goimports-reviser/v3@$(GOIMPORTS_REVISER_VERSION)`
    - `go run -mod=mod github.com/segmentio/golines` → `go run github.com/segmentio/golines@$(GOLINES_VERSION)`
    - `go run -mod=mod github.com/golangci/golangci-lint/cmd/golangci-lint` (or `/v2/...`) → `go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)` (note: explicitly use the `/v2/` import path)
-   - `go run -mod=mod github.com/kisielk/errcheck` → `go run github.com/kisielk/errcheck@$(ERRCHECK_VERSION)`
+   - ⚠️ **`github.com/kisielk/errcheck` is NOT wired as a standalone target.** Do not add `go run github.com/kisielk/errcheck@$(ERRCHECK_VERSION)`: that builds in errcheck's **own** module context, which pins a `golang.org/x/tools` reader that stops at export-data version 4, so it dies at Go 1.27.2 with `internal error: package "X" without types was imported`. errcheck runs embedded in golangci-lint — `.golangci.yml` must enable it and carry the old `-ignore '(Close|Write|Fprint)'` list as `linters.settings.errcheck.exclude-functions`. Leave `ERRCHECK_VERSION` in `tools.env` only while some repo still references it; delete it once none does. ⚠️ The `linters.settings.*` keys require a golangci-lint **v2** config (`version: "2"` with `linters.settings:`) — a repo still on the v1 schema (`linters-settings:`, `issues.exclude-rules:`) must migrate its config first, or the v2.14.0 binary this pins rejects it. Note that `templates/.golangci.yml` in this repo is itself still v1 schema and needs its own migration.
    - `go run -mod=mod golang.org/x/vuln/cmd/govulncheck` → `go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)`
    - `go run -mod=mod github.com/google/osv-scanner/v2/cmd/osv-scanner` → `go run github.com/google/osv-scanner/v2/cmd/osv-scanner@$(OSV_SCANNER_VERSION)`
-   - `go run -mod=mod github.com/securego/gosec/v2/cmd/gosec` → `go run github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)`
+   - ⚠️ **`github.com/securego/gosec/v2/cmd/gosec` is NOT wired as a standalone target**, for the same reason as errcheck above. gosec runs embedded in golangci-lint — `.golangci.yml` must enable it and carry the old `-exclude=G104` as `linters.settings.gosec.excludes: [G104]`. Leave `GOSEC_VERSION` in `tools.env` only while some repo still references it. ⚠️ gosec is **not** in golangci-lint v2's default linter set (errcheck is), so `.golangci.yml` must also list it under `linters.enable` — configuring `settings.gosec` alone leaves a repo without gosec coverage once the standalone target is gone.
    - `go run -mod=mod github.com/google/addlicense` → `go run github.com/google/addlicense@$(ADDLICENSE_VERSION)`
 
    Leave unchanged: `go vet -mod=mod`, `go test -mod=mod`, `go list -mod=mod`, `go generate -mod=mod`, and the `trivy fs ...` invocation (trivy is a system binary).

@@ -31,7 +31,7 @@ make precommit
 **Why**: `go build ./...` compiles every package but doesn't run any tests. A change that breaks a Ginkgo spec, introduces a race condition, drops coverage below the threshold, or violates an `errcheck` assertion all pass `go build ./...` cleanly and still ship the bug. `make test` wraps:
 - Ginkgo v2 test runner with `-race` enabled (catches concurrent-write panics)
 - Coverage threshold enforcement (prevents silent untested-code-path drift)
-- `errcheck` + linter passes (catches `_ = doSomething()` discarded errors)
+- `errcheck` + linter passes (catches `_ = doSomething()` discarded errors) — these run in `make check` → `lint`, not in `make test`
 - Counterfeiter mock regeneration sanity (catches interface-vs-mock drift)
 
 A "compiles cleanly" PR that fails `make test` is a textbook reviewer-confidence-misalignment: the author thinks it's done, the reviewer trusts the author's verification, the build breaks on master. `make test` is the canonical "ready to merge" signal.
@@ -47,7 +47,7 @@ echo "Compiles cleanly, ready to merge"
 #### Good
 
 ```bash
-# make test wraps Ginkgo, -race, coverage, errcheck — catches what go build misses
+# make test wraps Ginkgo, -race, coverage — catches what go build misses
 make test
 echo "All tests pass, race-clean, coverage threshold met — ready to merge"
 ```
@@ -120,7 +120,7 @@ make generate
 
 ### `make check`
 **Purpose**: Run comprehensive static analysis and security checks.
-**What it does**: Executes vet, errcheck, and vulncheck in sequence.
+**What it does**: Executes lint, vet, vulncheck, osv-scanner and trivy in sequence. `lint` runs golangci-lint, which carries `errcheck` and `gosec` — neither is a standalone target any more (both die on Go 1.27.2's export data v5 when run via `go run pkg@version`).
 **When to use**: Part of precommit workflow or standalone quality verification.
 
 ```bash
@@ -139,22 +139,19 @@ make check
 make vet
 ```
 
-### `make errcheck`
-**Purpose**: Ensure all error returns are properly handled.
-**What it does**:
-- Scans codebase for unchecked error returns
-- Identifies potential error handling issues
-- Enforces error handling best practices
-- Reports functions that ignore error returns
+### errcheck (no standalone target)
+**There is no `make errcheck` target.** `errcheck` runs inside `make lint` via golangci-lint, which enables it by default.
 
 ```bash
-make errcheck
+make lint
 ```
 
 **Critical for**:
 - Robust error handling in production code
 - Preventing silent failures
 - Maintaining code reliability standards
+
+⚠️ Do **not** re-add a standalone `errcheck:` target. `go run github.com/kisielk/errcheck@$(ERRCHECK_VERSION)` builds in its own module context and pins a `golang.org/x/tools` reader that stops at export-data version 4, so it dies with `internal error: package "X" without types` on a Go 1.27.2 toolchain. Configure `linters.settings.errcheck.exclude-functions` in `.golangci.yml` instead.
 
 ### `make vulncheck`
 **Purpose**: Scan for known security vulnerabilities in dependencies.

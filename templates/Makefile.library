@@ -65,6 +65,14 @@ vet:
 #           - fmt.Fprint
 #           - fmt.Fprintf
 #           - fmt.Fprintln
+#
+# The retired target also filtered generated Kubernetes clients out of the scan with
+# `| grep -v k8s/client`. Carry that over too, or errcheck starts scanning them:
+#
+#   linters:
+#     exclusions:
+#       rules:
+#         - path: "k8s/client/"   # replaces `| grep -v k8s/client`
 
 # GO-2026-5037/5038/5039 are Go 1.26.3 stdlib vulns (crypto/x509, mime, net/textproto),
 # fixed in 1.26.4 — remove from this list once all CI runners and base images are on 1.26.4+.
@@ -129,6 +137,9 @@ osv-scanner:
 # "X" without types was imported`. It is embedded in golangci-lint instead — add to .golangci.yml:
 #
 #   linters:
+#     enable:
+#       - gosec                   # gosec is NOT in golangci-lint v2's default set
+#                                 # (errcheck is, so only gosec needs enabling)
 #     settings:
 #       gosec:
 #         excludes:               # replaces the old `-exclude=G104`

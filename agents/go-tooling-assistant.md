@@ -41,7 +41,7 @@ When invoked, you must follow these steps:
    - **Makefile Structure Analysis**:
      - Check for `.PHONY` declarations on all targets (critical for Make correctness)
      - Validate target dependencies match template: `precommit: ensure format generate test check addlicense`
-     - Verify check target includes all modern tools: `check: lint vet errcheck vulncheck osv-scanner gosec trivy`
+     - Verify check target includes all modern tools: `check: lint vet vulncheck osv-scanner trivy`
      - Compare target ordering with template
      - Identify missing targets compared to template
      - **Line-by-line comparison** with appropriate template (Makefile.library or Makefile.service)
@@ -50,7 +50,7 @@ When invoked, you must follow these steps:
    - **Modern Tooling Checks**:
      - Verify `lint` target uses golangci-lint (not deprecated golint)
      - Check for `osv-scanner` target (dependency vulnerability scanning)
-     - Check for `gosec` target (Go security scanning)
+     - Check that `gosec` is enabled in `.golangci.yml` (Go security scanning — it runs inside `lint`, never as a standalone target)
      - Check for `trivy` target (filesystem/container security scanning)
      - Validate tool invocation patterns use `go run -mod=mod`
      - Check license command uses current year: `$$(date +'%Y')`
@@ -99,9 +99,9 @@ When invoked, you must follow these steps:
      - `test`: Run ginkgo with race detection and coverage
      - `format`: Run gofmt and goimports
      - `generate`: Run go generate for counterfeiter mocks
-     - `check: vet errcheck vulncheck`
+     - `check: lint vet vulncheck osv-scanner trivy`
      - `vet`: Run go vet on ./...
-     - `errcheck`: Check uncaught errors
+     - `lint`: Run golangci-lint, which carries `errcheck` and `gosec`
      - `vulncheck`: Security vulnerability scanning with govulncheck
      - `addlicense`: Add BSD license headers to source files
      - `ensure`: Clean build cache, tidy modules, verify dependencies
@@ -120,7 +120,6 @@ When invoked, you must follow these steps:
          _ "github.com/onsi/ginkgo/v2/ginkgo"
          _ "github.com/maxbrunsfeld/counterfeiter/v6"
          _ "github.com/google/addlicense"
-         _ "github.com/kisielk/errcheck"
          _ "golang.org/x/vuln/cmd/govulncheck"
          _ "github.com/incu6us/goimports-reviser/v3"
      )
@@ -178,7 +177,7 @@ When invoked, you must follow these steps:
 - Use build tags properly in tools.go (`//go:build tools`)
 - Ensure precommit target runs all quality checks in correct order
 - **Check for .PHONY declarations** - critical for Make correctness
-- **Validate modern security tools** - osv-scanner, gosec, trivy must be in check target
+- **Validate modern security tools** - osv-scanner and trivy must be in check target; `gosec` runs inside `lint` via `.golangci.yml`
 - Test changes with `make precommit` before finalizing
 - Follow Benjamin Borbe's ecosystem conventions (no AI attribution in commits)
 - Coordinate with existing go.mod dependencies
@@ -214,9 +213,9 @@ Makefile Structure:
 Critical Issues:
 1. [Issue with line number and specific fix]
    Location: Makefile:32
-   Current: check: vet errcheck vulncheck
-   Expected: check: lint vet errcheck vulncheck osv-scanner gosec trivy
-   Impact: Missing security scans (osv-scanner, gosec, trivy) in precommit workflow
+   Current: check: vet vulncheck
+   Expected: check: lint vet vulncheck osv-scanner trivy
+   Impact: Missing security scans (osv-scanner, trivy) and golangci-lint in precommit workflow
 
 2. [Issue with line number and specific fix]
    Location: Makefile:15,22,28,35,41,47,53
@@ -259,13 +258,13 @@ Comparison with Template ([Makefile.library/Makefile.service]):
 - ✓ All standard targets present
 - ✓ Correct target dependency chain
 - ✗ Missing .PHONY declarations (template has them on lines 2,5,9,...)
-- ✗ check target incomplete (template includes lint, osv-scanner, gosec, trivy)
+- ✗ check target incomplete (template includes lint, osv-scanner, trivy)
 - ✗ Target ordering differs from template
 - ~ Minor formatting differences
 
 Template Differences (line-by-line):
 Line 1: Missing `.PHONY: default`
-Line 31: check target incomplete - missing: lint osv-scanner gosec trivy
+Line 31: check target incomplete - missing: lint osv-scanner trivy
 Line 45: Using golint (deprecated) instead of golangci-lint
 
 To apply these changes automatically, re-invoke with "update" mode.

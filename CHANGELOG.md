@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.57.1
 
 - fix: **`scripts/validate-citations.sh` silently discarded any finding that carried no `kind`, `rule_id` or `invariant_id` key.** The enumerator that separates a finding from a container while walking the nested findings structure mistook such a finding for a container, recursed into its scalar values, yielded nothing, and so dropped it *before* the drop accounting — the run reported `{"findings": [], "dropped_count": 0}` on stdout, nothing on stderr, and **exit 0**, contradicting the script's own contract, which promises a `dropped_count`, a stderr WARN and exit 1 for every dropped finding. It hid a real finding in practice: `commands/pr-review.md` runs selector mode, whose Step 5 explicitly anticipates findings with no rule id (*"omit the rule tag when the finding is not rule-derived"*), so a legitimate judgment finding was exactly the shape that disappeared. The enumerator now also yields a leaf dict carrying no provenance key, so the drop is counted, logged with its owner, and reflected in the exit code. Verified against the reported symptom and two controls: a no-provenance finding now reports `dropped_count: 1` with a stderr WARN and exit 1; a finding with a valid `rule_id` is still kept with exit 0; and an owner-grouped structure still walks, keeping the valid finding under its owner and attributing the dropped one to `agent-auditor`.
 

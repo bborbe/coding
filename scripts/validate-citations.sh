@@ -89,6 +89,16 @@ def walk(obj, parent_key=None):
                 "kind" in item or "rule_id" in item or "invariant_id" in item
             ):
                 yield (parent_key, i, item)
+            elif isinstance(item, dict) and not any(
+                isinstance(v, (dict, list)) for v in item.values()
+            ):
+                # A leaf dict with no provenance key is a finding, not a
+                # container — the branch above mistook it for one, recursed
+                # into its scalar values, yielded nothing, and dropped it
+                # before the accounting below ever saw it: dropped_count 0,
+                # no stderr WARN, exit 0. Yield it so the drop is counted and
+                # logged, which is what the exit-1 contract already promises.
+                yield (parent_key, i, item)
             else:
                 yield from walk(item, parent_key)
     elif isinstance(obj, dict):

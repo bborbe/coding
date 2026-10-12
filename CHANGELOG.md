@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.57.3
 
 - docs: `go-mocking-guide.md` § *Systematic Mock Discovery* gains a step that lists the `mocks/` directories of the `github.com/bborbe/*` modules in `go.mod`, read from the Go module cache. The existing steps only found mocks a repo already imports or vendors, so on a repo with no `vendor/` that had never imported `bborbe/http/mocks` the checklist came back empty and a hand-written test double was written instead of `httpmocks.HttpHandler` / `libtimemocks.WaiterDuration` (observed 2026-10-12 on `bborbe/claude-code-router#100`).
 

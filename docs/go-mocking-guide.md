@@ -136,7 +136,14 @@ grep -r "github.com/bborbe/.*/mocks" --include="*.go" .
 # 5. Check vendor directories for pre-existing mocks
 find vendor -name "mocks" -type d
 
-# 6. Look for existing test suite setup
+# 6. Check mocks shipped by dependency modules — steps 4–5 only see mocks the
+#    repo already imports or vendors (e.g. bborbe/http/mocks.HttpHandler,
+#    bborbe/time/mocks.WaiterDuration live only in the module cache)
+for m in $(go list -m -f '{{.Path}}@{{.Version}}' all | grep '^github.com/bborbe/'); do
+  ls "$(go env GOMODCACHE)/$m/mocks" 2>/dev/null | sed "s#^#$m/mocks/#"
+done
+
+# 7. Look for existing test suite setup
 find . -name "*suite_test.go" -exec grep -l "go:generate" {} \;
 ```
 

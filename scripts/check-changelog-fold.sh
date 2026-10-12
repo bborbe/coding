@@ -18,9 +18,15 @@
 # genuinely shipped in that tag. Acting on placement moved two shipped features
 # into the next release and duplicated both.
 #
-# THE AUTHORITATIVE VERDICT, per bullet, is `git tag --contains <merge-sha>`:
-#   no tag  -> the bullet's merge is in no release  -> FOLDED
-#   has tag -> the code shipped in that release     -> shipped
+# THE AUTHORITATIVE VERDICT, per bullet, is whether the merge is an ancestor of
+# the section's OWN tag — `git merge-base --is-ancestor <merge-sha> <heading>`:
+#   in that tag -> the code shipped in that release  -> shipped
+#   not in it   -> the section claims work it lacks  -> FOLDED
+# A bare `git tag --contains` answers the WRONG question for the verdict: for a
+# bullet misfiled under `## v0.18.3` it answers v0.18.4, which reads as
+# "shipped" while the bullet still claims a release that does not contain it.
+# `--contains` decides the REPAIR DESTINATION instead, not the verdict — see the
+# FOLDED branch, which names the earliest tag carrying the merge.
 #
 # An unanswerable question is a failure, never a pass: a shallow clone has no
 # tags, and a silent pass there is indistinguishable from a real one. That is
@@ -416,10 +422,27 @@ while IFS= read -r heading; do
 			printf '           merge %s is in %s\n' "$(git rev-parse --short "$sha")" "$heading"
 		else
 			folded=$((folded + 1))
+			# The repair DESTINATION is decided by the tag, never by where the
+			# merge put the entry — the same rule the STRANDED branch below
+			# applies. `--sort=version:refname` is load-bearing: `git tag`
+			# defaults to refname order, which lists v0.102.2 before v0.9.0, so
+			# a bare `head -1` can name a LATER release than the one that first
+			# carried the work. Measured 2026-10-12: for merge 4689aac the two
+			# orders agree, and `git tag --list 'v0.*'` is where they diverge —
+			# do not generalise from the agreeing case. `|| true` because
+			# `set -o pipefail` plus `head -1` can SIGPIPE the producer.
+			dest_tag=$(git tag --contains "$sha" --sort=version:refname 2>/dev/null | head -1 || true)
 			printf 'FOLDED: %s\n' "$bullet" >&2
 			printf '        sits under: %s\n' "$(sits_under "$bullet")" >&2
 			printf '        merge %s is NOT in %s — the section claims work that release does not contain\n' \
 				"$(git rev-parse --short "$sha")" "$heading" >&2
+			if [ -n "$dest_tag" ]; then
+				printf '        destination: ## %s\n' "$dest_tag" >&2
+				printf '                     the work shipped in %s — move the bullet INTO that section\n' "$dest_tag" >&2
+			else
+				printf '        destination: ## Unreleased\n' >&2
+				printf '                     no tag carries this merge — restore ## Unreleased and move it there\n' >&2
+			fi
 		fi
 	done <<<"$work"
 done < <(grep -E '^## v[0-9]+\.[0-9]+\.[0-9]+$' "$CHANGELOG" | sed 's/^## //')
@@ -428,10 +451,15 @@ if [ "$folded" -gt 0 ]; then
 	printf '\nFAIL: %d folded bullet(s) across %d released section(s) at %s.\n' \
 		"$folded" "$sections" "$TAG" >&2
 	cat >&2 <<'EOF'
-Restore a `## Unreleased` section above the top released heading and move the
-folded bullets into it. Do not move a bullet whose merge IS in that section's
-own tag — that one shipped, and moving it duplicates the entry in the next
-release.
+Move each folded bullet to the destination printed above. The direction is
+decided by the TAG, never by where the merge put the entry:
+  - merge in NO tag       -> restore a `## Unreleased` section above the top
+                             released heading and move the bullet into it
+  - merge in a LATER tag  -> move the bullet INTO that tag's section
+Editing a released section is normally forbidden and is correct in the second
+case: `## Unreleased` would announce already-shipped work as pending, and the
+releaser would re-claim a fix that shipped versions ago. Either way, confirm
+where the bullet landed with `git tag --contains <merge-sha>`.
 EOF
 fi
 

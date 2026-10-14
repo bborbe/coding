@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.57.4
 
 - docs: **`teamvault-conventions.md` § Non-k8s / launchd services now covers Claude Code MCP servers, and states the two things that cost real time to learn.** The section covered launchd daemons, where the wrapper is the plist's `ProgramArguments[0]`; an MCP server is spawned by the client instead, so the wrapper IS the server entry's `command` — the shape `bborbe/claude-supervisor`'s `scripts/mcp-start.py` uses to resolve its two tokens. ⚠️ **A changed MCP `command` needs a NEW session, not a `/mcp` Reconnect.** Claude Code caches the server definition (`command`, `args` and `env`) at session start and re-spawns from that cache, so an operator who edits the entry and reconnects keeps running the OLD launcher: measured 2026-10-14, `ps` showed every supervisor still on `bun run … start` after a repoint to `python3 …/mcp-start.py`, and the next spawn refused with *"INTERACTIVE_AUTH_TOKEN is not set"*. ⚠️ **An unresolved key must degrade, not refuse** — failing closed costs the session every tool the server offers, not only the ones that consume the secret. Also adds the reference-vs-placeholder rule: where the app resolves the key itself the config holds a `teamvaultKey`, and where only the launcher can, the config holds no key at all.
 

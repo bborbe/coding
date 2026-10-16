@@ -130,24 +130,24 @@ For repos with multiple deployables, each component has its own `k8s/` folder un
 
 ### The apply target globs the filesystem, not git
 
-A scratch or one-off manifest left in `k8s/` **is applied** by every `make apply` over that folder (section 9) — uncommitted is not a guard, and neither is `.gitignore`. Keep one-off manifests outside the `k8s/` tree and apply them by hand.
+A scratch or one-off manifest left in `k8s/` **is applied** by any `apply` target that globs that folder (section 9) — uncommitted is not a guard, and neither is `.gitignore`. Keep one-off manifests outside the `k8s/` tree and apply them by hand.
 
 ```
 # ❌ BAD — a probe/scratch manifest inside the applied tree
 k8s/myservice-deploy.yaml
-k8s/scratch-probe.yaml          # applied by every stage's apply
+k8s/scratch-probe.yaml          # untracked, and still applied
 
 # ✅ GOOD — outside the tree, applied explicitly
 /tmp/scratch-probe.yaml         # kubectl apply -f /tmp/scratch-probe.yaml
 ```
 
-Check before an apply — every path listed is untracked and still applied:
+Check before an apply — every untracked `*.yaml` it lists is applied, whatever the `.gitignore` says:
 
 ```bash
 git ls-files --others k8s/
 ```
 
-`namespace:` is not a fallback. A hardcoded namespace masks the leak rather than preventing it — it holds only while every future author remembers to write one.
+`namespace:` is not a safe fallback. A hardcoded namespace keeps a stray manifest out of the other environments, but it masks the placement bug rather than fixing it — the file is still applied, in the namespace it names, and that holds only while every future author remembers to write one.
 
 ## 2. One resource per file
 

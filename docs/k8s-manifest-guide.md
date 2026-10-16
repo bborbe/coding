@@ -128,6 +128,27 @@ myservice/
 
 For repos with multiple deployables, each component has its own `k8s/` folder under its own subdirectory. Do not pool unrelated manifests in a shared top-level `k8s/` or `manifests/`.
 
+### The apply target globs the filesystem, not git
+
+A scratch or one-off manifest left in `k8s/` **is applied** by every `make apply` over that folder (section 9) — uncommitted is not a guard, and neither is `.gitignore`. Keep one-off manifests outside the `k8s/` tree and apply them by hand.
+
+```
+# ❌ BAD — a probe/scratch manifest inside the applied tree
+k8s/myservice-deploy.yaml
+k8s/scratch-probe.yaml          # applied by every stage's apply
+
+# ✅ GOOD — outside the tree, applied explicitly
+/tmp/scratch-probe.yaml         # kubectl apply -f /tmp/scratch-probe.yaml
+```
+
+Check before an apply — every path listed is untracked and still applied:
+
+```bash
+git ls-files --others k8s/
+```
+
+`namespace:` is not a fallback. A hardcoded namespace masks the leak rather than preventing it — it holds only while every future author remembers to write one.
+
 ## 2. One resource per file
 
 **Never** put multiple Kubernetes resources in a single YAML file. No `---` separators. Split them:

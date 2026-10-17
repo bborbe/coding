@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: `/coding:pr-review` reads the change's stated intent (`--intent <path>` / `--pr <number>`, plus PR-body auto-detect) and records a deviation the author stated and justified as a decision instead of re-flagging it; a new self-containment rule family (four script-tier checks plus one judgment rule) flags leaked planning context — home-directory paths, requirement ids, planning-directory references, revision meta and steering echoes — in the changed files of any review
+
 ## v0.57.8
 
 - fix: **Reviewer and auditor prompts no longer send a sub-agent looking for its guide across the whole filesystem.** `agents/agent-auditor.md`, `agents/skill-auditor.md` and `agents/slash-command-auditor.md` each offered `find / -name <guide>.md 2>/dev/null | head -1` as the *documented* fallback when the guide was not at the stated path, and `commands/pr-review.md` / `commands/local-review.md` mapped file patterns to guides through the maintainer's own workspace (`~/Documents/workspaces/coding/docs/…`). A sub-agent resolves such a path against its own cwd, misses, and takes the fallback — an unbounded walk that stalls for minutes at full CPU and reports nothing while it runs. Measured 2026-10-17 on the PR review bench (`tts-mcp#16`): two `bfs /` walks, 237.7s against 134.9s for the same PR under the same model. All five sites now resolve the guide against the coding plugin's own `docs/` dir — `${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/<guide>.md`, falling back to `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/docs/<guide>.md`, the same two-step rule the selector guide already used — and state that the filesystem must not be searched for it. The config-dir step is load-bearing rather than decorative: the bench runs the reviewer under `CLAUDE_CONFIG_DIR=~/.claude-verify`, where a hardcoded `~/.claude/…` path is simply wrong.

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.57.7
 
 - fix: `simple-bash-runner` reads a redirected command's exit status from the Bash result (an `Exit code N` error, else exit 0), so a passing run reports `PASS` instead of `UNKNOWN`
 

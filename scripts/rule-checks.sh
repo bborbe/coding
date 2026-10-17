@@ -101,6 +101,24 @@ changed_file_matches() {
 }
 
 # ---------------------------------------------------------------------------
+# self_containment_exempt <abs-path> — returns 0 when the file is one of the six
+# documented self-containment exemption paths (docs/self-containment-guide.md).
+# Patterns are anchored at $TARGET_DIR because every changed-file argument was
+# absolutised above; a repo-relative pattern (specs/*) matches nothing there and
+# the exemption would be silently inert in every real review.
+# ---------------------------------------------------------------------------
+self_containment_exempt() {
+  case "$1" in
+    "$TARGET_DIR"/specs/*|"$TARGET_DIR"/prompts/*) return 0 ;;
+    "$TARGET_DIR"/docs/self-containment-guide.md) return 0 ;;
+    "$TARGET_DIR"/agents/self-containment-assistant.md) return 0 ;;
+    "$TARGET_DIR"/scripts/rule-checks.sh) return 0 ;;
+    "$TARGET_DIR"/scripts/testdata/self-containment/*) return 0 ;;
+  esac
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # repo_visibility — prints "public", "private" or "unknown". Memoised: one
 # `gh` call per run at most, and only when a licensing rule is about to fire.
 #
@@ -598,6 +616,77 @@ check_skill_scripts_subdir() {
 }
 
 # ---------------------------------------------------------------------------
+# Self-containment (script tier) — see docs/self-containment-guide.md
+#
+# Every check scans each changed file WHOLE and evaluates the exemption PER
+# FILE inside the loop. Do NOT gate these checks with changed_file_matches():
+# that helper returns true when ANY changed file matches, so reusing it here
+# would disable the rules for an entire run whenever a spec or prompt appears in
+# the diff — silently inert on nearly every agent-authored PR while every
+# assertion still passed.
+# ---------------------------------------------------------------------------
+
+# self_containment_scan <rule_id> <level> <message> <extended-regex>
+# Scans every changed file whole; emits one finding per matching line, carrying
+# the real file and line. Skips the exempt paths, vendor/ and node_modules/,
+# and binary files.
+self_containment_scan() {
+  local rule_id="$1" level="$2" message="$3" pattern="$4"
+  local f hit lineno
+  # Guard BEFORE the array expansion: under `set -u`, bash 3.2 errors on
+  # "${CHANGED_FILES[@]}" when the array is empty (the existing checks guard the
+  # same way, with ${#CHANGED_FILES[@]}). No changed files means the
+  # self-containment checks are diff-scoped and emit nothing.
+  [ "${#CHANGED_FILES[@]}" -gt 0 ] || return 0
+  for f in "${CHANGED_FILES[@]}"; do
+    self_containment_exempt "$f" && continue
+    case "$f" in */vendor/*|*/node_modules/*) continue ;; esac
+    [ -f "$f" ] || continue
+    grep -Iq . "$f" 2>/dev/null || continue   # skip binary files
+    while IFS= read -r hit; do
+      [ -z "$hit" ] && continue
+      lineno="${hit%%:*}"
+      emit_finding \
+        "self-containment-assistant" \
+        "$rule_id" \
+        "$level" \
+        "$f" \
+        "$lineno" 0 \
+        "${hit#*:}" \
+        "$message"
+    done < <(grep -nE "$pattern" "$f" 2>/dev/null || true)
+  done
+}
+
+check_self_containment_no_home_dir_paths() {
+  self_containment_scan \
+    "self-containment/no-home-dir-paths" "MUST" \
+    "A home-directory path resolves only on the author's machine. Use a repo-relative path. See docs/self-containment-guide.md." \
+    '(^|[^A-Za-z0-9])~/[A-Za-z0-9._-]|/(Users|home)/[A-Za-z0-9._-]'
+}
+
+check_self_containment_no_requirement_ids() {
+  self_containment_scan \
+    "self-containment/no-requirement-ids" "SHOULD" \
+    "A requirement identifier resolves only against a planning document. Describe the behaviour in the code instead. See docs/self-containment-guide.md." \
+    '\b(FR|NFR|SC)-[0-9]'
+}
+
+check_self_containment_no_planning_doc_refs() {
+  self_containment_scan \
+    "self-containment/no-planning-doc-refs" "SHOULD" \
+    "A reference to a planning directory or planning prose will not resolve in the tree. State the rationale in the code. See docs/self-containment-guide.md." \
+    '\b(specs|prompts|docs/plans)/|the plan says|as discussed'
+}
+
+check_self_containment_no_revision_meta() {
+  self_containment_scan \
+    "self-containment/no-revision-meta" "SHOULD" \
+    "Revision or sign-off provenance describes the authoring process, not the code. See docs/self-containment-guide.md." \
+    'revised per|as requested in the review|signed off by|v[0-9]+ of this change'
+}
+
+# ---------------------------------------------------------------------------
 # Run all checks
 # ---------------------------------------------------------------------------
 check_license_file_required
@@ -612,6 +701,10 @@ check_no_cross_repo_replace
 check_python_src_layout
 check_python_hatchling
 check_skill_scripts_subdir
+check_self_containment_no_home_dir_paths
+check_self_containment_no_requirement_ids
+check_self_containment_no_planning_doc_refs
+check_self_containment_no_revision_meta
 
 # ---------------------------------------------------------------------------
 # Assemble output JSON

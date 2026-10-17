@@ -1,8 +1,12 @@
 ---
-status: approved
+status: completed
 spec: [012-intent-aware-review-and-self-containment]
+execution_id: coding-intent-drift-exec-053-spec-012-changelog-and-final-gates
+dark-factory-version: v0.198.7
 created: "2026-10-17T20:46:40Z"
 queued: "2026-10-17T21:14:48Z"
+started: "2026-10-17T21:21:57Z"
+completed: "2026-10-17T21:24:10Z"
 branch: dark-factory/intent-aware-review-and-self-containment
 ---
 

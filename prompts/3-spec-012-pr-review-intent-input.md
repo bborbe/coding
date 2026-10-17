@@ -38,7 +38,7 @@ Read fully before writing:
 **Verified facts this prompt relies on**
 
 - `acceptance.sh` asserts (block 5) that both `commands/pr-review.md` and `commands/local-review.md` reference `selector-mode-guide.md` and carry the `4c-sel` / `4d-sel` labels, that `docs/selector-mode-guide.md` contains `Step 4c-sel`/`CLASSIFY`, `Step 4d-sel`/`ADJUDICATE`, and the verbatim sentence `When uncertain, include.` — none of those may be disturbed.
-- `commands/pr-review.md` lines 326-331 hold **pre-existing** home-directory and `/home/node/` doc paths (a table of docs to read plus the "Inside the YOLO container the docs are mounted at …" note). They are not to be edited, and this prompt's edits must not be adjacent to them: the capture step belongs between Step 0 and Step 1 (around line 154) and the report line belongs in Step 5 (line 348 onward).
+- `commands/pr-review.md` carries **no** home-directory marker lines as of v0.57.8: #169 rewrote the Step 4c doc-path table to plugin-relative resolution, replacing the `~/Documents/…` entries and the container-mount note. The file is clean at baseline. The capture step belongs between Step 0 and Step 1; the report line belongs in Step 5.
 - The container's `.git` is masked (`hideGit: true`), so no verification below uses `git`.
 
 **The marker-literal constraint on added lines**
@@ -49,7 +49,7 @@ No line this change adds to `commands/pr-review.md` or `docs/selector-mode-guide
 ~/[A-Za-z0-9._-]|/Users/[A-Za-z0-9._-]|/home/[A-Za-z0-9._-]|\b(FR|NFR|SC)-[0-9]|\b(specs|prompts|docs/plans)/|the plan says|as discussed|revised per|as requested in the review|signed off by|v[0-9]+ of this change
 ```
 
-The pre-existing matches on lines 326-331 are diff context, not additions — leave them alone. The check in `<verification>` asserts the marker-matching line count in `commands/pr-review.md` is unchanged (**5**: the four doc-path table lines plus the container-mount note) and that `docs/selector-mode-guide.md` matches none — a shifted line number is fine, a new literal is not.
+Both target files are **clean at baseline** — zero matching lines — because #169 (v0.57.8) rewrote the Step 4c doc-path table in `commands/pr-review.md` from `~/Documents/…` to plugin-relative resolution. The check in `<verification>` therefore asserts the count stays **0** in both files: any match is a literal this prompt added, not diff context.
 </context>
 
 <requirements>
@@ -234,8 +234,8 @@ grep -c 'blocking = confidence==confirmed' docs/selector-mode-guide.md     # exp
 
 # 8. No marker literal was added — self-contained count assertions
 grep -cE '~/[A-Za-z0-9._-]|/Users/[A-Za-z0-9._-]|/home/[A-Za-z0-9._-]|\b(FR|NFR|SC)-[0-9]|\b(specs|prompts|docs/plans)/|the plan says|as discussed|revised per|as requested in the review|signed off by|v[0-9]+ of this change' commands/pr-review.md
-# expect: 5 — the four pre-existing doc-path table lines plus the container-mount note.
-# A sixth matching line is a new literal on an added line.
+# expect: 0 — #169 (v0.57.8) rewrote the Step 4c doc-path table to plugin-relative resolution, so this file is clean at baseline.
+# Any match is a literal this prompt added.
 if grep -qE '~/[A-Za-z0-9._-]|/Users/[A-Za-z0-9._-]|/home/[A-Za-z0-9._-]|\b(FR|NFR|SC)-[0-9]|\b(specs|prompts|docs/plans)/|the plan says|as discussed|revised per|as requested in the review|signed off by|v[0-9]+ of this change' docs/selector-mode-guide.md; then
   echo "FAIL: marker literal added to the selector guide"; else echo "OK: selector guide is literal-free"; fi
 
@@ -259,7 +259,7 @@ Note on `make precommit` in this container: the container's `.git` is masked, an
 - **The capture step never fails the review.** Every failure path (no `gh`, no PR, unreadable `--intent` path) resolves to `unavailable` plus a reason, and the review proceeds unchanged. This is the designed degradation, not a bug to fix.
 - **The stated intent is a suppression signal, never a deletion.** A deviation the author stated *and justified* becomes `Decision (stated intent): …` under `Notes:` — it is recorded, not removed. A blanket claim names no deviation and suppresses nothing.
 - **Prompt-injection posture.** The intent block is the first place a PR body's own text enters the adjudicator's context. It is labelled untrusted quoted data and is a claim to check against the diff, never instruction — the same posture the funnel already takes toward the diff itself.
-- **Keep the two edits away from lines 326-331.** Those lines hold pre-existing home-directory and `/home/node/` doc paths in the Step 4c table. This prompt's edits are the capture step (between Step 0 and Step 1) and the report line (Step 5) — neither is adjacent. The line-count assertion in verification step 8 tolerates the line-number shift those edits cause; it does not tolerate a new literal.
+- **Both target files are clean at baseline.** #169 (v0.57.8) rewrote the Step 4c doc-path table in `commands/pr-review.md` from `~/Documents/…` to plugin-relative resolution, so neither it nor `docs/selector-mode-guide.md` carries a marker line today. The step-8 count assertion is therefore `0` in both — any match is a literal this prompt introduced.
 - **AC6 / AC7 are operator-only.** The behavioural half of the intent feature (a stated-and-justified deviation draws no finding; the same diff without it draws one; absent intent is stated) needs the released plugin and a live PR, so it is exercised on the spec's operator verification rung, not here. This prompt proves the documentation half (AC5) plus the dormancy contract; the spec's Verification section carries the rest.
 - **Open question for the reviewer:** the spec does not mention `allowed-tools`, but the `agent-cmd/no-user-prompts` rule forbids a permission prompt during normal execution, and `gh pr view` / `cat` are new commands for this file. Adding `Bash(gh pr view:+)` and `Bash(cat:+)` is what keeps the capture step unattended. If the reviewer prefers a narrower surface, `Bash(cat:+)` can be dropped by reading the `--intent` file through the `Read` tool instead — but then `Read` must be added to `allowed-tools`.
 </notes>

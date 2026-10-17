@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.57.6
 
 - fix: `simple-bash-runner` runs every step as its own plain Bash call and turns a caller's `cd /abs && <cmd>` into `make -C` / `go -C`, so its commands no longer park on a permission prompt in a supervised or headless worker
 

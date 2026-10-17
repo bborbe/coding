@@ -2214,6 +2214,59 @@
     ]
   },
   {
+    "anchor": "self-containment/no-home-dir-paths",
+    "applies_when": "a changed file carries a path rooted at the author's home directory — a tilde-rooted path or an absolute user-home path — so the path resolves only on the author's machine and never in the repo or a consumer's checkout.",
+    "doc_path": "docs/self-containment-guide.md",
+    "enforcement": "script — `scripts/rule-checks.sh` (greps every changed file whole for a tilde-rooted path or an absolute user-home path; exempts the six documented planning and rule-authoring paths per changed file)",
+    "enforcement_type": "script",
+    "id": "self-containment/no-home-dir-paths",
+    "level": "MUST",
+    "owner": "self-containment-assistant"
+  },
+  {
+    "anchor": "self-containment/no-planning-doc-refs",
+    "applies_when": "a changed file refers to a planning directory that will never ship in the tree — a requirements, prompt or plan folder — or attributes the change to planning prose rather than to the code.",
+    "doc_path": "docs/self-containment-guide.md",
+    "enforcement": "script — `scripts/rule-checks.sh` (greps every changed file whole for a planning-directory reference or a planning-prose attribution; exempts the six documented planning and rule-authoring paths per changed file)",
+    "enforcement_type": "script",
+    "id": "self-containment/no-planning-doc-refs",
+    "level": "SHOULD",
+    "owner": "self-containment-assistant"
+  },
+  {
+    "anchor": "self-containment/no-requirement-ids",
+    "applies_when": "a changed file carries a requirement identifier — an `FR`, `NFR` or `SC` token followed by a number — that resolves only against a planning document that will never be in the tree.",
+    "doc_path": "docs/self-containment-guide.md",
+    "enforcement": "script — `scripts/rule-checks.sh` (greps every changed file whole for a requirement identifier of the `FR`/`NFR`/`SC` form; exempts the six documented planning and rule-authoring paths per changed file)",
+    "enforcement_type": "script",
+    "id": "self-containment/no-requirement-ids",
+    "level": "SHOULD",
+    "owner": "self-containment-assistant"
+  },
+  {
+    "anchor": "self-containment/no-revision-meta",
+    "applies_when": "a changed file records revision or sign-off provenance — a phrase stating the code was revised after a review round, changed at a reviewer's request, or attributed to a sign-off — describing the authoring process instead of the code.",
+    "doc_path": "docs/self-containment-guide.md",
+    "enforcement": "script — `scripts/rule-checks.sh` (greps every changed file whole for a revision or sign-off provenance phrase; exempts the six documented planning and rule-authoring paths per changed file)",
+    "enforcement_type": "script",
+    "id": "self-containment/no-revision-meta",
+    "level": "SHOULD",
+    "owner": "self-containment-assistant"
+  },
+  {
+    "anchor": "self-containment/no-steering-echoes",
+    "applies_when": "a changed file's comment or identifier restates the instruction that produced the change instead of describing what the code does — the text answers \"what was I asked to do\" rather than \"what does this do\".",
+    "doc_path": "docs/self-containment-guide.md",
+    "enforcement": "judgment — the adjudicator reads the changed files and flags a comment or identifier that echoes the authoring instruction rather than describing the code.",
+    "enforcement_type": "judgment",
+    "id": "self-containment/no-steering-echoes",
+    "level": "SHOULD",
+    "owner": "self-containment-assistant",
+    "trigger": [
+      "@commits"
+    ]
+  },
+  {
     "anchor": "skill-writing/scripts-in-scripts-subdir",
     "applies_when": "a Claude Code skill places executable scripts (`*.sh`, `*.py`) directly alongside `SKILL.md` instead of in a `scripts/` subdirectory.",
     "doc_path": "docs/claude-code-skill-writing-guide.md",

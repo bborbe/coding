@@ -1,0 +1,5 @@
+notes for the Order service
+
+the dump is written next to the binary, never to a developer machine
+
+the retry stays inline because the extracted helper needed the request context

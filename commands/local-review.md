@@ -207,10 +207,20 @@ Load these conventionally when the diff matches:
 
 | If diff touches… | Read first |
 |---|---|
-| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `~/Documents/workspaces/coding/docs/teamvault-conventions.md` (teamvault lookup keys are not exposed credentials) |
-| `main.go` of a k8s-deployed service | `~/Documents/workspaces/coding/docs/go-k8s-binary-conventions.md` |
-| `k8s/*.yaml` (non-secret) | `~/Documents/workspaces/coding/docs/k8s-manifest-guide.md` |
-| `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
+| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `docs/teamvault-conventions.md` (teamvault lookup keys are not exposed credentials) |
+| `main.go` of a k8s-deployed service | `docs/go-k8s-binary-conventions.md` |
+| `k8s/*.yaml` (non-secret) | `docs/k8s-manifest-guide.md` |
+| `CHANGELOG.md` | `docs/changelog-guide.md` |
+
+Each guide above is rooted at the coding plugin's own `docs/` dir — resolve it the same two-step way the selector guide is resolved, never a filesystem search:
+
+```bash
+GUIDE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/<guide>.md"
+[ -f "$GUIDE" ] || GUIDE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/docs/<guide>.md"
+[ -f "$GUIDE" ] && echo "GUIDE_OK: $GUIDE" || echo "GUIDE_MISSING"
+```
+
+If it prints `GUIDE_MISSING`, report that guide unavailable and continue without it, naming the path you tried — the plugin is not installed there, and that is the gap to surface. Do NOT investigate further (no `find`, no `bfs`, no `ls` path probing).
 
 #### 4d: Citation validation
 

@@ -323,12 +323,20 @@ Some review questions still benefit from a full-doc read even in dispatcher mode
 
 | If diff touches… | Read first |
 |---|---|
-| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `~/Documents/workspaces/coding/docs/teamvault-conventions.md` (so secrets review does not flag teamvault LOOKUP KEYS — short alphanumeric values like `kLoejw` — as exposed credentials) |
-| `main.go` of a service deployed to k8s (HTTP server, StatefulSet, Deployment) | `~/Documents/workspaces/coding/docs/go-k8s-binary-conventions.md` |
-| `k8s/*.yaml` (non-secret) | `~/Documents/workspaces/coding/docs/k8s-manifest-guide.md` |
-| `CHANGELOG.md` | `~/Documents/workspaces/coding/docs/changelog-guide.md` |
+| `.env` files OR `k8s/*-secret.yaml` OR templates with `teamvault*` functions | `docs/teamvault-conventions.md` (so secrets review does not flag teamvault LOOKUP KEYS — short alphanumeric values like `kLoejw` — as exposed credentials) |
+| `main.go` of a service deployed to k8s (HTTP server, StatefulSet, Deployment) | `docs/go-k8s-binary-conventions.md` |
+| `k8s/*.yaml` (non-secret) | `docs/k8s-manifest-guide.md` |
+| `CHANGELOG.md` | `docs/changelog-guide.md` |
 
-Inside the YOLO container the docs are mounted at `/home/node/.claude/plugins/marketplaces/coding/docs/`.
+Each guide above is rooted at the coding plugin's own `docs/` dir — resolve it the same two-step way the selector guide is resolved, never a filesystem search:
+
+```bash
+GUIDE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/<guide>.md"
+[ -f "$GUIDE" ] || GUIDE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/marketplaces/coding/docs/<guide>.md"
+[ -f "$GUIDE" ] && echo "GUIDE_OK: $GUIDE" || echo "GUIDE_MISSING"
+```
+
+If it prints `GUIDE_MISSING`, report that guide unavailable and continue without it, naming the path you tried — the plugin is not installed there, and that is the gap to surface. Do NOT investigate further (no `find`, no `bfs`, no `ls` path probing).
 
 #### 4d: Citation validation
 

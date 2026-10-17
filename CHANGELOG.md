@@ -10,6 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## v0.57.7
 
+- chore: **fold-guard PR probe — deliberately misplaced bullet, do not merge.** Placed under an already-released heading on purpose, to prove that `bborbe/coding`'s `pull_request` CI run fails on a fold *before* merge. Throwaway: the PR carrying it is closed unmerged, and this line is not real work.
 - fix: `simple-bash-runner` reads a redirected command's exit status from the Bash result (an `Exit code N` error, else exit 0), so a passing run reports `PASS` instead of `UNKNOWN`
 
 ## v0.57.6

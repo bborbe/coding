@@ -336,7 +336,7 @@ GUIDE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/<gu
 [ -f "$GUIDE" ] && echo "GUIDE_OK: $GUIDE" || echo "GUIDE_MISSING"
 ```
 
-If it prints `GUIDE_MISSING`, report that guide unavailable and continue without it — do NOT investigate further (no `find`, no `bfs`, no `ls` path probing). The guides ship with the plugin, so a miss means the plugin is not installed, not that the guide lives elsewhere.
+If it prints `GUIDE_MISSING`, report that guide unavailable and continue without it, naming the path you tried — the plugin is not installed there, and that is the gap to surface. Do NOT investigate further (no `find`, no `bfs`, no `ls` path probing).
 
 #### 4d: Citation validation
 

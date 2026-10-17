@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: `simple-bash-runner` runs every step as its own plain Bash call and turns a caller's `cd /abs && <cmd>` into `make -C` / `go -C`, so its commands no longer park on a permission prompt in a supervised or headless worker
+
 ## v0.57.5
 
 - docs: **`k8s-manifest-guide.md` §1 *Location* gains a rule that the `apply` target globs the filesystem, not git.** §9 already documented the mechanism (*"The `apply` target typically reads each `*.yaml` in `k8s/`"*) but never drew the consequence from it, so a scratch manifest left in a `k8s/` tree reads as safe precisely when it is uncommitted. Observed 2026-10-17: a probe Job manifest written into `bborbe/nuke`'s `attention-controller/` was recorded as *"Not committed and not applied via `make apply`"* and then reached the prod apply — `job.batch/attention-probe-producer created` — spared only by its hardcoded `namespace: dev`. The new subsection names the placement fix (one-off manifests live outside the `k8s/` tree and are applied by hand), the check that catches a leftover (`git ls-files --others k8s/`), and why `namespace:` is not a safe fallback — a hardcoded namespace masks the placement bug rather than fixing it.

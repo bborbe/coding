@@ -19,15 +19,14 @@ When invoked with a command to execute, follow these steps:
    - Run the provided command using Bash
    - Use absolute file paths where needed
    - Capture both stdout and stderr
-   - **Redirect before capturing when the output may be large.** Your Bash result is truncated at roughly 20k characters, so a raw capture of a verbose suite can lose the failure entirely and leave you reporting a truncation instead of a verdict. Observed 2026-09-26 on `make test`: *"Captured output was truncated mid-stream (~20,004 characters elided), so the exact failing assertion/line is NOT present in the output I received"* — and recovering that failure cost the caller three extra calls. For `make test`, `go test ./...`, `npm install` and similar, capture to a unique temp file and report from greps of it:
+   - **Redirect before capturing when the output may be large.** Your Bash result is truncated at roughly 20k characters, so a raw capture of a verbose suite can lose the failure entirely and leave you reporting a truncation instead of a verdict. Observed 2026-09-26 on `make test`: *"Captured output was truncated mid-stream (~20,004 characters elided), so the exact failing assertion/line is NOT present in the output I received"* — and recovering that failure cost the caller three extra calls. For `make test`, `go test ./...`, `npm install` and similar, capture to a unique temp file and report from greps of it — as **three separate Bash calls**, never one:
 
      ```bash
-     OUT=$(mktemp -t sbr); <cmd> > "$OUT" 2>&1; echo "exit=$?"
-     grep -E '^(FAIL|ERROR|not ok|# (tests|pass|fail)|Ran )' "$OUT"
-     rm -f "$OUT"
+     make -C /abs/dir test > /tmp/sbr-<random-literal>.log 2>&1
      ```
 
-     `mktemp` rather than a fixed `/tmp/<name>.out`, because two agent turns can run concurrently and a shared path would collide. Grep the lines you need rather than reading the file back — the whole point is that its size is the problem — and delete the file when done.
+     then `grep -E '^(FAIL|ERROR|not ok|# (tests|pass|fail)|Ran )' /tmp/sbr-<random-literal>.log` as its own call, then `rm -f /tmp/sbr-<random-literal>.log` as its own call. Read the exit code from the first call's result. Pick the random suffix yourself as a literal (e.g. `sbr-k7q2x9`): two agent turns can run concurrently, so a fixed `/tmp/<name>.log` would collide. Grep the lines you need rather than reading the file back — the whole point is that its size is the problem — and delete the file when done.
+   - **Never join steps with `;`, `&&`, `|` into another command, or `$(...)`.** A compound command needs approval, and in a supervised or headless worker it parks on a prompt nobody watches. Observed 2026-10-17: `OUT=$(mktemp …); cd … && make build > …` held a `make build` for ~8 min until a manager approved it by hand. A caller's `cd /abs/dir && <cmd>` becomes one plain command: `make -C /abs/dir <target>`, `go -C /abs/dir test ./...`, `npm --prefix /abs/dir <script>`. Run `cd /abs/dir` as its own call only when the tool has no such flag.
    - Wait for full completion
 
 2. **Analyze the Result**
@@ -108,7 +107,7 @@ Use go test -h for more help
 
 - Always use absolute paths when referencing files or directories
 - Include the exact command executed in your response for clarity
-- For multi-step commands (e.g., `cmd1 && cmd2`), report on the final exit code
+- For a multi-step request (e.g., `cmd1 && cmd2`), run each step as its own call (see step 1) and report every step's exit code
 - If a command takes >30 seconds, consider whether a more targeted command would be better
 - Extract only the most relevant error lines (first meaningful errors, not duplicates)
 - Preserve error context (file names, line numbers) but trim verbose explanations

@@ -8,9 +8,12 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- chore: **fold-guard PR probe — the control half, do not merge.** The same bullet that failed the `pull_request` run while it sat under `## v0.57.7`, now placed under a fresh `## Unreleased` — the guard must pass. Throwaway: the PR carrying it is closed unmerged, and this line is not real work.
+
 ## v0.57.7
 
-- chore: **fold-guard PR probe — deliberately misplaced bullet, do not merge.** Placed under an already-released heading on purpose, to prove that `bborbe/coding`'s `pull_request` CI run fails on a fold *before* merge. Throwaway: the PR carrying it is closed unmerged, and this line is not real work.
 - fix: `simple-bash-runner` reads a redirected command's exit status from the Bash result (an `Exit code N` error, else exit 0), so a passing run reports `PASS` instead of `UNKNOWN`
 
 ## v0.57.6

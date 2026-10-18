@@ -1,8 +1,12 @@
 ---
-status: approved
+status: completed
 spec: [013-fresh-context-local-review-adjudication]
+execution_id: coding-fresh-context-exec-054-spec-013-acceptance-block-and-scenario
+dark-factory-version: v0.198.7
 created: "2026-10-18T10:31:14Z"
 queued: "2026-10-18T10:59:39Z"
+started: "2026-10-18T11:38:21Z"
+completed: "2026-10-18T11:56:41Z"
 branch: dark-factory/fresh-context-local-review-adjudication
 ---
 

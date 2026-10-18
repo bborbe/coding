@@ -194,6 +194,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [ADR Guide](docs/adr-guide.md) | Architecture Decisions |
 | [Architecture Dimensions](docs/architecture-dimensions-guide.md) | Whole-codebase behavioral review — 8 dimensions (data flow, failure, concurrency, observability, drift) |
 | [Code Smell Vocabulary](docs/code-smell-vocabulary.md) | Fowler's 12 structural smells, language-agnostic — shared by the Go/Python/Node review passes |
+| [Maintainability Review](docs/maintainability-review-guide.md) | Language-agnostic maintainability smells in changed files outside the language rule families — comments restating code, dead code, bandaids, speculative abstraction, naming/size drift |
 | [Markdown & Todos](docs/markdown-todo-guide.md) | Formatting standards |
 
 ### Claude Code Authoring
@@ -275,6 +276,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `project-docs-finder` | Search project docs/ |
 | `security-verifier` | Security-mode post-adjudication falsification gate — attempts to falsify high-severity findings before they emit (precision vs the judge's recall) |
 | `self-containment-assistant` | Adjudicates the self-containment rule family over a diff's changed files — steering-echo judgment rule + script-tier severity grading |
+| `maintainability-assistant` | Adjudicates the maintainability rule family over a diff's changed non-owned files — comments restating code, dead code, bandaids, speculative abstraction, naming/size drift |
 | `selector-adjudicator` | Read-only fresh-context adjudicator for selector-mode reviews — judges the applicable rules over the diff in a context that never saw the authoring conversation |
 
 </details>

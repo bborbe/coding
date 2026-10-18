@@ -1,7 +1,7 @@
 #!/bin/bash
 # scripts/acceptance.sh — acceptance suite for the doc-driven review pipeline.
 #
-# Runs the 4 unit/integration tests that were left over from the
+# Runs the 5 unit/integration tests that were left over from the
 # scenario-writing cut (only E2E-bar scenarios shipped as scenarios/*.md;
 # these stay as scripted assertions because they don't need a real
 # slash-command run).
@@ -11,6 +11,8 @@
 #   3. Context loading — Step 2.5 file-glob → doc mapping consistency
 #   4. Broken-YAML isolation — ast-grep error on bad YAML doesn't mask
 #      findings from good YAMLs in the same dir
+#   5. Maintainability trigger boundary — the five maintainability rules are
+#      candidates for non-owned source files and for no language-owned file
 #
 # Wired into `make precommit` via Makefile target `check-acceptance`.
 # Exits 1 on any FAIL so CI catches dispatcher contract drift.
@@ -37,7 +39,7 @@ ACCEPTANCE_FAIL=0
 ok()   { ACCEPTANCE_PASS=$((ACCEPTANCE_PASS+1)); printf "  ✅ %s\n" "$1"; }
 fail() { ACCEPTANCE_FAIL=$((ACCEPTANCE_FAIL+1)); printf "  ❌ %s\n" "$1"; }
 
-echo "=== 1/7 Mode coverage ==="
+echo "=== 1/8 Mode coverage ==="
 
 # Short mode in both dispatcher commands must skip Step 4 entirely (no runner agent).
 if grep -qE "Short Mode.*No agents|Short Mode.*skip" commands/pr-review.md && \
@@ -84,7 +86,7 @@ else
   fail "Selector mode (default) routing missing from pr-review.md or local-review.md"
 fi
 
-echo "=== 2/7 Per-language routing ==="
+echo "=== 2/8 Per-language routing ==="
 
 # Full-mode per-owner dispatch block present — findings_by_owner feeds the dispatch set and
 # coding:<owner> agent prompts reference it. Per-owner dispatch lives in full mode only
@@ -122,7 +124,7 @@ else
   fail "cross-language owner leak: go→python=$go_python_leak, python→go=$python_go_leak"
 fi
 
-echo "=== 3/7 Context loading (Step 2.5 globs) ==="
+echo "=== 3/8 Context loading (Step 2.5 globs) ==="
 
 # Each canonical context-doc mapping must be referenced in both dispatcher commands.
 for mapping in "teamvault-conventions.md" "go-k8s-binary-conventions.md" "k8s-manifest-guide.md" "changelog-guide.md"; do
@@ -133,7 +135,7 @@ for mapping in "teamvault-conventions.md" "go-k8s-binary-conventions.md" "k8s-ma
   fi
 done
 
-echo "=== 4/7 Broken-YAML isolation ==="
+echo "=== 4/8 Broken-YAML isolation ==="
 
 # Construct a sandbox: one valid YAML + one syntactically broken YAML.
 # Verify ast-grep errors on the broken one but the valid one still surfaces findings.
@@ -170,7 +172,7 @@ else
   fail "good YAML emitted zero findings — broken YAML may be masking the others when run together"
 fi
 
-echo "=== 5/7 Selector mode contracts ==="
+echo "=== 5/8 Selector mode contracts ==="
 
 # (a) Both command files reference --selector token in Step 1 parse, the
 # short-circuit string, and the GUIDE_OK/GUIDE_MISSING fail-fast block.
@@ -319,7 +321,7 @@ else
   fail "selector dispatch: $missing_inputs of the four dispatch input labels missing from local-review.md"
 fi
 
-echo "=== 6/7 Self-containment script tier ==="
+echo "=== 6/8 Self-containment script tier ==="
 
 # The four rule ids are HARDCODED literals, never derived from the run's own
 # output: a derived expected set would still pass after a check silently stopped
@@ -351,7 +353,7 @@ else
   fail "self-containment clean fixture yielded $sc_clean_count finding(s) (want 0)"
 fi
 
-echo "=== 7/7 Review coverage contract ==="
+echo "=== 7/8 Review coverage contract ==="
 
 # The PR review's Step 5 report contract is asserted by LITERAL, never derived
 # from this run's own output: a derived expectation would still pass after the
@@ -371,6 +373,68 @@ for literal in \
     fail "review coverage: Step 5 is missing '$literal'"
   fi
 done
+
+echo "=== 8/8 Maintainability trigger boundary ==="
+
+# Simulates the Step 4b-i judgment-rule selector from commands/pr-review.md.
+# The per-pattern `any` is nested around a per-file `any` so a multi-file list is
+# evaluated file by file. The shipped block's single `any` over a multi-valued
+# condition drops rules on multi-file diffs under jq 1.6 (measured 2026-10-18:
+# `infra/main.tf` + `scripts/deploy.sh` selects zero maintainability ids, while
+# the nested form selects all five). That shipped-selector defect is a separate
+# follow-up; this assertion locks the trigger-boundary property, not the
+# selector implementation.
+maint_candidates() {
+  jq -r --arg files "$1" '
+    [ .[] | select(.enforcement_type == "judgment") |
+      select(
+        .trigger == null or
+        (.trigger | any(.[]; . as $pat |
+          ($files | split("\n") | any(.[]; . as $f |
+            ($f == $pat) or
+            (($pat | startswith("@")) and $pat == "@commits") or
+            (($pat | contains("*")) and
+              ($f | test("^" + ($pat | gsub("\\."; "\\.") | gsub("\\*\\*/"; "°") | gsub("\\*\\*"; "±") | gsub("\\*"; "[^/]*") | gsub("\\?"; "[^/]") | gsub("°"; "(.*/)?") | gsub("±"; ".*")) + "$"))
+            )
+          ))
+        ))
+      )
+    ] | .[] | .id + " " + .owner
+  ' rules/index.json
+}
+
+NON_OWNED_FILES=$(printf '%s\n' "infra/main.tf" "scripts/deploy.sh")
+OWNED_FILES=$(printf '%s\n' \
+  "pkg/order.go" "app/main.py" "src/index.ts" "src/index.tsx" \
+  "src/index.js" "src/index.jsx" "go.sum" \
+  "package.json" "go.mod" "Makefile" "Dockerfile" "README.md" \
+  "CHANGELOG.md" "CLAUDE.md" "agents/x.md" "commands/x.md" \
+  "skills/x.md" "tsconfig.json" "pyproject.toml" ".golangci.yml" \
+  ".golangci.yaml" "k8s/deployment.yaml")
+
+for rid in \
+  maintainability/comment-restates-code \
+  maintainability/dead-code \
+  maintainability/bandaid-fix \
+  maintainability/speculative-abstraction \
+  maintainability/naming-size-drift; do
+  if maint_candidates "$NON_OWNED_FILES" | grep -qxF "$rid maintainability-assistant"; then
+    ok "non-owned diff selects $rid"
+  else
+    fail "non-owned diff did not select $rid — a trigger is missing or mis-scoped"
+  fi
+done
+
+if ! owned_out=$(maint_candidates "$OWNED_FILES"); then
+  fail "owned-source selector simulation failed — cannot prove the trigger boundary"
+else
+  owned_leak=$(printf '%s\n' "$owned_out" | grep -c '^maintainability/' || true)
+  if [ "$owned_leak" -eq 0 ]; then
+    ok "owned-source diff selects zero maintainability rules — trigger boundary holds"
+  else
+    fail "owned-source diff selected $owned_leak maintainability rule(s) — a trigger crossed the dedup boundary"
+  fi
+fi
 
 echo ""
 echo "=== Summary ==="

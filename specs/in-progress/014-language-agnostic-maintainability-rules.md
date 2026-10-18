@@ -1,6 +1,7 @@
 ---
-status: draft
-created: 2026-10-18
+status: approved
+approved: "2026-10-18T15:49:12Z"
+branch: dark-factory/language-agnostic-maintainability-rules
 ---
 
 ## Summary

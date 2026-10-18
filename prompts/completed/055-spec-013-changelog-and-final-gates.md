@@ -1,8 +1,12 @@
 ---
-status: approved
+status: completed
 spec: [013-fresh-context-local-review-adjudication]
+execution_id: coding-fresh-context-exec-055-spec-013-changelog-and-final-gates
+dark-factory-version: v0.198.7
 created: "2026-10-18T10:31:14Z"
 queued: "2026-10-18T10:59:39Z"
+started: "2026-10-18T11:56:43Z"
+completed: "2026-10-18T12:05:43Z"
 branch: dark-factory/fresh-context-local-review-adjudication
 ---
 

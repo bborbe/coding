@@ -1,5 +1,5 @@
 ---
-allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+), Bash(git fetch:+), Bash(git worktree:+), Bash(git branch:+), Bash(rm -rf:+), Bash(gh pr view:+), Bash(cat:+)
+allowed-tools: Task, Bash(git diff:+), Bash(git log:+), Bash(git status:+), Bash(git ls-files:+), Bash(git fetch:+), Bash(git worktree:+), Bash(git branch:+), Bash(git rev-parse:*), Bash(rm -rf:+), Bash(gh pr view:+), Bash(cat:+)
 argument-hint: "<target-branch> [short|full|selector] [--security] [--intent <path>] [--pr <number>]"
 description: Review current branch diff against target branch (excludes vendor/node_modules)
 ---
@@ -441,6 +441,55 @@ When `SECURITY_REVIEW` is set, list every security finding (rule, invariant, and
 #### Security Model (under `--security` only)
 
 When `SECURITY_REVIEW` is set, record the provenance block: `derived_from` (repo, head, review_id), the entry-point count, each attack-surface inventory count, and any `model refresh:` lines verbatim. A scope containing Go source always produces this block (never a silent skip); a scope with no Go source — including when the Step 4 early-exit fires on a non-rule-relevant diff — states `no Go source — security model not derived` explicitly instead of omitting the section.
+
+#### Review Coverage
+
+Emit this section as the last section of the report. Emit it in every mode (short, selector and full) and with or without --security.
+
+This section reports what this invocation already did. It never re-runs, re-derives or estimates a tier.
+
+```markdown
+#### Review Coverage
+
+| Tier | Status | Findings | Reason |
+|---|---|---|---|
+| deterministic | ran | 3 | — |
+| judgment | ran | 1 | — |
+| security | skipped | 0 | --security not requested |
+
+Reviewed commit: 0123456789abcdef0123456789abcdef01234567
+Result: clean
+```
+
+The emitted block is unfenced. The fenced example above exists only in this command file; a fenced emitted heading would be invisible to the bench's report reader.
+
+Status meanings:
+
+- ran means the tier's procedure completed. A legitimate zero-findings result — including the selector short-circuit `selector clean — no adjudication needed` — is `ran` with `0`, never `failed`.
+- failed means the tier was required and could not complete. The deterministic tier fails when `ast-grep`/`sg` is missing, the runner exits non-zero, a full-mode `make precommit` cannot be executed, or the reviewed commit cannot be read. The judgment tier fails when the selector guide is missing, an adjudicator dispatch fails or returns empty, or a full-mode owner dispatch errors. The security tier fails when model derivation, the verifier gate or the toolchain scan fails.
+- skipped means the invocation did not require the tier. The cases are short mode (deterministic and judgment), the Step 4 early exit when no rule-relevant file changed (deterministic and judgment), and `--security` absent (security). A skip is never a failure, and a failure is never written as a skip.
+- The selector short-circuit is ran with 0, not failed.
+
+Tier requirements for this invocation:
+
+- deterministic — `skipped` with reason `short mode` in short mode, and `skipped` with reason `no rule-relevant files changed` on the Step 4 early exit. Otherwise `ran`, or `failed` per the failure cases above.
+- judgment — `skipped` with reason `short mode` in short mode, and `skipped` with reason `no rule-relevant files changed` on the Step 4 early exit. Otherwise `ran` (including the selector short-circuit with `0`), or `failed` per the failure cases above.
+- security — `skipped` with reason exactly `--security not requested` when the flag is absent. When the flag is present, the security pipeline runs in every mode and the row is `ran` or `failed`.
+
+Findings are counted per tier, from what the report already emitted:
+
+1. A finding emitted by the security pipeline — a security rule, an invariant or a toolchain finding — counts in `security`.
+2. Otherwise a finding whose `rule_id` resolves in `rules/index.json` to `enforcement_type: mechanical` or `script` counts in `deterministic`.
+3. Otherwise a `judgment` rule counts in `judgment`.
+4. A finding with no `rule_id` counts in `judgment`, so nothing falls through the attribution.
+
+The three cells sum to the report's total finding count: a finding is never counted twice and none is silently dropped. A tier that did not run and has no attributed finding carries `0`; its `Status` says why. A finding attributed to a skipped tier — for example a Step 3 `make precommit` failure with no `rule_id`, which attributes to `judgment` in short mode — is still counted in that tier's `Findings` cell while the row keeps `skipped` and its `Reason`; the sum rule wins over the `0` default. The count is a tally of this invocation's report, never a re-run and never an estimate.
+
+The `Reason` cell is `—` when the tier ran, and a short reason when it failed or was skipped. A reason quotes at most one line of tool output, truncated; it is never a full stderr dump.
+
+Result: clean if and only if no tier is failed. Result: not clean when any tier is failed, naming each failed tier and its reason on the same line. For example, `Result: not clean — deterministic failed: ast-grep not in PATH`. A skipped tier never makes a result not-clean.
+
+The reviewed commit is the value of `cd <REVIEW_DIR> && git rev-parse HEAD` for the same `REVIEW_DIR` the review used, so the `ALREADY_AT_HEAD` short-circuit needs no special case. Emit it as the full 40-character lowercase hex string; never abbreviate or reconstruct it. If the command fails, do not fabricate a SHA: the `Reviewed commit:` line states `Reviewed commit: unavailable — <short reason>`, the deterministic row is `failed` with the same short reason, and an unreadable SHA produces Result: not clean.
 
 ### Step 6: Next Steps Recommendation
 

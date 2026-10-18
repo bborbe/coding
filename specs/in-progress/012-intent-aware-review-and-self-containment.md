@@ -1,8 +1,9 @@
 ---
-status: prompted
+status: verifying
 approved: "2026-10-17T20:39:00Z"
 generating: "2026-10-17T20:42:31Z"
 prompted: "2026-10-17T21:02:52Z"
+verifying: "2026-10-18T10:11:01Z"
 branch: dark-factory/intent-aware-review-and-self-containment
 ---
 

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.61.0
 
 - feat: `/coding:pr-review` reports end with a `#### Review Coverage` block — per-tier (deterministic / judgment / security) ran / failed / skipped status, finding count and reason, the full 40-character reviewed commit SHA, and a `Result:` line that reads not-clean when a required tier could not complete
 

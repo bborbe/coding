@@ -37,7 +37,7 @@ ACCEPTANCE_FAIL=0
 ok()   { ACCEPTANCE_PASS=$((ACCEPTANCE_PASS+1)); printf "  ✅ %s\n" "$1"; }
 fail() { ACCEPTANCE_FAIL=$((ACCEPTANCE_FAIL+1)); printf "  ❌ %s\n" "$1"; }
 
-echo "=== 1/6 Mode coverage ==="
+echo "=== 1/7 Mode coverage ==="
 
 # Short mode in both dispatcher commands must skip Step 4 entirely (no runner agent).
 if grep -qE "Short Mode.*No agents|Short Mode.*skip" commands/pr-review.md && \
@@ -84,7 +84,7 @@ else
   fail "Selector mode (default) routing missing from pr-review.md or local-review.md"
 fi
 
-echo "=== 2/6 Per-language routing ==="
+echo "=== 2/7 Per-language routing ==="
 
 # Full-mode per-owner dispatch block present — findings_by_owner feeds the dispatch set and
 # coding:<owner> agent prompts reference it. Per-owner dispatch lives in full mode only
@@ -122,7 +122,7 @@ else
   fail "cross-language owner leak: go→python=$go_python_leak, python→go=$python_go_leak"
 fi
 
-echo "=== 3/6 Context loading (Step 2.5 globs) ==="
+echo "=== 3/7 Context loading (Step 2.5 globs) ==="
 
 # Each canonical context-doc mapping must be referenced in both dispatcher commands.
 for mapping in "teamvault-conventions.md" "go-k8s-binary-conventions.md" "k8s-manifest-guide.md" "changelog-guide.md"; do
@@ -133,7 +133,7 @@ for mapping in "teamvault-conventions.md" "go-k8s-binary-conventions.md" "k8s-ma
   fi
 done
 
-echo "=== 4/6 Broken-YAML isolation ==="
+echo "=== 4/7 Broken-YAML isolation ==="
 
 # Construct a sandbox: one valid YAML + one syntactically broken YAML.
 # Verify ast-grep errors on the broken one but the valid one still surfaces findings.
@@ -170,7 +170,7 @@ else
   fail "good YAML emitted zero findings — broken YAML may be masking the others when run together"
 fi
 
-echo "=== 5/6 Selector mode contracts ==="
+echo "=== 5/7 Selector mode contracts ==="
 
 # (a) Both command files reference --selector token in Step 1 parse, the
 # short-circuit string, and the GUIDE_OK/GUIDE_MISSING fail-fast block.
@@ -319,7 +319,7 @@ else
   fail "selector dispatch: $missing_inputs of the four dispatch input labels missing from local-review.md"
 fi
 
-echo "=== 6/6 Self-containment script tier ==="
+echo "=== 6/7 Self-containment script tier ==="
 
 # The four rule ids are HARDCODED literals, never derived from the run's own
 # output: a derived expected set would still pass after a check silently stopped
@@ -350,6 +350,27 @@ if [ "$sc_clean_count" = "0" ]; then
 else
   fail "self-containment clean fixture yielded $sc_clean_count finding(s) (want 0)"
 fi
+
+echo "=== 7/7 Review coverage contract ==="
+
+# The PR review's Step 5 report contract is asserted by LITERAL, never derived
+# from this run's own output: a derived expectation would still pass after the
+# block was deleted. The region is extracted once so a sentence appended after
+# Step 7 cannot satisfy any literal below.
+STEP5_CONTRACT="$WORK/step5-report-contract.md"
+sed -n '/^### Step 5:/,/^### Step 6:/p' commands/pr-review.md > "$STEP5_CONTRACT"
+for literal in \
+  '#### Review Coverage' \
+  '| Tier | Status | Findings | Reason |' \
+  'Reviewed commit:' \
+  'Result: clean' \
+  'Result: not clean'; do
+  if grep -qF -- "$literal" "$STEP5_CONTRACT"; then
+    ok "review coverage: Step 5 carries '$literal'"
+  else
+    fail "review coverage: Step 5 is missing '$literal'"
+  fi
+done
 
 echo ""
 echo "=== Summary ==="

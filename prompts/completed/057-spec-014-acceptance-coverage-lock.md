@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [014-pr-review-coverage-block]
+summary: Added a literal Step 5 review-coverage contract assertion as section 7/7 in scripts/acceptance.sh and renumbered the six existing sections to N/7
+execution_id: coding-coverage-block-exec-057-spec-014-acceptance-coverage-lock
+dark-factory-version: v0.198.7
 created: "2026-10-18T13:41:49Z"
 queued: "2026-10-18T14:11:29Z"
+started: "2026-10-18T14:17:47Z"
+completed: "2026-10-18T14:21:28Z"
 branch: dark-factory/pr-review-coverage-block
 ---
 

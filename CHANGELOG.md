@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.58.0
 
 - feat: a new self-containment rule family (four script-tier checks plus one judgment rule) flags leaked planning context — home-directory paths, requirement ids, planning-directory references, revision meta and steering echoes — in the changed files of any review, with a documented exemption for the artifacts that define, implement and test the rules
 

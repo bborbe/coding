@@ -1,8 +1,9 @@
 ---
-status: prompted
+status: verifying
 approved: "2026-10-18T13:32:33Z"
 generating: "2026-10-18T13:37:16Z"
 prompted: "2026-10-18T13:55:57Z"
+verifying: "2026-10-18T14:22:45Z"
 branch: dark-factory/pr-review-coverage-block
 ---
 

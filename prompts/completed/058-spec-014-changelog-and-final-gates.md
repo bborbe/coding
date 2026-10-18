@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [014-pr-review-coverage-block]
+summary: 'Verified the pre-seeded `## Unreleased` feat entry (single topmost heading, marker-free) and passed all container-executable gates: AC1–AC5 literal checks, AC6 positive/negative acceptance, AC7 scope lock, and the seven git-free make targets (exit 0); only `make precommit`''s git-dependent `check-changelog-fold` target cannot run under hideGit.'
+execution_id: coding-coverage-block-exec-058-spec-014-changelog-and-final-gates
+dark-factory-version: v0.198.7
 created: "2026-10-18T13:41:49Z"
 queued: "2026-10-18T14:11:29Z"
+started: "2026-10-18T14:21:32Z"
+completed: "2026-10-18T14:22:44Z"
 branch: dark-factory/pr-review-coverage-block
 ---
 

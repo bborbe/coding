@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.57.9
 - test: **add the baseline report page for the current rules — the first measured on the released rule set rather than the `v0.38.0` pin every earlier row shares.** `bench/reports/ad12e19f….md` is `MiniMax-M3.1-Flash-Preview[1m]` at `effort high` / `mode full` over the 31-PR `curated-1` fixture, scored against `golden-curated-4`: recall 0.095 and precision 0.867 overall, 0.077 / 0.800 over the 11 Go PRs. `31 ok, 0 cache hit, 0 failed`, with a single `config_hash` across all 31 rows despite two `~/.claude/CLAUDE.md` regenerations mid-pass (the hash is computed once at run start, so the pass stays one configuration). Committed here because `bench/reports/` is this repo's established home for these artifacts and the ledger that produces them is local-only and untracked, so the page is the only durable record of the run. ⚠️ **The pin moved deliberately, and rows at this `config_hash` are comparable to each other and to nothing before them** — a rule-change A/B needs a baseline on the rules *as they are*, since an old-rules baseline differs from the post-change run by every unrelated rule edit since, making the delta unattributable. Precision is below `1.000` for the first time at this model (2 matched-rejected entries), which is the precondition for the queued review-quality changes being measurable at all.
 
 ## v0.57.8

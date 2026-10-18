@@ -1,0 +1,9 @@
+notes carried over from planning (Order service)
+
+dump goes to ~/scratch/order-dump.json
+
+implements FR-1 and NFR-3; see specs/order-service/ for the rest
+
+the plan says to keep the retry inline
+
+revised per review: swapped the map for a slice

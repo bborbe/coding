@@ -37,7 +37,7 @@ ACCEPTANCE_FAIL=0
 ok()   { ACCEPTANCE_PASS=$((ACCEPTANCE_PASS+1)); printf "  ✅ %s\n" "$1"; }
 fail() { ACCEPTANCE_FAIL=$((ACCEPTANCE_FAIL+1)); printf "  ❌ %s\n" "$1"; }
 
-echo "=== 1/5 Mode coverage ==="
+echo "=== 1/6 Mode coverage ==="
 
 # Short mode in both dispatcher commands must skip Step 4 entirely (no runner agent).
 if grep -qE "Short Mode.*No agents|Short Mode.*skip" commands/pr-review.md && \
@@ -84,7 +84,7 @@ else
   fail "Selector mode (default) routing missing from pr-review.md or local-review.md"
 fi
 
-echo "=== 2/5 Per-language routing ==="
+echo "=== 2/6 Per-language routing ==="
 
 # Full-mode per-owner dispatch block present — findings_by_owner feeds the dispatch set and
 # coding:<owner> agent prompts reference it. Per-owner dispatch lives in full mode only
@@ -122,7 +122,7 @@ else
   fail "cross-language owner leak: go→python=$go_python_leak, python→go=$python_go_leak"
 fi
 
-echo "=== 3/5 Context loading (Step 2.5 globs) ==="
+echo "=== 3/6 Context loading (Step 2.5 globs) ==="
 
 # Each canonical context-doc mapping must be referenced in both dispatcher commands.
 for mapping in "teamvault-conventions.md" "go-k8s-binary-conventions.md" "k8s-manifest-guide.md" "changelog-guide.md"; do
@@ -133,7 +133,7 @@ for mapping in "teamvault-conventions.md" "go-k8s-binary-conventions.md" "k8s-ma
   fi
 done
 
-echo "=== 4/5 Broken-YAML isolation ==="
+echo "=== 4/6 Broken-YAML isolation ==="
 
 # Construct a sandbox: one valid YAML + one syntactically broken YAML.
 # Verify ast-grep errors on the broken one but the valid one still surfaces findings.
@@ -170,7 +170,7 @@ else
   fail "good YAML emitted zero findings — broken YAML may be masking the others when run together"
 fi
 
-echo "=== 5/5 Selector mode contracts ==="
+echo "=== 5/6 Selector mode contracts ==="
 
 # (a) Both command files reference --selector token in Step 1 parse, the
 # short-circuit string, and the GUIDE_OK/GUIDE_MISSING fail-fast block.
@@ -286,6 +286,38 @@ if [ "$go_findings" -ge 1 ]; then
   ok "runner still finds violations in normal .go file after .git/ exclusion"
 else
   fail "runner found zero violations in pkg/real.go — normal scan broken or no-fmt-errorf YAML missing"
+fi
+
+echo "=== 6/6 Self-containment script tier ==="
+
+# The four rule ids are HARDCODED literals, never derived from the run's own
+# output: a derived expected set would still pass after a check silently stopped
+# firing. This is the gate that makes the fixtures permanent.
+SC_DIR="$PWD/scripts/testdata/self-containment"
+
+# shellcheck disable=SC2046  # word-splitting is intentional: one path per arg
+sc_dirty_out=$(bash scripts/rule-checks.sh "$SC_DIR/dirty" $(find "$SC_DIR/dirty" -type f) 2>/dev/null || true)
+sc_dirty_ids=$(printf '%s' "$sc_dirty_out" | jq -r '[.findings_by_owner["self-containment-assistant"] // [] | .[] | .rule_id] | unique | .[]' 2>/dev/null || true)
+
+for rid in \
+  self-containment/no-home-dir-paths \
+  self-containment/no-requirement-ids \
+  self-containment/no-planning-doc-refs \
+  self-containment/no-revision-meta; do
+  if printf '%s\n' "$sc_dirty_ids" | grep -qxF "$rid"; then
+    ok "self-containment dirty fixture yields $rid"
+  else
+    fail "self-containment dirty fixture missing a finding for $rid"
+  fi
+done
+
+# shellcheck disable=SC2046
+sc_clean_out=$(bash scripts/rule-checks.sh "$SC_DIR/clean" $(find "$SC_DIR/clean" -type f) 2>/dev/null || true)
+sc_clean_count=$(printf '%s' "$sc_clean_out" | jq '(.findings_by_owner["self-containment-assistant"] // []) | length' 2>/dev/null || echo "ERR")
+if [ "$sc_clean_count" = "0" ]; then
+  ok "self-containment clean fixture yields zero findings"
+else
+  fail "self-containment clean fixture yielded $sc_clean_count finding(s) (want 0)"
 fi
 
 echo ""

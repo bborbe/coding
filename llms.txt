@@ -84,6 +84,8 @@
 - [Rule Block Schema](docs/rule-block-schema.md): `### RULE` block contract and index schema
 - [ast-grep Rule Writing Guide](docs/ast-grep-rule-writing-guide.md): ast-grep YAML conventions for mechanical rule enforcement
 - [Selector Mode Guide](docs/selector-mode-guide.md): In-session classify + adjudicate procedure for `--selector` mode (single source of truth; commands carry thin pointers)
+- [Self-Containment Guide](docs/self-containment-guide.md): Keep an agent-authored diff free of leaked planning context — machine-local paths, planning-only identifiers, revision meta, steering echoes
+- [self-containment-assistant](agents/self-containment-assistant.md): Adjudicates the self-containment rule family over a diff's changed files; owns the steering-echo judgment rule and grades the script tier
 
 ## Frontend
 - [Vue 3 + TypeScript](docs/vue3-typescript-frontend-guide.md): Composition API, Vite, Vitest

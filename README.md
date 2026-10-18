@@ -205,6 +205,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 | [Rule Block Schema](docs/rule-block-schema.md) | `### RULE` block contract and index schema |
 | [ast-grep Rule Writing Guide](docs/ast-grep-rule-writing-guide.md) | ast-grep YAML conventions for mechanical rule enforcement |
 | [Selector Mode Guide](docs/selector-mode-guide.md) | In-session classify + adjudicate procedure for `--selector` mode |
+| [Self-Containment](docs/self-containment-guide.md) | Keep an agent-authored diff free of leaked planning context |
 
 ### Frontend
 
@@ -273,6 +274,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `release-changelog-assistant` | Classify semver bump from `## Unreleased` + optionally rewrite to conventional-prefix style; invoked by `/coding:commit` Workflow B, `/coding:github-release`, and K8s `agent/github-releaser` |
 | `project-docs-finder` | Search project docs/ |
 | `security-verifier` | Security-mode post-adjudication falsification gate — attempts to falsify high-severity findings before they emit (precision vs the judge's recall) |
+| `self-containment-assistant` | Adjudicates the self-containment rule family over a diff's changed files — steering-echo judgment rule + script-tier severity grading |
 
 </details>
 

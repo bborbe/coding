@@ -8,6 +8,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+- chore: record the v0.59.0 post-change run (recall 0.110, precision 1.000) against the v0.57.7 baseline
+
 ## v0.60.0
 
 - feat: `/coding:local-review` selector mode adjudicates in exactly one fresh-context `coding:selector-adjudicator` subagent that receives only the diff, the classified rule set, the mechanical findings and the repo path — the clean path still dispatches nothing, a failed or empty dispatch reports a Must Fix toolchain failure instead of a clean report, and `/coding:pr-review` and `/coding:code-review` keep in-session adjudication

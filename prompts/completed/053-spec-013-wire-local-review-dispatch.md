@@ -1,8 +1,13 @@
 ---
-status: approved
+status: completed
 spec: [013-fresh-context-local-review-adjudication]
+summary: Rewired /coding:local-review selector mode's Step 4d-sel into a single fresh-context coding:selector-adjudicator dispatch (DIFF/CLASSIFIED_RULES/MECHANICAL_FINDINGS/REPO_PATH, fail-closed with one retry, short-circuit before the dispatch) and documented the fresh-context variant in docs/selector-mode-guide.md while scoping the four zero-spawn claims to /coding:pr-review and /coding:code-review.
+execution_id: coding-fresh-context-exec-053-spec-013-wire-local-review-dispatch
+dark-factory-version: v0.198.7
 created: "2026-10-18T10:31:14Z"
 queued: "2026-10-18T10:59:39Z"
+started: "2026-10-18T11:26:10Z"
+completed: "2026-10-18T11:38:20Z"
 branch: dark-factory/fresh-context-local-review-adjudication
 ---
 

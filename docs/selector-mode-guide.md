@@ -1,6 +1,6 @@
 ## Selector Mode — Classify and Adjudicate Procedure
 
-Selector mode replaces Step 4b-ii's per-owner Task dispatch with two in-session steps that run in the calling command's session. Steps 4.0, 4a, and 4b-i run unchanged and produce the candidate set. The design goal is zero sub-agent spawns: every rule is evaluated inside the current session context rather than cold-starting one sub-agent per owner.
+Selector mode replaces Step 4b-ii's per-owner Task dispatch with two in-session steps that run in the calling command's session. Steps 4.0, 4a, and 4b-i run unchanged and produce the candidate set. For `/coding:pr-review` and `/coding:code-review` the design goal is zero sub-agent spawns: every rule is evaluated inside the current session context rather than cold-starting one sub-agent per owner. `/coding:local-review` is the exception — its calling session is the session that authored the change, so its `Step 4d-sel` ADJUDICATE runs in exactly one fresh-context `coding:selector-adjudicator` dispatch instead.
 
 Selector mode is opt-in (`--selector`/`selector` mode token); the default per-owner dispatch path is unchanged.
 
@@ -8,9 +8,11 @@ Selector mode is opt-in (`--selector`/`selector` mode token); the default per-ow
 
 | Input | Description |
 |-------|-------------|
-| `DIFF` | The full diff for this review (caller-provided; see note below) |
+| `DIFF` | The full diff for this review (caller-provided; see note below). Also a fresh-context dispatch input for `/coding:local-review`, which writes it to a session-local path outside the reviewed tree (mirroring the findings-file convention). |
 | `CANDIDATES` | The `<rule-id> <owner>` list produced by Step 4b-i jq glob output |
-| `MECHANICAL_FINDINGS` | Path to the Step 4a runner output JSON (e.g. `/tmp/pr-review-findings.json`) |
+| `MECHANICAL_FINDINGS` | Path to the Step 4a runner output JSON (e.g. `/tmp/pr-review-findings.json`). Also a fresh-context dispatch input for `/coding:local-review`. |
+| `CLASSIFIED_RULES` | The Step 4c-sel applicable rule-id list. Set only by `/coding:local-review` for its fresh-context `Step 4d-sel` dispatch. |
+| `REPO_PATH` | The directory under review, absolute. Set only by `/coding:local-review` for its fresh-context `Step 4d-sel` dispatch. |
 | Working directory | The directory under review (caller-provided) |
 | `INTENT` | The Step 0.5 stated-intent artifact path (or `unavailable`). Set only by `/coding:pr-review`; absent for `/coding:code-review` and `/coding:local-review`. |
 
@@ -47,7 +49,7 @@ Produce a classify result:
 }
 ```
 
-## Step 4d-sel: ADJUDICATE (in-session, no Task spawn)
+## Step 4d-sel: ADJUDICATE (in-session, no Task spawn — `/coding:pr-review` and `/coding:code-review`)
 
 **Input**: the full diff (no truncation — this is the load-bearing step), the mechanical findings from `MECHANICAL_FINDINGS`, and the applicable rules from Step 4c-sel.
 
@@ -61,9 +63,9 @@ Judge the full diff plus mechanical findings. For each violation found, emit a f
 
 Do not emit a per-rule "passed" entry for rules with no violation — silently omit them.
 
-**Batching**: if the applicable set exceeds 20 rules, split adjudication into 2–3 thematic in-session passes (e.g. architecture rules first, then quality rules, then style rules). Each pass runs in the current session — still zero Task spawns. Collect all findings before proceeding to citation validation.
+**Batching**: if the applicable set exceeds 20 rules, split adjudication into 2–3 thematic in-session passes (e.g. architecture rules first, then quality rules, then style rules). For the in-session callers each pass runs in the current session — still zero Task spawns; the fresh-context caller's adjudicator does its own batching inside its single dispatch. Collect all findings before proceeding to citation validation.
 
-**Citation validation** (invoked directly — selector mode spawns NO sub-agents, including `coding:simple-bash-runner`): run the validator as a plain Bash call over the adjudication findings before consolidation — findings citing a `rule_id` absent from `rules/index.json` are dropped and logged to stderr. Resolve the script path via the plugin install chain (the working directory may not be the plugin checkout):
+**Citation validation** (invoked directly — never via a `coding:simple-bash-runner` subagent): run the validator as a plain Bash call over the adjudication findings before consolidation — findings citing a `rule_id` absent from `rules/index.json` are dropped and logged to stderr. Resolve the script path via the plugin install chain (the working directory may not be the plugin checkout):
 
 ```bash
 VALIDATOR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/validate-citations.sh"
@@ -75,6 +77,26 @@ VALIDATOR="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scri
 # message reads like a broken install rather than the wrong working directory.
 ( cd "$(dirname "$(dirname "$VALIDATOR")")" && bash scripts/validate-citations.sh <findings.json> )
 ```
+
+## Step 4d-sel: ADJUDICATE (fresh-context dispatch — `/coding:local-review`)
+
+The second form of the same step, kept alongside the in-session form above.
+
+`/coding:local-review` is the one caller whose session is the session that authored the change, which is why its adjudication runs cold. In that caller, `Step 4d-sel` is exactly one `coding:selector-adjudicator` dispatch, whose input is `DIFF`, `CLASSIFIED_RULES`, `MECHANICAL_FINDINGS` and `REPO_PATH` — and nothing else. No conversation history, no authoring rationale, no prior report, no session state. A caller that wants to explain the diff to the adjudicator has found the contamination this dispatch exists to remove.
+
+The adjudicator is read-only (`Read`, `Grep`, `Glob`), so the review cannot mutate the tree it reviews. It returns findings as text; the caller owns the findings file.
+
+`Step 4c-sel` CLASSIFY stays in-session, and the residual contamination at the skip decision is a stated limit of this design — visible to a reader rather than discovered by one. The applicable set is still a subset of the `Step 4b-i` candidate set; the `HARD INVARIANT` is unchanged.
+
+The short-circuit is evaluated before the dispatch, so a clean run spawns zero subagents and the cost is bounded at one dispatch per review that has something to adjudicate.
+
+**Fail-closed:** a dispatch that fails, errors or returns nothing reads **not-clean** — it is reported as a **Must Fix toolchain failure** naming the `coding:selector-adjudicator` dispatch, the judgment tier reads as not-run, and it is never degraded into a mechanical-findings-only report presented as a complete selector review. One retry is permitted; a second failure is reported, never swallowed — the same fail-closed discipline `Step 4.0` and `Step 4b` apply to a missing `ast-grep` or a missing selector guide.
+
+The caller keeps citation validation: it writes the returned findings to a session-local JSON and runs `scripts/validate-citations.sh` from the plugin root before consolidating survivors into the report.
+
+The subagent performs its own batching when the applicable set exceeds 20 rules; the caller still spawns once.
+
+`/coding:pr-review` and `/coding:code-review` keep the in-session form byte-for-byte.
 
 ## Security Extension (dormant)
 

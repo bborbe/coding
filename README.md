@@ -36,7 +36,7 @@ Review your current branch against all guidelines:
 /coding:pr-review --security        # security review mode: derived model + six trait groups + verifier gate + Security Findings report
 ```
 
-Review local uncommitted changes in selector mode (default — zero LLM spawns, in-session classify + adjudicate) or full mode (per-owner dispatch, concurrent agents):
+Review local uncommitted changes in selector mode (default — in-session classify, then one fresh-context adjudicator dispatch) or full mode (per-owner dispatch, concurrent agents):
 
 ```
 /coding:local-review            # selector mode (default)
@@ -275,6 +275,7 @@ Agents are invoked by commands — you rarely call them directly. Each reads its
 | `project-docs-finder` | Search project docs/ |
 | `security-verifier` | Security-mode post-adjudication falsification gate — attempts to falsify high-severity findings before they emit (precision vs the judge's recall) |
 | `self-containment-assistant` | Adjudicates the self-containment rule family over a diff's changed files — steering-echo judgment rule + script-tier severity grading |
+| `selector-adjudicator` | Read-only fresh-context adjudicator for selector-mode reviews — judges the applicable rules over the diff in a context that never saw the authoring conversation |
 
 </details>
 

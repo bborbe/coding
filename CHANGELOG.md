@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: `/coding:pr-review` reports end with a `#### Review Coverage` block — per-tier (deterministic / judgment / security) ran / failed / skipped status, finding count and reason, the full 40-character reviewed commit SHA, and a `Result:` line that reads not-clean when a required tier could not complete
+
 ## v0.60.0
 
 - feat: `/coding:local-review` selector mode adjudicates in exactly one fresh-context `coding:selector-adjudicator` subagent that receives only the diff, the classified rule set, the mechanical findings and the repo path — the clean path still dispatches nothing, a failed or empty dispatch reports a Must Fix toolchain failure instead of a clean report, and `/coding:pr-review` and `/coding:code-review` keep in-session adjudication

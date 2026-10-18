@@ -1,7 +1,7 @@
 ---
 status: failed
-spec: [014-language-agnostic-maintainability-rules]
-execution_id: coding-sc5-exec-059-spec-014-trigger-boundary-fixtures-and-acceptance
+spec: [015-language-agnostic-maintainability-rules]
+execution_id: coding-sc5-exec-060-spec-015-trigger-boundary-fixtures-and-acceptance
 dark-factory-version: v0.198.7
 created: "2026-10-18T15:58:21Z"
 queued: "2026-10-18T16:35:18Z"
@@ -23,13 +23,13 @@ lastFailReason: 'validate completion report: completion report status: partial'
 </summary>
 
 <objective>
-Add the three maintainability fixture trees under `specs/fixtures/maintainability/` and add the trigger-boundary assertion to `scripts/acceptance.sh`, so the dedup invariant that keeps maintainability rules off language-owned files is regression-locked by `make precommit`. This is prompt **2 of 3** for spec 014 and depends on prompt 1 (the five rule ids and their 22 trigger globs must already be in `rules/index.json`).
+Add the three maintainability fixture trees under `specs/fixtures/maintainability/` and add the trigger-boundary assertion to `scripts/acceptance.sh`, so the dedup invariant that keeps maintainability rules off language-owned files is regression-locked by `make precommit`. This is prompt **2 of 3** for spec 015 and depends on prompt 1 (the five rule ids and their 22 trigger globs must already be in `rules/index.json`).
 </objective>
 
 <context>
 Read fully before writing:
 
-- `specs/in-progress/014-language-agnostic-maintainability-rules.md` — Desired Behaviors 4 and 6, AC3, and the Failure Modes rows "A trigger glob is pointed at a language-owned extension" and "The five rules fire on the same smell a language rule already reports on a mixed diff".
+- `specs/in-progress/015-language-agnostic-maintainability-rules.md` — Desired Behaviors 4 and 6, AC3, and the Failure Modes rows "A trigger glob is pointed at a language-owned extension" and "The five rules fire on the same smell a language rule already reports on a mixed diff".
 - `scripts/acceptance.sh` — the whole file. Note the header comment's numbered list (items 1–4), the six section banners `=== 1/6 … === 6/6`, the `ok` / `fail` helpers, the `set -uo pipefail` (no `-e`), the `jq` + `ast-grep` preflight, and the `=== 6/6 Self-containment script tier ===` block that shows the established fixture-assertion shape.
 - `commands/pr-review.md` — the **Step 4b-i: Active judgment rules** section (the `jq` program that selects judgment rules whose triggers match `CHANGED_FILES`). The assertion reuses that selection logic.
 - `docs/selector-mode-guide.md` — the selector contract (`CANDIDATES`, the HARD INVARIANT that the applicable set is a subset of the candidate set). The trigger-boundary property this prompt locks is what makes that invariant hold for non-owned files.
@@ -213,7 +213,7 @@ fi
 
 The five ids are hardcoded literals, never derived from the assertion's own output: a derived expectation would still pass after a trigger was deleted.
 
-<!-- RESOLVED 2026-10-18: jq 1.6's any/2 (foreach + break) drops rules on multi-file diffs — reproduced on this host against the container's jq 1.6. The shipped block returns 3 candidates for infra/main.tf + scripts/deploy.sh + README.md (spec records 8) and 0 maintainability ids for the two-file non-owned list, while the nested form returns 8 and 5/0. The nested assertion is correct and version-stable for the trigger-boundary property. The shipped-selector defect is escalated to the spec owner as a separate, pre-existing issue: spec 014's Non-goals forbid editing commands/pr-review.md or commands/local-review.md here, so the assertion locks the boundary and the command fix is a follow-up task. -->
+<!-- RESOLVED 2026-10-18: jq 1.6's any/2 (foreach + break) drops rules on multi-file diffs — reproduced on this host against the container's jq 1.6. The shipped block returns 3 candidates for infra/main.tf + scripts/deploy.sh + README.md (spec records 8) and 0 maintainability ids for the two-file non-owned list, while the nested form returns 8 and 5/0. The nested assertion is correct and version-stable for the trigger-boundary property. The shipped-selector defect is escalated to the spec owner as a separate, pre-existing issue: spec 015's Non-goals forbid editing commands/pr-review.md or commands/local-review.md here, so the assertion locks the boundary and the command fix is a follow-up task. -->
 
 
 ### 3. Self-check before finishing
@@ -289,7 +289,7 @@ Note on `make precommit` under this run's masked `.git`: `check-changelog-fold` 
 </verification>
 
 <notes>
-- **Why the selector expression is not copied byte-for-byte from Step 4b-i.** The shipped block wraps the whole per-pattern match in a single `any(. as $pat | <generator that emits one boolean per changed file>)`. With jq 1.6 (the version in this container and in typical CI images), `reduce` over a multi-valued update keeps only one branch, so a rule is silently dropped whenever the trigger matches one changed file but not the last one. Measured here: the shipped block returns 3 candidates for `infra/main.tf`, `scripts/deploy.sh`, `README.md` (the spec records 8), and drops `go-*`, `git-commit/*`, `rest/*` and `self-containment/*` rules on a two-file `pkg/order.go` + `app/main.py` diff. The nested form above returns the spec's 8 pre-existing candidates plus the five maintainability ids for that example, and all five maintainability ids for the two-file non-owned list, and it is stable across jq versions because every `any` sees a single-valued condition. Fixing the shipped block is a command change, which spec 014 forbids, so it is out of scope for this prompt.
+- **Why the selector expression is not copied byte-for-byte from Step 4b-i.** The shipped block wraps the whole per-pattern match in a single `any(. as $pat | <generator that emits one boolean per changed file>)`. With jq 1.6 (the version in this container and in typical CI images), `reduce` over a multi-valued update keeps only one branch, so a rule is silently dropped whenever the trigger matches one changed file but not the last one. Measured here: the shipped block returns 3 candidates for `infra/main.tf`, `scripts/deploy.sh`, `README.md` (the spec records 8), and drops `go-*`, `git-commit/*`, `rest/*` and `self-containment/*` rules on a two-file `pkg/order.go` + `app/main.py` diff. The nested form above returns the spec's 8 pre-existing candidates plus the five maintainability ids for that example, and all five maintainability ids for the two-file non-owned list, and it is stable across jq versions because every `any` sees a single-valued condition. Fixing the shipped block is a command change, which spec 015 forbids, so it is out of scope for this prompt.
 - **Why the fixtures carry no README.** The operator copies a fixture tree into a scratch repo as the feature diff. A `README.md` there would match the Markdown and README rule families and add findings the AC4/AC5/AC6 counts do not expect.
 - **Why the ids are literals in the assertion.** A derived expectation (`jq '[…] | length'`) would still pass after a trigger was deleted from one rule. Hardcoded ids make the gate fail on the regression it exists to catch, matching the self-containment block's stated rationale (`=== 6/8` after this prompt's renumbering).
 - **The boundary property is per-file.** Glob matching is evaluated per changed file, so testing a two-file non-owned list and a twenty-two-file owned list exercises every owned extension the spec enumerates without depending on file order.

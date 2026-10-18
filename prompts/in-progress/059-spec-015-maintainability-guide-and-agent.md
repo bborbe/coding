@@ -1,7 +1,7 @@
 ---
 status: failed
-spec: [014-language-agnostic-maintainability-rules]
-execution_id: coding-sc5-exec-056-spec-014-maintainability-guide-and-agent
+spec: [015-language-agnostic-maintainability-rules]
+execution_id: coding-sc5-exec-059-spec-015-maintainability-guide-and-agent
 dark-factory-version: v0.198.7
 created: "2026-10-18T15:58:21Z"
 queued: "2026-10-18T16:35:15Z"
@@ -24,7 +24,7 @@ lastFailReason: 'validate completion report: parse completion report: parse repo
 </summary>
 
 <objective>
-Ship the five language-agnostic maintainability rules as a new guide plus their owner agent, register both, and regenerate the derived rule index from 194 to 199 entries so the shared review funnel can select the rules on non-owned changed files. This is prompt **1 of 3** for spec 014; prompt 2 adds the fixture pair and the trigger-boundary acceptance assertion, prompt 3 adds the release tail and the cross-cutting gates.
+Ship the five language-agnostic maintainability rules as a new guide plus their owner agent, register both, and regenerate the derived rule index from 194 to 199 entries so the shared review funnel can select the rules on non-owned changed files. This is prompt **1 of 3** for spec 015; prompt 2 adds the fixture pair and the trigger-boundary acceptance assertion, prompt 3 adds the release tail and the cross-cutting gates.
 </objective>
 
 <context>
@@ -324,5 +324,5 @@ Note on `make precommit` under this run's masked `.git`: `check-changelog-fold` 
 - **Two-component ids are already supported** by the walker's regex `([a-z0-9-]+/[a-z0-9-]+(?:/[a-z0-9-]+)?)`.
 - **The repo's `.git` is masked in this container.** `.dark-factory.log` records `hideGit=true hideGitSource=arg`. The pre-change index baseline is captured with `cp rules/index.json /tmp/df014-index-before.json` before `make build-index`, which is the git-free equivalent of reading the file at the target branch.
 - **Prompt 2 is the only writer of `scripts/acceptance.sh`.** Do not add a check here, even a placeholder.
-- **The CLAUDE.md Doc ↔ Agent Alignment row is kept.** Spec 014 names `README.md` and `llms.txt`; the alignment table is the repo's own doc-to-agent mapping and the sibling `self-containment-guide.md` change added its row the same way. `commands/code-review.md` is intentionally not edited — full-mode dispatch there is index-derived (`findings_by_owner`), and spec 014's Non-goals lock `commands/**`.
+- **The CLAUDE.md Doc ↔ Agent Alignment row is kept.** Spec 015 names `README.md` and `llms.txt`; the alignment table is the repo's own doc-to-agent mapping and the sibling `self-containment-guide.md` change added its row the same way. `commands/code-review.md` is intentionally not edited — full-mode dispatch there is index-derived (`findings_by_owner`), and spec 015's Non-goals lock `commands/**`.
 </notes>

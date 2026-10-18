@@ -1,6 +1,6 @@
 ---
 status: cancelled
-spec: [014-language-agnostic-maintainability-rules]
+spec: [015-language-agnostic-maintainability-rules]
 created: "2026-10-18T15:58:21Z"
 queued: "2026-10-18T16:35:23Z"
 branch: dark-factory/language-agnostic-maintainability-rules
@@ -19,7 +19,7 @@ cancelled: "2026-10-18T16:41:03Z"
 </summary>
 
 <objective>
-Close spec 014: ensure the changelog carries exactly one `feat:` bullet for the maintainability rule family, then run the cross-cutting gates that prove the change is release-ready and scope-locked. This is prompt **3 of 3** and depends on prompts 1 and 2.
+Close spec 015: ensure the changelog carries exactly one `feat:` bullet for the maintainability rule family, then run the cross-cutting gates that prove the change is release-ready and scope-locked. This is prompt **3 of 3** and depends on prompts 1 and 2.
 </objective>
 
 <context>
@@ -28,7 +28,7 @@ Read fully before writing:
 - `CHANGELOG.md` — the top of the file. An `## Unreleased` section already exists with this bullet:
   `- feat: add language-agnostic maintainability rules for files outside Go/Python/Node — comments restating code, dead code, bandaids, speculative abstraction / over-configuration, and naming/size drift`
 - `docs/changelog-guide.md` — entry format `- <prefix>: <what> [context]`, prefix required, one bullet per logical change, append to an existing `## Unreleased` rather than replacing it.
-- `specs/in-progress/014-language-agnostic-maintainability-rules.md` — AC7, AC8, AC9, AC10, AC12 and the Verification section.
+- `specs/in-progress/015-language-agnostic-maintainability-rules.md` — AC7, AC8, AC9, AC10, AC12 and the Verification section.
 - `scripts/check-coverage.sh` — prints `check-coverage: OK (<N> rules, <M> mechanical YAMLs, no drift)` and fails on a missing cited YAML, an orphan YAML, or an id mismatch.
 - `scripts/validate-citations.sh` — takes a JSON file of findings and exits 0 when every `rule_id` resolves against `rules/index.json`, 1 when any is dropped, 2 when the index is missing.
 - `Makefile` — the `precommit` target chain and the git-free subset used below.

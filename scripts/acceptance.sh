@@ -288,6 +288,37 @@ else
   fail "runner found zero violations in pkg/real.go — normal scan broken or no-fmt-errorf YAML missing"
 fi
 
+# (f) Selector dispatch wiring: the local review's Step 4d-sel is exactly one
+# fresh-context adjudicator dispatch. The agent file name and the four input
+# labels are LITERAL here, never derived from this run's own output — a derived
+# expectation would still pass after the wiring was deleted.
+if [ -f agents/selector-adjudicator.md ]; then
+  ok "selector dispatch: agents/selector-adjudicator.md exists"
+else
+  fail "selector dispatch: agents/selector-adjudicator.md is missing"
+fi
+if grep -qF 'coding:selector-adjudicator' commands/local-review.md; then
+  ok "selector dispatch: local-review.md names coding:selector-adjudicator"
+else
+  fail "selector dispatch: local-review.md does not name coding:selector-adjudicator"
+fi
+# The subagent registry resolves subagent_type from this field, not the filename —
+# a renamed `name:` would pass every other assertion here and fail at dispatch.
+if grep -qE '^name: selector-adjudicator$' agents/selector-adjudicator.md; then
+  ok "selector dispatch: agents/selector-adjudicator.md declares name: selector-adjudicator"
+else
+  fail "selector dispatch: agents/selector-adjudicator.md does not declare name: selector-adjudicator"
+fi
+missing_inputs=0
+for label in DIFF CLASSIFIED_RULES MECHANICAL_FINDINGS REPO_PATH; do
+  grep -qF "$label" commands/local-review.md || missing_inputs=$((missing_inputs+1))
+done
+if [ "$missing_inputs" -eq 0 ]; then
+  ok "selector dispatch: all four dispatch input labels present in local-review.md"
+else
+  fail "selector dispatch: $missing_inputs of the four dispatch input labels missing from local-review.md"
+fi
+
 echo "=== 6/6 Self-containment script tier ==="
 
 # The four rule ids are HARDCODED literals, never derived from the run's own

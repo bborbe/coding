@@ -20,7 +20,7 @@ Perform a review of local uncommitted/recent changes (since `HEAD~1`) with confi
 Parse the first argument to determine mode:
 - If first arg is `short|quick|fast` → **Short mode** (manual review only)
 - If first arg is `full|comprehensive|complete` → **Full mode** (all agents, per-owner dispatch)
-- Otherwise (including `standard`, `selector`, `--selector`, or no token) → **Selector mode (default)** (in-session classify + adjudicate, zero sub-agent spawns)
+- Otherwise (including `standard`, `selector`, `--selector`, or no token) → **Selector mode (default)** (in-session classify, then exactly one fresh-context `coding:selector-adjudicator` dispatch)
 
 `--security` is a position-independent boolean flag that may appear anywhere in the argument list (before or after the mode token and the directory); when present, set `SECURITY_REVIEW=1`, independent of the mode token. It is recognized as a flag and is NOT treated as the directory path by the "Any remaining arguments are treated as the directory path" rule. The flag is never silently ignored — the security pipeline runs in-session over the reviewed scope regardless of mode token, including in short mode where the Step 4b-i candidate computation the security classifier's HARD INVARIANT requires still runs; the existing short-mode "skip Step 4" directive applies only to the non-security funnel.
 
@@ -72,7 +72,7 @@ If Makefile doesn't exist or lacks `precommit` target, skip this step. If `make 
 
 ### Step 4: Dispatcher — ast-grep funnel → findings-scoped LLM adjudication
 
-Mirrors `commands/pr-review.md` Step 4. The funnel runs first (diff-scoped), then adjudicates findings in-session. **Selector mode (the default)**: in-session classify + adjudicate, zero sub-agent spawns. **Full mode**: keeps per-owner dispatch (all relevant owners + conditional agents). **Short mode**: skips Step 4 entirely.
+Mirrors `commands/pr-review.md` Step 4. The funnel runs first (diff-scoped), then adjudicates findings in-session. **Selector mode (the default)**: in-session classify, then exactly one fresh-context `coding:selector-adjudicator` dispatch for adjudication. **Full mode**: keeps per-owner dispatch (all relevant owners + conditional agents). **Short mode**: skips Step 4 entirely.
 
 **Short Mode**: No agents — skip to Step 5.
 
@@ -135,7 +135,7 @@ This produces a list of `<rule-id> <owner>` pairs whose trigger globs match at l
 
 #### Selector mode (the default): Steps 4c-sel and 4d-sel
 
-Steps 4.0, 4a, and 4b-i run unchanged. Resolve the guide and execute Steps 4c-sel and 4d-sel from it — zero sub-agent spawns.
+Steps 4.0, 4a, and 4b-i run unchanged, and Step 4c-sel CLASSIFY runs in this session. Step 4d-sel ADJUDICATE is exactly one `coding:selector-adjudicator` dispatch. Resolve the guide and execute both steps from it.
 
 Run exactly this one command, once:
 
@@ -147,14 +147,27 @@ GUIDE="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/docs/sel
 
 If it prints `GUIDE_MISSING`: report "selector guide unavailable" as a **Must Fix toolchain failure** in Step 5 and STOP the selector path — do NOT continue with a mechanical-findings-only review presented as a complete selector review (a review without the judgment tier silently misses every judgment-tier rule; same fail-fast discipline as Step 4.0). Do NOT investigate further (no `find`, no `ls`, no path probing).
 
-If it prints `GUIDE_OK`: Read the file at that path, then execute its **Step 4c-sel CLASSIFY** and **Step 4d-sel ADJUDICATE** with:
+If it prints `GUIDE_OK`: Read the file at that path, then execute its **Step 4c-sel CLASSIFY** in this session and its **Step 4d-sel ADJUDICATE** as a single dispatch.
+
+**Step 4c-sel CLASSIFY (in-session)** consumes:
 
 - **DIFF** = `git diff HEAD~1` (or directory diff as parsed in Step 1)
 - **CANDIDATES** = the Step 4b-i `<rule-id> <owner>` output
-- **MECHANICAL_FINDINGS** = `/tmp/local-review-findings.json`
-- **Working directory** = the reviewed directory
 
-On the guide's short-circuit condition the report line is `selector clean — no adjudication needed`. Skip this section for short/full mode.
+**Step 4d-sel ADJUDICATE (exactly one fresh-context dispatch)** — this session spawns exactly one `Task` whose `subagent_type` is `coding:selector-adjudicator`. The dispatch prompt carries these four named inputs and nothing else:
+
+- **`DIFF`** = the diff, written by this session to a session-local path outside the reviewed tree (mirroring the `/tmp/pr-review-findings.json` convention, e.g. `/tmp/local-review-diff.patch`); `git diff HEAD~1`, or the directory diff as parsed in Step 1
+- **`CLASSIFIED_RULES`** = the Step 4c-sel applicable rule-id list
+- **`MECHANICAL_FINDINGS`** = `/tmp/local-review-findings.json`, the Step 4a runner output
+- **`REPO_PATH`** = the directory under review, absolute
+
+The dispatch carries no conversation history, no summary of the authoring session, no statement of what the author intended, and no prior report — the four named inputs are the whole input. A caller that wants to explain the diff to the adjudicator has found the contamination this dispatch exists to remove. The subagent performs its own batching when the applicable set exceeds 20 rules, so the caller still spawns once.
+
+**Citation validation stays with this session.** After the dispatch returns, write the returned findings to a session-local JSON, run `scripts/validate-citations.sh` over that file from the plugin root (the same plugin-root resolution documented above), and consolidate only the survivors into the Step 5 report.
+
+**Fail-closed.** If the dispatch fails, errors, or returns nothing, report it as a **Must Fix toolchain failure** naming the `coding:selector-adjudicator` dispatch; the judgment tier reads as not-run, and the review is never presented as a complete selector review built only from the mechanical findings. The dispatch is retried at most once, and a second failure is reported, never swallowed — the same fail-fast discipline Step 4.0 and Step 4b already apply to a missing `ast-grep` or a missing selector guide.
+
+On the guide's short-circuit condition the report line is `selector clean — no adjudication needed`. The short-circuit is evaluated before the dispatch — on an empty applicable set with empty mechanical findings the section proceeds to Step 5 with **zero** subagents spawned. Skip this section for short/full mode.
 
 Include the traceability section per `docs/selector-mode-guide.md` § Traceability Report Section.
 

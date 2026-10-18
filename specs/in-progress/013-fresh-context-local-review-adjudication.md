@@ -1,8 +1,9 @@
 ---
-status: prompted
+status: verifying
 approved: "2026-10-18T10:22:29Z"
 generating: "2026-10-18T10:22:30Z"
 prompted: "2026-10-18T10:46:30Z"
+verifying: "2026-10-18T12:06:41Z"
 branch: dark-factory/fresh-context-local-review-adjudication
 ---
 

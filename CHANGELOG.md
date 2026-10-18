@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.58.0
 
 - feat: `/coding:pr-review` reads the change's stated intent (`--intent <path>` / `--pr <number>`, plus PR-body auto-detect) and records a deviation the author stated and justified as a decision instead of re-flagging it, reporting `Intent: unavailable` with a reason and behaving as before when no intent is available
 - feat: a new self-containment rule family (four script-tier checks plus one judgment rule) flags leaked planning context — home-directory paths, requirement ids, planning-directory references, revision meta and steering echoes — in the changed files of any review, with a documented exemption for the artifacts that define, implement and test the rules

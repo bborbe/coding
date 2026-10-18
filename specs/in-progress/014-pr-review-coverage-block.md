@@ -1,5 +1,9 @@
 ---
-status: draft
+status: prompted
+approved: "2026-10-18T13:32:33Z"
+generating: "2026-10-18T13:37:16Z"
+prompted: "2026-10-18T13:55:57Z"
+branch: dark-factory/pr-review-coverage-block
 ---
 
 ## Summary
@@ -73,7 +77,7 @@ The exact-sentence greps below are `grep -cF` literals, matched verbatim with no
 
 ### Container-executable (runs inside the dark-factory prompt container)
 
-- `make precommit` — exits 0 (check-links, check-changelog-fold, check-json, check-index, check-coverage, check-acceptance, check-rule-tests, bench-test).
+- `make check-links check-json check-index check-coverage check-acceptance check-rule-tests bench-test` — exits 0. `make precommit` additionally runs `check-changelog-fold`, which needs `.git` and therefore runs on the operator rung only (`hideGit=true` in the prompt container).
 - `bash scripts/acceptance.sh` — exits 0, and its coverage-block assertion prints PASS.
 - The AC6 negative: in a scratch copy of the repo with the `#### Review Coverage` line removed from `commands/pr-review.md`, `bash scripts/acceptance.sh` exits non-zero — run this, do not assume it.
 - The `grep` checks named in AC1 through AC5, AC7 and AC8.
@@ -108,11 +112,11 @@ The exact-sentence greps below are `grep -cF` literals, matched verbatim with no
 
 2. **The three statuses have one meaning each.** `ran` means the tier's own procedure completed; a legitimate zero-findings result (including the selector short-circuit `selector clean — no adjudication needed`) is `ran` with `0`, never `failed`. `failed` means the tier was required by this invocation and could not complete: the deterministic tier when `ast-grep`/`sg` is missing, the runner exits non-zero, or `make precommit` cannot be executed in full mode; the judgment tier when the selector guide is missing, an adjudicator dispatch fails or returns empty, or a full-mode owner dispatch errors; the security tier when model derivation, the verifier gate or the toolchain scan fails. `skipped` means the invocation did not require the tier: short mode (deterministic and judgment), the Step 4 early exit when no rule-relevant file changed (deterministic and judgment), and `--security` absent (security). A skip is never a failure, and a failure is never written as a skip.
 
-3. **Findings are counted per tier, from what the report already emitted.** Each emitted finding is attributed to exactly one tier, by this precedence: (1) a finding emitted by the security pipeline — a security rule, an invariant or a toolchain finding — counts in `security`; (2) otherwise a finding whose `rule_id` resolves in `rules/index.json` to `enforcement_type: mechanical` or `script` counts in `deterministic`; (3) otherwise a `judgment` rule counts in `judgment`; (4) a finding with no `rule_id` counts in `judgment`, so nothing falls through the attribution. The three cells sum to the report's total finding count, so a finding is never counted twice and none is silently dropped. A tier that did not run carries `0`; its `Status` says why. The count is a tally of this invocation's report, never a re-run and never an estimate.
+3. **Findings are counted per tier, from what the report already emitted.** Each emitted finding is attributed to exactly one tier, by this precedence: (1) a finding emitted by the security pipeline — a security rule, an invariant or a toolchain finding — counts in `security`; (2) otherwise a finding whose `rule_id` resolves in `rules/index.json` to `enforcement_type: mechanical` or `script` counts in `deterministic`; (3) otherwise a `judgment` rule counts in `judgment`; (4) a finding with no `rule_id` counts in `judgment`, so nothing falls through the attribution. The three cells sum to the report's total finding count, so a finding is never counted twice and none is silently dropped. A tier that did not run and has no attributed finding carries `0`; its `Status` says why. A finding attributed to a skipped tier — for example a Step 3 `make precommit` failure with no `rule_id`, which attributes to `judgment` in short mode — is still counted in that tier's `Findings` cell while the row keeps `skipped`; the sum rule wins over the `0` default. The count is a tally of this invocation's report, never a re-run and never an estimate.
 
 4. **The `Result:` line is the machine verdict.** `Result: clean` if and only if no tier is `failed`. `Result: not clean` when any tier is `failed`, with each failed tier and its reason named on the same line (`Result: not clean — deterministic failed: ast-grep not in PATH`). A `skipped` tier never makes a result not-clean; that is the difference between "not applicable" and "did not work".
 
-5. **The SHA is the reviewed commit, full length, fail-closed.** The value comes from `cd <REVIEW_DIR> && git rev-parse HEAD` (the same `REVIEW_DIR` the review used, so the `ALREADY_AT_HEAD` short-circuit needs no special case), is emitted as the full 40-character lowercase hex string, and is never abbreviated or reconstructed. If the command fails, the block emits `Result: not clean` naming the failure instead of a fabricated SHA — an unreadable commit is a toolchain failure, not a clean review.
+5. **The SHA is the reviewed commit, full length, fail-closed.** The value comes from `cd <REVIEW_DIR> && git rev-parse HEAD` (the same `REVIEW_DIR` the review used, so the `ALREADY_AT_HEAD` short-circuit needs no special case), is emitted as the full 40-character lowercase hex string, and is never abbreviated or reconstructed. If the command fails, the block states `Reviewed commit: unavailable — <short reason>` and marks the deterministic row `failed` with the same reason, so the verdict rule yields `Result: not clean` instead of a fabricated SHA — an unreadable commit is a toolchain failure, not a clean review.
 
 6. **The block changes nothing it reports on.** It adds no finding, drops no finding, changes no severity, changes no `Judgment tier:` line and changes no traceability content. The finding set of a review is byte-for-byte the same before and after this change; only the report gains the block.
 

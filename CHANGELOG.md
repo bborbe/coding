@@ -8,6 +8,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+- feat: add language-agnostic maintainability rules for files outside Go/Python/Node — comments restating code, dead code, bandaids, speculative abstraction / over-configuration, and naming/size drift
+
 ## v0.61.1
 
 - chore: record the bench reports from the v0.60.0 and v0.61.0 post-change runs — the v0.60.0 baseline run (recall 0.127), the earlier v0.60.0 attempts, the 429-damaged run, and the v0.61.0 run plus its repeat (0.110 and 0.076 on the 22-PR intersection)

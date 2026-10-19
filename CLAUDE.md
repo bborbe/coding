@@ -81,6 +81,7 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `node-service-guide.md` | `node-quality-assistant` |
 | `node-makefile-commands.md` | `node-quality-assistant` |
 | `self-containment-guide.md` | `self-containment-assistant` |
+| `maintainability-review-guide.md` | `maintainability-assistant` |
 
 Reference-only docs (patterns, setup guides) don't need agents.
 

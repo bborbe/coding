@@ -86,6 +86,8 @@
 - [Selector Mode Guide](docs/selector-mode-guide.md): In-session classify + adjudicate procedure for `--selector` mode (single source of truth; commands carry thin pointers)
 - [Self-Containment Guide](docs/self-containment-guide.md): Keep an agent-authored diff free of leaked planning context — machine-local paths, planning-only identifiers, revision meta, steering echoes
 - [self-containment-assistant](agents/self-containment-assistant.md): Adjudicates the self-containment rule family over a diff's changed files; owns the steering-echo judgment rule and grades the script tier
+- [Maintainability Review Guide](docs/maintainability-review-guide.md): Language-agnostic maintainability smells for changed files outside the language rule families — comments restating code, dead code, bandaids, speculative abstraction, naming/size drift
+- [maintainability-assistant](agents/maintainability-assistant.md): Adjudicates the maintainability rule family over a diff's changed non-owned files and assigns severity
 - [selector-adjudicator](agents/selector-adjudicator.md): Read-only fresh-context adjudicator for selector-mode reviews; judges the applicable rules over the diff in a context that never saw the authoring conversation
 
 ## Frontend

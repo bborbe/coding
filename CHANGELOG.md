@@ -11,6 +11,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## Unreleased
 - feat: add language-agnostic maintainability rules for files outside Go/Python/Node — comments restating code, dead code, bandaids, speculative abstraction / over-configuration, and naming/size drift
 
+## v0.61.1
+
+- chore: record the bench reports from the v0.60.0 and v0.61.0 post-change runs — the v0.60.0 baseline run (recall 0.127), the earlier v0.60.0 attempts, the 429-damaged run, and the v0.61.0 run plus its repeat (0.110 and 0.076 on the 22-PR intersection)
+
 ## v0.61.0
 
 - feat: `/coding:pr-review` reports end with a `#### Review Coverage` block — per-tier (deterministic / judgment / security) ran / failed / skipped status, finding count and reason, the full 40-character reviewed commit SHA, and a `Result:` line that reads not-clean when a required tier could not complete

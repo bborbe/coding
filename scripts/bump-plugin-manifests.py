@@ -210,51 +210,51 @@ class ScopeTracker:
     """
 
     def __init__(self):
-        self.depth = 0
-        self.in_metadata = False
-        self.in_plugin = False
-        self.in_plugins_array = False
+        self._depth = 0
+        self._in_metadata = False
+        self._in_plugin = False
+        self._in_plugins_array = False
 
     def update(self, line, trimmed):
-        old_depth = self.depth
+        old_depth = self._depth
 
         # Handle closing at old_depth BEFORE we update depth.
         if old_depth == 2 and is_close_brace(line):
-            self.in_metadata = False
-            self.in_plugin = False
+            self._in_metadata = False
+            self._in_plugin = False
 
         # "plugins": [ opens the array when we are already inside the root object.
         if old_depth >= 1 and PLUGINS_ARRAY_LINE_RE.match(trimmed):
-            self.in_plugins_array = True
+            self._in_plugins_array = True
 
         depth_delta = count_open(line) - count_close(line)
-        self.depth = old_depth + depth_delta
+        self._depth = old_depth + depth_delta
 
         if depth_delta > 0 and old_depth == 1 and OPEN_SCOPE_KEY_RE.match(trimmed):
             if extract_scope_key(trimmed) == "metadata":
-                self.in_metadata = True
-                self.in_plugin = False
-                self.in_plugins_array = False
+                self._in_metadata = True
+                self._in_plugin = False
+                self._in_plugins_array = False
 
-        if self.in_plugins_array and trimmed.startswith("{"):
+        if self._in_plugins_array and trimmed.startswith("{"):
             if old_depth in (2, 1, 0):
-                self.in_plugin = True
-                self.in_metadata = False
+                self._in_plugin = True
+                self._in_metadata = False
 
-        if old_depth == 2 and is_close_bracket(line) and self.in_plugins_array:
-            self.in_plugins_array = False
-            self.in_plugin = False
+        if old_depth == 2 and is_close_bracket(line) and self._in_plugins_array:
+            self._in_plugins_array = False
+            self._in_plugin = False
 
-        if self.depth == 0:
-            self.in_metadata = False
-            self.in_plugin = False
-            self.in_plugins_array = False
+        if self._depth == 0:
+            self._in_metadata = False
+            self._in_plugin = False
+            self._in_plugins_array = False
 
     def in_version_scope(self):
-        return self.in_metadata or self.in_plugin
+        return self._in_metadata or self._in_plugin
 
     def scope_label(self):
-        return "metadata.version" if self.in_metadata else "plugins[].version"
+        return "metadata.version" if self._in_metadata else "plugins[].version"
 
 
 def extract_scope_key(trimmed):

@@ -57,6 +57,44 @@ the corresponding user record or 401.
 - **NEVER commit secrets**, API keys, credentials, or `.env` files
 - **NEVER auto-approve or self-merge** a PR you created
 
+### RULE git-workflow/observed-output-for-generated-artifacts (MUST)
+
+**Owner**: agent-auditor
+**Applies when**: a PR changes how an artifact is generated or rendered — a built page, a stamped version, a release note, or a rendered table — and its body does not carry that artifact's observed output.
+**Enforcement**: judgment — the reviewer fails a PR whose body carries no observed output for the artifact class it changes.
+**Trigger**: @commits
+**Why**: A described mechanism is a claim about what the code does; an observed output is the thing a reader can check, and the two diverge exactly when the output was never read. `bborbe/sudoku#2` shipped a footer reading `v0.0.0` because the mechanism was described correctly and the rendered value was never fetched.
+
+A change that generates or renders an artifact carries one observed output in the PR body rather than a description of the mechanism. What counts as the observed output, per class:
+
+- built page — the rendered footer/title text fetched from the build output (`curl`/`grep` of the page, or a screenshot)
+- stamped version — the version string read back from the built artifact
+- release note — the rendered note text
+- rendered table — the pasted rows
+
+#### Bad
+
+```
+## Summary
+- Stamps the footer version from the latest git tag in the Pages build.
+
+## Test plan
+- [ ] make test passes
+```
+
+#### Good
+
+```
+## Summary
+- Stamps the footer version from the latest git tag in the Pages build.
+
+## Observed output
+- Footer text fetched from the built page: `v0.1.0 · 14963df` (was `v0.0.0`).
+
+## Test plan
+- [ ] make test passes
+```
+
 ## Dark Factory Projects
 
 If `/workspace` contains `prompts/` directory (dark-factory project):
@@ -120,6 +158,9 @@ gh pr create --title "short title" --body "$(cat <<'EOF'
 ## Summary
 - What changed
 - Why it was needed
+
+## Observed output
+- <the rendered page, stamped version, release note, or pasted rows this change produces; omit when none>
 
 ## Test plan
 - [ ] make test passes

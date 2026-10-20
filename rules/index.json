@@ -217,6 +217,19 @@
     "owner": "agent-auditor"
   },
   {
+    "anchor": "git-workflow/observed-output-for-generated-artifacts",
+    "applies_when": "a PR changes how an artifact is generated or rendered — a built page, a stamped version, a release note, or a rendered table — and its body does not carry that artifact's observed output.",
+    "doc_path": "docs/git-workflow.md",
+    "enforcement": "judgment — the reviewer fails a PR whose body carries no observed output for the artifact class it changes.",
+    "enforcement_type": "judgment",
+    "id": "git-workflow/observed-output-for-generated-artifacts",
+    "level": "MUST",
+    "owner": "agent-auditor",
+    "trigger": [
+      "@commits"
+    ]
+  },
+  {
     "anchor": "go-architecture/business-logic-not-in-main",
     "applies_when": "`main.go` (production code only — `main_test.go` is exempt) or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.",
     "doc_path": "docs/go-architecture-patterns.md",

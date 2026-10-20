@@ -95,6 +95,36 @@ A change that generates or renders an artifact carries one observed output in th
 - [ ] make test passes
 ```
 
+### RULE git-workflow/pr-scope-statement-enumerates-surfaces (SHOULD)
+
+**Owner**: agent-auditor
+**Applies when**: a PR's scope statement (Summary / "What" / "How") does not enumerate the surfaces the change touches — files, callers, consumers, configs, platforms — or states its scope in a count or category form ("the last five readers", "all three values") instead of naming the surfaces individually.
+**Enforcement**: judgment — the reviewer matches the scope statement against the ERE below and flags the matched phrase, asking for the surfaces to be named instead: `(last|first|next|remaining|only|all|both|exactly) (two|three|four|five|six|seven|eight|nine|ten|[0-9]+)|into (two|three|four)|only (the )?[a-z]+ (half|branch|part|side|path|arm|caller|reader)|remaining (readers|consumers|callers|surfaces|files|accessors|sites)`
+**Trigger**: @commits
+**Why**: On the 2026-10-19 rework sample the largest true-rework cause is wrong-spec — 5 of 6 true-rework rows — and every one is a scope statement that was believed rather than enumerated. bborbe/claude-supervisor#310 claimed to migrate "the last five scripts/ readers" and left the server half untouched; bborbe/agent-sentry-issue-analyzer#118 made a Jira requirement fleet-wide when one analyzer needed it. A statement that names its surfaces turns each of those into a visible gap at review time instead of a second PR.
+
+The count or category form is the tell, not the defect: "the last five readers" reads as complete while leaving the sixth unmentioned, and "the client" reads as one call site while the controller's half stays unwritten. Naming the surfaces makes the omission visible to a reader who does not already know the codebase.
+
+#### Bad
+
+```
+## What
+
+Migrates the last five readers off the file ledger onto the new store.
+```
+
+#### Good
+
+```
+## What
+
+Migrates these five readers off the file ledger onto `Store`:
+`ListUsers`, `GetOrder`, `ListProducts`, `GetCustomer`, `ListInvoices`.
+
+Not migrated: `OrderHandler` (server-side) still reads the file —
+tracked in #123.
+```
+
 ## Dark Factory Projects
 
 If `/workspace` contains `prompts/` directory (dark-factory project):

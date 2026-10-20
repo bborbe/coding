@@ -230,6 +230,19 @@
     ]
   },
   {
+    "anchor": "git-workflow/pr-scope-statement-enumerates-surfaces",
+    "applies_when": "a PR's scope statement (Summary / \"What\" / \"How\") does not enumerate the surfaces the change touches — files, callers, consumers, configs, platforms — or states its scope in a count or category form (\"the last five readers\", \"all three values\") instead of naming the surfaces individually.",
+    "doc_path": "docs/git-workflow.md",
+    "enforcement": "judgment — the reviewer matches the scope statement against the ERE below and flags the matched phrase, asking for the surfaces to be named instead: `(last|first|next|remaining|only|all|both|exactly) (two|three|four|five|six|seven|eight|nine|ten|[0-9]+)|into (two|three|four)|only (the )?[a-z]+ (half|branch|part|side|path|arm|caller|reader)|remaining (readers|consumers|callers|surfaces|files|accessors|sites)`",
+    "enforcement_type": "judgment",
+    "id": "git-workflow/pr-scope-statement-enumerates-surfaces",
+    "level": "SHOULD",
+    "owner": "agent-auditor",
+    "trigger": [
+      "@commits"
+    ]
+  },
+  {
     "anchor": "go-architecture/business-logic-not-in-main",
     "applies_when": "`main.go` (production code only — `main_test.go` is exempt) or `application.Run` contains domain operations (validation, business rules, data transformation, decision logic) instead of delegating to a service in `pkg/`.",
     "doc_path": "docs/go-architecture-patterns.md",

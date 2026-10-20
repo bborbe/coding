@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: `/coding:github-release` bumps `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` in the release commit and gates the push on `make check-versions`
+
 ## v0.63.1
 
 - docs: add pr-scope-statement-enumerates-surfaces rule to git-workflow — scope statements name the surfaces a change touches instead of a count or category form

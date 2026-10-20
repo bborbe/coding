@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-changelog-fold check-json check-index check-coverage check-acceptance check-rule-tests bench-test
+precommit: check-links check-changelog-fold check-json check-index check-coverage check-acceptance check-rule-tests bench-test check-manifests
 
 .PHONY: bench
 bench:
@@ -42,6 +42,11 @@ check-json:
 .PHONY: check-versions
 check-versions:
 	@bash scripts/check-versions.sh
+
+.PHONY: check-manifests
+check-manifests:
+	@echo "Testing bump-plugin-manifests.py..."
+	@python3 scripts/test_bump_plugin_manifests.py 2>&1
 
 .PHONY: build-index
 build-index:

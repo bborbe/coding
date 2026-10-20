@@ -1,5 +1,5 @@
 ---
-description: Release a git repo — cwd, a directory path, or `owner/repo` / GitHub URL (clone to tmp). Classify bump from `## Unreleased`, rewrite header, commit, tag, push. PR + auto-merge fallback for branch-protected repos.
+description: Release a git repo — cwd, a directory path, or `owner/repo` / GitHub URL (clone to tmp). Classify bump from `## Unreleased`, rewrite header, bump Claude Code plugin manifests, gate on `make check-versions`, commit, tag, push. PR + auto-merge fallback for branch-protected repos.
 argument-hint: "[target] [--dry-run]"
 allowed-tools:
   - Bash(git clone:*)
@@ -28,6 +28,8 @@ allowed-tools:
   - Bash(gh pr view:*)
   - Bash(gh pr merge:*)
   - Bash(gh api:*)
+  - Bash(make check-versions:*)
+  - Bash(python3:*)
   - Read
   - Edit
   - AskUserQuestion
@@ -74,6 +76,8 @@ Examples:
 ```bash
 # Helpers used throughout the workflow:
 die() { echo "ERROR: $*" >&2; exit 1; }
+# The manifest-bump helper ships with this plugin. Resolved once so steps 1b and 8 agree.
+RELEASE_HELPER="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/marketplaces/coding}/scripts/bump-plugin-manifests.py"
 default_branch() {
   local b
   b=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
@@ -159,6 +163,37 @@ Fail-fast errors:
 - No `CHANGELOG.md` → `no CHANGELOG.md in repo root`
 
 For non-cloned targets: `git fetch && git pull --ff-only` to sync with remote. Abort on non-ff (`local diverged from origin; rebase first`). For cloned targets: clone is already at remote HEAD, skip.
+
+### 1b. Repo release contract
+
+What else this repo's release must touch beyond `CHANGELOG.md`. Read-only — this step writes nothing, so `--dry-run` stays a pure read.
+
+```bash
+# Claude Code plugin manifests at the repo root, one path per line (empty on a non-plugin repo).
+MANIFESTS=$(python3 "$RELEASE_HELPER" --paths) || die "manifest detection failed"
+
+# The repo's own version-alignment gate, when it has one.
+if grep -qE '^check-versions:' Makefile 2>/dev/null; then CHECK_VERSIONS=1; else CHECK_VERSIONS=0; fi
+
+# The repo's own release doc, when it has one. The version-alignment heading is
+# read out of the file and quoted verbatim in the plan — never hardcoded, since
+# every repo words its own heading.
+RELEASING_DOC=$(ls docs/releasing*.md 2>/dev/null | head -1)
+VERSION_SECTION=""
+if [ -n "$RELEASING_DOC" ]; then
+  VERSION_SECTION=$(grep -m1 -E '^#{1,3} .*[Vv]ersion [Aa]lignment' "$RELEASING_DOC" 2>/dev/null || true)
+fi
+```
+
+Carry three facts into the rest of the run:
+
+| Fact | Meaning | Effect |
+|---|---|---|
+| `MANIFESTS` | repo-relative manifest paths, one per line (empty when none) | steps 6, 8, 12 — a non-plugin repo takes the byte-identical pre-existing path |
+| `CHECK_VERSIONS` | Makefile has a `check-versions` target | step 8b |
+| `VERSION_SECTION` | the version-alignment heading as read from `docs/releasing*.md` | step 6 plan output |
+
+`MANIFESTS` holds one repo-relative path per line (`.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`); on a repo with neither it is empty and the release commit stays `CHANGELOG.md`-only. `python3 "$RELEASE_HELPER" --plan` renders the same detection as the human-facing plan line used in step 6.
 
 ### 2. CHANGELOG preconditions
 
@@ -252,11 +287,22 @@ Release plan for <owner>/<repo>:
   next:    v1.2.7  (patch)
   reason:  internal refactor + dep bumps, no API changes
   header:  ## v1.2.7
+  files:   CHANGELOG.md
+           .claude-plugin/plugin.json
+           .claude-plugin/marketplace.json
+  gate:    make check-versions (after the commit, before push)
+  doc:     docs/releasing-coding.md — "## 🚨 Version alignment — locked at release time only"
   bullets (3):
     - bump go-deps
     - tidy
     - factor out helpers
 ```
+
+The `files:`, `gate:` and `doc:` lines come from step 1b:
+
+- `files:` lists `CHANGELOG.md` plus every path in `MANIFESTS` (a non-plugin repo shows `CHANGELOG.md` alone).
+- `gate:` appears only when `CHECK_VERSIONS=1`.
+- `doc:` appears only when `VERSION_SECTION` is non-empty, and quotes the heading **as read from the file** — never a literal from this command. When `docs/releasing*.md` exists but carries no version-alignment heading, print `doc:     <path> — no version-alignment section found` instead, so the absence is visible rather than silent.
 
 If `--dry-run` → exit here. **No confirm, no writes.**
 
@@ -299,13 +345,44 @@ Otherwise (passthrough — agent returned empty `rewritten_unreleased`), header-
 awk -v n="$next" 'BEGIN{r=0} /^## Unreleased$/ && r==0 {print "## "n; r=1; next} {print}' CHANGELOG.md > CHANGELOG.md.new && mv CHANGELOG.md.new CHANGELOG.md
 ```
 
-Then commit:
+Then bump the manifests and commit everything the release owns:
 
 ```bash
+# Bump the detected manifests in the same commit. A no-op on a non-plugin repo,
+# and on a plugin repo whose manifests already carry the target version.
+if [ -n "$MANIFESTS" ]; then
+  python3 "$RELEASE_HELPER" --apply "${next#v}" || die "manifest bump failed"
+fi
+
 git add CHANGELOG.md
+while IFS= read -r manifest; do
+  if [ -n "$manifest" ]; then git add "$manifest"; fi
+done <<< "$MANIFESTS"
 git commit -m "release ${next}"
 COMMIT_SHA=$(git rev-parse HEAD)
 ```
+
+The helper is byte-preserving — it rewrites only the located version values, so the commit's diff is one line per version field. `${next#v}` strips the header's `v` prefix; manifest values never carry it. A manifest already holding the target version is reported `unchanged` and produces no diff; `git add` on it stages nothing, which is correct rather than an error.
+
+### 8b. Version-alignment gate
+
+Runs after the release commit and before any push. The repo's own `check-versions` compares the CHANGELOG's new top heading against the manifest versions, so a bump that missed a field fails here instead of shipping a tag that disagrees with its own manifests.
+
+```bash
+if [ "$CHECK_VERSIONS" = "1" ]; then
+  make check-versions || {
+    echo "ERROR: make check-versions failed — nothing pushed, no tag created." >&2
+    echo "The release commit is local and unpushed at ${COMMIT_SHA}." >&2
+    echo "Fix the reported mismatch, then discard the release commit and re-run:" >&2
+    echo "  git reset --hard HEAD~1" >&2
+    exit 1
+  }
+fi
+```
+
+No `check-versions` target → skip silently: the manifest bump from step 8 is the only alignment step such a repo has.
+
+`--dry-run` never reaches this step — it exits at step 6.
 
 ### 9. Try direct push
 
@@ -362,9 +439,13 @@ fi
 ✓ Released <owner>/<repo> v1.2.7 (patch)
   commit:  abc1234 release v1.2.7
   tag:     https://github.com/<owner>/<repo>/releases/tag/v1.2.7
+  files:   CHANGELOG.md, .claude-plugin/plugin.json, .claude-plugin/marketplace.json
+  gate:    make check-versions passed
   path:    direct-push | pr-merge
   pr:      <url>           # if pr-merge
 ```
+
+`files:` lists what the release commit actually touched; `gate:` is omitted when the repo has no `check-versions` target.
 
 ## Constraints
 
@@ -375,6 +456,10 @@ fi
 - **Dry-run safety** — zero git mutations, zero remote writes (read-only `gh api` GETs + `git clone` for URL targets are OK; cleanup still runs).
 - **Cleanup clones** — every exit path `rm -rf` the tmp clone dir under `/tmp/github-release/`. Don't leak `$(mktemp -d ...)`.
 - **Idempotency** — re-running after a successful release: tag collision check catches it; exit with `already released`.
+- **Manifests ride in the release commit** — never a separate follow-up commit. A manifest bumped after the tag ships is the exact failure this command exists to prevent.
+- **`check-versions` gates the push** — when the repo defines it, a non-zero exit aborts before any push and before any tag. Nothing is pushed, nothing is tagged.
+- **A no-op manifest bump is not an error** — a manifest already at the target version is reported `unchanged` and produces no diff.
+- **The alignment heading is read, never hardcoded** — `VERSION_SECTION` comes out of the repo's own `docs/releasing*.md`, so two repos with different headings each print their own.
 - **No `--force`, no `--no-verify`** — respect hooks and branch protection. PR fallback handles protection cleanly.
 - **No Claude attribution** in commit message or PR body.
 - **No vault interaction** — this command is a pure local tool; the task-file machinery lives in `/github-release-task-agent`.

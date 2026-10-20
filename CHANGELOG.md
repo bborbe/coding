@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: add pr-scope-statement-enumerates-surfaces rule to git-workflow — scope statements name the surfaces a change touches instead of a count or category form
+
 ## v0.63.0
 
 - feat: add observed-output-for-generated-artifacts rule to git-workflow — generated-artifact PRs carry one observed output instead of a mechanism description

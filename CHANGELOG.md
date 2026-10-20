@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.63.0
 
 - feat: add observed-output-for-generated-artifacts rule to git-workflow — generated-artifact PRs carry one observed output instead of a mechanism description
 

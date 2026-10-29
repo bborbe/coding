@@ -392,6 +392,7 @@ git push origin "$(default_branch)"   # branch name, NOT HEAD:<branch> — the w
 
 - Success → step 10 (tag + push)
 - Branch-protection error (`GH006`, `Required status check`, `required pull request reviews`) → step 11 (PR fallback)
+- **PreToolUse hook denial** (`ask-git-push-gate.sh`, *"the gate evaluates the command, not the conversation"*) → **step 11 (PR fallback)**, never a raw operator push. A handover push bypasses the protection the hook was enforcing, and prints `Bypassed rule violations` only *after* it has already landed on the branch. Measured 2026-10-29: a hook-denied `git push origin master` was handed to the operator as a `you run:` line, and master took a commit with no PR and none of its three required checks.
 - Other error → fail, leave commit on local branch for operator to inspect
 
 ### 10. Tag + push tag

@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.65.1
 
 - docs: the reusable workflow's documented caller snippet now includes the `edited` trigger. Retargeting a pull request's base branch fires only that event, so a consumer copying the old snippet kept a green result computed against the old base and never prechecked the merge into the guarded branch
 

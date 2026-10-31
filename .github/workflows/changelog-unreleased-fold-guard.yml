@@ -34,6 +34,11 @@ on:
 jobs:
   changelog-unreleased-fold:
     runs-on: ubuntu-latest
+    # The job only reads two repositories and runs a shell script; nothing here
+    # writes. Pinning the token keeps a job that checks out untrusted PR-head
+    # content from carrying a wider default scope.
+    permissions:
+      contents: read
     steps:
       - name: Check out the PR head
         uses: actions/checkout@v4

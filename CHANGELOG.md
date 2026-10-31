@@ -10,7 +10,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- feat: `scripts/check-changelog-unreleased-fold.sh` + reusable `.github/workflows/changelog-unreleased-fold-guard.yml` — the PR-time half of the changelog fold guard. It computes the merge with `git merge-tree --write-tree` and fails the pull request when a new `## Unreleased` bullet would land under an already-released heading, i.e. before the fold reaches master and mails the operator. Scoped to that shape so an ordinary PR never pays for it
+- feat: `scripts/check-changelog-unreleased-fold.sh` + reusable `.github/workflows/changelog-unreleased-fold-guard.yml` — the PR-time half of the changelog fold guard. It computes the merge with `git merge-tree --write-tree` and fails the pull request when a new `## Unreleased` bullet would land under an already-released heading, i.e. before the fold reaches master and mails the operator. Scoped to that shape so an ordinary PR never pays for it. `scripts/tests/test-changelog-unreleased-fold.sh` covers the four verdict branches in fixture repos and is wired into `precommit`; both reusable workflows now pin `permissions: contents: read`
 
 ## v0.64.1
 

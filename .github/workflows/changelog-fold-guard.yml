@@ -31,6 +31,10 @@ on:
 jobs:
   changelog-fold:
     runs-on: ubuntu-latest
+    # Read-only, like its PR-time sibling: the job checks out two repositories
+    # and runs a shell script, and never writes.
+    permissions:
+      contents: read
     steps:
       - name: Check out the repo under test
         uses: actions/checkout@v4

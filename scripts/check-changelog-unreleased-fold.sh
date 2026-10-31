@@ -109,8 +109,17 @@ unreleased_bullets() {
 }
 
 # Which section does $1 sit under, in the changelog supplied on stdin?
+#
+# The bullet reaches awk through ENVIRON, never through `-v`. `-v` processes
+# escape sequences in its value, so a bullet containing a literal `\n` — a
+# changelog entry quoting `tr '\n' '\0'` is a real example — arrived as a string
+# holding a newline, compared unequal to every line, and the guard reported a
+# false MISSING that failed the pull request. Measured 2026-10-31 on
+# bborbe/coding#184's review; `scripts/tests/test-changelog-unreleased-fold.sh`
+# case 4 holds it.
 sits_under() {
-	awk -v want="$1" '
+	WANT="$1" awk '
+		BEGIN { want = ENVIRON["WANT"] }
 		/^## / { sec = $0 }
 		$0 == want { print sec; exit }
 	'

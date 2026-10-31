@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-changelog-fold check-json check-index check-coverage check-acceptance check-rule-tests bench-test check-manifests
+precommit: check-links check-changelog-fold test-changelog-unreleased-fold check-json check-index check-coverage check-acceptance check-rule-tests bench-test check-manifests
 
 .PHONY: bench
 bench:
@@ -32,13 +32,21 @@ check-links:
 check-changelog-fold:
 	@bash scripts/check-changelog-fold.sh
 
-# The PR-time half of the pair. Deliberately NOT in `precommit`: it compares the
-# branch against a base ref (default origin/master) and fails when that ref is
-# unresolvable, which is the default state of a shallow CI checkout — so it runs
-# from the reusable workflow, and here only on demand.
+# The PR-time half of the pair. The guard itself is deliberately NOT in
+# `precommit`: it compares the branch against a base ref (default origin/master)
+# and fails when that ref is unresolvable, which is the default state of a
+# shallow CI checkout — so it runs from the reusable workflow, and here only on
+# demand.
 .PHONY: check-changelog-unreleased-fold
 check-changelog-unreleased-fold:
 	@bash scripts/check-changelog-unreleased-fold.sh
+
+# Its FIXTURE tests, by contrast, belong in `precommit`: each case builds its own
+# throwaway repository, so they need no history, tags or network, and they cover
+# the four verdict branches plus the awk-escape regression.
+.PHONY: test-changelog-unreleased-fold
+test-changelog-unreleased-fold:
+	@bash scripts/tests/test-changelog-unreleased-fold.sh
 
 .PHONY: check-json
 check-json:

@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- feat: `scripts/check-changelog-unreleased-fold.sh` + reusable `.github/workflows/changelog-unreleased-fold-guard.yml` — the PR-time half of the changelog fold guard. It computes the merge with `git merge-tree --write-tree` and fails the pull request when a new `## Unreleased` bullet would land under an already-released heading, i.e. before the fold reaches master and mails the operator. Scoped to that shape so an ordinary PR never pays for it. `scripts/tests/test-changelog-unreleased-fold.sh` covers the four verdict branches in fixture repos and is wired into `precommit`; both reusable workflows now pin `permissions: contents: read`
+
 ## v0.64.1
 
 - docs: `github-release` step 9 gains a PreToolUse hook-denial arm — a denied push routes to the PR fallback, never to a handover push, because a handover bypasses the protection the hook was enforcing and reports `Bypassed rule violations` only after it has landed

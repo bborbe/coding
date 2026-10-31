@@ -32,6 +32,14 @@ check-links:
 check-changelog-fold:
 	@bash scripts/check-changelog-fold.sh
 
+# The PR-time half of the pair. Deliberately NOT in `precommit`: it compares the
+# branch against a base ref (default origin/master) and fails when that ref is
+# unresolvable, which is the default state of a shallow CI checkout — so it runs
+# from the reusable workflow, and here only on demand.
+.PHONY: check-changelog-unreleased-fold
+check-changelog-unreleased-fold:
+	@bash scripts/check-changelog-unreleased-fold.sh
+
 .PHONY: check-json
 check-json:
 	@echo "Validating plugin JSON..."

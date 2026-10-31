@@ -1,0 +1,65 @@
+name: Changelog Unreleased Fold Precheck
+
+# Reusable workflow. Call it from the CONSUMING repo's own `pull_request` job:
+#
+#   # .github/workflows/changelog-unreleased-fold.yml  — in the consuming repo
+#   name: Changelog Unreleased Fold Precheck
+#   on:
+#     pull_request:
+#       types: [opened, synchronize, reopened]
+#   jobs:
+#     changelog-unreleased-fold:
+#       uses: bborbe/coding/.github/workflows/changelog-unreleased-fold-guard.yml@master
+#
+# WHY THE TRIGGER LIVES IN THE CALLER, AND WHY IT IS `pull_request`:
+# this is the PR-time half of the pair. The post-merge half
+# (changelog-fold-guard.yml) runs on a push to master and reports the fold after
+# it has already landed. This one computes the merge before it happens.
+#
+# WHY THE CHECKOUT IS THE PR HEAD AND NOT THE DEFAULT MERGE REF:
+# actions/checkout defaults to `github.sha`, which on a pull_request event is the
+# forge's own merge commit. The guard must see the branch as it stands and
+# compute the merge itself — checking out the pre-merged ref would hand it the
+# result it is supposed to predict, and would also make the two sides of
+# `git merge-tree` the same commit.
+#
+# fetch-depth: 0 because `git merge-tree` needs the common ancestor, and because
+# the base branch is fetched explicitly below.
+#
+# The guard *tool* ships from bborbe/coding; this file is only the wiring.
+
+on:
+  workflow_call:
+
+jobs:
+  changelog-unreleased-fold:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check out the guard
+        uses: actions/checkout@v4
+        with:
+          repository: bborbe/coding
+          path: .changelog-unreleased-fold-guard
+
+      # `github.base_ref` is only populated on pull_request events, which is the
+      # only place this workflow is meant to run. A base ref that cannot be
+      # fetched leaves the guard with an unresolvable question, which it fails
+      # rather than passes.
+      - name: Fetch the base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+
+      - name: Run the unreleased-fold precheck
+        env:
+          # The script roots itself at its own repo by default; here the
+          # CHANGELOG under test belongs to the calling repo, not to coding.
+          CHANGELOG_ROOT: ${{ github.workspace }}
+          CHANGELOG_BASE_REF: origin/${{ github.base_ref }}
+        run: .changelog-unreleased-fold-guard/scripts/check-changelog-unreleased-fold.sh

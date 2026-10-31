@@ -161,6 +161,7 @@ fi
 # ("Auto-merging …", "CONFLICT …") on stderr, so a combined `2>&1` would let a
 # stray stderr line become `head -1` and be mistaken for the tree.
 merge_err=$(mktemp)
+trap 'rm -f "$merge_err"' EXIT
 merge_out=$(git merge-tree --write-tree "$BASE_REF" "$HEAD_REF" 2>"$merge_err") && merge_rc=0 || merge_rc=$?
 merged_tree=$(head -1 <<<"$merge_out")
 if [ "$merge_rc" -ne 0 ]; then

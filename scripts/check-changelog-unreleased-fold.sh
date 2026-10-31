@@ -155,14 +155,26 @@ if [ -z "$new_bullets" ]; then
 fi
 
 # Compute the merge the way the forge would, without touching any working tree.
-merge_out=$(git merge-tree --write-tree "$BASE_REF" "$HEAD_REF" 2>&1) && merge_rc=0 || merge_rc=$?
+#
+# stdout and stderr are captured SEPARATELY, and the tree is read from stdout
+# alone: `merge-tree` writes the tree OID first on stdout but its progress lines
+# ("Auto-merging …", "CONFLICT …") on stderr, so a combined `2>&1` would let a
+# stray stderr line become `head -1` and be mistaken for the tree.
+merge_err=$(mktemp)
+merge_out=$(git merge-tree --write-tree "$BASE_REF" "$HEAD_REF" 2>"$merge_err") && merge_rc=0 || merge_rc=$?
 merged_tree=$(head -1 <<<"$merge_out")
 if [ "$merge_rc" -ne 0 ]; then
 	printf 'FAIL: merging %s into %s conflicts, so the fold cannot be predicted.\n' "$BASE_REF" "$HEAD_REF" >&2
 	printf '      Merge %s into the branch first, then re-run.\n\n' "$BASE_REF" >&2
+	# `merge-tree` writes the conflicted-stage entries and its progress lines to
+	# stdout, below the tree OID; stderr is normally empty. Print both so the
+	# reader sees which path conflicted.
+	sed -n '1,20p' "$merge_err" | sed 's/^/      /' >&2
 	printf '%s\n' "$merge_out" | sed -n '2,20p' | sed 's/^/      /' >&2
+	rm -f "$merge_err"
 	exit 1
 fi
+rm -f "$merge_err"
 git cat-file -e "${merged_tree}^{tree}" 2>/dev/null ||
 	die "'git merge-tree' returned no usable tree (got '$merged_tree') — the fold cannot be predicted"
 
@@ -219,4 +231,4 @@ if [ "$folded" -gt 0 ] || [ "$missing" -gt 0 ]; then
 	exit 1
 fi
 
-echo "  changelog-unreleased-fold ok: $(printf '%s\n' "$new_bullets" | grep -c . || true) new bullet(s) land under ## Unreleased after merging $BASE_REF"
+echo "  changelog-unreleased-fold ok: $(printf '%s\n' "$new_bullets" | grep -c .) new bullet(s) land under ## Unreleased after merging $BASE_REF"

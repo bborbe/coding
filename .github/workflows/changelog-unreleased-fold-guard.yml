@@ -6,7 +6,12 @@ name: Changelog Unreleased Fold Precheck
 #   name: Changelog Unreleased Fold Precheck
 #   on:
 #     pull_request:
-#       types: [opened, synchronize, reopened]
+#       # `edited` covers a retargeted base branch, which fires no other event:
+#       # without it a PR retargeted to the guarded branch keeps a green check
+#       # computed against its old base, and the merge that can fold is never
+#       # prechecked. The guard short-circuits on the head heading first, so the
+#       # title/body edits that also fire it cost one grep.
+#       types: [opened, synchronize, reopened, edited]
 #   jobs:
 #     changelog-unreleased-fold:
 #       uses: bborbe/coding/.github/workflows/changelog-unreleased-fold-guard.yml@master

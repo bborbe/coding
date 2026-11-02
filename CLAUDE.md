@@ -50,6 +50,7 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `go-mod-replace-guide.md` | `go-quality-assistant` |
 | `go-glog-guide.md` | `go-quality-assistant` |
 | `go-concurrency-patterns.md` | `go-architecture-assistant` |
+| `go-efficient-service-guide.md` | `go-quality-assistant` |
 | `go-http-service-guide.md` | `go-http-handler-assistant` |
 | `go-cqrs.md` | `go-architecture-assistant` |
 | `go-cli-guide.md` | `go-quality-assistant` |

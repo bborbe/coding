@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.65.3
 
 - docs: add `docs/go-efficient-service-guide.md` — writing CPU- and memory-efficient Go services from the start: idle cost as a budget, push over poll, timer/ticker hygiene, `GOMEMLIMIT`/`GOGC` semantics, bounded caches and map rebuilds, streaming, batching, Kubernetes sizing and workload choice, efficiency budgets and alerts, measurement discipline, a 24-row antipattern table and a PR acceptance rule. Indexed in `README.md` and `llms.txt`; reference-only (no `### RULE` blocks, no owning agent yet)
 

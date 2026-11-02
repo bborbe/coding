@@ -70,8 +70,8 @@ for {
         handle(m)
     case <-t.C:
         flush()
+        t.Reset(30 * time.Second) // flush every 30s regardless of traffic
     }
-    t.Reset(30 * time.Second) // Go 1.23+: no drain needed
 }
 ```
 

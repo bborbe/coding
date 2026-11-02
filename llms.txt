@@ -14,6 +14,7 @@
 - [CQRS](docs/go-cqrs.md): Command Query Responsibility Segregation
 - [Composition](docs/go-composition.md): Struct embedding and interface composition
 - [Concurrency](docs/go-concurrency-patterns.md): Goroutines, channels, sync primitives
+- [Efficient Service](docs/go-efficient-service-guide.md): CPU- and memory-efficient services from the start — idle cost, push over poll, timers, GOMEMLIMIT/GOGC, bounded caches, map shrinking, streaming, batching, K8s requests/limits and CronJob vs Deployment, efficiency budgets and alerts, benchmark discipline, antipattern table, PR acceptance rule
 - [State Machine](docs/go-state-machine-pattern.md): Phase-dispatched state machines for long-running, resumable, multi-process workflows
 - [Package Layout](docs/go-package-layout-guide.md): Flat `pkg/` default; subpackage split triggers (independent reuse, versioning, cycle break, navigation friction, build-tag isolation)
 - [Design Patterns](docs/go-patterns.md): Common Go design patterns

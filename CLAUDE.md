@@ -49,7 +49,8 @@ Each enforceable guide in `docs/` should have a matching agent in `agents/`. The
 | `python-makefile-commands.md` | `python-quality-assistant` |
 | `go-mod-replace-guide.md` | `go-quality-assistant` |
 | `go-glog-guide.md` | `go-quality-assistant` |
-| `go-concurrency-patterns.md` | `go-architecture-assistant` || `go-http-service-guide.md` | `go-http-handler-assistant` |
+| `go-concurrency-patterns.md` | `go-architecture-assistant` |
+| `go-http-service-guide.md` | `go-http-handler-assistant` |
 | `go-cqrs.md` | `go-architecture-assistant` |
 | `go-cli-guide.md` | `go-quality-assistant` |
 | `go-enum-type-pattern.md` | `go-architecture-assistant` |

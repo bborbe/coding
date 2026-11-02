@@ -24,6 +24,15 @@ name: Changelog Unreleased Fold Precheck
 # (changelog-fold-guard.yml) runs on a push to master and reports the fold after
 # it has already landed. This one computes the merge before it happens.
 #
+# WHY IT WARNS INSTEAD OF FAILING:
+# a blocking check must fail the run, and a failed run mails the operator. On a
+# repo with `autoRelease: true` the release is cut on every merge, so a branch
+# folds within minutes of going stale and the check fires on nearly every push —
+# measured 2026-11-02: 15 genuine folds, 15 failure mails in 29 h. The blocking
+# role moved to the consuming repo's `make precommit`, which runs the same script
+# before the push and costs nothing when it passes. This job keeps the prediction
+# visible on the PR as an annotation.
+#
 # WHY THE CHECKOUT IS THE PR HEAD AND NOT THE DEFAULT MERGE REF:
 # actions/checkout defaults to `github.sha`, which on a pull_request event is the
 # forge's own merge commit. The guard must see the branch as it stands and
@@ -69,10 +78,31 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
 
+      # A WARNING, NOT A FAILURE. A blocking check must fail, and a failed run
+      # mails the operator — measured 2026-11-02: 15 stale branches produced 15
+      # failure mails in 29 h, every one a genuine fold, because `autoRelease`
+      # cuts a release on every merge and a branch folds within minutes of going
+      # stale. The fold is caught before the push instead, by the consuming
+      # repo's `make precommit`; this job keeps it visible on the PR without
+      # producing a mail per push.
       - name: Run the unreleased-fold precheck
         env:
           # The script roots itself at its own repo by default; here the
           # CHANGELOG under test belongs to the calling repo, not to coding.
           CHANGELOG_ROOT: ${{ github.workspace }}
           CHANGELOG_BASE_REF: origin/${{ github.base_ref }}
-        run: .changelog-unreleased-fold-guard/scripts/check-changelog-unreleased-fold.sh
+        run: |
+          set +e
+          out=$(.changelog-unreleased-fold-guard/scripts/check-changelog-unreleased-fold.sh 2>&1)
+          rc=$?
+          set -e
+          printf '%s\n' "$out"
+          if [ "$rc" -ne 0 ]; then
+            # One line only: `::warning::` takes a single line, and the script's
+            # output is multi-line. `FAIL:` is the verdict line; fall back to a
+            # generic phrase so a non-verdict failure (an unfetchable base, a
+            # missing CHANGELOG) still surfaces rather than warning blankly.
+            detail=$(printf '%s\n' "$out" | grep -m1 '^FAIL:' || true)
+            [ -n "$detail" ] || detail='the precheck could not answer; see the step log'
+            printf '::warning file=CHANGELOG.md,title=Changelog fold predicted::%s\n' "$detail"
+          fi

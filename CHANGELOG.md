@@ -8,6 +8,9 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+- fix: **the PR-time fold precheck warns instead of failing the run.** A blocking check must fail, and a failed run mails the operator; on a repo with `autoRelease: true` the release is cut on every merge, so a branch folds within minutes of going stale and the check fired on nearly every push — measured 2026-11-02 on `bborbe/claude-supervisor`: 15 genuine folds and 15 failure mails in 29 h, every verdict correct. The blocking role moves to the consuming repo's `make precommit`, which runs the same script before the push and costs nothing when it passes. The step now captures the script's exit status, prints its full output, and emits one `::warning file=CHANGELOG.md` carrying the `FAIL:` line; a non-verdict failure (an unfetchable base, a missing CHANGELOG) warns with a generic phrase rather than warning blankly. The script, its tests and the verdict logic are unchanged — only the workflow step's exit status
+
 ## v0.65.1
 
 - docs: the reusable workflow's documented caller snippet now includes the `edited` trigger. Retargeting a pull request's base branch fires only that event, so a consumer copying the old snippet kept a green result computed against the old base and never prechecked the merge into the guarded branch

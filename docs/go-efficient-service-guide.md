@@ -23,7 +23,7 @@ defer t.Stop()
 for {
     select {
     case <-ctx.Done():
-        return ctx.Err()
+        return errors.Wrap(ctx, ctx.Err(), "poll cancelled")
     case <-t.C:
     }
     if changed, err := check(ctx); err == nil && changed {

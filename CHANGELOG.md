@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.65.4
 
 - docs: ADR template gains optional OKF provenance frontmatter (`type`, `sources`, `generated`, `verified`) with actor formats and footnote citation convention
 

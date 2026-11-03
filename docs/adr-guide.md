@@ -58,6 +58,19 @@ Create an ADR when:
 ## ADR Template
 
 ```markdown
+---
+type: Decision
+sources:
+  - id: [short-key]
+    resource: [URL or repo path the decision is based on]
+generated:
+  by: [human:<id> | <agent>/<version> | process:<id>]
+  at: 2024-11-27T10:00:00Z
+verified:
+  - by: [human:<id> | <agent>/<version> | process:<id>]
+    at: 2024-11-28T09:00:00Z
+---
+
 # ADR-NNNN: [Decision Title]
 
 **Status**: Proposed | Accepted | Deprecated | Superseded by ADR-XXXX
@@ -155,6 +168,42 @@ We will [decision in one clear sentence].
 - [Link to research or benchmarks]
 - [Link to discussion/meeting notes]
 ```
+
+## Provenance Frontmatter (Optional)
+
+The YAML frontmatter block is optional and follows the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format) spec. It records who wrote a decision, who confirmed it, and what it was derived from, in a form agents and scripts can read. ADRs without frontmatter stay valid; the body sections and Status rules are unchanged.
+
+| Field | Meaning |
+|-------|---------|
+| `type` | Always `Decision` for an ADR. The only field OKF requires once frontmatter is present. |
+| `sources` | List of what the decision is based on. Each entry needs `resource` (URL, repo path, or scope description); `id` is a stable key for footnote citations. |
+| `generated` | `by` = who wrote the ADR, `at` = when its content last meaningfully changed (ISO 8601 with offset). |
+| `verified` | List of `{by, at}` confirmations, kept separate from `generated` because author and reviewer usually differ. |
+
+**Actor formats** (used in `generated.by` and `verified[].by`):
+
+- `human:<id>` — a person, e.g. `human:jdoe`. Use it whenever a person wrote or confirmed the content.
+- `<agent>/<version>` — an AI agent or tool, e.g. `review-agent/1.4.0`
+- `process:<id>` — an automated process, e.g. `process:nightly-docs-check`
+
+Trust is derived by readers, not stored: no `verified` entry means unverified; only non-`human:` verifiers means machine-confirmed; any `human:` verifier means human-reviewed.
+
+**Citing sources in the body.** Reference a `sources[].id` with a markdown footnote whose label matches the id:
+
+```markdown
+---
+type: Decision
+sources:
+  - id: kafka-benchmark
+    resource: https://example.com/benchmarks/kafka-vs-rabbitmq
+---
+
+Kafka sustained 50,000 msg/sec in our load test.[^kafka-benchmark]
+
+[^kafka-benchmark]: See source `kafka-benchmark`.
+```
+
+**Relation to `**Date**:` and `**Status**:`.** `**Date**:` stays the date the decision was made; `generated.at` tracks the last content change and may be later. `**Status**:` stays the authoritative lifecycle. OKF's own `status` field (`draft | stable | deprecated`) is not used in ADRs, because it cannot express `Superseded by ADR-XXXX`.
 
 ## Complete Example
 

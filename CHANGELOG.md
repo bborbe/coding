@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: **the mechanical review runner no longer dies on large findings.** `scripts/ast-grep-runner.sh` and `scripts/rule-checks.sh` now assemble each finding from files (`--rawfile`) and the aggregate from a file (`--slurpfile`) instead of passing payloads as command-line arguments, which the kernel rejects at 128 KiB (`jq: Argument list too long`) and which silently dropped every script-tier finding on an ordinary large PR. `matched_text` is bounded to 8192 bytes and `message` to 1024 bytes, cut on a UTF-8 rune boundary, with an in-string `…[truncated, original <N> bytes]` marker so the consumer's fixed seven-field struct keeps it. Fixture tests cover a 131072-byte match, a message over 1024 bytes, a 200-finding aggregate over 128 KiB, and byte-identical output for small matches.
+
 ## v0.65.4
 
 - docs: ADR template gains optional OKF provenance frontmatter (`type`, `sources`, `generated`, `verified`) with actor formats and footnote citation convention

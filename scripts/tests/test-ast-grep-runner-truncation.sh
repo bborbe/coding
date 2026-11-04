@@ -14,17 +14,29 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 RUNNER="$REPO/scripts/ast-grep-runner.sh"
 HELPER="$REPO/scripts/lib/truncate-utf8.sh"
+# Pinned pre-fix revision for the golden comparison. A moving ref
+# (origin/master) inverts that comparison once the fix merges — origin/master
+# then IS the fixed script, so the copy would be compared against itself and
+# would fail to source the helper from a scratch tree. A tag stays pre-fix
+# forever; when it cannot be resolved the case is skipped, never failed.
+PREFIX_REF="v0.65.4"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 passed=0
 failed=0
+skipped=0
 
 ok() { printf 'ok   %s\n' "$1"; passed=$((passed + 1)); }
 no() {
 	printf 'FAIL %s\n' "$1"
 	printf '     %s\n' "$2"
 	failed=$((failed + 1))
+}
+skip() {
+	printf 'skip %s\n' "$1"
+	printf '     %s\n' "$2"
+	skipped=$((skipped + 1))
 }
 
 expect_rc() { # $1 name, $2 want, $3 got
@@ -62,7 +74,10 @@ bytes_of() { wc -c < "$1" | tr -d ' '; }
 
 # finding_by_rule <json-file> <rule-id> -> compact sorted finding, or empty
 finding_by_rule() {
-	jq -cS --arg rid "$2" '[.findings_by_owner[][] | select(.rule_id==$rid)][0]' "$1"
+	# `// empty` matters: `[...][0]` on a no-match array yields the literal
+	# `null`, which is a non-empty string in the shell and would make every
+	# "[ -n ... ]" presence check pass for the no-finding case.
+	jq -cS --arg rid "$2" '[.findings_by_owner[][] | select(.rule_id==$rid)][0] // empty' "$1"
 }
 
 # --- case A: a 131072-byte match is bounded, marked, and the run survives ---
@@ -106,11 +121,12 @@ mkdir -p "$TMP/ac4/pkg/order"
 printf 'package order\n\nfunc load() error {\n\treturn fmt.Errorf("boom")\n}\n' \
 	>"$TMP/ac4/pkg/order/small.go"
 
-if ! git -C "$REPO" rev-parse --verify origin/master >/dev/null 2>&1; then
-	no "small match: base ref resolvable" "origin/master is not resolvable in $REPO"
+if ! git -C "$REPO" rev-parse --verify "$PREFIX_REF^{commit}" >/dev/null 2>&1; then
+	skip "small match: pre-fix comparison" \
+		"pinned pre-fix ref $PREFIX_REF is not resolvable in $REPO (shallow clone? run: git fetch --tags)"
 else
 	mkdir -p "$TMP/prefix/scripts"
-	git -C "$REPO" show origin/master:scripts/ast-grep-runner.sh >"$TMP/prefix/scripts/ast-grep-runner.sh"
+	git -C "$REPO" show "$PREFIX_REF:scripts/ast-grep-runner.sh" >"$TMP/prefix/scripts/ast-grep-runner.sh"
 	ln -s "$REPO/rules" "$TMP/prefix/rules"
 
 	bash "$RUNNER" "$TMP/ac4" >"$TMP/ac4/fixed.json" 2>"$TMP/ac4/fixed.err"
@@ -259,5 +275,5 @@ ace_small=$(jq -r '[.findings_by_owner[][] | select(.rule_id=="go-errors/no-fmt-
 expect_eq "two matches: the oversized one is marked" 1 "$ace_big"
 expect_eq "two matches: the small one is untouched" 1 "$ace_small"
 
-printf '\n%d passed, %d failed\n' "$passed" "$failed"
+printf '\n%d passed, %d failed, %d skipped\n' "$passed" "$failed" "$skipped"
 [ "$failed" -eq 0 ]

@@ -15,6 +15,12 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 RULES="$REPO/scripts/rule-checks.sh"
 RUNNER="$REPO/scripts/ast-grep-runner.sh"
+# Pinned pre-fix revision for the baseline. A moving ref (origin/master)
+# inverts this baseline once the fix merges — origin/master then IS the fixed
+# script, so "the pre-fix script exits 126" becomes "the fixed script exits
+# 126", which it does not, and master CI goes red. A tag stays pre-fix
+# forever; when it cannot be resolved the baseline is skipped, never failed.
+PREFIX_REF="v0.65.4"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
@@ -104,11 +110,12 @@ fi
 if [ "$(uname -s)" != "Linux" ]; then
 	skip "pre-fix baseline" \
 		"MAX_ARG_STRLEN is a Linux constant; $(uname -s) allows larger arguments, so the pre-fix script cannot fail on this host"
-elif ! git -C "$REPO" rev-parse --verify origin/master >/dev/null 2>&1; then
-	no "pre-fix baseline: base ref resolvable" "origin/master is not resolvable in $REPO"
+elif ! git -C "$REPO" rev-parse --verify "$PREFIX_REF^{commit}" >/dev/null 2>&1; then
+	skip "pre-fix baseline" \
+		"pinned pre-fix ref $PREFIX_REF is not resolvable in $REPO (shallow clone? run: git fetch --tags)"
 else
 	mkdir -p "$TMP/prefix"
-	git -C "$REPO" show origin/master:scripts/rule-checks.sh >"$TMP/prefix/rule-checks.sh"
+	git -C "$REPO" show "$PREFIX_REF:scripts/rule-checks.sh" >"$TMP/prefix/rule-checks.sh"
 
 	bash "$TMP/prefix/rule-checks.sh" "$TMP/rc" "${FILES[@]}" >"$TMP/prefix/out.json" 2>"$TMP/prefix/err"
 	prefix_rc=$?

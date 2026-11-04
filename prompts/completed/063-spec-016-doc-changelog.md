@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [016-bug-review-scripts-argv-e2big]
+summary: Documented the 8192/1024-byte field bounds and in-string truncation marker in agents/ast-grep-runner.md, and recorded the fix as a single `- fix:` entry under `## Unreleased` in CHANGELOG.md without touching version strings.
+execution_id: 54185fc5-1ec7-51b6-a771-ceb64f2118a7-exec-063-spec-016-doc-changelog
+dark-factory-version: dev
 created: "2026-11-04T15:45:00Z"
+queued: "2026-11-04T16:00:15Z"
+started: "2026-11-04T16:00:17Z"
+completed: "2026-11-04T16:04:28Z"
 branch: dark-factory/bug-review-scripts-argv-e2big
 ---
 

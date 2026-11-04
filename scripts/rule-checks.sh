@@ -24,6 +24,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091  # sourced helper lives beside the caller
+. "$SCRIPT_DIR/lib/truncate-utf8.sh"
+
 usage() {
   printf 'usage: %s <target-dir> [changed-file ...]\n' "$0" >&2
   exit 2
@@ -67,6 +71,14 @@ FINDINGS_COUNT=0
 emit_finding() {
   local owner="$1" rule_id="$2" level="$3" file="$4"
   local line="${5:-0}" col="${6:-0}" text="$7" msg="$8"
+  local text_raw="$TMPDIR_WORK/emit_text_raw"
+  local msg_raw="$TMPDIR_WORK/emit_message_raw"
+  local text_out="$TMPDIR_WORK/emit_text"
+  local msg_out="$TMPDIR_WORK/emit_message"
+  printf '%s' "$text" > "$text_raw"
+  printf '%s' "$msg" > "$msg_raw"
+  truncate_utf8_file 8192 "$text_raw" "$text_out"
+  truncate_utf8_file 1024 "$msg_raw" "$msg_out"
   jq -cn \
     --arg owner "$owner" \
     --arg rule_id "$rule_id" \
@@ -74,8 +86,8 @@ emit_finding() {
     --arg file "$file" \
     --argjson line "$line" \
     --argjson column "$col" \
-    --arg matched_text "$text" \
-    --arg message "$msg" \
+    --rawfile matched_text "$text_out" \
+    --rawfile message "$msg_out" \
     '{owner:$owner, rule_id:$rule_id, rule_level:$rule_level, file:$file, line:$line, column:$column, matched_text:$matched_text, message:$message}' \
     >> "$FINDINGS_FILE"
   FINDINGS_COUNT=$((FINDINGS_COUNT + 1))
@@ -462,6 +474,7 @@ check_no_cross_repo_replace() {
               # Relative path — check if it escapes the gomod_dir / TARGET_DIR
               # Normalise: resolve the path relative to gomod_dir
               local resolved
+              # shellcheck disable=SC2015  # intentional: a failed cd yields an empty path
               resolved="$(cd "$gomod_dir" && cd "$rhs" 2>/dev/null && pwd || true)"
               if [ -n "$resolved" ]; then
                 # If resolved path is NOT inside TARGET_DIR, it's cross-repo
@@ -717,22 +730,12 @@ FBO_FILE="$TMPDIR_WORK/fbo.json"
 printf '{}' > "$FBO_FILE"
 
 if [ -s "$FINDINGS_FILE" ]; then
-  while IFS= read -r finding; do
-    [ -z "$finding" ] && continue
-    owner=$(printf '%s' "$finding" | jq -r '.owner')
-    # Remove 'owner' from finding object (caller builds its own grouping key)
-    clean_finding=$(printf '%s' "$finding" | jq 'del(.owner)')
-    FBO_TMP="$TMPDIR_WORK/fbo_tmp.json"
-    jq --arg o "$owner" --argjson f "$clean_finding" \
-      'if has($o) then .[$o] += [$f] else . + {($o): [$f]} end' \
-      "$FBO_FILE" > "$FBO_TMP" && mv "$FBO_TMP" "$FBO_FILE"
-  done < "$FINDINGS_FILE"
+  jq -s 'reduce .[] as $f ({}; .[$f.owner] += [($f | del(.owner))])' \
+    "$FINDINGS_FILE" > "$FBO_FILE"
 fi
-
-FBO_JSON="$(cat "$FBO_FILE")"
 
 jq -n \
   --argjson findings_count "$FINDINGS_COUNT" \
   --argjson elapsed_ms "$ELAPSED" \
-  --argjson findings_by_owner "$FBO_JSON" \
-  '{stats:{yamls_run:0, findings_count:$findings_count, elapsed_ms:$elapsed_ms}, findings_by_owner:$findings_by_owner, errors:[]}'
+  --slurpfile findings_by_owner "$FBO_FILE" \
+  '{stats:{yamls_run:0, findings_count:$findings_count, elapsed_ms:$elapsed_ms}, findings_by_owner:$findings_by_owner[0], errors:[]}'

@@ -11,6 +11,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 - fix: `scripts/ast-grep-runner.sh` no longer passes a finding's `matched_text` or `message` to `jq` as a command-line argument, so a 128 KiB-or-larger match no longer aborts the mechanical pass with `Argument list too long`; oversized fields are cut on a UTF-8 rune boundary (`matched_text` to 8192 bytes, `message` to 1024 bytes) and end with an in-string `…[truncated, original <N> bytes]` marker, while smaller fields stay byte-identical
+- fix: `scripts/rule-checks.sh` assembles each finding from files (`--rawfile`) and its aggregate from a file (`--slurpfile`) instead of command-line arguments, so an ordinary large PR with 200 findings no longer loses every script-tier finding to `Argument list too long`; it reuses the same UTF-8 bounds and truncation marker as the runner
 
 ## v0.65.4
 

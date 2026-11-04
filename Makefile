@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-changelog-fold test-changelog-unreleased-fold test-ast-grep-runner-truncation check-json check-index check-coverage check-acceptance check-rule-tests bench-test check-manifests
+precommit: check-links check-changelog-fold test-changelog-unreleased-fold test-ast-grep-runner-truncation test-rule-checks-argv check-json check-index check-coverage check-acceptance check-rule-tests bench-test check-manifests
 
 .PHONY: bench
 bench:
@@ -54,6 +54,13 @@ test-changelog-unreleased-fold:
 .PHONY: test-ast-grep-runner-truncation
 test-ast-grep-runner-truncation:
 	@bash scripts/tests/test-ast-grep-runner-truncation.sh
+
+# Fixture tests for the bounded, argv-free finding construction and aggregate in
+# scripts/rule-checks.sh: a 200-finding fixture whose combined map exceeds
+# 131072 bytes, the pre-fix exit-126 baseline, and the argv greps.
+.PHONY: test-rule-checks-argv
+test-rule-checks-argv:
+	@bash scripts/tests/test-rule-checks-argv.sh
 
 .PHONY: check-json
 check-json:

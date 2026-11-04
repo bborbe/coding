@@ -1,7 +1,13 @@
 ---
-status: draft
+status: completed
 spec: [016-bug-review-scripts-argv-e2big]
+summary: Reworked scripts/rule-checks.sh to build findings via --rawfile and the aggregate via --slurpfile using the shared truncate helper, added a 200-finding fixture test wired into precommit, and documented the fix in CHANGELOG
+execution_id: 54185fc5-1ec7-51b6-a771-ceb64f2118a7-exec-062-spec-016-rule-checks-argv
+dark-factory-version: dev
 created: "2026-11-04T15:45:00Z"
+queued: "2026-11-04T15:55:59Z"
+started: "2026-11-04T15:56:01Z"
+completed: "2026-11-04T16:00:11Z"
 branch: dark-factory/bug-review-scripts-argv-e2big
 ---
 

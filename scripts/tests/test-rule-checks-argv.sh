@@ -20,12 +20,18 @@ trap 'rm -rf "$TMP"' EXIT
 
 passed=0
 failed=0
+skipped=0
 
 ok() { printf 'ok   %s\n' "$1"; passed=$((passed + 1)); }
 no() {
 	printf 'FAIL %s\n' "$1"
 	printf '     %s\n' "$2"
 	failed=$((failed + 1))
+}
+skip() {
+	printf 'skip %s\n' "$1"
+	printf '     %s\n' "$2"
+	skipped=$((skipped + 1))
 }
 
 expect_eq() { # $1 name, $2 want, $3 got
@@ -90,7 +96,15 @@ else
 fi
 
 # --- case B: the pre-fix script dies on the same fixture ---
-if ! git -C "$REPO" rev-parse --verify origin/master >/dev/null 2>&1; then
+# The pre-fix failure is `MAX_ARG_STRLEN`, a Linux kernel constant (131072
+# bytes per argument). Darwin's limit is ARG_MAX (1 MiB), where the pre-fix
+# script completes normally, so asserting rc=126 there would fail for a reason
+# that has nothing to do with this fix. Assert it where the kernel enforces it
+# and skip loudly elsewhere — a skip is never counted as a pass.
+if [ "$(uname -s)" != "Linux" ]; then
+	skip "pre-fix baseline" \
+		"MAX_ARG_STRLEN is a Linux constant; $(uname -s) allows larger arguments, so the pre-fix script cannot fail on this host"
+elif ! git -C "$REPO" rev-parse --verify origin/master >/dev/null 2>&1; then
 	no "pre-fix baseline: base ref resolvable" "origin/master is not resolvable in $REPO"
 else
 	mkdir -p "$TMP/prefix"
@@ -116,5 +130,5 @@ sample_keys=$(jq -c '[.findings_by_owner[][]][0] | keys | sort' "$TMP/rc/out.jso
 expect_eq "emitted finding keys" \
 	'["column","file","line","matched_text","message","rule_id","rule_level"]' "$sample_keys"
 
-printf '\n%d passed, %d failed\n' "$passed" "$failed"
+printf '\n%d passed, %d failed, %d skipped\n' "$passed" "$failed" "$skipped"
 [ "$failed" -eq 0 ]

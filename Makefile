@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: precommit
-precommit: check-links check-changelog-fold test-changelog-unreleased-fold check-json check-index check-coverage check-acceptance check-rule-tests bench-test check-manifests
+precommit: check-links check-changelog-fold test-changelog-unreleased-fold test-ast-grep-runner-truncation check-json check-index check-coverage check-acceptance check-rule-tests bench-test check-manifests
 
 .PHONY: bench
 bench:
@@ -47,6 +47,13 @@ check-changelog-unreleased-fold:
 .PHONY: test-changelog-unreleased-fold
 test-changelog-unreleased-fold:
 	@bash scripts/tests/test-changelog-unreleased-fold.sh
+
+# Fixture tests for the bounded, argv-free finding construction in
+# scripts/ast-grep-runner.sh: a 131072-byte match, an interpolated message over
+# its bound, the exact-bound and split-rune helper cases, and a two-match run.
+.PHONY: test-ast-grep-runner-truncation
+test-ast-grep-runner-truncation:
+	@bash scripts/tests/test-ast-grep-runner-truncation.sh
 
 .PHONY: check-json
 check-json:

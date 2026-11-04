@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- fix: `scripts/ast-grep-runner.sh` no longer passes a finding's `matched_text` or `message` to `jq` as a command-line argument, so a 128 KiB-or-larger match no longer aborts the mechanical pass with `Argument list too long`; oversized fields are cut on a UTF-8 rune boundary (`matched_text` to 8192 bytes, `message` to 1024 bytes) and end with an in-string `…[truncated, original <N> bytes]` marker, while smaller fields stay byte-identical
+
 ## v0.65.4
 
 - docs: ADR template gains optional OKF provenance frontmatter (`type`, `sources`, `generated`, `verified`) with actor formats and footnote citation convention

@@ -48,6 +48,9 @@ fi
 # ---------------------------------------------------------------------------
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# shellcheck disable=SC1091  # sourced helper lives beside the caller
+. "$ROOT/scripts/lib/truncate-utf8.sh"
+
 usage() {
   printf 'usage: %s <target-dir> [changed-file ...]\n' "$0" >&2
   exit 2
@@ -113,6 +116,11 @@ START_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
 TMPDIR_WORK="$(mktemp -d)"
 # shellcheck disable=SC2064
 trap 'rm -rf "$TMPDIR_WORK"' EXIT
+
+MATCH_TEXT_RAW="$TMPDIR_WORK/match_text_raw"
+MATCH_MSG_RAW="$TMPDIR_WORK/match_message_raw"
+MATCH_TEXT_OUT="$TMPDIR_WORK/match_text"
+MATCH_MSG_OUT="$TMPDIR_WORK/match_message"
 
 FINDINGS_DIR="$TMPDIR_WORK/findings"   # one file per owner
 ERRORS_FILE="$TMPDIR_WORK/errors.json"
@@ -250,12 +258,9 @@ while IFS=$'\t' read -r rule_id yml_rel owner level; do
   if [ -s "$SCAN_OUT" ]; then
     while IFS= read -r match_line; do
       [ -z "$match_line" ] && continue
-      # Extract fields from the stream match object
       file=$(printf '%s' "$match_line" | jq -r '.file // ""')
       line=$(printf '%s' "$match_line" | jq -r '.range.start.line // 0')
       column=$(printf '%s' "$match_line" | jq -r '.range.start.column // 0')
-      matched_text=$(printf '%s' "$match_line" | jq -r '.text // ""')
-      message=$(printf '%s' "$match_line" | jq -r '.message // ""')
 
       # Defense-in-depth: drop findings from .git/ paths even if one slipped
       # past the input filter above (e.g. absolute paths the caller supplied).
@@ -263,14 +268,23 @@ while IFS=$'\t' read -r rule_id yml_rel owner level; do
         */.git/*) continue ;;
       esac
 
+      # Payloads never travel through argv: write each field to a file and
+      # let jq read it with --rawfile. `jq -j` preserves the exact bytes and
+      # adds no trailing newline; the helper strips trailing newlines to keep
+      # the previous `$(...)` semantics.
+      printf '%s' "$match_line" | jq -j '.text // ""' > "$MATCH_TEXT_RAW"
+      printf '%s' "$match_line" | jq -j '.message // ""' > "$MATCH_MSG_RAW"
+      truncate_utf8_file 8192 "$MATCH_TEXT_RAW" "$MATCH_TEXT_OUT"
+      truncate_utf8_file 1024 "$MATCH_MSG_RAW" "$MATCH_MSG_OUT"
+
       finding=$(jq -n \
         --arg rule_id "$rule_id" \
         --arg rule_level "$level" \
         --arg file "$file" \
         --argjson line "$line" \
         --argjson column "$column" \
-        --arg matched_text "$matched_text" \
-        --arg message "$message" \
+        --rawfile matched_text "$MATCH_TEXT_OUT" \
+        --rawfile message "$MATCH_MSG_OUT" \
         '{rule_id:$rule_id, rule_level:$rule_level, file:$file, line:$line, column:$column, matched_text:$matched_text, message:$message}')
       append_finding "$owner" "$finding"
     done < "$SCAN_OUT"

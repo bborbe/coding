@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.65.7
 
 - fix: **a failing `rule-checks.sh` no longer hides behind `jq: Argument list too long`.** When `rule-checks.sh` exits non-zero, `ast-grep-runner.sh` embeds its whole stdout as the error detail — and passed it, plus the assembled entry, as command-line arguments. On a large run that payload exceeds the kernel's 128 KiB per-argument limit, so the runner died with `E2BIG` and the funnel reported only `runner exited non-zero (jq: Argument list too long)`: the real failure was replaced by the overflow it caused, and every such review read as "the funnel is not available in this environment". The detail is now built with `--rawfile` and bounded to 8192 bytes on a UTF-8 rune boundary (carrying the same `…[truncated, original <N> bytes]` marker as the finding fields), and every error entry is appended with `--slurpfile` instead of `--argjson`. Reproduced in the reviewer image against a 302,420-byte payload: `line 322: /usr/bin/jq: Argument list too long` before, exit 0 with `errors[0].kind=rule-checks-error` and an 8227-byte bounded detail after. The same `--arg` path is fixed for `scan-error` details.
 

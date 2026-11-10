@@ -124,6 +124,9 @@ MATCH_MSG_OUT="$TMPDIR_WORK/match_message"
 
 FINDINGS_DIR="$TMPDIR_WORK/findings"   # one file per owner
 ERRORS_FILE="$TMPDIR_WORK/errors.json"
+ERRORS_ENTRY="$TMPDIR_WORK/error_entry.json"
+ERROR_DETAIL_RAW="$TMPDIR_WORK/error_detail_raw"
+ERROR_DETAIL_OUT="$TMPDIR_WORK/error_detail"
 mkdir -p "$FINDINGS_DIR"
 printf '[]' > "$ERRORS_FILE"
 
@@ -131,8 +134,25 @@ YAMLS_RUN=0
 FINDINGS_COUNT=0
 
 # ---------------------------------------------------------------------------
+# bounded_json_string <text>
+#   A JSON string literal for <text>, bounded to 8192 bytes on a UTF-8
+#   boundary. The value is written to a file and read with --rawfile: an
+#   error detail can carry a whole rule-checks payload, and passing it as an
+#   argument dies with "Argument list too long" past MAX_ARG_STRLEN — which
+#   replaced the very failure it was meant to report.
+# ---------------------------------------------------------------------------
+bounded_json_string() {
+  printf '%s' "$1" > "$ERROR_DETAIL_RAW"
+  truncate_utf8_file 8192 "$ERROR_DETAIL_RAW" "$ERROR_DETAIL_OUT"
+  jq -n --rawfile d "$ERROR_DETAIL_OUT" '$d'
+}
+
+# ---------------------------------------------------------------------------
 # append_error <kind> <json-kv-pairs…>
 #   e.g. append_error "missing-yaml" '"rule_id":"x","path":"y"'
+#
+# The assembled entry is written to a file and appended with --slurpfile, not
+# --argjson: the same argv limit applies to the entry once it carries a detail.
 # ---------------------------------------------------------------------------
 append_error() {
   local kind="$1"; shift
@@ -143,9 +163,10 @@ append_error() {
   else
     entry="{\"kind\":$(jq -n --arg v "$kind" '$v')}"
   fi
+  printf '%s' "$entry" > "$ERRORS_ENTRY"
   local cur
   cur="$(cat "$ERRORS_FILE")"
-  printf '%s' "$cur" | jq --argjson e "$entry" '. + [$e]' > "$ERRORS_FILE.tmp" && mv "$ERRORS_FILE.tmp" "$ERRORS_FILE"
+  printf '%s' "$cur" | jq --slurpfile e "$ERRORS_ENTRY" '. + $e' > "$ERRORS_FILE.tmp" && mv "$ERRORS_FILE.tmp" "$ERRORS_FILE"
 }
 
 # ---------------------------------------------------------------------------
@@ -248,7 +269,7 @@ while IFS=$'\t' read -r rule_id yml_rel owner level; do
   # a real error; otherwise findings were found (or nothing was found).
   if grep -q "Cannot parse rule\|invalid rule\|failed to parse" "$SCAN_ERR" 2>/dev/null; then
     err_msg="$(cat "$SCAN_ERR")"
-    append_error "scan-error" "\"rule_id\":$(jq -n --arg v "$rule_id" '$v'),\"detail\":$(jq -n --arg v "$err_msg" '$v')"
+    append_error "scan-error" "\"rule_id\":$(jq -n --arg v "$rule_id" '$v'),\"detail\":$(bounded_json_string "$err_msg")"
     rm -f "$SCAN_OUT" "$SCAN_ERR"
     continue
   fi
@@ -314,12 +335,13 @@ if [ -f "$RULE_CHECKS" ] && [ -x "$RULE_CHECKS" ]; then
         [ -z "$err" ] && continue
         local_cur
         local_cur="$(cat "$ERRORS_FILE")"
-        printf '%s' "$local_cur" | jq --argjson e "$err" '. + [$e]' > "$ERRORS_FILE.tmp" && mv "$ERRORS_FILE.tmp" "$ERRORS_FILE"
+        printf '%s' "$err" > "$ERRORS_ENTRY"
+        printf '%s' "$local_cur" | jq --slurpfile e "$ERRORS_ENTRY" '. + $e' > "$ERRORS_FILE.tmp" && mv "$ERRORS_FILE.tmp" "$ERRORS_FILE"
       done < <(jq -r '.errors[] | tojson' "$RC_OUT" 2>/dev/null || true)
     fi
   else
     rc_stderr="$(cat "$RC_OUT" 2>/dev/null || true)"
-    append_error "rule-checks-error" "\"detail\":$(jq -n --arg v "$rc_stderr" '$v')"
+    append_error "rule-checks-error" "\"detail\":$(bounded_json_string "$rc_stderr")"
   fi
 fi
 

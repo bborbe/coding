@@ -137,5 +137,57 @@ sample_keys=$(jq -c '[.findings_by_owner[][]][0] | keys | sort' "$TMP/rc/out.jso
 expect_eq "emitted finding keys" \
 	'["column","file","line","matched_text","message","rule_id","rule_level"]' "$sample_keys"
 
+# --- case E: a failing rule-checks with a large payload is reported, not E2BIG ---
+# The runner captures rule-checks' stdout and, when it exits non-zero, embeds
+# that output as the error detail. Passing it as an argument died with
+# "Argument list too long" past MAX_ARG_STRLEN, and the E2BIG REPLACED the
+# failure it was meant to report — the funnel then reported "runner exited
+# non-zero" with no trace of the real cause. The fixture is copied from the
+# working tree (scripts + rules only) so the stub cannot leak into the repo,
+# and the case exercises the script as it stands rather than the last commit.
+mkdir -p "$TMP/fixed"
+cp -a "$REPO/scripts" "$TMP/fixed/scripts"
+cp -a "$REPO/rules" "$TMP/fixed/rules"
+printf 'package main\n\nfunc main() {}\n' >"$TMP/fixed/scanme.go"
+cat >"$TMP/fixed/scripts/rule-checks.sh" <<'STUB'
+#!/usr/bin/env bash
+python3 - <<'PY'
+import json
+f = [{"owner": "o", "rule_id": "r", "rule_level": "MUST", "file": "f", "line": i,
+      "column": 1, "matched_text": "x" * 400, "message": "m" * 200} for i in range(400)]
+print(json.dumps({"stats": {"yamls_run": 0, "findings_count": len(f), "elapsed_ms": 1},
+                  "findings_by_owner": {"o": f}, "errors": []}))
+PY
+exit 1
+STUB
+chmod +x "$TMP/fixed/scripts/rule-checks.sh"
+
+bash "$TMP/fixed/scripts/ast-grep-runner.sh" "$TMP/fixed" scanme.go \
+	>"$TMP/fixed/out.json" 2>"$TMP/fixed/err"
+expect_rc "failing rule-checks: runner still exits 0" 0 "$?"
+
+expect_eq "failing rule-checks: the failure is reported as an error entry" \
+	"rule-checks-error" "$(jq -r '.errors[0].kind // ""' "$TMP/fixed/out.json" 2>/dev/null)"
+
+detail_bytes=$(jq -r '.errors[0].detail // "" | length' "$TMP/fixed/out.json" 2>/dev/null || echo 0)
+if [ "${detail_bytes:-0}" -gt 0 ] && [ "${detail_bytes:-0}" -le 8400 ]; then
+	ok "failing rule-checks: detail is present and bounded (got ${detail_bytes:-0} bytes)"
+else
+	no "failing rule-checks: detail is present and bounded" "got '${detail_bytes:-0}' bytes"
+fi
+
+if jq -r '.errors[0].detail // ""' "$TMP/fixed/out.json" 2>/dev/null | grep -q 'truncated, original'; then
+	ok "failing rule-checks: detail carries the truncation marker"
+else
+	no "failing rule-checks: detail carries the truncation marker" "marker absent"
+fi
+
+# --- case F: the error path builds no payload through argv ---
+err_arg_hits=$(grep -cE -- '--arg v "\$(err_msg|rc_stderr)"' "$RUNNER" 2>/dev/null || true)
+expect_eq "error detail not passed via --arg: count is 0" 0 "${err_arg_hits:-0}"
+
+err_entry_hits=$(grep -cE -- '--argjson e "\$(entry|err)"' "$RUNNER" 2>/dev/null || true)
+expect_eq "error entry not passed via --argjson: count is 0" 0 "${err_entry_hits:-0}"
+
 printf '\n%d passed, %d failed, %d skipped\n' "$passed" "$failed" "$skipped"
 [ "$failed" -eq 0 ]

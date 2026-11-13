@@ -82,13 +82,13 @@ A flat key-value file at the repo root with the canonical version of every tool:
 ```makefile
 ADDLICENSE_VERSION         ?= v1.2.0
 COUNTERFEITER_VERSION      ?= v6.12.2
-ERRCHECK_VERSION           ?= v1.20.0
+ERRCHECK_VERSION           ?= v1.30.0
 GINKGO_VERSION             ?= v2.28.3
 GOIMPORTS_REVISER_VERSION  ?= v3.12.6
-GOLANGCI_LINT_VERSION      ?= v2.14.0
+GOLANGCI_LINT_VERSION      ?= v2.15.0
 GOLINES_VERSION            ?= v0.13.0
 GO_MODTOOL_VERSION         ?= v0.7.1
-GOSEC_VERSION              ?= v2.26.1
+GOSEC_VERSION              ?= v2.30.0
 GOVULNCHECK_VERSION        ?= v1.3.0
 OSV_SCANNER_VERSION        ?= v2.6.0
 ```
@@ -102,6 +102,35 @@ The `?=` (instead of `=`) lets a developer override per-shell:
 ```bash
 GOLANGCI_LINT_VERSION=v2.11.5 make lint  # try a newer version locally
 ```
+
+### A Go directive bump is a tools bump — always
+
+⚠️ **Raising the `go` directive in `go.mod` invalidates every tool that type-checks the standard library, and they fail in a way that reads like a code defect.** The tool binaries were built with an older Go; when they load export data written by the new one they abort with:
+
+```
+internal error: package "fmt" without types was imported from "<pkg>"
+could not load export data: internal error in importing "internal/goarch"
+  (cannot decode "internal/goarch", export data version 5 is greater than maximum supported version 4)
+```
+
+Measured 2026-11-13 on Go 1.27.4: `GOSEC v2.26.1` and `ERRCHECK v1.20.0` both died this way, and `GOLANGCI_LINT v2.13.1` could not decode the new export data either. `make precommit` exits 2, and a caller that parses lint output for findings sees *no parseable findings* — so the failure is reported as a broken gate or a code defect rather than as a stale tool.
+
+**So the bump is two changes, not one:**
+
+1. Raise the `go` directive in every `go.mod`.
+2. Re-check the `tools.env` pins against the new toolchain — in the canonical file first, then propagate.
+
+The tools that type-check, and therefore need the check on every Go bump:
+
+| key | why it breaks |
+|---|---|
+| `GOSEC_VERSION` | type-checks the stdlib |
+| `ERRCHECK_VERSION` | type-checks the stdlib (see § errcheck below) |
+| `GOLANGCI_LINT_VERSION` | its linters type-check, and it reads export data |
+
+`GOVULNCHECK`, `ADDLICENSE`, `GOIMPORTS_REVISER`, `GOLINES` and `GO_MODTOOL` do not type-check user code, so they usually survive a bump — verify rather than assume.
+
+**How to verify, per repo:** run `make precommit` and read the failing target, not just the exit code. `exit 2` with no findings almost always means a tool, not the code. A working pin is the newest release built after the Go release you are moving to.
 
 ### Makefile — Use `@version`
 

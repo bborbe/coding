@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.65.8
 
 - fix: **the canonical `tools.env` pinned three tools that cannot type-check the Go 1.27 stdlib, so every repo's `make precommit` failed on the tool and reported it as a code defect.** `GOSEC v2.26.1` and `ERRCHECK v1.20.0` abort with `internal error: package "fmt" without types was imported`, and `GOLANGCI_LINT v2.13.1` cannot decode Go 1.27 export data (`export data version 5 is greater than maximum supported version 4`). The exit code is 2 with no parseable findings, which a caller that parses lint output reads as a broken gate — measured 2026-11-13, where five `Update Go` records across `bborbe/{agent,git-rest,github-dark-factory-agent,postgres-backup}` were stuck on it. Pins raised to `GOSEC v2.30.0`, `ERRCHECK v1.30.0`, `GOLANGCI_LINT v2.15.0`; the guide and the migration-prompt template carry the same values. `docs/go-tools-versioning-guide.md` gains § *A Go directive bump is a tools bump — always*, naming which tools type-check and therefore must be re-checked on every Go bump.
 

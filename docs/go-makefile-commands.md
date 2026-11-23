@@ -166,7 +166,7 @@ make lint
 
 **Adding a new allowlisted OSV** (per-project):
 ```make
-VULNCHECK_IGNORE ?= GO-2026-4923 GO-2026-4514 GO-2026-9999
+VULNCHECK_IGNORE ?= GO-2026-4883 GO-2026-9999
 ```
 
 ```bash

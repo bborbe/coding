@@ -8,7 +8,7 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
-## Unreleased
+## v0.66.1
 
 - fix: **prune the stale entries from the canonical `VULNCHECK_IGNORE`.** `templates/Makefile.library` and `templates/Makefile.service` carried 14 IDs; re-querying each against `api.osv.dev/v1/vulns/<id>` on 2026-11-23 showed one withdrawn (`GO-2026-4923`, bbolt), five suppressing an advisory with a shipped fix (`GO-2026-4514` jsonparser 1.1.2, `GO-2026-4771`/`GO-2026-4772` pgx/v5 5.9.0, `GO-2022-0470` bleve 2.5.0, `GO-2026-5932` x/crypto), and three inert on a 1.27.x fleet (`GO-2026-5037`/`5038`/`5039`, fixed at 1.25.11 / 1.26.4). The set is now the five docker/containerd v1 no-fix suppressions, and `TRIVY_IGNORE` drops `GO-2026-5932` with it. No bborbe consumer pins an affected version of any removed advisory, so the prune breaks no repo — and the templates are copied, not included, so it reaches future scaffolds only. `docs/go-tools-versioning-guide.md` and `docs/go-makefile-commands.md` are updated to stop teaching the removed IDs.
 

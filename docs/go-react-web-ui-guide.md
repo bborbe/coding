@@ -105,6 +105,9 @@ func NewOrdersHandler(source OrderSource) http.Handler {
 			http.Error(resp, "read orders failed", http.StatusInternalServerError)
 			return
 		}
+		if orders == nil {
+			orders = []Order{} // a JSON array endpoint returns [], never null
+		}
 		body, err := json.Marshal(orders)
 		if err != nil {
 			http.Error(resp, "marshal orders failed", http.StatusInternalServerError)
@@ -177,8 +180,8 @@ func main() {
 	router.Path("/healthz").HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	router.Path("/api/orders").Handler(handler.NewOrdersHandler(source))
-	router.Path("/api/orders/events").Handler(handler.NewOrderEventsHandler(source, 2*time.Second))
+	router.Path("/api/orders").Methods(http.MethodGet).Handler(handler.NewOrdersHandler(source))
+	router.Path("/api/orders/events").Methods(http.MethodGet).Handler(handler.NewOrderEventsHandler(source, 2*time.Second))
 	router.PathPrefix("/").Handler(handler.NewPageHandler(dist))
 
 	log.Fatal(http.ListenAndServe(*listen, router))
@@ -330,6 +333,8 @@ Keep every `fetch` here. A component that calls `fetch` directly is the seam lea
 
 Use SSE, not WebSocket, unless the browser must stream data **back** to the server. SSE is one-way server→client, rides plain HTTP, reconnects on its own, and needs no extra protocol — which is what a dashboard wants. A WebSocket is justified only when the page sends a continuous stream up (a terminal, a collaborative editor).
 
+These examples bind loopback (`-listen`) and serve unauthenticated JSON. A service exposed beyond loopback must put the API behind the same auth as its admin server, and the SSE endpoint must validate `Origin` — an `EventSource` sends cookies, so an unvalidated stream is a cross-origin read.
+
 The handler asserts `http.Flusher`, sets the event-stream headers, and emits **only when the payload changes**, so a client refreshes only on real changes. It lives in its own file, `events.go`, in the same package as `orders.go` — Go imports are file-scoped, so it carries its own import block:
 
 ```go
@@ -459,7 +464,7 @@ body {
 .err { color: var(--err); }
 ```
 
-The status colours carry meaning, so do not use them decoratively: `--ok` / `--warn` / `--err` describe an outcome — success, caution, failure — never a heading's mood. This palette is the same block the Local Web UI Style Guide defines for local pages; a React app uses it verbatim.
+The status colours carry meaning, so do not use them decoratively: `--ok` / `--warn` / `--err` describe an outcome — success, caution, failure — never a heading's mood. This is the house palette; a React app uses it verbatim — do not invent colours or adopt a library's tokens unmapped.
 
 ## Testing with Vitest and Playwright
 
@@ -555,6 +560,7 @@ import { expect, test } from "@playwright/test";
 
 test("the page renders the orders the API serves", async ({ page, request }) => {
   const orders = await (await request.get("/api/orders")).json();
+  expect(orders.length).toBeGreaterThan(0); // a smoke test on an empty payload proves nothing
   const consoleErrors: string[] = [];
   page.on("console", (m) => {
     if (m.type() === "error") consoleErrors.push(m.text());

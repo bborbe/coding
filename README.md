@@ -215,6 +215,7 @@ All guides live in [`docs/`](docs/) and can be read standalone without the plugi
 |-------|-------------|
 | [Vue 3 + TypeScript](docs/vue3-typescript-frontend-guide.md) | Composition API, Vite |
 | [Astro](docs/astro-development-guide.md) | Astro framework |
+| [Go Web UI (React + Vite)](docs/go-react-web-ui-guide.md) | Go service UI: React, TypeScript, Vite, `go:embed`, SSE |
 
 ## Agents
 

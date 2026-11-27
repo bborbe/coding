@@ -94,6 +94,7 @@
 ## Frontend
 - [Vue 3 + TypeScript](docs/vue3-typescript-frontend-guide.md): Composition API, Vite, Vitest
 - [Astro](docs/astro-development-guide.md): Astro framework patterns
+- [Go Web UI (React + Vite)](docs/go-react-web-ui-guide.md): Go service UI with React, TypeScript, Vite, go:embed, SSE, Vitest, Playwright
 
 ## Documentation
 - [Documentation Guide](docs/documentation-guide.md): README, docs/, PRDs, ADRs

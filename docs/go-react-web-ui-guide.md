@@ -67,8 +67,6 @@ createRoot(document.getElementById("root") as HTMLElement).render(
 );
 ```
 
-Source: `trading-strategy-factory-ui/assets.go`, `trading-strategy-factory-ui/frontend/src/main.tsx`, `trading-strategy-factory-ui/Makefile`.
-
 ## The API contract in Go
 
 The Go structs are the contract: the JSON the handler writes and the TypeScript types tygo generates both derive from them. Keep them in one package so tygo can read them.
@@ -131,8 +129,6 @@ func (mockOrders) Orders(context.Context) ([]Order, error) {
 ```
 
 The `OrderSource` interface is the seam that lets the same handler serve mock data first and a live source later: the page and the JSON shape never change.
-
-Source: `trading-strategy-factory-ui/pkg/handler/funnel.go`, `trading-strategy-factory-ui/pkg/handler/funnel-http.go`.
 
 ## The Go side: embed and serve
 
@@ -227,8 +223,6 @@ func NewPageHandler(dist fs.FS) http.Handler {
 
 Run the whole package, not `main.go`: `frontendDist` lives in `assets.go`, so `go run main.go` compiles that one file alone and fails with `undefined: frontendDist`. Use `go run .`.
 
-Source: `trading-strategy-factory-ui/main.go`, `trading-strategy-factory-ui/pkg/handler/funnel-http.go`.
-
 ## TypeScript configuration
 
 `strict` is on, and the build runs `tsc --noEmit` before Vite, so a type error fails the build rather than shipping.
@@ -259,8 +253,6 @@ Source: `trading-strategy-factory-ui/main.go`, `trading-strategy-factory-ui/pkg/
 import "@testing-library/jest-dom/vitest";
 ```
 
-Source: `trading-strategy-factory-ui/frontend/tsconfig.json`, `trading-strategy-factory-ui/frontend/src/setupTests.ts`.
-
 ## Vite configuration and the dev proxy
 
 During development the page runs on the Vite dev server and proxies `/api` to the Go service, so the frontend reads the same `/api/orders` the embedded build does. In production there is no proxy — the Go server serves both the page and the API on one origin.
@@ -287,8 +279,6 @@ export default defineConfig({
 
 The `exclude` line is load-bearing: Playwright and Vitest both export `test`, and without it Vitest tries to run the Playwright specs and fails. `jsdom` (a dev dependency) provides the DOM Vitest renders into.
 
-Source: `trading-strategy-factory-ui/frontend/vite.config.ts`.
-
 ## Generating TypeScript types from Go
 
 `tygo` generates `frontend/src/types.ts` from the Go structs in `pkg/handler`, so the TypeScript and the JSON cannot drift. Edit the Go structs, run `make types`, never hand-edit `types.ts`.
@@ -314,8 +304,6 @@ types:
 
 An OpenAPI spec is the usual alternative and was rejected here: it adds a second artifact to keep current for a single-consumer internal API. tygo reads the structs directly, so there is nothing to keep in sync.
 
-Source: `trading-strategy-factory-ui/tygo.yaml`, `trading-strategy-factory-ui/Makefile`.
-
 ## The single transport seam
 
 One module talks to the backend; every component reads the model it returns. That is what keeps a mock-to-live swap a backend-only change: the page never knows whether the data is mock or live.
@@ -337,8 +325,6 @@ export async function fetchOrders(signal?: AbortSignal): Promise<Order[]> {
 ```
 
 Keep every `fetch` here. A component that calls `fetch` directly is the seam leaking, and the next transport change has to hunt it down.
-
-Source: `trading-strategy-factory-ui/frontend/src/api.ts`.
 
 ## Live updates with Server-Sent Events
 
@@ -442,8 +428,6 @@ useEffect(() => {
 
 The `typeof EventSource === "undefined"` guard is not defensive noise: jsdom has no `EventSource`, so without it every Vitest render of a component that subscribes throws.
 
-Source: `trading-strategy-factory-ui/pkg/handler/funnel-http.go`, `trading-strategy-factory-ui/frontend/src/api.ts`, `trading-strategy-factory-ui/frontend/src/App.tsx`.
-
 ## The house palette
 
 Use **plain CSS variables** — the house dark palette — declared once at the root. Do not invent a palette, and do not adopt a component library's tokens unless you map them onto these variables first. `color-scheme: dark` is load-bearing, not decoration: it makes the browser render scrollbars, form controls and the canvas backdrop dark too.
@@ -476,8 +460,6 @@ body {
 ```
 
 The status colours carry meaning, so do not use them decoratively: `--ok` / `--warn` / `--err` describe an outcome — success, caution, failure — never a heading's mood. This palette is the same block the Local Web UI Style Guide defines for local pages; a React app uses it verbatim.
-
-Source: `trading-strategy-factory-ui/frontend/src/styles.css`.
 
 ## Testing with Vitest and Playwright
 
@@ -585,8 +567,6 @@ test("the page renders the orders the API serves", async ({ page, request }) => 
 
 Every check needs a negative control: a test that would pass whether or not the feature works proves nothing. Assert the model's values (the counts, the text), and assert the error path (a `500` shows an error, not a blank page).
 
-Source: `trading-strategy-factory-ui/frontend/src/App.test.tsx`, `trading-strategy-factory-ui/frontend/e2e/funnel.spec.ts`, `trading-strategy-factory-ui/frontend/playwright.config.ts`.
-
 ## Build, test and check targets
 
 The `package.json` scripts and the make targets cover the loop. `npm run build` runs the type check and the bundle in one step:
@@ -658,12 +638,6 @@ e2e: frontend
 ```
 
 `npm ci` (not `npm install`) keeps CI and local builds on the lockfile. On a fresh clone there is no lockfile yet, so run `npm install` once in `frontend/` to create `package-lock.json`, then **commit it** — every make target from then on uses `npm ci`. `npm run build` runs `tsc --noEmit && vite build`, so the type check and the bundle are one step, and `touch dist/.gitkeep` keeps the directory after `emptyOutDir`. The `npm audit --audit-level=high` gate fails the build on a high or critical advisory. The Go side's lint, vet and vulncheck come from the shared `Makefile.precommit` include, which `check` composes with `check-frontend`.
-
-Source: `trading-strategy-factory-ui/Makefile`, `trading-strategy-factory-ui/frontend/package.json`.
-
-## Reference repo
-
-The reference repo is `bborbe/trading-strategy-factory-ui` — a private Go service whose UI uses this stack end to end: `go:embed`, tygo types, an SSE stream, Vitest and Playwright, and the house palette. Read it when a detail here is thinner than you need. The patterns above are reproduced from it with generic names, so the mechanics work without it — the repo is the fuller worked example, not a prerequisite.
 
 ## Migration ownership
 

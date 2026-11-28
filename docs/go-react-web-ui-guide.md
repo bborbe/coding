@@ -630,22 +630,28 @@ include tools.env
 
 FRONTEND_DIR ?= frontend
 
-.PHONY: frontend
-frontend:
-	cd $(FRONTEND_DIR) && npm ci && npm run build
-
 .PHONY: types
 types:
 	go run github.com/gzuidhof/tygo@$(TYGO_VERSION) generate
 
-# types first: tsc imports ./types, which tygo generates.
+# types is a prerequisite of every target that runs tsc: npm run build and
+# npm test both import ./types, which tygo generates. Put it here rather than
+# on each caller so no path — build, test, e2e — can forget it.
+.PHONY: frontend
+frontend: types
+	cd $(FRONTEND_DIR) && npm ci && npm run build
+
 .PHONY: build
-build: types frontend
+build: frontend
 	mkdir -p bin   # -o bin/service fails on a fresh clone without this
 	go build -o bin/service .
 
+.PHONY: test-go
+test-go:
+	go test ./...
+
 .PHONY: test-frontend
-test-frontend: types   # tsc imports ./types, which tygo generates
+test-frontend: types
 	cd $(FRONTEND_DIR) && npm ci && npm test
 
 .PHONY: check-frontend
@@ -665,7 +671,7 @@ vulncheck:
 	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
 
 .PHONY: test check
-test: test-frontend
+test: test-go test-frontend   # a Go service's test target must run the Go tests
 check: check-frontend lint vet vulncheck
 
 .PHONY: e2e
@@ -673,7 +679,7 @@ e2e: frontend
 	cd $(FRONTEND_DIR) && npx playwright install chromium && npm run e2e
 ```
 
-`npm ci` (not `npm install`) keeps CI and local builds on the lockfile. On a fresh clone there is no lockfile yet, so run `npm install` once in `frontend/` to create `package-lock.json`, then **commit it** — every make target from then on uses `npm ci`. `npm run build` runs `tsc --noEmit && vite build`, so the type check and the bundle are one step, and `touch dist/.gitkeep` keeps the directory after `emptyOutDir`. The `npm audit --audit-level=high` gate fails the build on a high or critical advisory. The Go side's lint, vet and vulncheck are the three targets above, and `check` composes them with `check-frontend`. The fleet's fuller `check` — adding `osv-scanner` and `trivy` plus the shared ignore lists — is in `templates/Makefile.service` in this repository; copy those targets from there rather than retyping them, because `trivy` needs the ignore-file plumbing that is easy to get wrong by hand.
+`npm ci` (not `npm install`) keeps CI and local builds on the lockfile. On a fresh clone there is no lockfile yet, so run `npm install` once in `frontend/` to create `package-lock.json`, then **commit it** — every make target from then on uses `npm ci`. `npm run build` runs `tsc --noEmit && vite build`, so the type check and the bundle are one step, and `touch dist/.gitkeep` keeps the directory after `emptyOutDir`. The `npm audit --audit-level=high` gate fails the build on a high or critical advisory. `test` runs both suites — `test-go` for the Go packages and `test-frontend` for Vitest — because a service whose `make test` skips `go test ./...` is a service whose handlers are only tested by accident. The Go side's lint, vet and vulncheck are the three targets above, and `check` composes them with `check-frontend`. The fleet's fuller `check` — adding `osv-scanner` and `trivy` plus the shared ignore lists — is in `templates/Makefile.service` in this repository; copy those targets from there rather than retyping them, because `trivy` needs the ignore-file plumbing that is easy to get wrong by hand.
 
 ## Migration ownership
 

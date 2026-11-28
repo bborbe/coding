@@ -303,7 +303,16 @@ types:
 	go run github.com/gzuidhof/tygo@$(TYGO_VERSION) generate
 ```
 
-`$(TYGO_VERSION)` is pinned in `tools.env` (for example `TYGO_VERSION ?= v0.2.21`), which the Makefile includes. The `type_mappings` entry is what turns `time.Time` into `string` rather than `any`; without it the generated `Created` field is untyped and the page can do nothing with it.
+Every tool the Makefile invokes with `go run …@$(VERSION)` is pinned in `tools.env`, which the Makefile includes — so the build is reproducible and a version bump is one line:
+
+```makefile
+# tools.env — one pin per tool the Makefile runs via `go run …@$(VERSION)`
+TYGO_VERSION             ?= v0.2.21
+GOLANGCI_LINT_VERSION    ?= v2.15.0
+GOVULNCHECK_VERSION      ?= v1.3.0
+```
+
+The `type_mappings` entry is what turns `time.Time` into `string` rather than `any`; without it the generated `Created` field is untyped and the page can do nothing with it.
 
 An OpenAPI spec is the usual alternative and was rejected here: it adds a second artifact to keep current for a single-consumer internal API. tygo reads the structs directly, so there is nothing to keep in sync.
 
@@ -609,7 +618,6 @@ The Makefile wraps them and adds the npm vulnerability gate — the fleet's Go s
 
 ```makefile
 include tools.env
-include Makefile.precommit   # provides check (lint, vet, vulncheck, trivy)
 
 FRONTEND_DIR ?= frontend
 
@@ -634,16 +642,28 @@ test-frontend:
 check-frontend:
 	cd $(FRONTEND_DIR) && npm ci && npm audit --audit-level=high
 
+.PHONY: lint vet vulncheck
+lint:
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
+
+.PHONY: vet
+vet:
+	go vet ./...
+
+.PHONY: vulncheck
+vulncheck:
+	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
+
 .PHONY: test check
 test: test-frontend
-check: check-frontend
+check: check-frontend lint vet vulncheck
 
 .PHONY: e2e
 e2e: frontend
 	cd $(FRONTEND_DIR) && npx playwright install chromium && npm run e2e
 ```
 
-`npm ci` (not `npm install`) keeps CI and local builds on the lockfile. On a fresh clone there is no lockfile yet, so run `npm install` once in `frontend/` to create `package-lock.json`, then **commit it** — every make target from then on uses `npm ci`. `npm run build` runs `tsc --noEmit && vite build`, so the type check and the bundle are one step, and `touch dist/.gitkeep` keeps the directory after `emptyOutDir`. The `npm audit --audit-level=high` gate fails the build on a high or critical advisory. The Go side's lint, vet and vulncheck come from the shared `Makefile.precommit` include, which `check` composes with `check-frontend`.
+`npm ci` (not `npm install`) keeps CI and local builds on the lockfile. On a fresh clone there is no lockfile yet, so run `npm install` once in `frontend/` to create `package-lock.json`, then **commit it** — every make target from then on uses `npm ci`. `npm run build` runs `tsc --noEmit && vite build`, so the type check and the bundle are one step, and `touch dist/.gitkeep` keeps the directory after `emptyOutDir`. The `npm audit --audit-level=high` gate fails the build on a high or critical advisory. The Go side's lint, vet and vulncheck are the three targets above, and `check` composes them with `check-frontend`. The fleet's fuller `check` — adding `osv-scanner` and `trivy` plus the shared ignore lists — is in `templates/Makefile.service` in this repository; copy those targets from there rather than retyping them, because `trivy` needs the ignore-file plumbing that is easy to get wrong by hand.
 
 ## Migration ownership
 

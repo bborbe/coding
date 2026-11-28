@@ -8,7 +8,7 @@ The shape is deliberately narrow, and every part earns its place:
 
 - **One binary.** The frontend is built and embedded, so the binary and the assets always ship together — no runtime path, mount or flag.
 - **One contract.** Every UI action goes through the JSON API, so an agent, a CLI or an MCP tool can use the same API the page uses.
-- **One type source.** TypeScript types are generated from the Go structs, so the two cannot drift.
+- **One type source.** TypeScript types are generated from the Go structs, so the two have nothing to drift *apart* — provided the generator runs and nobody hand-edits its output.
 - **One transport seam.** A single module talks to the backend; everything else reads the model it returns.
 
 The examples below use a generic `Order` resource. The same shapes apply to any resource — swap the name and the fields.
@@ -166,7 +166,9 @@ import (
 )
 
 func main() {
-	listen := flag.String("listen", ":9090", "HTTP listen address")
+	// loopback by default: a bare ":9090" binds every interface, which
+	// contradicts the unauthenticated-JSON warning further down.
+	listen := flag.String("listen", "127.0.0.1:9090", "HTTP listen address")
 	flag.Parse()
 
 	source := handler.NewMockOrderSource() // swap for the live source; the page never changes
@@ -245,11 +247,13 @@ Run the whole package, not `main.go`: `frontendDist` lives in `assets.go`, so `g
     "noFallthroughCasesInSwitch": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src"]
+  "include": ["src", "vite.config.ts", "playwright.config.ts"]
 }
 ```
 
-`noUnusedLocals` and `noUnusedParameters` catch the dead prop or unused import a review would otherwise flag. `types` pulls in the Vitest globals so tests type-check. The jest-dom matchers are **not** listed in `types` — the wrong augmentation (`@testing-library/jest-dom` augments a global jest namespace, and with Vitest 5 it clashes on the `Assertion` type). Instead `src/setupTests.ts` imports `@testing-library/jest-dom/vitest`, which augments Vitest's own `Assertion` once, and that file is inside `include: ["src"]`:
+`include` names the two config files as well as `src`: `tsc --noEmit` type-checks only what it includes, so a bare `"include": ["src"]` leaves `vite.config.ts` and `playwright.config.ts` unchecked — exactly the files where a wrong option type is silent until runtime.
+
+`noUnusedLocals` and `noUnusedParameters` catch the dead prop or unused import a review would otherwise flag. `types` pulls in the Vitest globals so tests type-check. The jest-dom matchers are **not** listed in `types` — the wrong augmentation (`@testing-library/jest-dom` augments a global jest namespace, and with Vitest 5 it clashes on the `Assertion` type). Instead `src/setupTests.ts` imports `@testing-library/jest-dom/vitest`, which augments Vitest's own `Assertion` once, and that file is inside `include`:
 
 ```ts
 // src/setupTests.ts
@@ -284,7 +288,7 @@ The `exclude` line is load-bearing: Playwright and Vitest both export `test`, an
 
 ## Generating TypeScript types from Go
 
-`tygo` generates `frontend/src/types.ts` from the Go structs in `pkg/handler`, so the TypeScript and the JSON cannot drift. Edit the Go structs, run `make types`, never hand-edit `types.ts`.
+`tygo` generates `frontend/src/types.ts` from the Go structs in `pkg/handler`, so there is one declaration of the shape rather than two. That holds only while the generator runs: edit the Go structs, run `make types`, and never hand-edit `types.ts` — a hand edit is the one way the generated file can disagree with the struct, and the next `make types` silently erases it.
 
 ```yaml
 # tygo.yaml
@@ -366,7 +370,9 @@ func NewOrderEventsHandler(source OrderSource, interval time.Duration) http.Hand
 		}
 		resp.Header().Set("Content-Type", "text/event-stream")
 		resp.Header().Set("Cache-Control", "no-cache")
-		resp.WriteHeader(http.StatusOK)
+		// Deliberately no WriteHeader here: the status must stay unwritten until
+		// the first successful emit, so a source error can still become a 500
+		// instead of an empty 200 the client cannot tell from "no data".
 
 		var last string
 		emit := func() bool { // returns false when the stream must stop
@@ -389,7 +395,8 @@ func NewOrderEventsHandler(source OrderSource, interval time.Duration) http.Hand
 			return true
 		}
 
-		if !emit() {
+		if !emit() { // nothing written yet, so this can still be an error status
+			http.Error(resp, "order source unavailable", http.StatusInternalServerError)
 			return
 		}
 		ticker := time.NewTicker(interval)
@@ -407,6 +414,8 @@ func NewOrderEventsHandler(source OrderSource, interval time.Duration) http.Hand
 	})
 }
 ```
+
+One cost is worth stating rather than hiding: each connected client runs its own ticker and calls `source.Orders`, so N viewers mean N polls per interval. For a handful of dashboards that is nothing. Past that — or when `Orders` is an expensive query — share one ticker and fan the payload out to the connected clients, so the source is polled once per interval however many viewers are attached.
 
 The client subscribes with `EventSource` and re-reads the JSON endpoint on each event, so one code path builds the model:
 
@@ -632,10 +641,11 @@ types:
 # types first: tsc imports ./types, which tygo generates.
 .PHONY: build
 build: types frontend
+	mkdir -p bin   # -o bin/service fails on a fresh clone without this
 	go build -o bin/service .
 
 .PHONY: test-frontend
-test-frontend:
+test-frontend: types   # tsc imports ./types, which tygo generates
 	cd $(FRONTEND_DIR) && npm ci && npm test
 
 .PHONY: check-frontend
@@ -667,4 +677,4 @@ e2e: frontend
 
 ## Migration ownership
 
-This guide records the stack. It does not decide which existing service adopts it. The per-app decisions — which service migrates now, which is rewritten next, which stays on its current stack — are owned by the task **Decide Which Go Service UIs Migrate to the React Stack**. Read that page for the per-service calls; keep this one stack-only, so the two cannot contradict.
+This guide records the stack. It does not decide which existing service adopts it. The per-app decisions — which service migrates now, which is rewritten next, which stays on its current stack — belong to the migration-ownership decision recorded in the adopting project's own planning as **Decide Which Go Service UIs Migrate to the React Stack**. That record is not part of this repository and nothing here depends on it: this guide stays stack-only, so the two cannot contradict each other.

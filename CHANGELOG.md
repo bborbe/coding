@@ -8,6 +8,10 @@ Please choose versions by [Semantic Versioning](http://semver.org/).
 * MINOR version when you add functionality in a backwards-compatible manner, and
 * PATCH version when you make backwards-compatible bug fixes.
 
+## Unreleased
+
+- docs: `go-react-web-ui-guide.md` gains a `## Changelog` section with the lessons from moving the attention-controller board onto this stack (bborbe/attention-controller#356): mount `/assets/` beside an exact `/` route, serve derived per-row view data from the server's row builder, inject the deploy-gate build footer via a marker element, treat the old e2e suite as the DOM contract, wait out client-render load races, seed after `/readiness`, compare e2e against a recorded master baseline, and shrink SSE frames to `{type, id}`.
+
 ## v0.66.2
 
 - docs: add a Go Web UI guide — the one stack for a Go service with a web UI (React + TypeScript + Vite built into `frontend/dist` and embedded with `go:embed`, tygo-generated types, SSE for live updates, the house palette as plain CSS variables, Vitest + Playwright, and `npm audit` in `make check`). Registered in the README Frontend table and `llms.txt`.

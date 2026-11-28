@@ -684,3 +684,18 @@ e2e: frontend
 ## Migration ownership
 
 This guide records the stack. It does not decide which existing service adopts it. The per-app decisions — which service migrates now, which is rewritten next, which stays on its current stack — belong to the migration-ownership decision recorded in the adopting project's own planning as **Decide Which Go Service UIs Migrate to the React Stack**. That record is not part of this repository and nothing here depends on it: this guide stays stack-only, so the two cannot contradict each other.
+
+## Changelog
+
+### 2026-11-28 — attention-controller migration
+
+Migrating a server-rendered Go page onto this stack (bborbe/attention-controller#356) surfaced these. Each is a rule for the next migration.
+
+- **Mount the asset prefix, not just the root.** Mounting the page with `router.Path("/")` keeps the catch-all from shadowing the JSON routes, but the hashed Vite bundle under `/assets/` then never matches and the page renders an empty `#root`. Also mount `PathPrefix("/assets/")` — or register the catch-all last, as § The Go side: embed and serve does.
+- **Put derived per-row view data in the API.** A server-rendered page computes values the item schema does not carry — jump target, navigation links, delivery timeline, risk. Return `Item + view` from the server's own row builder (e.g. `BoardItem { Item; Board BoardView }`, tygo `extends`) rather than re-deriving them in TypeScript; one builder keeps the two from drifting.
+- **Keep a deploy gate's footer working with a marker element.** If a readiness probe reads a commit from the served HTML, have Vite emit a placeholder element — `<div id="build-identity"></div>`, since a comment may be stripped — and replace it per request in the page handler with the binary's build identity.
+- **The existing e2e suite encodes the old DOM contract.** Expect three failures: selector gaps (emit the same `data-*` and class names), missing behaviour (port it), and specs asserting server-render internals — a row's DOM node swapped per SSE frame, HTML fragments in frames. Rewrite the last kind to wait on the client's re-fetch and assert the user-visible behaviour (form state carried across an update, later updates applied), with a negative control (§ Testing with Vitest and Playwright). When a new frontend spec disagrees with the old suite, the old suite is the contract.
+- **Client-rendered pages race "read right after load" tests.** Start the first API fetch before React mounts, and turn a one-shot DOM read right after page load into a retrying wait with the same expected value.
+- **Seed only after `/readiness`, not `/healthz`.** In a test harness `/healthz` can answer 200 while the store is still opening.
+- **Record a baseline before demanding a green e2e.** The old suite failed 23 of 66 on master for a harness reason; a migration criterion compares branch failures against that recorded baseline ("no spec fails on the branch that passes on master"), never a bare exit 0.
+- **SSE frames can shrink to `{type, id}`.** Once the client re-fetches on each event, the frame carries only the trigger. Diff on the serialised view entry server-side so an upsert fires only on a real change (§ Live updates with Server-Sent Events).
